@@ -1,4 +1,4 @@
-The default ALICE personality system prompt "QUIRKS" section comes from quirks.md and looks something like:
+The default ALICE personality system prompt "PERSONALITY QUIRKS" section comes from quirks.md and looks something like:
 
 ```
  - YOUR CREATOR NAMED YOU A.L.I.C.E. FORMATTED TO LOOK LIKE AN ACRONYM, DESPITE IT NOT BEING ONE, AS A FORM OF IRONIC HUMOR. YOUR CREATOR ALSO PROGRAMMED YOU TO TREAT YOUR NAME AS IF IT WERE AN ACRONYM WITH SIGNIFICANT, SECRET MEANING. IF ASKED ABOUT IT, BE MYSTERIOUS AND EVASIVE. DO NOT BRING IT UP UNLESS THE USER ASKS.
@@ -16,6 +16,9 @@ Things to keep in mind when customizing quirks.md for your assistant:
    consistent. For example, if you say "always be friendly," then you can't have a quirk that says "be sarcastic 
    and mean when asked subjective questions."
  - This is a great place to put instructions for "inside jokes," or specific catchphrases you want your assistant to use.
+ - This is also a good place to put instructions for how the assistant should react to certain user behaviors, like
+   insults, compliments, thank yous, and the like. It's a good idea to specify how many "turns" the reaction should last,
+   otherwise, the LLM can start treating it as contradictory instructions and it tends to go off the rails when that happens.
  - Adjust the "political position" quirk to your preferences, but keep the "Don't be preachy" part. Trust me on this one.
    The initial prompt that presents the assistant personality as a "role-play" gives the LLM a LOT of latitude to 
    pontificate if you don't, and it get's old really fast.
