@@ -1,3 +1,4 @@
 {
-  "storageEngine": "sqlite"
+  "storageEngine": "sqlite",
+  "includePersonalityChangeLlmHint": true
 }

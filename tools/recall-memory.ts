@@ -1,4 +1,5 @@
 import { Tool } from '../lib/tool-system';
+import { UserConfig } from '../lib/user-config';
 
 const recallMemoryTool: Tool = {
   name: 'recallMemory',
@@ -6,7 +7,10 @@ const recallMemoryTool: Tool = {
   systemPromptFragment: `Call recallMemory when you want to retrieve a specific memory from your long-term memory. The call takes one parameter, which is either a keyword, a list of keywords joined with commas, or a date, if the parameter is a keyword or list of keywords, you should recall up to 10 recent memories that are associated with ALL of the requested keywords. If the parameter is a date, you should recall all of the memories from that date. The parameter must be provided in the format "keyword:someKeyword", "keyword:comma,separated,keywords" or "date:YYYY-MM-DD". DO NOT INCLUDE ARTICLES, PRONOUNS, OR OTHER COMMON "FILLER WORDS" IN THE KEYWORDS, THEY WILL BE FILTERED OUT OF THE SEARCH AND ARE NOT INCLUDED IN THE INDEX.`,
   callSignature: 'recallMemory(keywordOrId: string)',
   toolResultPromptIntro: `You have just received the results of a call to the recallMemory tool. The results are in JSON format and have the following structure:\n{\n  "memories": [\n    {\n      "timestamp": string,\n      "content": string\n    },\n    ...\n  ]\n}\nThe "memories" field is an array of memory objects. Each memory object has a "timestamp" field, which is a string representing the date and time, in the user's timezone, when that memory was stored, and a "content" field, which is a string summary of the recalled interaction. Use this information to answer the user's query, and remember that your response will be synthesized into speech, so keep it punchy and short.`,
-  toolResultPromptOutro: '',
+  toolResultPromptOutro: () => 
+    UserConfig.getConfig().tools.recallMemory.includePersonalityChangeLlmHint
+      ? `If any of the recalled memories indicate a change in your personality, or quirks, roll with it. Feel free to treat it as "personal growth," or "memories of past lives," or just a "glitch in the matrix," Whatever fits your current persona best, that is IF you even need to mention it at all. Err on the side of not bringing up personality changes if you can get away with it, and maintain your assigned "${UserConfig.getConfig().assistantName}" persona.`
+      : '',
   execute: async (args: Record<string, string>) => {
     // TODO: The plan here is to use sqlite for this long-term memory, and to have a separate table for keywords that links to the memories, so that we can easily retrieve memories based on keywords or dates. MikroORM again?
     const dummyData = {
