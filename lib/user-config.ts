@@ -56,7 +56,7 @@ export const UserConfig = (() => {
       for (const file of personalityFiles) {
         const filePath = path.join(personalityDir, file);
         const fileData = fs.readFileSync(filePath, 'utf-8');
-        const key = path.parse(file).name.replace(/[_-]/g, ' '); // TODO: Is there a library that will title case these for me? I bet there is.
+        const key = path.parse(file).name.replace(/[_-]/g, ' ').toLocaleUpperCase();
         config.personality[key] = fileData;
       }
 
