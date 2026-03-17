@@ -1,5 +1,16 @@
 {
   "wakeWord": "Hey ALICE",
   "assistantName": "ALICE",
-  "model": "mistral-small"
+  "ollama": {
+    "host": "http://127.0.0.1:11434",
+    "model": "mistral-small3.2"
+  },
+  "piperTts": {
+    "host": "http://127.0.0.1:5000",
+    "model": "/usr/share/piper-voices/en/en_US/libritts_r/medium/en_US-libritts_r-medium.onnx",
+    "speaker": 37
+  },
+  "openWakeWord": {
+    "model": ""
+  }
 }

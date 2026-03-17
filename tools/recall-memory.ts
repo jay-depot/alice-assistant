@@ -16,7 +16,7 @@ const recallMemoryTool: Tool = {
         {
           memoryId: 1,
           timestamp: '2024-01-01T12:00:00Z',
-          content: 'Remembered that the user likes pizza.'
+          content: ' - User initiatid an assistant session using the wake word and a query about good pizza options nearby'
         },
         {
           memoryId: 2,
@@ -30,4 +30,3 @@ const recallMemoryTool: Tool = {
 };
 
 export default recallMemoryTool;
-  
