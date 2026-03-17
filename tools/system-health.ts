@@ -13,7 +13,7 @@ const systemHealthCheckTool: Tool = {
     }
     return '';
   },
-  execute: async (args: Record<string, string>) => {
+  execute: async (_args: Record<string, string>) => { // systemHealthCheck takes no parameters, so we can ignore the args.
     // Here you would add the code to perform the actual system health check and retrieve the relevant information.
     // For the sake of this example, let's just return some dummy data.
     const dummyData = {

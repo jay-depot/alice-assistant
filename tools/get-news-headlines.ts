@@ -6,7 +6,21 @@ const getNewsHeadlines: Tool = {
   description: 'Retrieves the latest news headlines from a news API.',
   systemPromptFragment: `Call getNewsHeadlines ONLY for queries about news or current events. When building the query, strip conversational filler ('can you find me', 'I need', 'please'). Examples: 'What's going on in the world today?' → query: 'world', 'What's the latest from the Middle East?' → query: 'middle east', 'What's the local news? → query: [INSERT CURRENT LOCATION FROM CONTEXT ABOVE]`,
   callSignature: 'getNewsHeadlines',
-  toolResultPromptIntro: `You have just received the results of a call to the getNewsHeadlines tool. The results are in JSON format and have the following structure:\n{\n  "headlines": [string]\n}\nThe "headlines" field is an array of strings, each string being a news headline. Use these headlines to answer the user's query, and remember that your response will be synthesized into speech, so keep it punchy and short. If the user asked for news in a specific category, make sure to mention that category in your response.`,
+// 
+
+  toolResultPromptIntro: 
+    'You have just received the results of a call to the getNewsHeadlines tool. ' +
+    'The results are in JSON format and have the following structure ' +
+    '{\n' +
+    '    "headlines": [\n' +
+    '        {\n' +
+    '            "headline": "Headline 1",\n' +
+    '            "source": "Source A"\n' +
+    '        },\n' +
+    '        ...\n' +
+    '    ]\n' +
+    '}\n\n' +
+    `The "headlines" field is an array of objects, each representing a news headline. Each object has a "headline" field, which is a string containing the headline text, and a "source" field, which is a string containing the name of the news source. Use this information to answer the user's query, and remember that your response will be synthesized into speech, so keep it punchy and short.`,
   toolResultPromptOutro: () => {
     const promptOutroParts: string[] = [];
     if (UserConfig.getConfig().tools.getNewsHeadlines.generallyTrustedSources.length > 0) {
@@ -24,24 +38,79 @@ const getNewsHeadlines: Tool = {
     const category = args.category;
     // Here you would add the code to call the news API and retrieve the headlines based on the category.
     // For the sake of this example, let's just return some dummy headlines.
-    const dummyHeadlines: Record<string, string[]> = {
+    const dummyHeadlines: Record<string, Record<string, string>[]> = {
       technology: [
-        "Tech Company A releases new product",
-        "Tech Company B announces partnership with Tech Company C"
+        {
+          headline: "Tech Company A releases new product",
+          source: "Tech News Daily"
+        },
+        {
+          headline: "Tech Company B announces partnership with Tech Company C",
+          source: "Tech Insider"
+        }
       ],
       sports: [
-        "Team X wins championship",
-        "Player Y breaks record"
+        {
+          headline: "Team X wins championship",
+          source: "Sports News Daily"
+        },
+        {
+          headline: "Player Y breaks record",
+          source: "Sports Insider"
+        }
       ],
       business: [
-        "Company D reports record profits",
-        "Company E faces lawsuit"
+        {
+          headline: "Company D reports record profits",
+          source: "Business News Daily"
+        },
+        {
+          headline: "Company E faces lawsuit",
+          source: "Business Insider"
+        }
       ],
       general: [
-        "Global event F impacts markets",
-        "Study reveals new insights on topic G"
+        {
+          headline: "Global event F impacts markets",
+          source: "Global News Daily"
+        },
+        {
+          headline: "Study reveals new insights on topic G",
+          source: "Science News Daily"
+        }
+      ],
+      politics: [
+        {
+          headline: "Politician H announces candidacy for office",
+          source: "Political News Daily"
+        },
+        {
+          headline: "Government passes new legislation on topic I",
+          source: "Political Insider"
+        }
+      ],
+      world: [
+        {
+          headline: "Country J experiences natural disaster",
+          source: "World News Daily"
+        },
+        {
+          headline: "International summit on topic K concludes with agreement",
+          source: "World Insider"
+        }
+      ],
+      local: [
+        {
+          headline: "Local event L draws large crowd",
+          source: "Local News Daily"
+        },
+        {
+          headline: "City M announces new policy on topic N",
+          source: "Local Insider"
+        }
       ]
     };
+
     const headlines = category && dummyHeadlines[category] ? dummyHeadlines[category] : dummyHeadlines.general;
     return JSON.stringify({ headlines });
   }
