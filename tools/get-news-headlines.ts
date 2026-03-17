@@ -18,7 +18,7 @@ const getNewsHeadlines: Tool = {
     if (UserConfig.getConfig().tools.getNewsHeadlines.untrustedSources.length > 0) {
       promptOutroParts.push(`The user does not trust the following, or similar, news sources: ${UserConfig.getConfig().tools.getNewsHeadlines.untrustedSources.join(', ')}.`);
     }
-    return promptOutroParts.join(' ') + ` If you would need to make another tool call, output ONLY the call signature. Otherwise, answer the user's query in character`;
+    return promptOutroParts.join(' ');
   },
   execute: async (args: Record<string, string>) => {
     const category = args.category;

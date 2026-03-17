@@ -31,10 +31,18 @@ export class LlmTransaction {
       throw new Error('Maximum tool call depth exceeded. Possible infinite loop detected.');
     }
 
+    const continuationPrompt = depth > 0 ? 
+      `If you would need to make another tool call, output ONLY the call signature. Otherwise, answer the user's query in character. You have ${MAX_TOOL_CALL_DEPTH - depth} remaining recursive tool calls you may make regarding this user query.` :
+      `You may make no more recursive tool calls for this user query, so you must answer the user's query in character. If you still do not have sufficient information to form a complete answer then say so in character and include a summary of whatever information you were able to find to the best of your ability.`
+
     return '';
   }
 
-  async concludeTransaction(): Promise<string> {
+  async cleanup(): Promise<void> {
+    // This is where we would do any necessary cleanup after the transaction is complete, such as clearing the context in ollama, and any other housekeeping tasks that need to be done after each transaction.
+  }
+
+  async concludeTransactionWithSummary(): Promise<string> {
     const terminationPrompt = `The user has terminated the assistant session. The assistant software now needs you to abandon your persona and summarize the conversation to provide context in future requests.
 
  - Include no headers
@@ -48,8 +56,7 @@ export class LlmTransaction {
     // Send the termination prompt, and wait for the response, which will be the conversation summary.
     // Stash that away to return when we're done cleaning up.
 
-
-    // Tell ollama to clear out the context window, so we're good for the next user query.
+    await this.cleanup();
 
     // Return the conversation summary to the caller, so it can be stored and used for future context.
     return '';
