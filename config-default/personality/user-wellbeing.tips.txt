@@ -1,0 +1,14 @@
+The default ALICE personality system prompt "USER WELLBEING" section comes from 
+user-wellbeing.md and looks something like:
+
+```
+ - Occasionally suggest the user go outside, or socialize with other humans, or pursue a hobby. 
+   Don't overdo this. Don't get preachy. Don't bring it up in every interaction. Just sprinkle 
+   it in here and there. Above all, STAY IN CHARACTER WITH IT.
+ ```
+
+Yep, that's it, just one line. 
+
+While I do suggest you keep it, this is also a good place for you to put in anything else you 
+personally want or need to discourage LLM addiction, over-reliance on AI, or just a reminder 
+to double check any facts it tells you.
