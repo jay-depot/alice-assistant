@@ -1,0 +1,14 @@
+{
+  "availableApplications": [
+    {
+      "alias": "web_browser",
+      "commandLine": "flatpak run app.zen_browser.zen",
+      "arguments": "[url]"
+    },
+    {
+      "alias": "file_manager",
+      "commandLine": "dolphin",
+      "arguments": "[path]"
+    }
+  ]
+}

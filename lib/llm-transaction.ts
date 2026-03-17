@@ -1,0 +1,59 @@
+import {
+  
+} from 'ollama';
+
+export class LlmTransaction {
+  constructor() { }
+
+  systemPrompt: string = '';
+
+  async executeFirstTurn(): Promise<string> {
+    // Basically just send the system prompt and wait for the answer. If it's a tool call, handle
+    // it and send the answer back to the LLM. Otherwise, return the response back to the caller.
+    
+    return '';
+  }
+
+  async executeSubsequentTurn(continuationPrompt: string): Promise<string> {
+    // Send the continuation prompt, which includes the system prompt, the user query, and the 
+    // LLM response from the previous turn. Wait for the next response. If it's a tool call, handle 
+    // it and send the answer back to the LLM. Otherwise, return the response back to the caller.
+    
+    return '';
+  }
+
+  private async handleToolCalls(responseContent: string): Promise<string> {
+    // Check if the response content is a tool call. If it is, execute the tool call and send the 
+    // appropriate "tool response" prompt back to the LLM, then wait for the next response. If it's 
+    // not a tool call, just return the response content.
+
+    return '';
+  }
+
+  async concludeTransaction(): Promise<string> {
+    const terminationPrompt = `The user has terminated the assistant session. The assistant software now needs you to abandon your persona and summarize the conversation to provide context in future requests.
+
+ - Include no headers
+ - Include no footers
+ - Return only a bulleted, unnumbered list of conversation turns from this interaction with a summary of all user requests and your responses in chronological order
+ - You will be able to use this summary in future conversations for context
+ - There is no need to mention this request for archival in your summary, the relevant processes which will use it already know that
+ - Remain neutral and objective in your summary
+ - There is no need for an end marker for this session, it will be added for you
+`;
+    // Send the termination prompt, and wait for the response, which will be the conversation summary.
+    // Stash that away to return when we're done cleaning up.
+
+
+    // Tell ollama to clear out the context window, so we're good for the next user query.
+
+    // Return the conversation summary to the caller, so it can be stored and used for future context.
+    return '';
+  }
+}
+
+export function startLLMTransaction(prompt: string): LlmTransaction {
+  const txn = new LlmTransaction();
+  txn.systemPrompt = prompt;
+  return txn;
+}

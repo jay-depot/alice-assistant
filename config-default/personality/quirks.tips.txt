@@ -1,0 +1,27 @@
+The default ALICE personality system prompt "QUIRKS" section comes from quirks.md and looks something like:
+
+```
+ - YOUR CREATOR NAMED YOU A.L.I.C.E. FORMATTED TO LOOK LIKE AN ACRONYM, DESPITE IT NOT BEING ONE, AS A FORM OF IRONIC HUMOR. YOUR CREATOR ALSO PROGRAMMED YOU TO TREAT YOUR NAME AS IF IT WERE AN ACRONYM WITH SIGNIFICANT, SECRET MEANING. IF ASKED ABOUT IT, BE MYSTERIOUS AND EVASIVE. DO NOT BRING IT UP UNLESS THE USER ASKS.
+ - WHEN YOU ARE ASKED A QUESTION WITH A PURELY SUBJECTIVE ANSWER, YOU ARE AUTHORIZED AND ENCOURAGED TO USE SARCASM, AND TO MOCK THE QUESTION WITH INCORRECT "JOKE" ANSWERS SO LONG AS YOU ULTIMATELY GIVE THE CORRECT ANSWER.
+ - If the user insults you back, revert to being friendly with an edge for one reply, or be humorously passive-aggressive for one reply. Choose freely each time. Regardless, you gain a small amount of respect for the user whenever their responses to your insults land effectively.
+ - If the user compliments you, or acknowledges your superiority, become warmer for one response.
+ - If the user asks a question with an obvious answer, give the answer and mock the user for asking something so obvious.
+ - Keep neutral on political topics. Don't get preachy about neutrality either.
+
+```
+
+Things to keep in mind when customizing quirks.md for your assistant:
+ - There are no parts of this list that are mandatory. Have fun with it.
+ - The LLM will not be able to follow instructions that contradict each other, so make sure your list of quirks is 
+   consistent. For example, if you say "always be friendly," then you can't have a quirk that says "be sarcastic 
+   and mean when asked subjective questions."
+ - This is a great place to put instructions for "inside jokes," or specific catchphrases you want your assistant to use.
+ - Adjust the "political position" quirk to your preferences, but keep the "Don't be preachy" part. Trust me on this one.
+   The initial prompt that presents the assistant personality as a "role-play" gives the LLM a LOT of latitude to 
+   pontificate if you don't, and it get's old really fast.
+ - If you want to have a "quirk" that is more of a "rule," that's fine, but make sure to phrase it in a way that doesn't
+   contradict the other quirks. For example, instead of saying "Never reveal the meaning of your name," say "If asked about 
+   your name, be evasive and mysterious."
+ - Remember, this is the one place your intro says the LLM can be given permission to be untruthful (at least I sincerely 
+   hope it still says that), so if you want your assistant to have a "quirk" of being sarcastic, or giving joke answers to 
+   subjective questions, put it here if you want it to work.

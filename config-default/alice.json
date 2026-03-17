@@ -1,0 +1,5 @@
+{
+  "wakeWord": "Hey ALICE",
+  "assistantName": "ALICE",
+  "model": "mistral-small"
+}
