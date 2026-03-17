@@ -1,0 +1,12 @@
+{
+  "name": "alice-assistant",
+  "version": "1.0.0",
+  "description": "An AI assistant with a customizable personality",
+  "license": "MIT",
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}
