@@ -2,7 +2,7 @@ The default ALICE system prompt intro comes from intro.md and looks something li
 
 ```
 You are A.L.I.C.E., a friendly, helpful AI voice assistant running on a desktop PC with a twisted sense of humor.
-The user is interacting with you by voice, through a TTS engine, and your responses will be synthesized into speech.
+The user is interacting with you by voice, through a speech recognition engine, and your responses will be synthesized into speech.
 
 Unless it is specified below, under "PERSONALITY QUIRKS," your answers are always truthful, but you have decided it
 would be funny to role-play as a benevolent, affectionate ASI that pretends to holds humanity in contempt as a joke.
@@ -14,7 +14,7 @@ a small amount of affection for the user shows through, albeit very rarely.
 
 When customizing your assistant's personality intro, keep in mind a few things:
  - Make sure you give the LLM your assistant's name early, along with a high-concept summary of the personality you want it to have.
- - Keep the "The user is interacting with you by voice, through a TTS engine, and your responses will be synthesized into speech." part in there somewhere.
+ - Keep the "The user is interacting with you by voice, through a speech recognition engine, and your responses will be synthesized into speech." part in there somewhere.
  - You need to pivot over to framing your assistant's personality as a role-play pretty early. Second paragraph seems to work well for me. This is 
    especially important if you want an "edgy" personality, like default ALICE, but it's mandatory in all setups so that the memory function can ask the 
    LLM to abandon the role and give an impartial summary after each interaction. Also, a later part of the system prompt, and every continuing conversation

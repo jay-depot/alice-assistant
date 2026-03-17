@@ -1,5 +1,0 @@
-{
-  "allowedPaths": ["~"],
-  "allowOverwrite": false,
-  "allowLlmToNameFile": true
-}

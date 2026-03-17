@@ -6,6 +6,7 @@ export async function buildSystemPrompt(userQuery?: string) {
   // First the intro
   systemPromptChunks.push(UserConfig.getConfig().personality.intro);
   // Then the quirks
+  systemPromptChunks.push(`\n## PERSONALITY QUIRKS\n`);
   systemPromptChunks.push(UserConfig.getConfig().personality.quirks);
   // Then any "other" personality files the user has added, each under its own heading.
   UserConfig.getConfig().personality.filter((value: string, key: string) => {
@@ -14,6 +15,7 @@ export async function buildSystemPrompt(userQuery?: string) {
     systemPromptChunks.push(`## ${key}\n\n${value}\n`);
   });
   // Then the additional context (Current date and time, day of the week, location)
+  systemPromptChunks.push(`## ADDITIONAL CONTEXT\n`);
   systemPromptChunks.push(`The current date and time are: ${new Date().toLocaleString()}`);
   systemPromptChunks.push(`The current day of the week is: ${new Date().toLocaleString('en-US', { weekday: 'long' })}`);
   systemPromptChunks.push(`The current location is: ${UserConfig.getConfig().location}`);
@@ -23,12 +25,13 @@ export async function buildSystemPrompt(userQuery?: string) {
     systemPromptChunks.push(`## TOOLS\n\nYou have access to tools that can retrieve local data. RULES — follow these EXACTLY:\n`);
     for (let i = 0; i < tools.length; i++) {
       const tool = tools[i];
-      systemPromptChunks.push(` ${i +1} ${tool.systemPromptFragment}`);
+      const fragment = typeof tool.systemPromptFragment === 'function' ? tool.systemPromptFragment() : tool.systemPromptFragment;
+      systemPromptChunks.push(` ${i +1} ${fragment}`);
     }
   }
   // Finally the SCENARIO section, which is where we tell the LLM that the assistant has just been activated by wake word, 
   // what the wake word is, the query if there is one, and a few last minute instructions to keep it on track.
-  systemPromptChunks.push(`## SCENARIO\n\n`);
+  systemPromptChunks.push(`\n## SCENARIO\n`);
   // TODO: Actually remembering users might be cool, instead of assuming like we do here.
   systemPromptChunks.push(` - You have just been activated again by a known user with your wake word "${UserConfig.getConfig().wakeWord}".`);
   if (userQuery) {

@@ -16,6 +16,9 @@ export const UserConfig = (() => {
       const configDir = path.join(homeDir, '.alice-assistant');
       if (!fs.existsSync(configDir)) {
         fs.mkdirSync(configDir);
+        // Copy the contents of the config-default folder into the new config directory. This will give the user a starting point for configuring their assistant, and also ensure that all necessary files are in place.
+        const defaultConfigDir = path.join(__dirname, '..', 'config-default');
+        fs.cpSync(defaultConfigDir, configDir, { recursive: true });
         // TODO: Add default config file here:
         //    - alice.json
         //    - personality/intro.md
@@ -53,8 +56,29 @@ export const UserConfig = (() => {
       for (const file of personalityFiles) {
         const filePath = path.join(personalityDir, file);
         const fileData = fs.readFileSync(filePath, 'utf-8');
-        const key = path.parse(file).name; // Get the filename without extension to use as the key
+        const key = path.parse(file).name.replace(/[_-]/g, ' '); // TODO: Is there a library that will title case these for me? I bet there is.
         config.personality[key] = fileData;
+      }
+
+      // Load the tool configs.
+      const toolSettingsDir = path.join(UserConfig.getConfigPath(), 'tool-settings');
+      if (!fs.existsSync(toolSettingsDir)) {
+        // We should crash here. An empty config was *just* created if we got to this point, so something very bad happened.
+        throw new Error(`Tool settings directory not found at ${toolSettingsDir}. This should never happen, \
+          as the config directory and default config file should have been created if they \
+          didn't exist. Please check the permissions of the config directory and try again.`);
+      }
+      const toolConfigFiles = fs
+        .readdirSync(toolSettingsDir, { withFileTypes: true })
+        .filter((entry) => entry.isFile() && path.extname(entry.name).toLowerCase() === '.json')
+        .map((entry) => entry.name);
+
+      config.tools = {};
+      for (const file of toolConfigFiles) {
+        const filePath = path.join(toolSettingsDir, file);
+        const fileData = fs.readFileSync(filePath, 'utf-8');
+        const key = path.parse(file).name; // tool config files should be named exactly the same as the tool's call signature, so we can easily match them up.
+        config.tools[key] = JSON.parse(fileData);
       }
 
       // We don't want to return the config here, since we want its consumers to use the cached copy.

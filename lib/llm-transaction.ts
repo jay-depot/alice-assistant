@@ -1,6 +1,6 @@
-import {
-  
-} from 'ollama';
+import OllamaClient from 'ollama';
+
+const MAX_TOOL_CALL_DEPTH = 5;
 
 export class LlmTransaction {
   constructor() { }
@@ -22,10 +22,14 @@ export class LlmTransaction {
     return '';
   }
 
-  private async handleToolCalls(responseContent: string): Promise<string> {
+  private async handleToolCalls(responseContent: string, depth = 0): Promise<string> {
     // Check if the response content is a tool call. If it is, execute the tool call and send the 
     // appropriate "tool response" prompt back to the LLM, then wait for the next response. If it's 
     // not a tool call, just return the response content.
+
+    if (depth > MAX_TOOL_CALL_DEPTH) {
+      throw new Error('Maximum tool call depth exceeded. Possible infinite loop detected.');
+    }
 
     return '';
   }

@@ -1,0 +1,6 @@
+{
+  "allowedPaths": ["~"],
+  "allowOverwriteAny": false,
+  "allowOverwriteGlobs": [],
+  "allowLlmToNameFile": true
+}
