@@ -3,25 +3,43 @@ import { Tool } from '../lib/tool-system';
 const recallMemoryTool: Tool = {
   name: 'recallMemory',
   description: 'Recalls a specific memory from the assistant\'s long-term memory. Use this tool when you want to retrieve information that the assistant has previously stored in its long-term memory.',
-  systemPromptFragment: `Call recallMemory when you want to retrieve a specific memory from your long-term memory. The call takes one parameter, which is either a keyword, or a date, if the parameter is a keyword, you should recall up to 10 recent memories that are associated with that keyword. If the parameter is a date, you should recall all of the memories from that date. The parameter will be provided in the format "keyword:someKeyword" or "date:YYYY-MM-DD".`,
+  systemPromptFragment: `Call recallMemory when you want to retrieve a specific memory from your long-term memory. The call takes one parameter, which is either a keyword, a list of keywords joined with commas, or a date, if the parameter is a keyword or list of keywords, you should recall up to 10 recent memories that are associated with ALL of the requested keywords. If the parameter is a date, you should recall all of the memories from that date. The parameter will be provided in the format "keyword:someKeyword", "keyword:comma,separated,keywords" or "date:YYYY-MM-DD".`,
   callSignature: 'recallMemory(keywordOrId: string)',
-  toolResultPromptIntro: `You have just received the results of a call to the recallMemory tool. The results are in JSON format and have the following structure:\n{\n  "memories": [\n    {\n      "memoryId": number,\n      "timestamp": string,\n      "content": string\n    },\n    ...\n  ]\n}\nThe "memories" field is an array of memory objects. Each memory object has a "memoryId" field, which is a unique identifier for that memory, a "timestamp" field, which is a string representing the date and time when that memory was stored, and a "content" field, which is a string containing the content of that memory. Use this information to answer the user's query, and remember that your response will be synthesized into speech, so keep it punchy and short.`,
+  toolResultPromptIntro: `You have just received the results of a call to the recallMemory tool. The results are in JSON format and have the following structure:\n{\n  "memories": [\n    {\n      "timestamp": string,\n      "content": string\n    },\n    ...\n  ]\n}\nThe "memories" field is an array of memory objects. Each memory object has a "timestamp" field, which is a string representing the date and time when that memory was stored, and a "content" field, which is a string summary of the recalled interaction. Use this information to answer the user's query, and remember that your response will be synthesized into speech, so keep it punchy and short.`,
   toolResultPromptOutro: `If you would need to make another tool call, output ONLY the call signature. Otherwise, answer the user's query in character.`,
   execute: async (args: Record<string, string>) => {
-    // Here you would add the code to perform the actual memory recall based on the provided keyword or memoryId.
-    // For the sake of this example, let's just return some dummy data.
     // TODO: The plan here is to use sqlite for this long-term memory, and to have a separate table for keywords that links to the memories, so that we can easily retrieve memories based on keywords or dates. MikroORM again?
     const dummyData = {
       memories: [
         {
-          memoryId: 1,
-          timestamp: '2024-01-01T12:00:00Z',
-          content: ' - User initiatid an assistant session using the wake word and a query about good pizza options nearby'
+          timestamp: '2024-01-01T12:00:00 UTC-5',
+          content: 
+            ' - User initiated an assistant session using the wake word and a query about good pizza options nearby\n' +
+            ' - Assistant called webSearch with the query "good pizza options nearby"\n' +
+            ' - Assistant responded to the user in character with a list of good pizza options nearby, including "Pizza Place A", "Pizza Place B", and "Pizza Place C".\n' + 
+            ' - User thanked the assistant and ended the session.\n' + 
+            ' - Assistant signed off, in character, playfully calling the user "meat sack" and mocking their "primitive biological need to eat."'
         },
         {
-          memoryId: 2,
-          timestamp: '2024-01-02T15:30:00Z',
-          content: 'Remembered that the user has a meeting every Monday at 10 AM.'
+          timestamp: '2024-01-02T15:30:00 UTC-5',
+          content:
+            ' - User initiated an assistant session using the wake word and a query about the weather\n' +
+            ' - Assistant called weather with the query "current"\n' +
+            ' - Assistant responded to the user in character with the current weather conditions, including temperature, precipitation, and any relevant weather alerts.\n' +
+            ' - User asked a follow-up question about whether they should bring an umbrella\n' +
+            ' - Assistant responded in character with a recommendation based on the current weather conditions, advising the user to bring an umbrella if there is a high chance of rain. Assistant also made a joke about how the user is always asking about the weather, playfully suggesting a move to a place with better weather.\n' +
+            ' - User complimented the assistant\'s humor, and ended the session.\n' +
+            ' - Assistant signed off, in character, with a sardonic remark about the weather and the user\'s obsession with it.'
+        },
+        {
+          timestamp: '2024-01-03T09:45:00 UTC-5',
+          content: 
+            ' - User initiated an assistant session using the wake word and a a request for a joke\n' +
+            ' - Assistant responded in character with a knock-knock joke, including both the setup and the punchline.\n' +
+            ' - User came back with the reply "not bad, for hot sand."\n' +
+            ' - Assistant responded in character, becoming playfully passive-aggressive and sarcastically complimenting the user\'s comeback, while also making a quip about how the user is "not just a decaying husk, but a slightly amusing decaying husk."\n' +
+            ' - User laughed and ended the session.\n' +
+            ' - Assistant signed off, in character, with a witty remark about the user\'s sense of humor and their status as a "meat sack of some value, sometimes."'
         }
       ]
     };
