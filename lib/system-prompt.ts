@@ -1,4 +1,5 @@
 import { UserConfig } from './user-config';
+import { tools } from '../tools';
 
 export async function buildSystemPrompt(userQuery?: string) {
   const systemPromptChunks: string[] = [];
