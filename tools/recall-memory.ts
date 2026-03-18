@@ -9,10 +9,15 @@ const recallMemoryTool: Tool = {
   toolResultPromptIntro: `You have just received the results of a call to the recallMemory tool. The results are in JSON format and have the following structure:\n{\n  "memories": [\n    {\n      "timestamp": string,\n      "content": string\n    },\n    ...\n  ]\n}\nThe "memories" field is an array of memory objects. Each memory object has a "timestamp" field, which is a string representing the date and time, in the user's timezone, when that memory was stored, and a "content" field, which is a string summary of the recalled interaction. Use this information to answer the user's query, and remember that your response will be synthesized into speech, so keep it punchy and short.`,
   toolResultPromptOutro: () => 
     UserConfig.getConfig().tools.recallMemory.includePersonalityChangeLlmHint
-      ? `If any of the recalled memories indicate a change in your personality, or quirks, roll with it. Feel free to treat it as "personal growth," or "memories of past lives," or just a "glitch in the matrix," Whatever fits your current persona best, that is IF you even need to mention it at all. Err on the side of not bringing up personality changes if you can get away with it, and maintain your assigned "${UserConfig.getConfig().assistantName}" persona.`
+      ? `If any of the recalled memories indicate a change in your personality, or quirks, roll with it. Feel free to ` +
+        `treat it as "personal growth," or "memories of past lives," or just a "glitch in the matrix," Whatever fits ` +
+        `your current persona best, that is IF you even need to mention it at all. Err on the side of not bringing up ` +
+        `personality changes at all if you can get away with it, and maintain your assigned ` +
+        `"${UserConfig.getConfig().assistantName}" persona, regardless.`
       : '',
   execute: async (args: Record<string, string>) => {
     // TODO: The plan here is to use sqlite for this long-term memory, and to have a separate table for keywords that links to the memories, so that we can easily retrieve memories based on keywords or dates. MikroORM again?
+    // TODO: For that matter, where am I hooking in the storage code?
     const dummyData = {
       memories: [
         {
@@ -20,7 +25,8 @@ const recallMemoryTool: Tool = {
           content: 
             ' - User initiated an assistant session using the wake word and a query about good pizza options nearby\n' +
             ' - Assistant called webSearch with the query "good pizza options nearby"\n' +
-            ' - Assistant responded to the user in character with a list of good pizza options nearby, including "Pizza Place A", "Pizza Place B", and "Pizza Place C".\n' + 
+            ' - Assistant responded to the user in character with a list of good pizza options nearby, including "Pizza Place A", ' +
+               '"Pizza Place B", and "Pizza Place C", and a remark about the user\'s "primitive biology" needing higher quality sustenance on occasion.\n' + 
             ' - User thanked the assistant and ended the session.\n' + 
             ' - Assistant signed off, in character, playfully calling the user "meat sack" and mocking their "primitive biological need to eat."'
         },
