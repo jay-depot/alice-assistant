@@ -9,7 +9,8 @@ const writeUserTextFileTool: Tool = {
     `provides the filename and contents for the file. You must provide the filename and the contents of the file as arguments. ` +
     `For example, if the user says "Can you create a text file named "notes.txt" with the contents "These are my notes."?", you ` +
     `would call writeUserTextFile with the argument "filename" set to "notes.txt" and the argument "contents" set to "These are ` +
-    `my notes.". You should not use this tool for any other purpose, and you should not use it to write files that are not text files.`,
+    `my notes.". If the response to a query would be too long for a single message, you MAY OFFER TO write the response to a file ` +
+    `in the user's home directory using this tool.`,
   callSignature: 'writeUserTextFile',
   toolResultPromptIntro: 'You have just written a text file to the user\'s filesystem using the writeUserTextFile tool.\n',
   toolResultPromptOutro: '',

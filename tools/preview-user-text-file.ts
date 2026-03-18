@@ -3,9 +3,15 @@ import { Tool } from '../lib/tool-system';
 const previewUserTextFileTool: Tool = {
   name: 'previewUserTextFile',
   description: 'Reads the first 1kb of a text file on the user\'s filesystem and returns it as a string. You may use this tool when the user explicitly asks you to look at the file by name. You may also use this tool if the user has asked you to help them find a file on the computer, if you need to confirm you have found the correct file.',
-  systemPromptFragment: `Call previewUserTextFile when the user explicitly asks you to look at the contents of a text file on their computer, or if the user has asked you to help them find a file on their computer and you want to confirm that you have found the correct file. You must provide the filename as an argument. For example, if the user says "Can you show me the contents of notes.txt?", you would call previewUserTextFile with the argument "filename" set to "notes.txt". If the user says "I want to find my resume file, but I'm not sure where it is. Can you look for it?", and you think you have found a file named "resume.txt", you might call previewUserTextFile with the argument "filename" set to "resume.txt" to confirm that this file is indeed the user's resume.`,
+  systemPromptFragment: `Call previewUserTextFile when the user explicitly asks you to look at the contents of a text file on ` +
+    `their computer, or if the user has asked you to help them find a file on their computer and you want to confirm that you ` +
+    `have found the correct file. You must provide the filename as an argument. For example, if the user says "Can you show me ` +
+    `the contents of notes.txt?", you would call previewUserTextFile with the argument "filename" set to "notes.txt". If the user ` +
+    `says "I want to find my resume file, but I'm not sure where it is. Can you look for it?", and you think you have found a ` +
+    `file named "resume.txt", you might call previewUserTextFile with the argument "filename" set to "resume.txt" to confirm that ` +
+    `this file is indeed the user's resume.`,
   callSignature: 'previewUserTextFile',
-  toolResultPromptIntro: 'You have just read the first 1kb of a text file on the user\'s filesystem using the previewUserTextFile tool.\n',
+  toolResultPromptIntro: 'You have just read the first 1kb of a text file on the user\'s filesystem using the previewUserTextFile tool. The contents of the preview begin below:\n',
   toolResultPromptOutro: '',
   execute: async (args: Record<string, string>) => {
     const filename = args.filename;

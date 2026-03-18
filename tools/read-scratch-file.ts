@@ -1,4 +1,7 @@
 import { Tool } from '../lib/tool-system';
+import fs from 'fs';
+import path from 'path';
+import { UserConfig } from '../lib/user-config';
 
 const readScratchFileTool: Tool = {
   name: 'readScratchFile',
@@ -10,9 +13,26 @@ const readScratchFileTool: Tool = {
   toolResultPromptOutro: '',
   execute: async (args: Record<string, string>) => {
     const filename = args.filename;
-    // Here you would add the code to read the contents of the specified file from the scratch directory and return it as a string.
-    // For the sake of this example, let's just return a dummy string.
-    return `Contents of file ${filename}\n== BEGIN FILE ==\nThis is the contents of the file ${filename}. In a real implementation, this would be the actual contents of the file that was read from the scratch directory.\n== END FILE ==`;
+    
+    if (filename.includes('/') || filename.includes('\\') || filename.includes('..')) {
+      return `Error: Invalid filename. Path traversal characters are not allowed.`;
+    }
+    
+    const scratchDirectory = UserConfig.getConfig().tools.writeScratchFile.scratchDirectory;
+    const allowedFileTypes = UserConfig.getConfig().tools.writeScratchFile.allowedFileTypes;
+    
+    if (!allowedFileTypes.includes(filename.split('.').pop() || '')) {
+      return `Error: File type not allowed.`;
+    }
+
+    const filePath = path.join(scratchDirectory, filename);
+
+    if (!fs.existsSync(filePath)) {
+      return `Error: File ${filename} does not exist.`;
+    }
+
+    const contents = fs.readFileSync(filePath, 'utf-8');
+    return `Contents of file ${filename} :\n== BEGIN FILE ==\n${contents}\n== END FILE ==`;
   }
 };
 

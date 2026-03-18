@@ -1,0 +1,5 @@
+{
+  "allowedFileTypes": ["txt", "md", "log"],
+  "allowedPaths": ["~"],
+  "disallowPatterns": ["..", "/", ".*"]
+}

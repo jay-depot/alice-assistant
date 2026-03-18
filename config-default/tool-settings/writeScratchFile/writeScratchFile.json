@@ -1,6 +1,6 @@
 {
   "scratchDirectory": "~/.alice-assistant/scratch/",
-  "maxFileSizeKB": 100,
+  "maxFileSizeKB": 10,
   "allowedFileTypes": ["txt", "md", "log"],
   "allowOverwrite": true
 }
