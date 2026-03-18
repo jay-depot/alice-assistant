@@ -1,6 +1,6 @@
 # A.L.I.C.E. Assistant
 
-A digital voice assistant, mainly for Linux, with a customizable personality. It probably works on a Mac, too. 
+A digital voice assistant, mainly for Linux, with a customizable personality. It probably needs work to run on anything else, and contributions are welcome. 
 
 Alice's default personality is "spicy." If you don't change the personality files, a typical interaction looks something like this:
 

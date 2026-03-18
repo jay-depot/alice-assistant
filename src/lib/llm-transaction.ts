@@ -1,4 +1,4 @@
-import OllamaClient, { Ollama } from 'ollama';
+import OllamaClient from 'ollama';
 import { UserConfig } from './user-config';
 
 const MAX_TOOL_CALL_DEPTH = 5;

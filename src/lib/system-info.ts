@@ -1,8 +1,7 @@
-import os, { hostname } from "os";
+import os from "os";
 import path from "path";
 import fs from "fs";
 import childProcess from 'child_process';
-import { UserConfig } from "./user-config";
 
 export const getSystemInfo = (() => {
   // The goal here is to give the LLM roughly the same information [neo|fast]fetch would display to a user, without the logo :-P
@@ -36,7 +35,7 @@ export const getSystemInfo = (() => {
         case 'macOS':
           sysInfoCache.distribution = os.release(); // This will give us the version number, which is probably good enough for our purposes. MacOS doesn't have "distributions" in the same way Linux does, so we'll just use the version number as a proxy.
           break;
-        case 'Linux':
+        case 'Linux': {
           // For linux, we can actually get the distribution name, which is nice. We'll use the /etc/os-release file, which is pretty standard across distributions.
           // TODO: There are definitely distros this doesn't work for, and we should handle them.
           const osReleasePath = '/etc/os-release';
@@ -53,6 +52,7 @@ export const getSystemInfo = (() => {
             sysInfoCache.distribution = 'Unknown Linux Distribution';
           }
           break;
+        }
         default:
           sysInfoCache.distribution = 'Unknown';
       } 
@@ -69,7 +69,11 @@ export const getSystemInfo = (() => {
         { name: 'xbps-install', path: '/usr/bin/xbps-install' },
         { name: 'apk', path: '/usr/bin/apk' },
         { name: 'brew', path: '/usr/local/bin/brew' }, // Homebrew on macOS typically installs to /usr/local, but on Apple Silicon it installs to /opt/homebrew, so we should check both places.
-        { name: 'brew', path: '/opt/homebrew/bin/brew' }
+        { name: 'brew', path: '/opt/homebrew/bin/brew' },
+        { name: 'flatpak', path: '/usr/bin/flatpak' },
+        { name: 'flatpak', path: '/usr/bin/flatpak-spawn-1.0' },
+        { name: 'snap', path: '/usr/bin/snap-cli' },
+        { name: 'snap', path: '/usr/bin/snap-gtk' },
       ];
       const detectedPackageManagers: string[] = [];
       for (const pm of packageManagers) {
@@ -77,8 +81,9 @@ export const getSystemInfo = (() => {
           detectedPackageManagers.push(pm.name);
         }
       }
-      if (detectedPackageManagers.length > 0) {
-        sysInfoCache.packageManager = detectedPackageManagers.join(', ');
+      const deduplicatedPackageManagers = new Set(detectedPackageManagers);
+      if (Array.from(deduplicatedPackageManagers).length > 0) {
+        sysInfoCache.packageManager = Array.from(deduplicatedPackageManagers).join(', ');
       } else {
         sysInfoCache.packageManager = 'Unknown';
       }

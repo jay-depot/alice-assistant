@@ -18,8 +18,7 @@ const systemHealthCheckTool: Tool = {
     return '';
   },
   execute: async (_args: Record<string, string>) => { // systemHealthCheck takes no parameters, so we can ignore the args.
-    // Here you would add the code to perform the actual system health check and retrieve the relevant information.
-    // For the sake of this example, let's just return some dummy data.
+    // TODO: Fetch real data. Some of these might be complicated
     const dummyData = {
       cpuUsage: 45,
       cpuUsageUnit: '%',
@@ -35,9 +34,9 @@ const systemHealthCheckTool: Tool = {
       swapUsageUnit: 'MB',
       vramAvailable: 16 * 1024, // 16 GB in MB
       vramAvailableUnit: 'MB',
-      vramUsage: 14 * 1024, // 14 GB in MB, we're supposed to be running mistral, locally, after all :-P
+      vramUsage: 14 * 1024, // 14 GB in MB, we're supposed to be running an LLM, locally, after all :-P
       vramUsageUnit: 'MB',
-      gpuUsage: 99, // that's about right for mistral running on a AMD RX9070XT
+      gpuUsage: 99, // that's about right for an LLM running on a AMD RX9070XT
       gpuUsageUnit: '%',
       gpuTemperature: 85, // Toasty!
       gpuTemperatureUnit: '°C',
