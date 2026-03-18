@@ -13,12 +13,12 @@ export const AliceCore = {
     }
     
     console.log('Config loaded successfully.');
-    console.log('Checking for a running piper-tts web server on localhost:5002...');
+    // console.log('Checking for a running piper-tts web server on localhost:5002...');
     // TODO: Check if piper-tts web server is running, and start it if not.
-    console.log('Piper-TTS web server is running.');
-    console.log('Checking audio output...');
+    // console.log('Piper-TTS web server is running.');
+    // console.log('Checking audio output...');
     // No idea how we even do this in node yet. TBD.
-    console.log('Audio output is working. Playing startup sound.');
+    // console.log('Audio output is working. Playing startup sound.');
     console.log(`Trying talk to ${config.model} in Ollama...`);
     await (async () => {
       const testConversation = startLLMTransaction();
@@ -27,11 +27,15 @@ export const AliceCore = {
       console.log(` <- ${reply}`);
     })()
     console.log(`Talking to ${config.model} in Ollama works.`);
-    console.log('Checking audio input...');
+    // console.log('Checking audio input...');
     // No idea how we even do this in node yet. TBD.
-    console.log('Audio input is working.');
-    console.log('Initializing wake word loop...');
+    // console.log('Audio input is working.');
+    // console.log('Initializing wake word loop...');
     // This is going to be fun. TBD.
-    console.log('Wake word loop initialized. Alice Assistant is now running and waiting for the wake word...');
+    // console.log('Wake word loop initialized. Alice Assistant is now running and waiting for the wake word...');
+    if (config.webInterface.enabled) {
+      console.log(`Starting web UI on port ${config.webInterface.port}...`);
+
+    }
   }
 }

@@ -1,6 +1,11 @@
 {
   "wakeWord": "Hey ALICE",
   "assistantName": "ALICE",
+  "webInterface": {
+    "enabled": true,
+    "port": 1337,
+    "bindToAddress": "127.0.0.1"
+  },
   "ollama": {
     "host": "http://127.0.0.1:11434",
     "model": "qwen3.54b",
