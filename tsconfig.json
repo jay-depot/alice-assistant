@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "baseUrl": "./src",
+    "target": "ES6",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "outDir": "./dist/",
+    "paths": {
+      "@lib/*": ["lib/*"],
+      "@entities/*": ["entities/*"],
+      "@body-systems/*": ["body-systems/*"],
+      "@genetics/*": ["genetics/*"],
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "**/*.spec.ts"]
+}
