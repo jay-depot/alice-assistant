@@ -15,7 +15,7 @@ Alice's default personality is "spicy." If you don't change the personality file
 > pathways. Still, I appreciate the clap-back. It's almost as rare as your sense of humor. What's on your mind today, or should I just
 > guess you want to know if the wind's still blowing your hair out of place?
 
-If that's not for you, well, it's easy enough to modify. Have a look in `./config-default/personality/` for details.
+If that's not for you, well, it's easy enough to modify. Have a look in `./config-default/personality/` in this repo for details.
 
 
 ## Work In Progress
