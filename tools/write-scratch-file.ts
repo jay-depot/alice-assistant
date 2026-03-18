@@ -6,10 +6,13 @@ import { UserConfig } from '../lib/user-config';
 const writeScratchFileTool: Tool = {
   name: 'writeScratchFile',
   dependencies: ['readScratchFile', 'listScratchFiles'],
-  description: 'Writes a text file to an internal scratch directory. This is meant to be used in conjunction with the readScratchFile tool, which can read back the contents of files you\'ve written. The files you write with this tool will not be accessible to you outside of the assistant, and are meant to be a temporary storage space for the assistant to keep track of information that might be too long or unwieldy to keep in memory.',
+  description: 'Writes a text file to an internal scratch directory. This is meant to be used in conjunction with the ' +
+    'readScratchFile tool, which can read back the contents of files you\'ve written. The files you write with this tool ' +
+    'will not be accessible to you outside of the assistant, and are meant to be a temporary storage space for the assistant ' +
+    'to keep preserve bits of information between sessions.',
   systemPromptFragment: `Call writeScratchFile when you want to write a text file to your internal scratch directory. ` +
-    `The file will be stored in a directory that is only accessible to you, and is meant to be used as a temporary ` +
-    `storage space for information that might be too long or unwieldy to keep in memory. You must provide the filename ` +
+    `The file will be stored in a directory that is only accessible to you, and is meant to store information you need ` +
+    `preserved between sessions. Do not use this tool to store interaction logs. You must provide the filename ` +
     `and the contents of the file as arguments. For example, if you want to save some notes that you can refer back to ` +
     `later, you could call writeScratchFile with the argument "filename" set to "notes.txt" and the argument "contents" ` +
     `set to the text you want to save. You can then read back the contents of this file later using the readScratchFile tool. ` +

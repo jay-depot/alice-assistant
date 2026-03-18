@@ -3,8 +3,16 @@ import { UserConfig } from '../lib/user-config';
 
 const recallMemoryTool: Tool = {
   name: 'recallMemory',
-  description: 'Recalls a specific memory from the assistant\'s long-term memory. Use this tool when you want to retrieve information that the assistant has previously stored in its long-term memory.',
-  systemPromptFragment: `Call recallMemory when you want to retrieve a specific memory from your long-term memory. The call takes one parameter, which is either a keyword, a list of keywords joined with commas, or a date, if the parameter is a keyword or list of keywords, you should recall up to 10 recent memories that are associated with ALL of the requested keywords. If the parameter is a date, you should recall all of the memories from that date. The parameter must be provided in the format "keyword:someKeyword", "keyword:comma,separated,keywords" or "date:YYYY-MM-DD". DO NOT INCLUDE ARTICLES, PRONOUNS, OR OTHER COMMON "FILLER WORDS" IN THE KEYWORDS, THEY WILL BE FILTERED OUT OF THE SEARCH AND ARE NOT INCLUDED IN THE INDEX.`,
+  description: 'Recalls a specific memory from the assistant\'s memory of previous interactions.',
+  systemPromptFragment: `Call recallMemory when you need information from a past conversation. ` +
+    `Do not use this tool for idle banter, or additional context unless you have been asked about ` +
+    `prior interactions. The call takes one parameter, which is either a keyword, a list of ` +
+    `keywords joined with commas, or a date, if the parameter is a keyword or list of keywords, ` +
+    `you will recall up to 10 recent interactions that are associated with ALL of the requested ` +
+    `keywords. If the parameter is a date, you should recall all of the interactions from that date. ` +
+    `The parameter must be provided in the format "keyword:someKeyword", ` +
+    `"keyword:comma,separated,keywords"  or "date:YYYY-MM-DD". DO NOT INCLUDE ARTICLES (a, the, an, ` +
+    `some), PRONOUNS, OR OTHER COMMON "FILLER WORDS" IN THE KEYWORDS.`,
   callSignature: 'recallMemory(keywordOrId: string)',
   toolResultPromptIntro: `You have just received the results of a call to the recallMemory tool. The results are in JSON format and have the following structure:\n{\n  "memories": [\n    {\n      "timestamp": string,\n      "content": string\n    },\n    ...\n  ]\n}\nThe "memories" field is an array of memory objects. Each memory object has a "timestamp" field, which is a string representing the date and time, in the user's timezone, when that memory was stored, and a "content" field, which is a string summary of the recalled interaction. Use this information to answer the user's query, and remember that your response will be synthesized into speech, so keep it punchy and short.`,
   toolResultPromptOutro: () => 
