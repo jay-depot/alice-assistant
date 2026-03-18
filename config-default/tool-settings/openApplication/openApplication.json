@@ -2,13 +2,51 @@
   "availableApplications": [
     {
       "alias": "web_browser",
-      "commandLine": "flatpak run app.zen_browser.zen",
+      "relevantTopics": ["browse the web", "show me the page", "open the website", "navigate to the website", "go to the website", "let me read it myself"],
+      "commandLine": "xdg-open",
       "arguments": "[url]"
     },
     {
       "alias": "file_manager",
-      "commandLine": "dolphin",
+      "relevantTopics": ["file management", "organizing files", "finding files", "show me the file", "where is the file"],
+      "commandLine": "xdg-open",
       "arguments": "[path]"
+    },
+    {
+      "alias": "text_editor",
+      "relevantTopics": ["text editing", "notes", "configuration files", "simple edit", "small change to this file", "text file", "config file"],
+      "commandLine": "xdg-open",
+      "arguments": "[file]"
+    },
+    {
+      "alias": "terminal",
+      "relevantTopics": ["command line", "terminal commands", "shell", "cli"],
+      "commandLine": "alacritty",
+      "arguments": ""
+    },
+    {
+      "alias": "steam",
+      "relevantTopics": ["gaming", "game library", "play a game", "proton"],
+      "commandLine": "steam",
+      "arguments": ""
+    },
+    {
+      "alias": "bottles",
+      "relevantTopics": ["windows applications", "wine"],
+      "commandLine": "flatpak run com.usebottles.bottles",
+      "arguments": ""
+    },
+    {
+      "alias": "code_editor",
+      "relevantTopics": ["code editing", "programming", "development", "project folder"],
+      "commandLine": "code --new-window",
+      "arguments": "[file]|[project folder]"
+    },
+    {
+      "alias": "open_anything",
+      "relevantTopics": ["open the file", "open this file", "open it with the default application", "open it", "let's see what's in this file", "unknown file type"],
+      "commandLine": "xdg-open",
+      "arguments": "[file]"
     }
   ]
 }
