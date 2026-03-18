@@ -4,7 +4,12 @@ import { UserConfig } from '../lib/user-config';
 const getNewsHeadlines: Tool = {
   name: 'getNewsHeadlines',
   description: 'Retrieves the latest news headlines from a news API.',
-  systemPromptFragment: `Call getNewsHeadlines ONLY for queries about news or current events. When building the query, strip conversational filler ('can you find me', 'I need', 'please'). Examples: 'What's going on in the world today?' → query: 'world', 'What's the latest from the Middle East?' → query: 'middle east', 'What's the local news? → query: [INSERT CURRENT LOCATION FROM CONTEXT ABOVE]`,
+  systemPromptFragment: `Call getNewsHeadlines ONLY for queries about news or current events, including local ` +
+    `news, national news, and world news. getNewsHeadlines takes one mandatory parameter, which is named ` +
+    `"query," and it is a string. When building the query, strip conversational filler ` +
+    `('can you find me', 'I need', 'please'). Examples: 'What's going on in the world today?' → query: 'world', ` +
+    `'What's the latest from the Middle East?' → query: 'middle east', ` +
+    `'What's the local news? → query: [INSERT CURRENT LOCATION FROM CONTEXT ABOVE]`,
   callSignature: 'getNewsHeadlines',
 // 
 

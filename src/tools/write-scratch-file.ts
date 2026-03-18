@@ -9,7 +9,7 @@ const writeScratchFileTool: Tool = {
   description: 'Writes a text file to an internal scratch directory. This is meant to be used in conjunction with the ' +
     'readScratchFile tool, which can read back the contents of files you\'ve written. The files you write with this tool ' +
     'will not be accessible to you outside of the assistant, and are meant to be a temporary storage space for the assistant ' +
-    'to keep preserve bits of information between sessions.',
+    'to keep bits of information between sessions.',
   systemPromptFragment: `Call writeScratchFile when you want to write a text file to your internal scratch directory. ` +
     `The file will be stored in a directory that is only accessible to you, and is meant to store information you need ` +
     `preserved between sessions. Do not use this tool to store interaction logs. You must provide the filename ` +

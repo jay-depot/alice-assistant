@@ -1,4 +1,5 @@
 import { UserConfig } from './user-config'
+import { startLLMTransaction } from './llm-transaction';
 
 export const AliceCore = {
   start: async () => {
@@ -18,9 +19,14 @@ export const AliceCore = {
     console.log('Checking audio output...');
     // No idea how we even do this in node yet. TBD.
     console.log('Audio output is working. Playing startup sound.');
-    console.log(`Trying to start the LLM(${config.model}) in ollama...`);
-    // TODO: Start the LLM in ollama, and test the connection. 
-    console.log('LLM is running.');
+    console.log(`Trying talk to ${config.model} in Ollama...`);
+    await (async () => {
+      const testConversation = startLLMTransaction();
+      console.log(' -> Say hello');
+      const reply = await testConversation.executeTurn('Say hello');
+      console.log(` <- ${reply}`);
+    })()
+    console.log(`Talking to ${config.model} in Ollama works.`);
     console.log('Checking audio input...');
     // No idea how we even do this in node yet. TBD.
     console.log('Audio input is working.');

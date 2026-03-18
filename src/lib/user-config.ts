@@ -17,13 +17,8 @@ export const UserConfig = (() => {
       if (!fs.existsSync(configDir)) {
         fs.mkdirSync(configDir);
         // Copy the contents of the config-default folder into the new config directory. This will give the user a starting point for configuring their assistant, and also ensure that all necessary files are in place.
-        const defaultConfigDir = path.join(__dirname, '..', 'config-default');
+        const defaultConfigDir = path.join(__dirname, '..', '..', 'config-default');
         fs.cpSync(defaultConfigDir, configDir, { recursive: true });
-        // TODO: Add default config file here:
-        //    - alice.json
-        //    - personality/intro.md
-        //    - personality/quirks.md
-        //    - wake-word-models/README.md # We expect the user to rename the assistant, so they're going to need to train their own wake word model. This file will explain how to do that, and link to resources for training wake word models. This file should have links to a few different sources for how to do that.
       }
       return configDir;
     },

@@ -3,7 +3,10 @@
   "assistantName": "ALICE",
   "ollama": {
     "host": "http://127.0.0.1:11434",
-    "model": "mistral-small3.2"
+    "model": "qwen3.54b",
+    "options": {
+      "num_ctx": 16000
+    }
   },
   "piperTts": {
     "host": "http://127.0.0.1:5000",

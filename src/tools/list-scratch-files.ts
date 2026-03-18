@@ -24,7 +24,7 @@ const listScratchFilesTool: Tool = {
       return `Your scratch directory is currently empty.`;
     }
 
-    return `Files in your scratch directory:\n${files.filter(file => allowedFileTypes.includes(file.split('.').pop() || '')).join('\n')}\n\n Total files: ${files.length}`;
+    return `Files in your scratch directory:\n${files.filter((file: string) => allowedFileTypes.includes(file.split('.').pop() || '')).join('\n')}\n\n Total files: ${files.length}`;
   }
 };
 

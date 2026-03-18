@@ -5,14 +5,19 @@
   "license": "MIT",
   "author": "",
   "type": "commonjs",
-  "main": "index.js",
+  "main": "dist/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
+    "@types/node": "^25.5.0",
     "nodejs-whisper": "^0.2.9",
     "ollama": "^0.6.3",
     "onnxruntime-web": "^1.24.3",
     "openwakeword-js": "^0.1.27"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "prettier": "^3.8.1"
   }
 }

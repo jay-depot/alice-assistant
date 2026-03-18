@@ -1,25 +1,59 @@
-import OllamaClient from 'ollama';
+import OllamaClient, { Ollama } from 'ollama';
+import { UserConfig } from './user-config';
 
 const MAX_TOOL_CALL_DEPTH = 5;
+type Message = {
+  role: string;
+  content: string;
+};
 
 export class LlmTransaction {
-  constructor() { }
-
-  systemPrompt: string = '';
-
-  async executeFirstTurn(): Promise<string> {
-    // Basically just send the system prompt and wait for the answer. If it's a tool call, handle
-    // it and send the answer back to the LLM. Otherwise, return the response back to the caller.
-    
-    return '';
+  private llmConnection = {
+    host: '',
+    model: '',
+    options: {
+      num_ctx: 16000
+    },
   }
 
-  async executeSubsequentTurn(continuationPrompt: string): Promise<string> {
-    // Send the continuation prompt, which includes the system prompt, the user query, and the 
-    // LLM response from the previous turn. Wait for the next response. If it's a tool call, handle 
-    // it and send the answer back to the LLM. Otherwise, return the response back to the caller.
+  private context: Message[] = [];
+
+  constructor() {
+    this.llmConnection = {
+      ...this.llmConnection,
+      host: UserConfig.getConfig().ollama.host,
+      model: UserConfig.getConfig().ollama.model
+    }
+
+    if (UserConfig.getConfig().ollama.options) {
+      this.llmConnection.options = UserConfig.getConfig().ollama.options;
+    }
+  }
+
+  async executeTurn(prompt: string): Promise<string> {
+    this.context.push({
+      "role": "user",
+      "content": prompt
+    });
+
+    const response = await OllamaClient.chat({
+      ...this.llmConnection,
+      messages: this.context
+    });
+
+    if (response && response.message.content && response.message.content.length > 0) {
+      
+      //TODO: Tool calling check
+
+      this.context.push({
+        role: "assistant",
+        content: response.message.content
+      });
+
+      return response.message.content;
+    }
     
-    return '';
+    throw new Error('Empty response from LLM');
   }
 
   private async handleToolCalls(responseContent: string, depth = 0): Promise<string> {
@@ -35,7 +69,7 @@ export class LlmTransaction {
     // to send back to the LLM with the tool results and instructions for how to proceed.
 
     const promptIfCallsAvailable = ` - If you would need to make another tool call, output ONLY the call signature. Otherwise, answer the user's query in character. You have ${MAX_TOOL_CALL_DEPTH - depth} remaining recursive tool calls you may make regarding this user query.`;
-    const promptIfNoCallsAvailable =  ` - You may make no more recursive tool calls for this user query, so you must answer the user's query in character.\n` +
+    const promptIfNoCallsAvailable =  ` - You may make no more recursive tool calls for this conversation turn, so you must answer the user's query in character.\n` +
       ` - If you still do not have sufficient information to form a complete answer, you have two options: \n` +
       `   1) Do your best with the information you have, or \n` +
       `   2) If you are missing a specific piece of information that would be critical to forming a complete answer, ask the user in character ` +
@@ -51,10 +85,6 @@ export class LlmTransaction {
     return '';
   }
 
-  async cleanup(): Promise<void> {
-    // I'm pretty sure all we have to do here is clear the context window of the LLM.
-  }
-
   async concludeTransactionWithSummary(): Promise<string> {
     const terminationPrompt = `The user has terminated the assistant session. The assistant software now needs you to abandon your persona and summarize the conversation to provide context in future requests.
 
@@ -67,17 +97,12 @@ export class LlmTransaction {
  - There is no need for an end marker for this session, it will be added for you
 `;
     // Send the termination prompt, and wait for the response, which will be the conversation summary.
-    // Stash that away to return when we're done cleaning up.
-
-    await this.cleanup();
-
     // Return the conversation summary to the caller, so it can be stored and used for future context.
     return '';
   }
 }
 
-export function startLLMTransaction(prompt: string): LlmTransaction {
+export function startLLMTransaction(): LlmTransaction {
   const txn = new LlmTransaction();
-  txn.systemPrompt = prompt;
   return txn;
 }
