@@ -2,6 +2,8 @@ type ToolPromptFragmentFunction =  string | (() => string);
 
 export type Tool = {
   name: string;
+  dependencies?: string[]; // This is an optional list of other tools that this tool depends on. If you enable a tool without its dependencies, the assistant will crash on startup and should give you pretty clear instructions to get going again.
+  // TODO: It would be a cute gimmick if we could read the instructions for fixing the assistant out loud when it crashes due to missing dependencies.
   description: string;
   systemPromptFragment: ToolPromptFragmentFunction; // This is the fragment that will be added to the system prompt to describe the tool and how to use it.
   callSignature: string; // This is the exact string that the LLM should output when it wants to call the tool. It should be unique enough that it won't be accidentally generated in normal conversation.

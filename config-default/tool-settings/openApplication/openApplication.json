@@ -47,6 +47,12 @@
       "relevantTopics": ["open the file", "open this file", "open it with the default application", "open it", "let's see what's in this file", "unknown file type"],
       "commandLine": "xdg-open",
       "arguments": "[file]"
+    },
+    {
+      "alias": "dropbox",
+      "relevantTopics": ["cloud storage", "file syncing", "access my files from anywhere", "show me my dropbox", "open my dropbox folder"],
+      "commandLine": "dolphin --new-window ~/Dropbox",
+      "arguments": ""
     }
   ]
 }

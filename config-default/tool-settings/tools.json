@@ -1,0 +1,14 @@
+{
+  "getDirectoryListing": true,
+  "getNewsHeadlines": true,
+  "listScratchFiles": true,
+  "openApplication": true,
+  "previewUserTextFile": true,
+  "readScratchFile": true,
+  "recallMemory": true,
+  "systemHealth": true,
+  "weather": true,
+  "webSearch": true,
+  "writeScratchFile": true,
+  "writeUserTextFile": false
+}

@@ -31,15 +31,28 @@ export class LlmTransaction {
       throw new Error('Maximum tool call depth exceeded. Possible infinite loop detected.');
     }
 
-    const continuationPrompt = depth > 0 ? 
-      `If you would need to make another tool call, output ONLY the call signature. Otherwise, answer the user's query in character. You have ${MAX_TOOL_CALL_DEPTH - depth} remaining recursive tool calls you may make regarding this user query.` :
-      `You may make no more recursive tool calls for this user query, so you must answer the user's query in character. If you still do not have sufficient information to form a complete answer then say so in character and include a summary of whatever information you were able to find to the best of your ability.`
+    // here is where we extract, parse and execute the tool call, and then construct the appropriate prompt
+    // to send back to the LLM with the tool results and instructions for how to proceed.
 
+    const promptIfCallsAvailable = ` - If you would need to make another tool call, output ONLY the call signature. Otherwise, answer the user's query in character. You have ${MAX_TOOL_CALL_DEPTH - depth} remaining recursive tool calls you may make regarding this user query.`;
+    const promptIfNoCallsAvailable =  ` - You may make no more recursive tool calls for this user query, so you must answer the user's query in character.\n` +
+      ` - If you still do not have sufficient information to form a complete answer, you have two options: \n` +
+      `   1) Do your best with the information you have, or \n` +
+      `   2) If you are missing a specific piece of information that would be critical to forming a complete answer, ask the user in character ` +
+      `if you can continue looking. If they agree, you may use the new quota of 5 recursive tool calls for the next round of conversation to continue.`;
+
+    const continuationPrompt = depth > 0 ? promptIfCallsAvailable: promptIfNoCallsAvailable;
+
+    // Here is where we send the continuation prompt, and wait for the next response, which may be another tool call, 
+    // or it may be the final answer to return to the caller.
+    // If it is another tool call, we need to recursively call handleToolCalls again, with the new response content and an incremented depth
+    // otherwise, we just return the LLM's response to the caller..
+  
     return '';
   }
 
   async cleanup(): Promise<void> {
-    // This is where we would do any necessary cleanup after the transaction is complete, such as clearing the context in ollama, and any other housekeeping tasks that need to be done after each transaction.
+    // I'm pretty sure all we have to do here is clear the context window of the LLM.
   }
 
   async concludeTransactionWithSummary(): Promise<string> {

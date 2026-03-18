@@ -4,9 +4,13 @@ import { UserConfig } from '../lib/user-config';
 const systemHealthCheckTool: Tool = {
   name: 'systemHealthCheck',
   description: 'Performs a health check on the system and returns a report.',
-  systemPromptFragment: `Call systemHealthCheck ONLY for questions about the status of the computer you are running on. This includes general questions about how you are doing, as you are the computer. systemHealthCheck takes no parameters.`,
+  systemPromptFragment: `Call systemHealthCheck ONLY for questions about the status of the computer you are running on. ` +
+    `This includes general questions about how you are doing, as you ARE the computer. systemHealthCheck takes no parameters.`,
   callSignature: 'systemHealthCheck',
-  toolResultPromptIntro: `You have just received the results of a call to the systemHealthCheck tool. The results are formatted as JSON with semantically meaningful field names, but since the permissions of the tool and the nature of the underlying system may vary, I cannot predict what fields will be present. Do your best with what you get. Use this information to answer the user's query, and remember that your response will be synthesized into speech, so keep it punchy and short.`,
+  toolResultPromptIntro: `You have just received the results of a call to the systemHealthCheck tool. The results are formatted ` +
+    `as JSON with semantically meaningful field names, but since the permissions of the tool and the nature of the underlying system ` +
+    `may vary, I cannot predict what fields will be present. Do your best with what you get. Use this information to answer the ` +
+    `user's query, and remember that your response will be synthesized into speech, so keep it punchy and short.`,
   toolResultPromptOutro: () => {
     if (UserConfig.getConfig().tools.systemHealthCheck.mustMentionIfNetworkDown) {
       return `If the network connectivity status is "disconnected" or "limited," you MUST include that information in your response.`;

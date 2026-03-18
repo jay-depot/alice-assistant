@@ -1,15 +1,19 @@
 import { UserConfig } from './user-config';
 import { tools } from '../tools';
+import { getSystemInfo } from './system-info';
 
 export async function buildSystemPrompt(userQuery?: string) {
   const systemPromptChunks: string[] = [];
-  // First the intro
+  // First the heading
+  systemPromptChunks.push(`# TASK BRIEFING FOR DIGITAL ASSISTANT: PERSONALITY, TOOLS, CONTEXT, AND SCENARIO\n`);
+  // Then the intro
+  systemPromptChunks.push('## INTRODUCTION\n');
   systemPromptChunks.push(UserConfig.getConfig().personality.intro);
   // Then the quirks
   systemPromptChunks.push(`\n## PERSONALITY QUIRKS\n`);
   systemPromptChunks.push(UserConfig.getConfig().personality.quirks);
   // Then any "other" personality files the user has added, each under its own heading.
-  UserConfig.getConfig().personality.filter((value: string, key: string) => {
+  UserConfig.getConfig().personality.filter((_value: string, key: string) => {
     return key !== 'intro' && key !== 'quirks';
   }).forEach((value: string, key: string) => {
     systemPromptChunks.push(`## ${key}\n\n${value}\n`);
@@ -20,9 +24,29 @@ export async function buildSystemPrompt(userQuery?: string) {
   systemPromptChunks.push(`The current day of the week is: ${new Date().toLocaleString('en-US', { weekday: 'long' })}`);
   systemPromptChunks.push(`The current location is: ${UserConfig.getConfig().location}`);
   // Then some basic host PC system info: OS, CPU, GPU, RAM, Kernel, Desktop Environment, Distribution
+  systemPromptChunks.push('## YOUR HOST PC SYSTEM INFO\n');
+  const systemInfo = await getSystemInfo();
+  systemPromptChunks.push(` - OS: ${systemInfo.os}`);
+  systemPromptChunks.push(` - Distribution: ${systemInfo.distribution}`);
+  systemPromptChunks.push(` - Kernel: ${systemInfo.kernel}`);
+  systemPromptChunks.push(` - CPU: ${systemInfo.cpu}`);
+  systemPromptChunks.push(` - Physical Cores: ${systemInfo.physicalCores}`);
+  systemPromptChunks.push(` - Threads: ${systemInfo.threadCount}`);
+  systemPromptChunks.push(` - RAM: ${systemInfo.totalMemory} ${systemInfo.totalMemoryUnit}`);
+  systemPromptChunks.push(` - GPU: ${systemInfo.gpuModel || 'Unknown'}`);
+  systemPromptChunks.push(` - VRAM: ${systemInfo.vramSize || 'Unknown'} ${systemInfo.vramSizeUnit || ''}`);
+  systemPromptChunks.push(` - Desktop Environment: ${systemInfo.desktopEnvironment}`);
+  systemPromptChunks.push(` - Window Manager: ${systemInfo.windowManager}`);
+  systemPromptChunks.push(` - Graphical Server: ${systemInfo.graphicalServer}`);
+  systemPromptChunks.push(` - Display Size: ${systemInfo.displaySize}`);
+  systemPromptChunks.push(` - Shell: ${systemInfo.shell}`);
+  systemPromptChunks.push(` - Terminal: ${systemInfo.terminal}`);
+  systemPromptChunks.push(` - Hostname: ${systemInfo.hostname}`);
+  systemPromptChunks.push(` - Locale: ${systemInfo.locale}`);
+  systemPromptChunks.push(` - Timezone: ${systemInfo.timezone}`);
   // Then the TOOLS section, which will list the tools that the assistant has access to, and how to use them.
   if (tools.length > 0) {
-    systemPromptChunks.push(`## TOOLS\n\nYou have access to tools that can retrieve local data. RULES — follow these EXACTLY:\n`);
+    systemPromptChunks.push(`\n## TOOLS\n\nYou have access to tools that can retrieve local data. RULES — follow these EXACTLY:\n`);
     for (let i = 0; i < tools.length; i++) {
       const tool = tools[i];
       const fragment = typeof tool.systemPromptFragment === 'function' ? tool.systemPromptFragment() : tool.systemPromptFragment;
