@@ -1,7 +1,7 @@
-import os from "os";
-import fs from "fs";
-import path from "path";
-import childProcess from "child_process";
+// import * as os from "os";
+// import * as fs from "fs";
+// import * as path from "path";
+// import * as childProcess from "child_process";
 import { Tool } from "../lib/tool-system";
 import { UserConfig } from "../lib/user-config";
 

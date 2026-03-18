@@ -1,5 +1,5 @@
 import { Tool } from '../lib/tool-system';
-import fs from 'fs';
+import * as fs from 'fs';
 import { UserConfig } from '../lib/user-config';
 
 const listScratchFilesTool: Tool = {
@@ -10,7 +10,8 @@ const listScratchFilesTool: Tool = {
   callSignature: 'listScratchFiles',
   toolResultPromptIntro: '',
   toolResultPromptOutro: '',
-  execute: async (args: Record<string, string>) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  execute: async (_args: Record<string, string>) => {
     const scratchDirectory = UserConfig.getConfig().tools.writeScratchFile.scratchDirectory;
     const allowedFileTypes = UserConfig.getConfig().tools.writeScratchFile.allowedFileTypes;
 

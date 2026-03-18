@@ -13,20 +13,21 @@ export const AliceCore = {
     }
     
     console.log('Config loaded successfully.');
+    console.log({ config });
     // console.log('Checking for a running piper-tts web server on localhost:5002...');
     // TODO: Check if piper-tts web server is running, and start it if not.
     // console.log('Piper-TTS web server is running.');
     // console.log('Checking audio output...');
     // No idea how we even do this in node yet. TBD.
     // console.log('Audio output is working. Playing startup sound.');
-    console.log(`Trying talk to ${config.model} in Ollama...`);
+    console.log(`Trying talk to ${config.ollama.model} in Ollama...`);
     await (async () => {
       const testConversation = startLLMTransaction();
       console.log(' -> Say hello');
       const reply = await testConversation.executeTurn('Say hello');
       console.log(` <- ${reply}`);
     })()
-    console.log(`Talking to ${config.model} in Ollama works.`);
+    console.log(`Talking to ${config.ollama.model} in Ollama works.`);
     // console.log('Checking audio input...');
     // No idea how we even do this in node yet. TBD.
     // console.log('Audio input is working.');

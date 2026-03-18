@@ -1,7 +1,7 @@
-import os from "os";
-import path from "path";
-import fs from "fs";
-import childProcess from 'child_process';
+import * as os from "os";
+import * as path from "path";
+import * as fs from "fs";
+import * as childProcess from 'child_process';
 
 export const getSystemInfo = (() => {
   // The goal here is to give the LLM roughly the same information [neo|fast]fetch would display to a user, without the logo :-P

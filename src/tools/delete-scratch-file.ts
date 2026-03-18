@@ -1,6 +1,6 @@
 import { Tool } from '../lib/tool-system';
-import fs from 'fs';
-import path from 'path';
+import * as fs from 'fs';
+import * as path from 'path';
 import { UserConfig } from '../lib/user-config';
 
 const deleteScratchFileTool: Tool = {

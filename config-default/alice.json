@@ -8,9 +8,9 @@
   },
   "ollama": {
     "host": "http://127.0.0.1:11434",
-    "model": "qwen3.54b",
+    "model": "qwen3.5:9b",
     "options": {
-      "num_ctx": 16000
+      "num_ctx": 24000
     }
   },
   "piperTts": {
