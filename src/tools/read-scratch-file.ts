@@ -9,7 +9,8 @@ const parameters = Type.Object({ filename: Type.String() });
 const readScratchFileTool: Tool = {
   name: 'readScratchFile',
   dependencies: ['writeScratchFile', 'listScratchFiles'],
-  description: 'Reads the contents of an internal text file. This is meant to read back the contents of files you\'ve written yourself, using the writeScratchFile tool.',
+  description: 'Reads the contents of an internal text file. This is meant to read back the contents of files ' +
+    'the assistant has written to itself, using the writeScratchFile tool.',
   systemPromptFragment: `Call readScratchFile when you want to read the contents of a text file that you have previously written using the writeScratchFile tool. The file must be located in your scratch directory, and you must provide the filename as an argument. For example, if you previously wrote a file named "notes.txt" using the writeScratchFile tool, you would call readScratchFile with the argument "filename" set to "notes.txt" to read its contents.`,
   callSignature: 'readScratchFile',
   parameters,
@@ -22,8 +23,8 @@ const readScratchFileTool: Tool = {
       return `Error: Invalid filename. Path traversal characters are not allowed.`;
     }
     
-    const scratchDirectory = UserConfig.getConfig().tools.writeScratchFile.scratchDirectory;
-    const allowedFileTypes = UserConfig.getConfig().tools.writeScratchFile.allowedFileTypes;
+    const scratchDirectory = UserConfig.getConfig().toolSettings.writeScratchFile.scratchDirectory;
+    const allowedFileTypes = UserConfig.getConfig().toolSettings.writeScratchFile.allowedFileTypes;
     
     if (!allowedFileTypes.includes(filename.split('.').pop() || '')) {
       return `Error: File type not allowed.`;

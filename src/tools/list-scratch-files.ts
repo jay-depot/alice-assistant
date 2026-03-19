@@ -14,8 +14,8 @@ const listScratchFilesTool: Tool = {
   toolResultPromptOutro: '',
 
   execute: async () => {
-    const scratchDirectory = UserConfig.getConfig().tools.writeScratchFile.scratchDirectory;
-    const allowedFileTypes = UserConfig.getConfig().tools.writeScratchFile.allowedFileTypes;
+    const scratchDirectory = UserConfig.getConfig().toolSettings.writeScratchFile.scratchDirectory;
+    const allowedFileTypes = UserConfig.getConfig().toolSettings.writeScratchFile.allowedFileTypes;
 
     if (!fs.existsSync(scratchDirectory)) {
       return `Your scratch directory is currently empty.`;

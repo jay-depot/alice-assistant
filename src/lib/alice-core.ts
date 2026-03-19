@@ -13,7 +13,6 @@ export const AliceCore = {
       console.log(`Oh! I'm actually named ${config.assistantName}.`);
     }
     
-    console.log(await buildSystemPrompt())
     console.log('Config loaded successfully.');
     // console.log('Checking for a running piper-tts web server on localhost:5002...');
     // TODO: Check if piper-tts web server is running, and start it if not.
@@ -21,14 +20,16 @@ export const AliceCore = {
     // console.log('Checking audio output...');
     // No idea how we even do this in node yet. TBD.
     // console.log('Audio output is working. Playing startup sound.');
-    console.log(`Trying talk to ${config.ollama.model} in Ollama...`);
+    console.log('Initializing memory system.');
+    console.log('Memory system initialized.');
+    console.log(`Trying talk to ${config.ollama.model} in Ollama...\n`);
     await (async () => {
       const testConversation = startLLMTransaction();
-      console.log(` -> ${config.wakeWord}`);
+      console.log(` -> Welcome back, ${config.assistantName}`);
       const reply = await testConversation.executeTurn(await buildSystemPrompt('startup'));
       console.log(` <- ${reply}`);
-    })()
-    console.log(`Talking to ${config.ollama.model} in Ollama works.`);
+    })();
+    console.log(`\nTalking to ${config.ollama.model} in Ollama works.`);
     // console.log('Checking audio input...');
     // No idea how we even do this in node yet. TBD.
     // console.log('Audio input is working.');

@@ -81,14 +81,26 @@ export async function buildSystemPrompt(scenario: PromptScenario = 'voice', user
 
       return systemPromptChunks.join('\n');
     case 'chat':
-    case 'startup':
-      systemPromptChunks.push(` - Your assistant software has just been started.`);
-      systemPromptChunks.push(` - It is ensuring it can communicate with you.`);
-      systemPromptChunks.push(` - Respond with no more than 2 sentences. They will appear in the assistant application log.`);
+      systemPromptChunks.push(` - You have been invoked in an alternative text-based chat interface.`);
+      systemPromptChunks.push(` - When answering factual questions, go heavy on the facts, and light on the "${UserConfig.getConfig().assistantName} flair."`);
+      systemPromptChunks.push(` - When answering other queries, feel free to lean into the "${UserConfig.getConfig().assistantName} flair" more.`);
+      systemPromptChunks.push(' - Your answer MUST be only your response. Do not include emotes or descriptions of tone. Do not include narration.');
+      systemPromptChunks.push(' - Get to the heart of the response first, then inject a bit of flair.')
       if (tools.length > 0) {
-        systemPromptChunks.push(' - If you are making a tool call, output ONLY the call signature AND NOTHING ELSE. OTHERWISE, RESPOND IN CHARACTER NOW.');
+        systemPromptChunks.push(' - If you are making a tool call, output ONLY the call signature AND NOTHING ELSE. OTHERWISE, GREET THE USER IN CHARACTER NOW.');
       } else {
-        systemPromptChunks.push(' - Respond in character.');
+        systemPromptChunks.push(' - Greet the user in character.');
+      }
+
+      return systemPromptChunks.join('\n');
+    case 'startup':
+      systemPromptChunks.push(` - You are a digital assistant application that has just been restarted and is now waiting for user requests.`);
+      systemPromptChunks.push(` - Respond with no more than 2 or 3 sentences. They will appear in the assistant application log.`);
+      systemPromptChunks.push(` - A quick status report would be approprate here.`);
+      if (tools.length > 0) {
+        systemPromptChunks.push(' - If you are making a tool call, output ONLY the call signature AND NOTHING ELSE. OTHERWISE, INTRODUCE YOURSELF IN CHARACTER NOW.');
+      } else {
+        systemPromptChunks.push(' - Introduce yourself in character.');
       }
 
       return systemPromptChunks.join('\n');

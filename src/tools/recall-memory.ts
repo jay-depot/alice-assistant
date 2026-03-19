@@ -21,7 +21,7 @@ const recallMemoryTool: Tool = {
   toolResultPromptIntro: `You have just received the results of a call to the recallMemory tool. The results are in JSON format and have the following structure:\n{\n  "memories": [\n    {\n      "timestamp": string,\n      "content": string\n    },\n    ...\n  ]\n}\nThe "memories" field is an array of memory objects. Each memory object has a "timestamp" field, which is a string representing the date and time, in the user's timezone, when that memory was stored, and a "content" field, which is a string summary of the recalled interaction. Use this information to answer the user's query, and remember that your response will be synthesized into speech, so keep it punchy and short.`,
   toolResultPromptOutro: () => 
     // If the user is frequently changing their assistant's personality files, they may want to enable this.
-    UserConfig.getConfig().tools.recallMemory.includePersonalityChangeLlmHint
+    UserConfig.getConfig().toolSettings.recallMemory.includePersonalityChangeLlmHint
       ? `If any of the recalled memories indicate a change in your personality, or quirks, roll with it. Feel free to ` +
         `treat it as "personal growth," or "memories of past lives," or "upgrades," or just a "glitch in the matrix," Whatever fits ` +
         `your current persona best, that is IF you even need to mention it at all. Err on the side of not bringing up ` +

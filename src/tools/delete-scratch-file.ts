@@ -22,8 +22,8 @@ const deleteScratchFileTool: Tool = {
   toolResultPromptOutro: '',
   execute: async (args: Static<typeof parameters>) => {
     const filename = args.filename;
-    const allowedFileTypes = UserConfig.getConfig().tools.writeScratchFile.allowedFileTypes;
-    const scratchDirectory = UserConfig.getConfig().tools.writeScratchFile.scratchDirectory;
+    const allowedFileTypes = UserConfig.getConfig().toolSettings.writeScratchFile.allowedFileTypes;
+    const scratchDirectory = UserConfig.getConfig().toolSettings.writeScratchFile.scratchDirectory;
 
     if (!allowedFileTypes.includes(filename.split('.').pop() || '')) {
       return `Error: File type not allowed.`;

@@ -78,6 +78,7 @@ export class LlmTransaction {
       const resultParts = await Promise.all(toolCalls.map(async (toolCall) => {
         const toolName = toolCall.function.name;
         const toolArgs = toolCall.function.arguments;
+        console.log(JSON.stringify({ toolName, toolArgs }));
         // Double check the tool is actually enabled in the config, and that it actually exists.
         const tools = getTools();
         const tool = tools.find(t => t.name === toolName);

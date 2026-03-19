@@ -14,7 +14,7 @@ const systemHealthCheckTool: Tool = {
     `may vary, I cannot predict what fields will be present. Do your best with what you get. Use this information to answer the ` +
     `user's query, and remember that your response will be synthesized into speech, so keep it punchy and short.`,
   toolResultPromptOutro: () => {
-    if (UserConfig.getConfig().tools.systemHealthCheck.mustMentionIfNetworkDown) {
+    if (UserConfig.getConfig().toolSettings.systemHealthCheck.mustMentionIfNetworkDown) {
       return `If the network connectivity status is "disconnected" or "limited," you MUST include that information in your response.`;
     }
     return '';

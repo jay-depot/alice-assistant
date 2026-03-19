@@ -45,7 +45,7 @@ const openApplicationTool: Tool = {
       // Return the list of available applications and their relevant topics. Lucky for us, this is already defined 
       // in the config, so we can just return that.
       // For safety, we'll filter out the command line from what the LLM sees though.
-      const availableApplications = UserConfig.getConfig().tools.openApplication.availableApplications.map((app: AvailableApplicationDescription) => ({
+      const availableApplications = UserConfig.getConfig().toolSettings.openApplication.availableApplications.map((app: AvailableApplicationDescription) => ({
         alias: app.alias,
         relevantTopics: app.relevantTopics,
         arguments: app.arguments
