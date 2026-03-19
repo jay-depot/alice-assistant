@@ -1,5 +1,8 @@
+import { Static, Type } from '@sinclair/typebox';
 import { Tool } from '../lib/tool-system'
 import { UserConfig } from '../lib/user-config';
+
+const parameters = Type.Object({ query: Type.String() });
 
 const getNewsHeadlines: Tool = {
   name: 'getNewsHeadlines',
@@ -11,8 +14,7 @@ const getNewsHeadlines: Tool = {
     `'What's the latest from the Middle East?' → query: 'middle east', ` +
     `'What's the local news? → query: [INSERT CURRENT LOCATION FROM CONTEXT ABOVE]`,
   callSignature: 'getNewsHeadlines',
-// 
-
+  parameters,
   toolResultPromptIntro: 
     'You have just received the results of a call to the getNewsHeadlines tool. ' +
     'The results are in JSON format and have the following structure ' +
@@ -39,8 +41,8 @@ const getNewsHeadlines: Tool = {
     }
     return promptOutroParts.join(' ');
   },
-  execute: async (args: Record<string, string>) => {
-    const category = args.category;
+  execute: async (args: Static<typeof parameters>) => {
+    const category = args.query;
     // Here you would add the code to call the news API and retrieve the headlines based on the category.
     // For the sake of this example, let's just return some dummy headlines.
     const dummyHeadlines: Record<string, Record<string, string>[]> = {

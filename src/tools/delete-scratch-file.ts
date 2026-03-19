@@ -1,7 +1,10 @@
+import { Static, Type } from '@sinclair/typebox';
 import { Tool } from '../lib/tool-system';
 import * as fs from 'fs';
 import * as path from 'path';
 import { UserConfig } from '../lib/user-config';
+
+const parameters = Type.Object({ filename: Type.String() });
 
 const deleteScratchFileTool: Tool = {
   name: 'deleteScratchFile',
@@ -14,9 +17,10 @@ const deleteScratchFileTool: Tool = {
     `you previously wrote a file named "notes.txt" using the writeScratchFile tool and no longer need it, you would call ` +
     `deleteScratchFile with the argument "filename" set to "notes.txt" to delete it.`,
   callSignature: 'deleteScratchFile',
+  parameters,
   toolResultPromptIntro: 'You have just deleted a text file from your internal scratch directory using the deleteScratchFile tool.\n',
   toolResultPromptOutro: '',
-  execute: async (args: Record<string, string>) => {
+  execute: async (args: Static<typeof parameters>) => {
     const filename = args.filename;
     const allowedFileTypes = UserConfig.getConfig().tools.writeScratchFile.allowedFileTypes;
     const scratchDirectory = UserConfig.getConfig().tools.writeScratchFile.scratchDirectory;

@@ -13,6 +13,7 @@ export const AliceCore = {
       console.log(`Oh! I'm actually named ${config.assistantName}.`);
     }
     
+    console.log(await buildSystemPrompt())
     console.log('Config loaded successfully.');
     // console.log('Checking for a running piper-tts web server on localhost:5002...');
     // TODO: Check if piper-tts web server is running, and start it if not.
@@ -23,8 +24,8 @@ export const AliceCore = {
     console.log(`Trying talk to ${config.ollama.model} in Ollama...`);
     await (async () => {
       const testConversation = startLLMTransaction();
-      console.log(` -> ${config.wakeWord}, You've just been started up. How are you feeling?`);
-      const reply = await testConversation.executeTurn(await buildSystemPrompt('You\'ve just been started up. How are you feeling?'));
+      console.log(` -> ${config.wakeWord}`);
+      const reply = await testConversation.executeTurn(await buildSystemPrompt('startup'));
       console.log(` <- ${reply}`);
     })()
     console.log(`Talking to ${config.ollama.model} in Ollama works.`);

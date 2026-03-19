@@ -1,8 +1,10 @@
 import { UserConfig } from './user-config';
-import { tools } from '../tools';
+import { getTools } from '../tools';
 import { getSystemInfo } from './system-info';
 
-export async function buildSystemPrompt(userQuery?: string) {
+type PromptScenario = 'voice' | 'chat' | 'startup';
+
+export async function buildSystemPrompt(scenario: PromptScenario = 'voice', userQuery?: string) {
   const systemPromptChunks: string[] = [];
   // First the heading
   systemPromptChunks.push(`# TASK BRIEFING FOR DIGITAL ASSISTANT: PERSONALITY, TOOLS, CONTEXT, AND SCENARIO\n`);
@@ -46,6 +48,7 @@ export async function buildSystemPrompt(userQuery?: string) {
   systemPromptChunks.push(` - Locale: ${systemInfo.locale}`);
   systemPromptChunks.push(` - Timezone: ${systemInfo.timezone}`);
   // Then the TOOLS section, which will list the tools that the assistant has access to, and how to use them.
+  const tools = getTools();
   if (tools.length > 0) {
     systemPromptChunks.push(`\n## TOOLS\n\nYou have access to tools that can retrieve local data. RULES — follow these EXACTLY:\n`);
     for (let i = 0; i < tools.length; i++) {
@@ -58,19 +61,36 @@ export async function buildSystemPrompt(userQuery?: string) {
   // what the wake word is, the query if there is one, and a few last minute instructions to keep it on track.
   systemPromptChunks.push(`\n## SCENARIO\n`);
   // TODO: Actually remembering users might be cool, instead of assuming like we do here.
-  systemPromptChunks.push(` - You have just been activated again by a known user with your wake word "${UserConfig.getConfig().wakeWord}".`);
-  if (userQuery) {
-    systemPromptChunks.push(`- The user continued the request with the query: "${userQuery}"`);
-  }
-  systemPromptChunks.push(' - Remember, your response will be synthesized into speech, so keep it punchy and short.');
-  systemPromptChunks.push(` - When answering factual questions, go heavy on the facts, and light on the "${UserConfig.getConfig().assistantName} flair."`);
-  systemPromptChunks.push(` - When answering other queries, feel free to lean into the "${UserConfig.getConfig().assistantName} flair" more.`);
-  systemPromptChunks.push(' - Your answer MUST be only your response. Do not include emotes or descriptions of tone. Do not include narration.');
-  if (tools.length > 0) {
-    systemPromptChunks.push(' - If you would need to make a tool call, output ONLY the call signature. Otherwise, respond in character.');
-  } else {
-    systemPromptChunks.push(' - Respond in character.');
-  }
 
-  return systemPromptChunks.join('\n');
+  switch (scenario) {
+    case 'voice':
+      systemPromptChunks.push(` - You have just been activated again by a known user with your wake word "${UserConfig.getConfig().wakeWord}".`);
+      if (userQuery) {
+        systemPromptChunks.push(`- The user continued the request with the query: "${userQuery}"`);
+      }
+      systemPromptChunks.push(' - Remember, your response will be synthesized into speech, so keep it punchy and short.');
+      systemPromptChunks.push(` - When answering factual questions, go heavy on the facts, and light on the "${UserConfig.getConfig().assistantName} flair."`);
+      systemPromptChunks.push(` - When answering other queries, feel free to lean into the "${UserConfig.getConfig().assistantName} flair" more.`);
+      systemPromptChunks.push(' - Your answer MUST be only your response. Do not include emotes or descriptions of tone. Do not include narration.');
+      systemPromptChunks.push(' - Get to the heart of the response first, then inject a bit of flair.')
+      if (tools.length > 0) {
+        systemPromptChunks.push(' - If you are making a tool call, output ONLY the call signature AND NOTHING ELSE. OTHERWISE, RESPOND IN CHARACTER NOW.');
+      } else {
+        systemPromptChunks.push(' - Respond in character.');
+      }
+
+      return systemPromptChunks.join('\n');
+    case 'chat':
+    case 'startup':
+      systemPromptChunks.push(` - Your assistant software has just been started.`);
+      systemPromptChunks.push(` - It is ensuring it can communicate with you.`);
+      systemPromptChunks.push(` - Respond with no more than 2 sentences. They will appear in the assistant application log.`);
+      if (tools.length > 0) {
+        systemPromptChunks.push(' - If you are making a tool call, output ONLY the call signature AND NOTHING ELSE. OTHERWISE, RESPOND IN CHARACTER NOW.');
+      } else {
+        systemPromptChunks.push(' - Respond in character.');
+      }
+
+      return systemPromptChunks.join('\n');
+  }
 }

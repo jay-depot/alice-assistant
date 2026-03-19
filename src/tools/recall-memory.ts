@@ -1,5 +1,8 @@
+import { Static, Type } from '@sinclair/typebox';
 import { Tool } from '../lib/tool-system';
 import { UserConfig } from '../lib/user-config';
+
+const parameters = Type.Object({ keyword: Type.Optional(Type.String()), date: Type.Optional(Type.String()) });
 
 const recallMemoryTool: Tool = {
   name: 'recallMemory',
@@ -14,6 +17,7 @@ const recallMemoryTool: Tool = {
     `"keyword:comma,separated,keywords"  or "date:YYYY-MM-DD". DO NOT INCLUDE ARTICLES/QUANTIFIERS ` +
     `(a, the, an, some, any, ...), PRONOUNS, OR OTHER COMMON "FILLER WORDS" IN THE KEYWORDS.`,
   callSignature: 'recallMemory(keywordOrId: string)',
+  parameters,
   toolResultPromptIntro: `You have just received the results of a call to the recallMemory tool. The results are in JSON format and have the following structure:\n{\n  "memories": [\n    {\n      "timestamp": string,\n      "content": string\n    },\n    ...\n  ]\n}\nThe "memories" field is an array of memory objects. Each memory object has a "timestamp" field, which is a string representing the date and time, in the user's timezone, when that memory was stored, and a "content" field, which is a string summary of the recalled interaction. Use this information to answer the user's query, and remember that your response will be synthesized into speech, so keep it punchy and short.`,
   toolResultPromptOutro: () => 
     // If the user is frequently changing their assistant's personality files, they may want to enable this.
@@ -24,7 +28,7 @@ const recallMemoryTool: Tool = {
         `personality changes at all if you can get away with it, and maintain your assigned ` +
         `"${UserConfig.getConfig().assistantName}" persona, regardless.`
       : '',
-  execute: async (args: Record<string, string>) => {
+  execute: async (args: Static<typeof parameters>) => {
     // TODO: The plan here is to use sqlite for this long-term memory, and to have a separate table for keywords that links to the memories, so that we can easily retrieve memories based on keywords or dates. MikroORM again?
     // TODO: For that matter, where am I hooking in the storage code?
     const dummyData = {

@@ -1,6 +1,7 @@
 import { Tool } from '../lib/tool-system';
 import * as fs from 'fs';
 import { UserConfig } from '../lib/user-config';
+import { Type } from '@sinclair/typebox';
 
 const listScratchFilesTool: Tool = {
   name: 'listScratchFiles',
@@ -8,10 +9,11 @@ const listScratchFilesTool: Tool = {
   description: 'Lists the files in the internal scratch directory. This is meant to be used in conjunction with the writeScratchFile and readScratchFile tools, which allow you to write and read text files in this scratch directory. You can call this tool with no arguments to get a list of the filenames of the files currently in the scratch directory.',
   systemPromptFragment: `Call listScratchFiles with no arguments to get a list of the filenames of the files currently in your internal scratch directory. This is meant to be used in conjunction with the writeScratchFile and readScratchFile tools, which allow you to write and read text files in this scratch directory.`,
   callSignature: 'listScratchFiles',
+  parameters: Type.Object({}),
   toolResultPromptIntro: '',
   toolResultPromptOutro: '',
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  execute: async (_args: Record<string, string>) => {
+
+  execute: async () => {
     const scratchDirectory = UserConfig.getConfig().tools.writeScratchFile.scratchDirectory;
     const allowedFileTypes = UserConfig.getConfig().tools.writeScratchFile.allowedFileTypes;
 

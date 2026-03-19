@@ -1,5 +1,6 @@
-import OllamaClient from 'ollama';
+import OllamaClient, { ChatResponse } from 'ollama';
 import { UserConfig } from './user-config';
+import { buildOllamaToolDescriptionObject } from './tool-system';
 
 const MAX_TOOL_CALL_DEPTH = 5;
 type Message = {
@@ -38,13 +39,12 @@ export class LlmTransaction {
 
     const response = await OllamaClient.chat({
       ...this.llmConnection,
-      messages: this.context
+      messages: this.context,
+      tools: buildOllamaToolDescriptionObject()
     });
-
-    if (response && response.message.content && response.message.content.length > 0) {
-      
-      //TODO: Tool calling check
-
+    if (response.message.tool_calls) {
+      return(JSON.stringify(response.message.tool_calls));
+    } else if (response && response.message.content && response.message.content.length > 0) {
       this.context.push({
         role: "assistant",
         content: response.message.content
@@ -52,11 +52,11 @@ export class LlmTransaction {
 
       return response.message.content;
     }
-    
-    throw new Error('Empty response from LLM');
+    console.log({ response });
+    return '';
   }
 
-  private async handleToolCalls(responseContent: string, depth = 0): Promise<string> {
+  private async handleToolCalls(response: ChatResponse, depth = 0): Promise<string> {
     // Check if the response content is a tool call. If it is, execute the tool call and send the 
     // appropriate "tool response" prompt back to the LLM, then wait for the next response. If it's 
     // not a tool call, just return the response content.
@@ -65,8 +65,6 @@ export class LlmTransaction {
       throw new Error('Maximum tool call depth exceeded. Possible infinite loop detected.');
     }
 
-    // here is where we extract, parse and execute the tool call, and then construct the appropriate prompt
-    // to send back to the LLM with the tool results and instructions for how to proceed.
 
     const promptIfCallsAvailable = ` - If you would need to make another tool call, output ONLY the call signature. Otherwise, answer the user's query in character. You have ${MAX_TOOL_CALL_DEPTH - depth} remaining recursive tool calls you may make regarding this user query.`;
     const promptIfNoCallsAvailable =  ` - You may make no more recursive tool calls for this conversation turn, so you must answer the user's query in character.\n` +

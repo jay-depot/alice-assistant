@@ -1,3 +1,4 @@
+import { Type } from '@sinclair/typebox';
 import { Tool } from '../lib/tool-system';
 import { UserConfig } from '../lib/user-config';
 
@@ -7,6 +8,7 @@ const systemHealthCheckTool: Tool = {
   systemPromptFragment: `Call systemHealthCheck ONLY for questions about the status of the computer you are running on. ` +
     `This includes general questions about how you are doing, as you ARE the computer. systemHealthCheck takes no parameters.`,
   callSignature: 'systemHealthCheck',
+  parameters: Type.Object({}),
   toolResultPromptIntro: `You have just received the results of a call to the systemHealthCheck tool. The results are formatted ` +
     `as JSON with semantically meaningful field names, but since the permissions of the tool and the nature of the underlying system ` +
     `may vary, I cannot predict what fields will be present. Do your best with what you get. Use this information to answer the ` +
@@ -17,7 +19,7 @@ const systemHealthCheckTool: Tool = {
     }
     return '';
   },
-  execute: async (_args: Record<string, string>) => { // systemHealthCheck takes no parameters, so we can ignore the args.
+  execute: async () => { // systemHealthCheck takes no parameters, so we can ignore the args.
     // TODO: Fetch real data. Some of these might be complicated
     const dummyData = {
       cpuUsage: 45,

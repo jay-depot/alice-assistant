@@ -1,4 +1,7 @@
 import { Tool } from '../lib/tool-system';
+import { Static, Type } from '@sinclair/typebox';
+
+const parameters = Type.Object({ path: Type.String(), filter: Type.Optional(Type.String()) });
 
 const getDirectoryListingTool: Tool = {
   name: 'getDirectoryListing',
@@ -13,6 +16,7 @@ const getDirectoryListingTool: Tool = {
     `call getDirectoryListing with the "path" argument set to "~/Documents". If the user says "I can't find my resume, do you know ` +
     `where it is?", you might call getDirectoryListing with the "path" argument set to "~/" and the "filter" argument set to "resume"`,
   callSignature: 'getDirectoryListing',
+  parameters,
   toolResultPromptIntro: 'You have just received the results of a call to the getDirectoryListing tool. The results are in JSON format and have the following structure:\n' +
     '{\n' +
     '    "path": "The path that was listed",\n' +
@@ -26,7 +30,7 @@ const getDirectoryListingTool: Tool = {
     '}\n\n' +
     `The "path" field is a string representing the directory that was listed. The "items" field is an array of objects, each representing a file or folder in the listed directory. Each object has a "name" field, which is a string containing the name of the file or folder, and a "type" field, which is a string that is either "file" or "folder" indicating whether the item is a file or a folder. Use this information to answer the user's query, and remember that your response will be synthesized into speech, so keep it punchy and short.`,
   toolResultPromptOutro: '',
-  execute: async (args: Record<string, string>) => {
+  execute: async (args: Static<typeof parameters>) => {
     const path = args.path;
     const filter = args.filter;
     // Here you would add the code to list the contents of the specified directory on the user's computer, optionally filtering by the provided keyword, and return the results in the specified JSON format.

@@ -2,7 +2,12 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { Tool } from '../lib/tool-system';
 import { UserConfig } from '../lib/user-config';
+import { Static, Type } from '@sinclair/typebox';
 
+const parameters = Type.Object({ filename: Type.String(), contents: Type.String() });
+
+UserConfig.load();
+console.log(UserConfig.getConfig())
 const writeScratchFileTool: Tool = {
   name: 'writeScratchFile',
   dependencies: ['readScratchFile', 'listScratchFiles'],
@@ -16,20 +21,21 @@ const writeScratchFileTool: Tool = {
     `and the contents of the file as arguments. For example, if you want to save some notes that you can refer back to ` +
     `later, you could call writeScratchFile with the argument "filename" set to "notes.txt" and the argument "contents" ` +
     `set to the text you want to save. You can then read back the contents of this file later using the readScratchFile tool. ` +
-    `You may only use the extensions ${UserConfig.getConfig().tools.writeScratchFile.allowedFileTypes.join(', ')} for the ` +
-    `filename, and the contents of the file must not exceed ${UserConfig.getConfig().tools.writeScratchFile.maxFileSizeKB} ` +
+    `You may only use the extensions ${UserConfig.getConfig().toolSettings.writeScratchFile.allowedFileTypes.join(', ')} for the ` +
+    `filename, and the contents of the file must not exceed ${UserConfig.getConfig().toolSettings.writeScratchFile.maxFileSizeKB} ` +
     `KB in size. You should also ensure that the filename does not contain any path traversal characters.`,
   callSignature: 'writeScratchFile',
+  parameters,
   toolResultPromptIntro: 'You have just written a text file to your internal scratch directory using the writeScratchFile tool.\n',
   toolResultPromptOutro: '',
-  execute: async (args: Record<string, string>) => {
-    const scratchDirectory = UserConfig.getConfig().tools.writeScratchFile.scratchDirectory;
+  execute: async (args: Static<typeof parameters>) => {
+    const scratchDirectory = UserConfig.getConfig().toolSettings.writeScratchFile.scratchDirectory;
     if (!fs.existsSync(scratchDirectory)) {
       fs.mkdirSync(scratchDirectory, { recursive: true });
     }
-    const allowedFileTypes = UserConfig.getConfig().tools.writeScratchFile.allowedFileTypes;
-    const maxFileSizeKB = UserConfig.getConfig().tools.writeScratchFile.maxFileSizeKB;
-    const allowOverwrite = UserConfig.getConfig().tools.writeScratchFile.allowOverwrite;
+    const allowedFileTypes = UserConfig.getConfig().toolSettings.writeScratchFile.allowedFileTypes;
+    const maxFileSizeKB = UserConfig.getConfig().toolSettings.writeScratchFile.maxFileSizeKB;
+    const allowOverwrite = UserConfig.getConfig().toolSettings.writeScratchFile.allowOverwrite;
 
     const filename = args.filename;
     const contents = args.contents;

@@ -2,6 +2,7 @@
 // import * as fs from "fs";
 // import * as path from "path";
 // import * as childProcess from "child_process";
+import { Static, Type } from "@sinclair/typebox";
 import { Tool } from "../lib/tool-system";
 import { UserConfig } from "../lib/user-config";
 
@@ -18,6 +19,8 @@ type AvailableApplication = {
   arguments: string;
 }
 
+const parameters = Type.Object({ application: Type.Optional(Type.String()), parameters: Type.Record(Type.String(), Type.String()) });
+
 const openApplicationTool: Tool = {
   name: "openApplication",
   description: "Allows the assistant to open applications, files, folders and web pages on behalf of the user. This " +
@@ -32,9 +35,10 @@ const openApplicationTool: Tool = {
     `with relevant topics including "browse the web" and "show me the page". You would then call openApplication again ` +
     `with the "application" parameter set to "web_browser", and a "url" parameter set to the appropriate news website. `,
   callSignature: "openApplication",
+  parameters,
   toolResultPromptIntro: '',
   toolResultPromptOutro: '',
-  execute: async (args: Record<string, string>) => {
+  execute: async (args: Static<typeof parameters>) => {
     // Here you would add the code to execute the appropriate command to open the application or file based on the arguments.
     // For the sake of this example, let's just return a string indicating what would have been opened.
     if (!args.application) {
