@@ -1,5 +1,6 @@
 import { UserConfig } from './user-config'
 import { startLLMTransaction } from './llm-transaction';
+import { buildSystemPrompt } from './system-prompt';
 
 export const AliceCore = {
   start: async () => {
@@ -13,7 +14,7 @@ export const AliceCore = {
     }
     
     console.log('Config loaded successfully.');
-    console.log({ config });
+
     // console.log('Checking for a running piper-tts web server on localhost:5002...');
     // TODO: Check if piper-tts web server is running, and start it if not.
     // console.log('Piper-TTS web server is running.');
@@ -23,8 +24,8 @@ export const AliceCore = {
     console.log(`Trying talk to ${config.ollama.model} in Ollama...`);
     await (async () => {
       const testConversation = startLLMTransaction();
-      console.log(' -> Say hello');
-      const reply = await testConversation.executeTurn('Say hello');
+      console.log(` -> ${config.wakeWord}, You've just been started up. How are you feeling?`);
+      const reply = await testConversation.executeTurn(await buildSystemPrompt('You\'ve just been started up. How are you feeling?'));
       console.log(` <- ${reply}`);
     })()
     console.log(`Talking to ${config.ollama.model} in Ollama works.`);

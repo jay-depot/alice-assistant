@@ -8,23 +8,24 @@ export async function buildSystemPrompt(userQuery?: string) {
   systemPromptChunks.push(`# TASK BRIEFING FOR DIGITAL ASSISTANT: PERSONALITY, TOOLS, CONTEXT, AND SCENARIO\n`);
   // Then the intro
   systemPromptChunks.push('## INTRODUCTION\n');
-  systemPromptChunks.push(UserConfig.getConfig().personality.intro);
+  systemPromptChunks.push(UserConfig.getConfig().personality.INTRO);
   // Then the quirks
   systemPromptChunks.push(`\n## PERSONALITY QUIRKS\n`);
-  systemPromptChunks.push(UserConfig.getConfig().personality.quirks);
+  systemPromptChunks.push(UserConfig.getConfig().personality.QUIRKS);
   // Then any "other" personality files the user has added, each under its own heading.
-  UserConfig.getConfig().personality.filter((_value: string, key: string) => {
-    return key !== 'intro' && key !== 'quirks';
-  }).forEach((value: string, key: string) => {
-    systemPromptChunks.push(`## ${key}\n\n${value}\n`);
-  });
+  Object.keys(UserConfig.getConfig().personality).
+    filter((key: string) => key !== 'INTRO' && key !== 'QUIRKS').
+    forEach((key: string) => {
+      const value = UserConfig.getConfig().personality[key];
+      systemPromptChunks.push(`## ${key}\n\n${value}\n`);
+    });
   // Then the additional context (Current date and time, day of the week, location)
   systemPromptChunks.push(`## ADDITIONAL CONTEXT\n`);
   systemPromptChunks.push(`The current date and time are: ${new Date().toLocaleString()}`);
   systemPromptChunks.push(`The current day of the week is: ${new Date().toLocaleString('en-US', { weekday: 'long' })}`);
   systemPromptChunks.push(`The current location is: ${UserConfig.getConfig().location}`);
   // Then some basic host PC system info: OS, CPU, GPU, RAM, Kernel, Desktop Environment, Distribution
-  systemPromptChunks.push('## YOUR HOST PC SYSTEM INFO\n');
+  systemPromptChunks.push('\n## YOUR HOST PC SYSTEM INFO\n');
   const systemInfo = await getSystemInfo();
   systemPromptChunks.push(` - OS: ${systemInfo.os}`);
   systemPromptChunks.push(` - Distribution: ${systemInfo.distribution}`);
