@@ -25,7 +25,7 @@ const parameters = Type.Object({
   ])
 });
 
-export const SetMoodTool: Tool = {
+const SetMoodTool: Tool = {
   name: 'set_mood',
   description: 'Sets the assistant\'s mood. The mood is a string that describes the assistant\'s current emotional state, and can be used to influence the tone and style of the assistant\'s responses. For example, if the mood is set to "happy", the assistant might respond in a more cheerful and upbeat manner, while if the mood is set to "sad", the assistant might respond in a more somber and empathetic manner.',
   parameters,
@@ -39,3 +39,5 @@ export const SetMoodTool: Tool = {
     return `Assistant mood set to ${mood}.`;
   }
 };  
+
+export default SetMoodTool;
