@@ -1,11 +1,13 @@
 import * as express from 'express';
 import * as path from 'path';
+import type { Server } from 'http';
 import { UserConfig } from '../../lib/user-config';
 
 
 export function startServer() {
   const app = express();
   const PORT = UserConfig.getConfig().webInterface.port;
+  const HOST = UserConfig.getConfig().webInterface.bindToAddress;
 
   app.use(express.json());
   app.use(express.static(path.join(__dirname, '../client')));
@@ -16,7 +18,9 @@ export function startServer() {
     res.json({ reply: `Echo: ${message}` });
   });
 
-  app.listen(PORT, () => {
-    console.log(`Server running at http://localhost:${UserConfig.getConfig().webInterface.port}/`);
+  const server: Server = app.listen(PORT, HOST, () => {
+    console.log(`Server running at http://${HOST}:${PORT}/`);
   });
+
+  return server;
 }

@@ -2,6 +2,7 @@ import { UserConfig } from './user-config'
 import { startLLMTransaction } from './llm-transaction';
 import { buildSystemPrompt } from './system-prompt';
 import { getORM } from './memory';
+import { startServer } from '../web-interface/server/alice-rest-service';
 
 export const AliceCore = {
   start: async () => {
@@ -23,6 +24,9 @@ export const AliceCore = {
     // console.log('Audio output is working. Playing startup sound.');
     console.log('Initializing memory system.');
     const orm = await getORM();
+
+    // Write a memory to the database about being started up, so we have a record of it in the memory system and it can be referred back to for context in future interactions.
+
     console.log('Memory system initialized.');
     console.log(`Trying talk to ${config.ollama.model} in Ollama...\n`);
     await (async () => {
@@ -38,8 +42,54 @@ export const AliceCore = {
     // console.log('Initializing wake word loop...');
     // This is going to be fun. TBD.
     // console.log('Wake word loop initialized. Alice Assistant is now running and waiting for the wake word...');
-    if (config.webInterface.enabled) {
-      console.log(`Starting web UI on port ${config.webInterface.port}...`);
+    if (!config.webInterface.enabled) {
+      // In non-service mode, startup is a one-shot check and exits normally for now.
+      // TODO: Once we have the wake word loop and voice interface working, this needs to be removed so previous interaction memory can work.
+      await orm.close(true);
+      return;
     }
+
+    console.log(`Starting web UI on ${config.webInterface.bindToAddress}:${config.webInterface.port}...`);
+    const server = startServer();
+
+    await new Promise<void>((resolve, reject) => {
+      let shuttingDown = false;
+
+      const cleanupSignalHandlers = () => {
+        process.off('SIGINT', shutdown);
+        process.off('SIGTERM', shutdown);
+      };
+
+      const shutdown = async (signal: NodeJS.Signals) => {
+        if (shuttingDown) {
+          return;
+        }
+        shuttingDown = true;
+        console.log(`Received ${signal}, shutting down gracefully...`);
+        cleanupSignalHandlers();
+
+        server.close(async (serverErr?: Error) => {
+          if (serverErr) {
+            reject(serverErr);
+            return;
+          }
+
+          try {
+            await orm.close(true);
+            resolve();
+          } catch (ormErr) {
+            reject(ormErr instanceof Error ? ormErr : new Error(String(ormErr)));
+          }
+        });
+      };
+
+      process.on('SIGINT', shutdown);
+      process.on('SIGTERM', shutdown);
+
+      server.on('error', (err) => {
+        cleanupSignalHandlers();
+        reject(err);
+      });
+    });
   }
 }

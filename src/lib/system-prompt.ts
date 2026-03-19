@@ -60,7 +60,7 @@ export async function buildSystemPrompt(scenario: PromptScenario = 'voice', user
   }
 
   // A mood section, if that tool is enabled.
-  if (UserConfig.getConfig().enabledTools.includes('setMood')) {
+  if (UserConfig.getConfig().enabledTools['setMood']) {
     systemPromptChunks.push(`\n## MOOD\n\nYou have a mood, which is a string that describes the tone of your ` +
       `responses. It is also used to inform the manner in which your responses are delivered to the user. Your ` +
       `current mood is ${getMood()}, and you may change your mood by calling the setMood tool ` +

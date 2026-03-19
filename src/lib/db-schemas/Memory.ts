@@ -1,5 +1,5 @@
 import { defineEntity, p } from '@mikro-orm/sqlite';
-import { MemoryKeywords } from './Keyword';
+import { Keyword } from './Keyword';
 
 const MemorySchema = defineEntity({
   name: 'Memory',
@@ -7,7 +7,7 @@ const MemorySchema = defineEntity({
     id: p.integer().primary(),
     timestamp: p.datetime(),
     content: p.string(),
-    keywords: () => p.manyToMany(MemoryKeywords).mappedBy('memories'),
+    keywords: () => p.manyToMany(Keyword).mappedBy('memories'),
   }
 });
 

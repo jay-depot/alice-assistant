@@ -1,8 +1,38 @@
 import { Static, Type } from '@sinclair/typebox';
 import { Tool } from '../lib/tool-system';
 import { UserConfig } from '../lib/user-config';
+import { MikroORM } from '@mikro-orm/sqlite';
+import { Keyword, Memory } from '@lib/db-schemas';
 
 const parameters = Type.Object({ keyword: Type.Optional(Type.String()), date: Type.Optional(Type.String()) });
+
+export async function createMemory(summary: string, orm: MikroORM) {
+  // extract keywords from the string
+  const keywords = summary.split(' ').filter(word => {
+    // filter out common "filler" words that aren't useful as keywords, and also filter out any words that are too short to be meaningful.
+    const fillerWords = ['the', 'a', 'an', 'some', 'any', 'and', 'or', 'but', 'if', 'then'];
+    return !fillerWords.includes(word.toLowerCase()) && word.length > 2 && isNaN(Number(word)) && /^[a-zA-Z]+$/.test(word); // also filter out pure numbers and symbols, as they aren't useful keywords and can cause issues with the keyword extraction and recall process.
+  }).map(word => word.toLowerCase());
+
+  // Load all matching keywords from the database, then create any new ones we need.
+  const keywordEntities = await orm.em.find(Keyword, { keyword: keywords });
+  const newKeywords = keywords.filter(k => !keywordEntities.some(ke => ke.keyword === k)).map(k => {
+    const newKeyword = orm.em.create(Keyword, { keyword: k });
+    orm.em.persist(newKeyword);
+    return newKeyword;
+  });
+
+  // Create the memory, link it to the keywords, and save it to the database.
+
+  const memory = orm.em.create(Memory, { content: summary, timestamp: new Date() });
+  orm.em.persist(memory);
+  
+  [...keywordEntities, ...newKeywords].forEach(ke => {
+    ke.memories.add(memory);
+  });
+
+  await orm.em.flush();
+}
 
 const recallMemoryTool: Tool = {
   name: 'recallMemory',
