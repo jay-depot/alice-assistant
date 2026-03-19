@@ -3,14 +3,14 @@
   "assistantName": "ALICE",
   "webInterface": {
     "enabled": true,
-    "port": 1337,
+    "port": 47153,
     "bindToAddress": "127.0.0.1"
   },
   "ollama": {
     "host": "http://127.0.0.1:11434",
-    "model": "qwen3.5:9b",
+    "model": "qwen2:7b",
     "options": {
-      "num_ctx": 24000
+      "num_ctx": 32000
     }
   },
   "piperTts": {
