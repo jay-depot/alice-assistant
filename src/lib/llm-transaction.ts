@@ -14,7 +14,9 @@ export class LlmTransaction {
     host: '',
     model: '',
     options: {
-      num_ctx: 16000
+      num_ctx: 16000, // Ollama defaults to ~4k on most consumer GPUs, but Qwen models can go a LOT higher without using much vram. At home I set it to 128k and it only uses about 10gb of vram.
+      think: "low" // Ollama docs say this setting works for "some" models. Testing this with Qwen to see if I can tune speed/accuracy a bit.
+      // TODO: Moonshot idea: If this doesn't work, or really even if it does, find or train a functionGemma model to predict how much thinking a request will need and route to different models and thinking levels accordingly.
     },
   }
 
@@ -24,12 +26,36 @@ export class LlmTransaction {
     this.llmConnection = {
       ...this.llmConnection,
       host: UserConfig.getConfig().ollama.host,
-      model: UserConfig.getConfig().ollama.model
+      model: UserConfig.getConfig().ollama.model,
+      options: {
+        ...this.llmConnection.options,
+        // allow the user to override settings like context window size, thinking time, temperature, etc. in the config, while being able to provide "sensible" defaults.
+        ...UserConfig.getConfig().ollama.options,
+      }
     }
 
     if (UserConfig.getConfig().ollama.options) {
       this.llmConnection.options = UserConfig.getConfig().ollama.options;
     }
+  }
+
+  /**
+   * Quickly restore an LLM transaction with externally stored context. Returns the same
+   * transaction object for easy chaining. Use this for the web interface, not for the
+   * voice interface, which should maintain transaction state itself.
+   * 
+   * @param context The conversation context to restore for this transaction. This should be an array of messages, where each message has a "role" (either "user" or "assistant") and "content" (the text content of the message).
+   * @returns the same llmTransaction object for easy chained calling
+   */
+  restoreContext(context: Message[]) {
+    // Let's disarm a common foot-gun right off the bat.
+    if (this.context.length > 0) {
+      throw new Error('Context has already been set for this transaction. Cannot restore context more than once.');
+    }
+
+    this.context = context;
+ 
+    return this;
   }
 
   async executeTurn(prompt: string): Promise<string> {
@@ -112,14 +138,21 @@ export class LlmTransaction {
     return response.message.content || '';
   }
 
+  /**
+   * Instructs the LLM to abandon its assistant persona and summarize the interaction. Use this 
+   * to implement the memory feature by calling it at the end of any voice or web UI conversation
+   * and storing the resulting summary in the database, with keywords extracted.
+   * 
+   * @returns A promise that resolves to the LLM response
+   */
   async concludeTransactionWithSummary(): Promise<string> {
-    const terminationPrompt = `The user has terminated the assistant session. The assistant software now needs you to abandon your persona and summarize the conversation to provide context in future requests.
+    const terminationPrompt = `The user has terminated the assistant session. The assistant software now needs you to abandon your persona and summarize the conversation to provide context in future requests. Any tool capabilities described elsewhere are no longer available to you.
 
  - Include no headers
  - Include no footers
  - Return only a bulleted, unnumbered list of conversation turns from this interaction with a summary of all user requests and your responses in chronological order
  - You will be able to use this summary in future conversations for context
- - There is no need to mention this request for archival in your summary, the relevant processes which will use it already know that
+ - There is no need to mention this request for summary in your summary, the existence of the summary itself implies it.
  - Remain neutral and objective in your summary
  - There is no need for an end marker for this session, it will be added for you
 `;

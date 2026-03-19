@@ -1,6 +1,7 @@
 import { UserConfig } from './user-config';
 import { getTools } from '../tools';
 import { getSystemInfo } from './system-info';
+import { AllowedMoods, getMood } from 'tools/set-mood';
 
 type PromptScenario = 'voice' | 'chat' | 'startup';
 
@@ -57,6 +58,18 @@ export async function buildSystemPrompt(scenario: PromptScenario = 'voice', user
       systemPromptChunks.push(` ${i +1} ${fragment}`);
     }
   }
+
+  // A mood section, if that tool is enabled.
+  if (UserConfig.getConfig().enabledTools.includes('setMood')) {
+    systemPromptChunks.push(`\n## MOOD\n\nYou have a mood, which is a string that describes the tone of your ` +
+      `responses. It is also used to inform the manner in which your responses are delivered to the user. Your ` +
+      `current mood is ${getMood()}, and you may change your mood by calling the setMood tool ` +
+      `before responding. The allowed moods you can set are: ${AllowedMoods.join(', ')}. Feel free to change ` +
+      `your mood as often as you like, and use it to influence the tone and style of your responses. For ` +
+      `example, if your mood is set to "happy", you might respond in a more cheerful and upbeat manner, while ` +
+      `if your mood is set to "sassy", you might respond in a more sarcastic and playful manner.`);
+  }
+
   // Finally the SCENARIO section, which is where we tell the LLM that the assistant has just been activated by wake word, 
   // what the wake word is, the query if there is one, and a few last minute instructions to keep it on track.
   systemPromptChunks.push(`\n## SCENARIO\n`);

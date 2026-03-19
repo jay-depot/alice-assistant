@@ -9,9 +9,14 @@ const parameters = Type.Object({ filename: Type.String() });
 const readScratchFileTool: Tool = {
   name: 'readScratchFile',
   dependencies: ['writeScratchFile', 'listScratchFiles'],
-  description: 'Reads the contents of an internal text file. This is meant to read back the contents of files ' +
-    'the assistant has written to itself, using the writeScratchFile tool.',
-  systemPromptFragment: `Call readScratchFile when you want to read the contents of a text file that you have previously written using the writeScratchFile tool. The file must be located in your scratch directory, and you must provide the filename as an argument. For example, if you previously wrote a file named "notes.txt" using the writeScratchFile tool, you would call readScratchFile with the argument "filename" set to "notes.txt" to read its contents.`,
+  description: `Reads the contents of a note in the assistant's internal scratch directory. This is meant ` +
+    `to read back the contents of notes the assistant has written to itself, using the writeScratchFile tool.`,
+  systemPromptFragment: `Call readScratchFile to read the contents of a note in your internal scratch ` +
+    `directory. This is meant to read back the contents of notes you have written to yourself, using the ` +
+    `writeScratchFile tool. Use the listScratchFiles tool to get a list of the filenames of any notes you ` +
+    `have previously written to yourself in this internal scratch directory. When you call readScratchFile, `+
+    `provide the filename as an argument, and it will return the contents of that file. Remember, these ` +
+    `files are only accessible to you, the assistant, so there is no reason to talk about them specifically.`,
   callSignature: 'readScratchFile',
   parameters,
   toolResultPromptIntro: 'You have just read the contents of a text file using the readScratchFile tool.\n',

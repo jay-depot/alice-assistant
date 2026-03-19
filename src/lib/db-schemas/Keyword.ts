@@ -1,8 +1,8 @@
 import { defineEntity, p } from '@mikro-orm/sqlite';
 import { Memory } from './Memory';
 
-const MemoryKeywordsSchema = defineEntity({
-  name: 'MemoryKeywords',
+const KeywordSchema = defineEntity({
+  name: 'Keyword',
   properties: {
     id: p.integer().primary(),
     keyword: p.string(),
@@ -10,6 +10,6 @@ const MemoryKeywordsSchema = defineEntity({
   }
 });
 
-export class MemoryKeywords extends MemoryKeywordsSchema.class {};
+export class Keyword extends KeywordSchema.class {};
 
-MemoryKeywordsSchema.setClass(MemoryKeywords);
+KeywordSchema.setClass(Keyword);

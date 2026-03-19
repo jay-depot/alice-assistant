@@ -1,6 +1,7 @@
 import { UserConfig } from './user-config'
 import { startLLMTransaction } from './llm-transaction';
 import { buildSystemPrompt } from './system-prompt';
+import { getORM } from './memory';
 
 export const AliceCore = {
   start: async () => {
@@ -21,6 +22,7 @@ export const AliceCore = {
     // No idea how we even do this in node yet. TBD.
     // console.log('Audio output is working. Playing startup sound.');
     console.log('Initializing memory system.');
+    const orm = await getORM();
     console.log('Memory system initialized.');
     console.log(`Trying talk to ${config.ollama.model} in Ollama...\n`);
     await (async () => {
@@ -38,7 +40,6 @@ export const AliceCore = {
     // console.log('Wake word loop initialized. Alice Assistant is now running and waiting for the wake word...');
     if (config.webInterface.enabled) {
       console.log(`Starting web UI on port ${config.webInterface.port}...`);
-
     }
   }
 }

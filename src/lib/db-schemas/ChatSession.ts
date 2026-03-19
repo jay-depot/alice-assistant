@@ -1,4 +1,5 @@
 import { defineEntity, p } from '@mikro-orm/sqlite';
+import { ChatSessionRound } from './ChatSessionRound';
 
 const ChatSessionSchema = defineEntity({
   name: 'ChatSession',
@@ -6,7 +7,7 @@ const ChatSessionSchema = defineEntity({
     id: p.integer().primary(),
     createdAt: p.datetime(),
     updatedAt: p.datetime(),
-    context: p.string(),
+    rounds: () => p.oneToMany(ChatSessionRound).fieldName('chatSession').mappedBy('chatSession'),
   }
 });
 
