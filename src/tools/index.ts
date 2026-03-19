@@ -8,6 +8,7 @@ import openApplicationTool from './open-application';
 import previewUserTextFileTool from './preview-user-text-file';
 import readScratchFileTool from './read-scratch-file';
 import recallMemoryTool from './recall-memory';
+import setMoodTool from './set-mood';
 import systemHealthCheckTool from './system-health';
 import writeScratchFileTool from './write-scratch-file';
 import writeUserTextFileTool from './write-user-text-file';
@@ -39,6 +40,9 @@ export function getTools() {
   }
   if (enabledTools.recallMemory) {
     tools.push(recallMemoryTool);
+  }
+  if (enabledTools.setMood) {
+    tools.push(setMoodTool);
   }
   if (enabledTools.systemHealthCheck) {
     tools.push(systemHealthCheckTool);
