@@ -1,6 +1,7 @@
 import OllamaClient, { ChatResponse } from 'ollama';
 import { UserConfig } from './user-config';
 import { buildOllamaToolDescriptionObject } from './tool-system';
+import { getTools } from '../tools';
 
 const MAX_TOOL_CALL_DEPTH = 5;
 type Message = {
@@ -42,18 +43,16 @@ export class LlmTransaction {
       messages: this.context,
       tools: buildOllamaToolDescriptionObject()
     });
-    if (response.message.tool_calls) {
-      return(JSON.stringify(response.message.tool_calls));
-    } else if (response && response.message.content && response.message.content.length > 0) {
-      this.context.push({
-        role: "assistant",
-        content: response.message.content
-      });
+    
+    const responseContent = await this.handleToolCalls(response);
+    
+    // Add the LLM response to the context, so that it can be referred to in future turns.
+    this.context.push({
+      role: "assistant",
+      content: responseContent
+    });
 
-      return response.message.content;
-    }
-    console.log({ response });
-    return '';
+    return responseContent;
   }
 
   private async handleToolCalls(response: ChatResponse, depth = 0): Promise<string> {
@@ -65,7 +64,6 @@ export class LlmTransaction {
       throw new Error('Maximum tool call depth exceeded. Possible infinite loop detected.');
     }
 
-
     const promptIfCallsAvailable = ` - If you would need to make another tool call, output ONLY the call signature. Otherwise, answer the user's query in character. You have ${MAX_TOOL_CALL_DEPTH - depth} remaining recursive tool calls you may make regarding this user query.`;
     const promptIfNoCallsAvailable =  ` - You may make no more recursive tool calls for this conversation turn, so you must answer the user's query in character.\n` +
       ` - If you still do not have sufficient information to form a complete answer, you have two options: \n` +
@@ -75,12 +73,42 @@ export class LlmTransaction {
 
     const continuationPrompt = depth > 0 ? promptIfCallsAvailable: promptIfNoCallsAvailable;
 
-    // Here is where we send the continuation prompt, and wait for the next response, which may be another tool call, 
-    // or it may be the final answer to return to the caller.
-    // If it is another tool call, we need to recursively call handleToolCalls again, with the new response content and an incremented depth
-    // otherwise, we just return the LLM's response to the caller..
-  
-    return '';
+    const toolCalls = response.message.tool_calls;
+    if (toolCalls && toolCalls.length > 0) {
+      const resultParts = await Promise.all(toolCalls.map(async (toolCall) => {
+        const toolName = toolCall.function.name;
+        const toolArgs = toolCall.function.arguments;
+        // Double check the tool is actually enabled in the config, and that it actually exists.
+        const tools = getTools();
+        const tool = tools.find(t => t.name === toolName);
+        if (!tool) {
+          return `Tool ${toolName} is not recognized.`;
+        } else if (!UserConfig.getConfig().enabledTools[toolName]) {
+          return `Tool ${toolName} is not enabled in the user configuration.`;
+        }
+        try {
+          const result = await tool.execute(toolArgs);
+          return `Result of calling tool ${toolName} with arguments ${JSON.stringify(toolArgs)}: ${result}`;
+        } catch (e) {
+          return `Error calling tool ${toolName} with arguments ${JSON.stringify(toolArgs)}: ${e instanceof Error ? e.message : String(e)}`;
+        }
+      }));
+      const continuationPromptWithResults = `The assistant has made the following tool calls:\n\n${resultParts.join('\n\n')}\n\n${continuationPrompt}`;
+      // Send the continuation prompt, and wait for the next response, which will be the LLM either making another tool call, or giving its final answer.
+      this.context.push({
+        role: 'user',
+        content: continuationPromptWithResults
+      });
+      const nextResponse = await OllamaClient.chat({
+        ...this.llmConnection,
+        messages: this.context,
+        tools: buildOllamaToolDescriptionObject()
+      });
+
+      return this.handleToolCalls(nextResponse, depth + 1);
+    }
+
+    return response.message.content || '';
   }
 
   async concludeTransactionWithSummary(): Promise<string> {
