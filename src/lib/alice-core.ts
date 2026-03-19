@@ -14,7 +14,6 @@ export const AliceCore = {
     }
     
     console.log('Config loaded successfully.');
-
     // console.log('Checking for a running piper-tts web server on localhost:5002...');
     // TODO: Check if piper-tts web server is running, and start it if not.
     // console.log('Piper-TTS web server is running.');

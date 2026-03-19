@@ -124,9 +124,9 @@ export const getSystemInfo = (() => {
             const lines = lspciData.split('\n');
             for (const line of lines) {
               if (line.toLowerCase().includes('vga compatible controller') || line.toLowerCase().includes('3d controller')) {
-                const gpuModelMatch = line.match(/^\S+\s+(.+?)\s+\[/);
+                const gpuModelMatch = line.match(/\[R\S+\s+(.+?)\]/);
                 if (gpuModelMatch) {
-                  sysInfoCache.gpuModel = gpuModelMatch[1].trim();
+                  sysInfoCache.gpuModel = gpuModelMatch[0].trim().substring(1);
                   break;
                 }
               }

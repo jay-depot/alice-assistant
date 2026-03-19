@@ -65,8 +65,12 @@ export async function buildSystemPrompt(userQuery?: string) {
   systemPromptChunks.push(' - Remember, your response will be synthesized into speech, so keep it punchy and short.');
   systemPromptChunks.push(` - When answering factual questions, go heavy on the facts, and light on the "${UserConfig.getConfig().assistantName} flair."`);
   systemPromptChunks.push(` - When answering other queries, feel free to lean into the "${UserConfig.getConfig().assistantName} flair" more.`);
-  systemPromptChunks.push(' - Do not include emotes or descriptions of tone.');
-  systemPromptChunks.push(' - If you would need to make a tool call, output ONLY the call signature. Otherwise, respond in character.');
+  systemPromptChunks.push(' - Your answer MUST be only your response. Do not include emotes or descriptions of tone. Do not include narration.');
+  if (tools.length > 0) {
+    systemPromptChunks.push(' - If you would need to make a tool call, output ONLY the call signature. Otherwise, respond in character.');
+  } else {
+    systemPromptChunks.push(' - Respond in character.');
+  }
 
   return systemPromptChunks.join('\n');
 }
