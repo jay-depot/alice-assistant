@@ -26,13 +26,13 @@ const parameters = Type.Object({
 });
 
 const SetMoodTool: Tool = {
-  name: 'set_mood',
+  name: 'setMood',
   description: 'Sets the assistant\'s mood. The mood is a string that describes the assistant\'s current emotional state, and can be used to influence the tone and style of the assistant\'s responses. For example, if the mood is set to "happy", the assistant might respond in a more cheerful and upbeat manner, while if the mood is set to "sad", the assistant might respond in a more somber and empathetic manner.',
   parameters,
-  systemPromptFragment: 'The assistant has a mood, which is a string that describes the assistant\'s current emotional state. The mood can be set by calling the set_mood tool, and can be used to influence the tone and style of the assistant\'s responses. For example, if the mood is set to "happy", the assistant might respond in a more cheerful and upbeat manner, while if the mood is set to "sad", the assistant might respond in a more somber and empathetic manner.',
+  systemPromptFragment: 'The assistant has a mood, which is a string that describes the assistant\'s current emotional state. The mood can be set by calling the setMood tool, and can be used to influence the tone and style of the assistant\'s responses. For example, if the mood is set to "happy", the assistant might respond in a more cheerful and upbeat manner, while if the mood is set to "sad", the assistant might respond in a more somber and empathetic manner.',
   toolResultPromptIntro: 'The assistant\'s mood has been updated. The new mood is:',
   toolResultPromptOutro: 'Use this information to inform the tone and style of your responses in the rest of this conversation.',
-  callSignature: 'set_mood',
+  callSignature: 'setMood',
   execute: async (args) => {
     const { mood } = args as { mood: string };
     // Here we would actually set the mood in the assistant's state, but for now we'll just return a confirmation message.
