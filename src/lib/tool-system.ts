@@ -1,4 +1,5 @@
 import { tools } from '../tools';
+import { UserConfig } from './user-config';
 
 type ToolPromptFragmentFunction =  string | (() => string);
 
@@ -8,7 +9,7 @@ type OllamaRequestToolsPropItem = {
     name: string;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Temporary until typebox is added
     parameters: Record<string, any>; // TODO Since this is a JSON schema, we may as well use @sinclair/typebox to generate them easily
-    desscription: string;
+    description: string;
   };
 };
 
@@ -25,5 +26,14 @@ export type Tool = {
 }
 
 export function buildOllamaToolDescriptionObject(): OllamaRequestToolsPropItem[] {
-  return [];
+  const config = UserConfig.getConfig();
+  
+  return tools.filter(tool => config.enabledTools[tool.name]).map(tool=>({
+    type: 'function',
+    function: {
+      name: tool.name,
+      parameters: {},
+      description: tool.description
+    }
+  }));
 }
