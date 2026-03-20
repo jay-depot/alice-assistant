@@ -73,8 +73,10 @@ Future plans for how to interact with this assistant may go one of two ways:
 - I am planning to add some *limited* autonomy to the assistant, in the form of a timed prompt 
   that gives the assistant a limited range of "read-only" tools. Enough for reminders to be 
   delivered, and maybe email, message, and user wellbeing notifications. The approach I'm 
-  considering here is each tool has a flag for if it is "autonomy safe," which means it is 
-  read-only, or only writes to the assistant's own scratch area.
+  planning here is to add a flag to each tool to mark if it is "autonomy safe," which means it is 
+  read-only, or only writes to the assistant's own scratch area, and those would be the only
+  tools presented to the LLM when sending it an "autonomy prompt." The assistant would then 
+  have to start a conversation with the user to access its full tool suite.
 - All new tools should: 1. Default to being disabled, 2. Follow the principle of least authority, 
   and 3. Allow the end-user to specify the scope in which tools are allowed to operate on their 
   own system in the usual configuration file location, and the tool implementation must enforce 
