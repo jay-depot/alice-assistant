@@ -1,4 +1,5 @@
 {
+  "appendScratchFile": true,
   "deleteScratchFile": true,
   "getDirectoryListing": true,
   "getNewsHeadlines": true,
