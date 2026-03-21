@@ -1,4 +1,5 @@
 import express from 'express';
+import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import type { Server } from 'http';
@@ -14,14 +15,33 @@ export function startServer() {
   const app = express();
   const PORT = UserConfig.getConfig().webInterface.port;
   const HOST = UserConfig.getConfig().webInterface.bindToAddress;
+  const userWebInterfaceDir = path.join(UserConfig.getConfigPath(), 'web-interface');
+  const userStylePath = path.join(userWebInterfaceDir, 'user-style.css');
+
+  fs.mkdirSync(userWebInterfaceDir, { recursive: true });
 
   app.use(express.json());
-  app.use(express.static(path.join(currentDir, '../client')));
 
+  app.get('/user-style.css', (_req, res) => {
+    console.log(`Serving user style from ${userStylePath}`);
+    res.setHeader('Cache-Control', 'no-store');
+    if (!fs.existsSync(userStylePath)) {
+      res.status(204).end();
+      return;
+    }
+
+    res.type('text/css');
+    const customStyle = fs.readFileSync(userStylePath, 'utf-8');
+
+    res.send(customStyle);
+  });
+
+  app.use(express.static(path.join(currentDir, '../client'), { fallthrough: true }));
+  
   app.post('/api/chat', async (req, res) => {
     const { message } = req.body;
     // TODO: wire up to Alice assistant logic
- 
+
     // Creates a new chat sessions with the assistant. Sends an initial "You've been 
     // activated through an alternative text-based interface. Greet the user" prompt 
     // and returns the answer to it.
