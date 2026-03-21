@@ -1,12 +1,12 @@
 import { defineEntity, p } from '@mikro-orm/sqlite';
-import { Memory } from './Memory';
+import { Memory } from './Memory.js';
 
 const KeywordSchema = defineEntity({
   name: 'Keyword',
   properties: {
     id: p.integer().primary(),
     keyword: p.string(),
-    memories: () => p.manyToMany(Memory).mappedBy('keywords'),
+    memories: () => p.manyToMany(Memory),
   }
 });
 

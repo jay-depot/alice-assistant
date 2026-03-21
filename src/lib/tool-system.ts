@@ -1,8 +1,9 @@
 import { TSchema } from '@sinclair/typebox';
-import { getTools } from '../tools';
-import { UserConfig } from './user-config';
+import { getTools } from '../tools/index.js';
+import { UserConfig } from './user-config.js';
 
 type ToolPromptFragmentFunction =  string | (() => string);
+type ToolAvailability = 'voice-session' | 'chat-session' | 'autonomy';
 
 type OllamaRequestToolsPropItem = {
   'type': 'function';
@@ -16,15 +17,45 @@ type OllamaRequestToolsPropItem = {
 
 export type Tool = {
   name: string;
-  dependencies?: string[]; // This is an optional list of other tools that this tool depends on. If you enable a tool without its dependencies, the assistant will crash on startup and should give you pretty clear instructions to get going again.
-  // TODO: It would be a cute gimmick if we could read the instructions for fixing the assistant out loud when it crashes due to missing dependencies.
+  // The contexts in which the LLM will have access to the tool.
+  // - 'autonomy' means the tool can be used when the assistant is woken up by events or
+  //   timers. Grant this only if the tool is 'read-only' or only writes to the assistant's
+  //   own internal state.
+  // - 'chat-session' means the tool can be used in response to user messages in a chat session.
+  //   Most tools you'd allow here also make sense for voice, but tools that do things like change
+  //   the chat interface itself should only be enabled for chat and not voice.
+  // - 'voice-session' means the tool can be used in response to user messages in a voice session.
+  //   Almost all tools should be available in this context, as we're responding directly to user
+  //   messages. The only exception to this would be tools that directly modify a specific interface.
+  //   Tools that should be voice-only would be those that modify voice delivery itself, like
+  //   alternate voices.
+  availableFor: ToolAvailability[]; 
+  // This is an optional list of other tools that this tool depends on. If you enable a tool without
+  // its dependencies, the assistant will crash on startup and should give you pretty clear 
+  // instructions to get going again.
+  // TODO: It would be a cute and somewhat useful gimmick if we could read the instructions for fixing the assistant out loud when it crashes due to missing tool dependencies.
+  dependencies?: string[];
   description: string;
-  systemPromptFragment: ToolPromptFragmentFunction; // This is the fragment that will be added to the system prompt to describe the tool and how to use it.
-  callSignature: string; // This is the exact string that the LLM should output when it wants to call the tool. It should be unique enough that it won't be accidentally generated in normal conversation.
+  // This is the fragment that will be added to the system prompt to describe the tool and how to use it.
+  systemPromptFragment: ToolPromptFragmentFunction; 
+  // This is the exact string that the LLM should output when it wants to call the tool. It should be 
+  // unique enough that it won't be accidentally generated in normal conversation.
+  callSignature: string; 
+  // The parameters for the tool, as a JSON schema. This project incorporates @sinclair/typebox, so you 
+  // should use that to define the parameters and the tool's function signature together..
   parameters: TSchema,
-  toolResultPromptIntro: ToolPromptFragmentFunction; // This is the prompt fragment used as a "preamble" when the LLM receives the result of a tool call. It should be used to instruct the LLM on how to use the tool result in its response.
-  toolResultPromptOutro: ToolPromptFragmentFunction; // This is the prompt fragment used as a "postamble" when the LLM receives the result of a tool call. It can be used to provide additional instructions or context to the LLM on how to present the results. The part that tells the LLM to make another tool call or "respond in character" is appended to this automatically, so don't include it.
-  execute: (args: Record<string, unknown>) => Promise<string>; // This is the function that will be called when the LLM outputs the call signature. It will receive the arguments as a JSON object, and should return the result of the tool call as a JSON object.
+  // This is the prompt fragment used as a "preamble" when the LLM receives the result of a tool call. 
+  // It should be used to instruct the LLM on how to use the tool result in its response.
+  toolResultPromptIntro: ToolPromptFragmentFunction; 
+  // This is the prompt fragment used as a "postamble" when the LLM receives the result of a tool call. 
+  // It can be used to provide additional instructions or context to the LLM on how to present the 
+  // results. The part that tells the LLM to make another tool call or "respond in character" is 
+  // appended to this automatically, so don't include it.
+  toolResultPromptOutro: ToolPromptFragmentFunction; 
+  // This is the function that will be called when the LLM outputs the call signature. It will 
+  // receive the arguments as a JSON object, and should return the result of the tool call as a 
+  // JSON object.
+  execute: (args: Record<string, unknown>) => Promise<string>; 
 }
 
 export function buildOllamaToolDescriptionObject(): OllamaRequestToolsPropItem[] {

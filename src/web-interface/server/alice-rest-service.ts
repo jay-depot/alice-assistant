@@ -1,7 +1,10 @@
-import * as express from 'express';
+import express from 'express';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
 import type { Server } from 'http';
-import { UserConfig } from '../../lib/user-config';
+import { UserConfig } from '../../lib/user-config.js';
+
+const currentDir = path.dirname(fileURLToPath(import.meta.url));
 
 
 export function startServer() {
@@ -10,7 +13,7 @@ export function startServer() {
   const HOST = UserConfig.getConfig().webInterface.bindToAddress;
 
   app.use(express.json());
-  app.use(express.static(path.join(__dirname, '../client')));
+  app.use(express.static(path.join(currentDir, '../client')));
 
   app.post('/api/chat', async (req, res) => {
     const { message } = req.body;

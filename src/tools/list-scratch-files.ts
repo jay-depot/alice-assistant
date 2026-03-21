@@ -1,10 +1,11 @@
-import { Tool } from '../lib/tool-system';
+import { Tool } from '../lib/tool-system.js';
 import * as fs from 'fs';
-import { UserConfig } from '../lib/user-config';
+import { UserConfig } from '../lib/user-config.js';
 import { Type } from '@sinclair/typebox';
 
 const listScratchFilesTool: Tool = {
   name: 'listScratchFiles',
+  availableFor: ['autonomy', 'chat-session', 'voice-session'],
   dependencies: ['writeScratchFile', 'readScratchFile'],
   description: `Lists the files in the assistant's internal scratch directory. This is meant ` +
     `to be used in conjunction with the writeScratchFile and readScratchFile tools, which allow ` +

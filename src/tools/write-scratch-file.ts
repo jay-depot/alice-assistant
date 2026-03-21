@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { Tool } from '../lib/tool-system';
-import { UserConfig } from '../lib/user-config';
+import { Tool } from '../lib/tool-system.js';
+import { UserConfig } from '../lib/user-config.js';
 import { Static, Type } from '@sinclair/typebox';
 
 const parameters = Type.Object({ filename: Type.String(), contents: Type.String() });
@@ -10,6 +10,7 @@ UserConfig.load();
 
 const writeScratchFileTool: Tool = {
   name: 'writeScratchFile',
+  availableFor: ['autonomy', 'chat-session', 'voice-session'],
   dependencies: ['readScratchFile', 'listScratchFiles'],
   description: 'Allows the assistant to write notes for itself in an internal scratch directory. This is meant to be used in conjunction with the ' +
     'readScratchFile tool, which can read back the contents of files the assistant has written. The files the assistant writes with this tool ' +

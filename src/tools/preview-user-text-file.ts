@@ -1,10 +1,11 @@
 import { Static, Type } from '@sinclair/typebox';
-import { Tool } from '../lib/tool-system';
+import { Tool } from '../lib/tool-system.js';
 
 const parameters = Type.Object({ path: Type.String() });
 
 const previewUserTextFileTool: Tool = {
   name: 'previewUserTextFile',
+  availableFor: ['chat-session', 'voice-session'],
   description: 'Reads the first 1kb of a text file on the user\'s filesystem and returns it as a string. You may use this tool when the user explicitly asks you to look at the file by name. You may also use this tool if the user has asked you to help them find a file on the computer, if you need to confirm you have found the correct file.',
   systemPromptFragment: `Call previewUserTextFile when the user explicitly asks you to look at the contents of a text file on ` +
     `their computer, or if the user has asked you to help them find a file on their computer and you want to confirm that you ` +

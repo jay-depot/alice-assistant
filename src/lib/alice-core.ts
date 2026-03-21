@@ -1,8 +1,9 @@
-import { UserConfig } from './user-config'
-import { startLLMTransaction } from './llm-transaction';
-import { buildSystemPrompt } from './system-prompt';
-import { getORM } from './memory';
-import { startServer } from '../web-interface/server/alice-rest-service';
+import { UserConfig } from './user-config.js'
+import { startLLMTransaction } from './llm-transaction.js';
+import { buildSystemPrompt } from './system-prompt.js';
+import { getORM } from './memory.js';
+import { startServer } from '../web-interface/server/alice-rest-service.js';
+import { runManualVoiceDemoLoop } from './voice-turn.js';
 
 export const AliceCore = {
   start: async () => {
@@ -36,6 +37,12 @@ export const AliceCore = {
       console.log(` <- ${reply}`);
     })();
     console.log(`\nTalking to ${config.ollama.model} in Ollama works.`);
+
+    if (process.env.ALICE_VOICE_DEMO === '1') {
+      console.log('ALICE_VOICE_DEMO=1 detected. Starting manual voice demo loop.');
+      await runManualVoiceDemoLoop();
+    }
+
     // console.log('Checking audio input...');
     // No idea how we even do this in node yet. TBD.
     // console.log('Audio input is working.');

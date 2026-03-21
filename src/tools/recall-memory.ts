@@ -1,8 +1,8 @@
 import { Static, Type } from '@sinclair/typebox';
-import { Tool } from '../lib/tool-system';
-import { UserConfig } from '../lib/user-config';
+import { Tool } from '../lib/tool-system.js';
+import { UserConfig } from '../lib/user-config.js';
 import { MikroORM } from '@mikro-orm/sqlite';
-import { Keyword, Memory } from '@lib/db-schemas';
+import { Keyword, Memory } from '../lib/db-schemas/index.js';
 
 const parameters = Type.Object({ keyword: Type.Optional(Type.String()), date: Type.Optional(Type.String()) });
 
@@ -36,6 +36,7 @@ export async function createMemory(summary: string, orm: MikroORM) {
 
 const recallMemoryTool: Tool = {
   name: 'recallMemory',
+  availableFor: ['chat-session', 'voice-session', 'autonomy'],
   description: 'Recalls a specific memory from the assistant\'s memory of previous interactions.',
   systemPromptFragment: `Call recallMemory when you need information from a past conversation. ` +
     `Do not use this tool for idle banter, or additional context unless you have been asked about ` +

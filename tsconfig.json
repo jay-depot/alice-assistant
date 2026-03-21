@@ -1,18 +1,12 @@
 {
   "compilerOptions": {
-    "baseUrl": "./src",
-    "target": "ES6",
-    "module": "commonjs",
-    "moduleResolution": "node",
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "esModuleInterop": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "outDir": "./dist/",
-    "paths": {
-      "@lib/*": ["lib/*"],
-      "@entities/*": ["entities/*"],
-      "@body-systems/*": ["body-systems/*"],
-      "@genetics/*": ["genetics/*"],
-    },
     "skipLibCheck": true
   },
   "include": ["src/**/*"],

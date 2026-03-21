@@ -1,5 +1,5 @@
 import { defineEntity, p } from '@mikro-orm/sqlite';
-import { ChatSessionRound } from './ChatSessionRound';
+import { ChatSessionRound } from './ChatSessionRound.js';
 
 const ChatSessionSchema = defineEntity({
   name: 'ChatSession',

@@ -7,6 +7,9 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
+
+const currentDir = path.dirname(fileURLToPath(import.meta.url));
 
 export const UserConfig = (() => {
   let config: any; // TODO: Change this config to use convict, so we get type checking and validation for free. This will also allow us to easily add new config options in the future, and provide better error messages when the config is invalid.
@@ -17,7 +20,7 @@ export const UserConfig = (() => {
       if (!fs.existsSync(configDir)) {
         fs.mkdirSync(configDir);
         // Copy the contents of the config-default folder into the new config directory. This will give the user a starting point for configuring their assistant, and also ensure that all necessary files are in place.
-        const defaultConfigDir = path.join(__dirname, '..', '..', 'config-default');
+        const defaultConfigDir = path.join(currentDir, '..', '..', 'config-default');
         fs.cpSync(defaultConfigDir, configDir, { recursive: true });
       }
       return configDir;

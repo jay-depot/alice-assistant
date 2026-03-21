@@ -1,0 +1,5 @@
+{
+  "storageDirectory": "~/.alice/reminders",
+  "allowRecurrence": true,
+  "recurringReminderCheckIntervalMinutes": 5
+}

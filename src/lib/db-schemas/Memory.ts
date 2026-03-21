@@ -1,5 +1,5 @@
 import { defineEntity, p } from '@mikro-orm/sqlite';
-import { Keyword } from './Keyword';
+import { Keyword } from './Keyword.js';
 
 const MemorySchema = defineEntity({
   name: 'Memory',

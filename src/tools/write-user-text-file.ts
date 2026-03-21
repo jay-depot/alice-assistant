@@ -1,10 +1,11 @@
 import { Static, Type } from '@sinclair/typebox';
-import { Tool } from '../lib/tool-system';
+import { Tool } from '../lib/tool-system.js';
 
 const parameters = Type.Object({ path: Type.String(), contents: Type.String() });
 
 const writeUserTextFileTool: Tool = {
   name: 'writeUserTextFile',
+  availableFor: ['chat-session', 'voice-session'],
   description: 'Writes a text file to the user\'s filesystem. This tool should be used when the user explicitly asks you ' +
     'to create a text file on their computer, and provides the path and contents for the file. You should not use this ' +
     'tool for any other purpose, and you should not use it to write files that are not text files.',

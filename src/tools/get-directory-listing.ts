@@ -1,10 +1,11 @@
-import { Tool } from '../lib/tool-system';
+import { Tool } from '../lib/tool-system.js';
 import { Static, Type } from '@sinclair/typebox';
 
 const parameters = Type.Object({ path: Type.String(), filter: Type.Optional(Type.String()) });
 
 const getDirectoryListingTool: Tool = {
   name: 'getDirectoryListing',
+  availableFor: ['chat-session', 'voice-session', 'autonomy'],
   description: `
     Retrieves a list of files and folders in a specified directory on the user's computer. Has the guardrail that only allows the 
     listing of directories explicitly defined in the tool's config file.

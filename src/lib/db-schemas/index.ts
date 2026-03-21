@@ -1,4 +1,5 @@
-export * from './ChatSession';
-export * from './Keyword';
-export * from './Memory';
+export * from './ChatSession.js';
+export * from './ChatSessionRound.js';
+export * from './Keyword.js';
+export * from './Memory.js';
 

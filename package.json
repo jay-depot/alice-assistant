@@ -4,10 +4,10 @@
   "description": "An AI assistant with a customizable personality",
   "license": "MIT",
   "author": "",
-  "type": "commonjs",
+  "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && cp src/web-interface/client/*.{html,css} dist/web-interface/client/",
     "start": "node dist/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

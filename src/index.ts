@@ -1,4 +1,4 @@
-import { AliceCore } from './lib/alice-core';
+import { AliceCore } from './lib/alice-core.js';
 
 AliceCore.start().catch((err) => {
   console.error('Fatal error', err);

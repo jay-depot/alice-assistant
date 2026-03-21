@@ -1,11 +1,12 @@
 import { Static, Type } from '@sinclair/typebox';
-import { Tool } from '../lib/tool-system'
-import { UserConfig } from '../lib/user-config';
+import { Tool } from '../lib/tool-system.js'
+import { UserConfig } from '../lib/user-config.js';
 
 const parameters = Type.Object({ query: Type.String() });
 
 const getNewsHeadlines: Tool = {
   name: 'getNewsHeadlines',
+  availableFor: ['chat-session', 'voice-session', 'autonomy'],
   description: 'Retrieves the latest news headlines from a news API.',
   systemPromptFragment: `Call getNewsHeadlines ONLY for queries about news or current events, including local ` +
     `news, national news, and world news. getNewsHeadlines takes one mandatory parameter, which is named ` +

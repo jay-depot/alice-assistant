@@ -1,11 +1,11 @@
 import { defineEntity, p } from '@mikro-orm/sqlite';
-import { ChatSession} from './ChatSession';
+import { ChatSession} from './ChatSession.js';
 
 const ChatSessionRoundSchema = defineEntity({
   name: 'ChatSessionRound',
   properties: {
     id: p.integer().primary(),
-    chatSession: () => p.manyToOne(ChatSession).fieldName('rounds').mappedBy('rounds'),
+    chatSession: () => p.manyToOne(ChatSession).fieldName('rounds'),
     role: p.enum(['user', 'assistant']),
     content: p.string(),
     timestamp: p.datetime(),

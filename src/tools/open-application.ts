@@ -3,8 +3,8 @@
 // import * as path from "path";
 // import * as childProcess from "child_process";
 import { Static, Type } from "@sinclair/typebox";
-import { Tool } from "../lib/tool-system";
-import { UserConfig } from "../lib/user-config";
+import { Tool } from "../lib/tool-system.js";
+import { UserConfig } from "../lib/user-config.js";
 
 type AvailableApplicationDescription = {
   alias: string;
@@ -23,6 +23,7 @@ const parameters = Type.Object({ application: Type.Optional(Type.String()), para
 
 const openApplicationTool: Tool = {
   name: "openApplication",
+  availableFor: ['chat-session', 'voice-session'],
   description: "Allows the assistant to open applications, files, folders and web pages on behalf of the user. This " +
     "tool tries to be safe by only allowing specific list of user-defined applications to be opened with a limited set of " +
     "parameters. The LLM does not know the specific programs being used to fulfill the user's requests, only aliases.",

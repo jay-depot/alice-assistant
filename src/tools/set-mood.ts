@@ -1,4 +1,4 @@
-import { Tool } from '@lib/tool-system';
+import { Tool } from '../lib/tool-system.js';
 import { Type } from '@sinclair/typebox';
 
 // TODO: Moonshot goal: Is there some kind of open source "Autotune" I could pipe the TTS output through? 
@@ -63,6 +63,7 @@ export function getMood() {
 
 const SetMoodTool: Tool = {
   name: 'setMood',
+  availableFor: ['chat-session', 'voice-session', 'autonomy'],
   description: `Sets the assistant's mood. The mood is a string that describes the tone of the ` +
     `assistant's current responses. It is also used to inform the manner in which the assistant's ` +
     `responses are delivered to the user. The allowed moods you can set are: ${AllowedMoods.join(', ')}.`,

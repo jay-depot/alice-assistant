@@ -1,13 +1,14 @@
 import { Static, Type } from '@sinclair/typebox';
-import { Tool } from '../lib/tool-system';
+import { Tool } from '../lib/tool-system.js';
 import * as fs from 'fs';
 import * as path from 'path';
-import { UserConfig } from '../lib/user-config';
+import { UserConfig } from '../lib/user-config.js';
 
 const parameters = Type.Object({ filename: Type.String() });
 
 const deleteScratchFileTool: Tool = {
   name: 'deleteScratchFile',
+  availableFor: ['autonomy', 'chat-session', 'voice-session'],
   dependencies: ['writeScratchFile', 'readScratchFile', 'listScratchFiles'],
   description: 'Deletes a text file from the internal scratch directory. This is meant to be used in conjunction with the ' +
     'writeScratchFile, readScratchFile, and listScratchFiles tools, which allow you to write, read, and list text files in ' +

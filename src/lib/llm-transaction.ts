@@ -1,7 +1,7 @@
 import OllamaClient, { ChatResponse } from 'ollama';
-import { UserConfig } from './user-config';
-import { buildOllamaToolDescriptionObject } from './tool-system';
-import { getTools } from '../tools';
+import { UserConfig } from './user-config.js';
+import { buildOllamaToolDescriptionObject } from './tool-system.js';
+import { getTools } from '../tools/index.js';
 
 const MAX_TOOL_CALL_DEPTH = 5;
 type Message = {

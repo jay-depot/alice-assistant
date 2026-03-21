@@ -1,7 +1,7 @@
-import { UserConfig } from './user-config';
-import { getTools } from '../tools';
-import { getSystemInfo } from './system-info';
-import { AllowedMoods, getMood } from 'tools/set-mood';
+import { UserConfig } from './user-config.js';
+import { getTools } from '../tools/index.js';
+import { getSystemInfo } from './system-info.js';
+import { AllowedMoods, getMood } from '../tools/set-mood.js';
 
 type PromptScenario = 'voice' | 'chat' | 'startup';
 

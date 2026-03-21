@@ -53,6 +53,26 @@ In its current state, you can pull this code, install it, compile it, and run it
 you have ollama set up correctly, it will send a "startup prompt" to your assistant, print 
 the response on your terminal, and exit.
 
+You can also run a manual voice demo loop (Linux-focused) by setting an environment variable:
+
+```bash
+ALICE_VOICE_DEMO=1 npm start
+```
+
+In voice demo mode:
+- Press Enter to record a short microphone clip
+- ALICE transcribes it with Whisper, sends it to the model, and speaks the response via Piper
+- Type `q` to quit the loop
+
+Voice demo prerequisites (in addition to the dependencies above):
+- A recorder command: `arecord` (preferred) or `ffmpeg`
+- A playback command: `paplay`, `aplay`, or `ffplay`
+- A transcription command: `whisper` (OpenAI Whisper CLI) or `whisper-cli` (whisper.cpp)
+
+Optional environment variables:
+- `ALICE_WHISPER_CMD=whisper` or `ALICE_WHISPER_CMD=whisper-cli` to force a specific backend
+- `ALICE_WHISPER_MODEL=base` (or another OpenAI Whisper model name) when using `whisper`
+
 Future plans for how to interact with this assistant may go one of two ways:
 1. A user-scoped systemd service that runs in the background listening for wake words, and 
    accepting web-based chat sessions if the user opens one in their browser

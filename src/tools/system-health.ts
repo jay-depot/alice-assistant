@@ -1,9 +1,10 @@
 import { Type } from '@sinclair/typebox';
-import { Tool } from '../lib/tool-system';
-import { UserConfig } from '../lib/user-config';
+import { Tool } from '../lib/tool-system.js';
+import { UserConfig } from '../lib/user-config.js';
 
 const systemHealthCheckTool: Tool = {
   name: 'systemHealthCheck',
+  availableFor: ['chat-session', 'voice-session', 'autonomy'],
   description: 'Performs a health check on the system and returns a report.',
   systemPromptFragment: `Call systemHealthCheck ONLY for questions about the status of the computer you are running on. ` +
     `This includes general questions about how you are doing, as you ARE the computer. systemHealthCheck takes no parameters.`,
