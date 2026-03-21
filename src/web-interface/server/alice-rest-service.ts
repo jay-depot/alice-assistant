@@ -100,6 +100,7 @@ export function startServer() {
       id,
       title: `Chat Session ${id}`,
       createdAt: new Date().toISOString(),
+      assistantMood: 'happy', // This will pull from the global "mood" state the assistant can set through tools. It's common across all assistant conversations.
       messages: [
         { role: 'user', content: 'Hello, assistant!', timestamp: new Date().toISOString() },
         { role: 'assistant', content: 'Hello, user! How can I assist you today?', timestamp: new Date().toISOString() },

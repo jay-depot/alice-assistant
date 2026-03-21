@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>A.L.I.C.E.</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+
+    <aside id="sidebar">
+      <div id="sidebar-header">
+        <div class="logo">A.L.I.C.E.</div>
+        <button id="new-chat-btn" title="Start a new conversation">+ New Chat</button>
+      </div>
+      <div id="sessions-list"></div>
+    </aside>
+
+    <main id="main">
+      <header id="chat-header">
+        <span id="session-title">A.L.I.C.E.</span>
+        <button id="delete-session-btn" class="hidden" title="End and archive this session">
+          End Session
+        </button>
+      </header>
+
+      <div id="messages-area">
+        <div id="welcome-screen">
+          <div class="welcome-content">
+            <div class="welcome-logo">A.L.I.C.E.</div>
+            <p class="welcome-hint">Click <strong>+ New Chat</strong> to begin, or select a previous session.</p>
+          </div>
+        </div>
+      </div>
+
+      <footer id="input-area">
+        <textarea
+          id="message-input"
+          placeholder="Start a new chat to begin..."
+          rows="1"
+          disabled
+        ></textarea>
+        <button id="send-btn" disabled title="Send message (Enter)">&#9650;</button>
+      </footer>
+    </main>
+
+  </div>
+  <script type="module" src="alice-client.js"></script>
+</body>
+</html>
