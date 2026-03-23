@@ -61,6 +61,7 @@ const writeScratchFileTool: Tool = {
       return `Error: File already exists and overwriting is not allowed.`;
     }
 
+    console.log('')
     fs.writeFileSync(filePath, contents);
 
     return `Written file ${filename}. ${contents.length} characters written.\nErrors: none.`;

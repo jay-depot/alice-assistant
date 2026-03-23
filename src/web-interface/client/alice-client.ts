@@ -22,11 +22,18 @@ interface SessionSummary {
   lastAssistantMessage: string;
 }
 
+interface MoodResponse {
+  mood: string;
+}
+
 // ── State ──────────────────────────────────────────────────────────────────
 
 let currentSessionId: number | string | null = null;
 let pendingNewSession = false;
 let isLoading = false;
+let moodPollIntervalId: number | null = null;
+let isPollingMood = false;
+let currentMoodClass = 'neutral';
 
 // ── DOM references ─────────────────────────────────────────────────────────
 
@@ -38,6 +45,7 @@ const newChatBtn      = document.getElementById('new-chat-btn')     as HTMLButto
 const sessionTitle    = document.getElementById('session-title')    as HTMLSpanElement;
 const deleteSessionBtn = document.getElementById('delete-session-btn') as HTMLButtonElement;
 const welcomeScreen   = document.getElementById('welcome-screen')   as HTMLDivElement;
+const moodBox         = document.getElementById('mood-box')         as HTMLDivElement | null;
 
 // ── API ────────────────────────────────────────────────────────────────────
 
@@ -63,7 +71,6 @@ async function fetchSession(id: number | string): Promise<Session> {
 async function createSession(message: string): Promise<Session> {
   const data = await apiFetch<{ session: Session }>('/api/chat', {
     method: 'POST',
-    body: JSON.stringify({ message }),
   });
   return data.session;
 }
@@ -78,6 +85,11 @@ async function patchSession(id: number | string, message: string): Promise<Sessi
 
 async function endSession(id: number | string): Promise<void> {
   await apiFetch(`/api/chat/${id}`, { method: 'DELETE' });
+}
+
+async function fetchMood(): Promise<string> {
+  const data = await apiFetch<MoodResponse>('/api/mood');
+  return data.mood;
 }
 
 // ── Utilities ──────────────────────────────────────────────────────────────
@@ -106,6 +118,48 @@ function formatRelativeTime(isoString: string): string {
 
 function formatTime(isoString: string): string {
   return new Date(isoString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function normalizeMoodClass(mood: string): string {
+  const normalizedMood = mood.trim().toLowerCase().replace(/\s+/g, '-');
+  return normalizedMood || 'neutral';
+}
+
+function updateMoodBox(mood: string): void {
+  if (!moodBox) return;
+
+  const nextMoodClass = normalizeMoodClass(mood);
+  moodBox.classList.remove(currentMoodClass);
+  moodBox.classList.add(nextMoodClass);
+  moodBox.title = nextMoodClass;
+  currentMoodClass = nextMoodClass;
+}
+
+async function pollMood(): Promise<void> {
+  if (isPollingMood) return;
+  isPollingMood = true;
+  try {
+    updateMoodBox(await fetchMood());
+  } catch (err) {
+    console.error('Failed to poll mood:', err);
+  } finally {
+    isPollingMood = false;
+  }
+}
+
+function startMoodPolling(): void {
+  if (moodPollIntervalId !== null) return;
+  pollMood();
+  moodPollIntervalId = window.setInterval(() => {
+    void pollMood();
+  }, 3000);
+}
+
+function stopMoodPolling(): void {
+  if (moodPollIntervalId !== null) {
+    window.clearInterval(moodPollIntervalId);
+    moodPollIntervalId = null;
+  }
 }
 
 // ── Rendering ──────────────────────────────────────────────────────────────
@@ -341,10 +395,20 @@ messageInput.addEventListener('keydown', (e: KeyboardEvent) => {
 
 messageInput.addEventListener('input', resizeTextarea);
 
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    stopMoodPolling();
+    return;
+  }
+
+  startMoodPolling();
+});
+
 // ── Init ───────────────────────────────────────────────────────────────────
 
 async function init(): Promise<void> {
   showWelcomeScreen();
+  startMoodPolling();
   try {
     renderSessionList(await fetchSessions());
   } catch (err) {
@@ -353,3 +417,5 @@ async function init(): Promise<void> {
 }
 
 init();
+
+window.addEventListener('beforeunload', stopMoodPolling);

@@ -1,5 +1,6 @@
 import { UserConfig } from '../lib/user-config.js';
 import { Tool } from '../lib/tool-system.js';
+import appendScratchFileTool from './append-scratch-file.js';
 import deleteScratchFileTool from './delete-scratch-file.js';
 import findUserFilesTool from './find-user-files.js';
 import getDirectoryListingTool from './get-directory-listing.js';
@@ -20,6 +21,9 @@ export function getTools() {
   const tools: Tool[] = [];
   const enabledTools = UserConfig.getConfig().enabledTools;
 
+  if (enabledTools.appendScratchFile) {
+    tools.push(appendScratchFileTool);
+  }
   if (enabledTools.deleteScratchFile) {
     tools.push(deleteScratchFileTool);
   }

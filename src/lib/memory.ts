@@ -12,7 +12,10 @@ export async function getORM() {
       dbName: path.join(UserConfig.getConfigPath(), 'alice.db'),
       entities: [ChatSession, Keyword, Memory],
       debug: false,
+      ensureDatabase: true,      
     }) as unknown as MikroORM;
+
+    await orm.schema.update();
   }
   return orm;
 }

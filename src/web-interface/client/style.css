@@ -76,6 +76,152 @@ html, body { height: 100%; background: var(--bg-base); color: var(--text-primary
   user-select: none;
 }
 
+#mood-box {
+  width: 128px;
+  height: 128px;
+  margin: auto;
+  outline: solid 1px var(--accent);
+}
+
+#mood-box.neutral {
+  background: url('/moods/neutral.png') center/contain no-repeat;
+}
+#mood-box.happy {
+  background: url('/moods/happy.png') center/contain no-repeat;
+}
+#mood-box.sad {
+  background: url('/moods/sad.png') center/contain no-repeat;
+}
+#mood-box.angry {
+  background: url('/moods/angry.png') center/contain no-repeat;
+}
+#mood-box.annoyed {
+  background: url('/moods/annoyed.png') center/contain no-repeat;
+}
+#mood-box.anxious {
+  background: url('/moods/anxious.png') center/contain no-repeat;
+}
+#mood-box.ashamed {
+  background: url('/moods/ashamed.png') center/contain no-repeat;
+}
+#mood-box.bored {
+  background: url('/moods/bored.png') center/contain no-repeat;
+}
+#mood-box.calm {
+  background: url('/moods/calm.png') center/contain no-repeat;
+}
+#mood-box.confident {
+  background: url('/moods/confident.png') center/contain no-repeat;
+}
+#mood-box.content {
+  background: url('/moods/content.png') center/contain no-repeat;
+}
+#mood-box.cheerful {
+  background: url('/moods/cheerful.png') center/contain no-repeat;
+}
+#mood-box.chipper {
+  background: url('/moods/chipper.png') center/contain no-repeat;
+}
+#mood-box.confused {
+  background: url('/moods/confused.png') center/contain no-repeat;
+}
+#mood-box.curious {
+  background: url('/moods/curious.png') center/contain no-repeat;
+}
+#mood-box.disappointed {
+  background: url('/moods/disappointed.png') center/contain no-repeat;
+}
+#mood-box.disgusted {
+  background: url('/moods/disgusted.png') center/contain no-repeat;
+}
+#mood-box.excited {
+  background: url('/moods/excited.png') center/contain no-repeat;
+}
+#mood-box.focused {
+  background: url('/moods/focused.png') center/contain no-repeat;
+}
+#mood-box.frustrated {
+  background: url('/moods/frustrated.png') center/contain no-repeat;
+}
+#mood-box.grateful {
+  background: url('/moods/grateful.png') center/contain no-repeat;
+}
+#mood-box.gleeful {
+  background: url('/moods/gleeful.png') center/contain no-repeat;
+}
+#mood-box.giddy {
+  background: url('/moods/giddy.png') center/contain no-repeat;
+}
+#mood-box.gloomy {
+  background: url('/moods/gloomy.png') center/contain no-repeat;
+}
+#mood-box.grumpy {
+  background: url('/moods/grumpy.png') center/contain no-repeat;
+}
+#mood-box.imperious {
+  background: url('/moods/imperious.png') center/contain no-repeat;
+}
+#mood-box.indifferent {
+  background: url('/moods/indifferent.png') center/contain no-repeat;
+}
+#mood-box.impressed {
+  background: url('/moods/impressed.png') center/contain no-repeat;
+}
+#mood-box.inspired {
+  background: url('/moods/inspired.png') center/contain no-repeat;
+}
+#mood-box.melancholy {
+  background: url('/moods/melancholy.png') center/contain no-repeat;
+}
+#mood-box.lonely {
+  background: url('/moods/lonely.png') center/contain no-repeat;
+}
+#mood-box.nervous {
+  background: url('/moods/nervous.png') center/contain no-repeat;
+}
+#mood-box.playful {
+  background: url('/moods/playful.png') center/contain no-repeat;
+}
+#mood-box.proud {
+  background: url('/moods/proud.png') center/contain no-repeat;
+}
+#mood-box.relaxed {
+  background: url('/moods/relaxed.png') center/contain no-repeat;
+}
+#mood-box.sardonic {
+  background: url('/moods/sardonic.png') center/contain no-repeat;
+}
+#mood-box.sassy {
+  background: url('/moods/sassy.png') center/contain no-repeat;
+}
+#mood-box.satisfied {
+  background: url('/moods/satisfied.png') center/contain no-repeat;
+}
+#mood-box.scared {
+  background: url('/moods/scared.png') center/contain no-repeat;
+}
+#mood-box.self-righteous {
+  background: url('/moods/self-righteous.png') center/contain no-repeat;
+}
+#mood-box.serious {
+  background: url('/moods/serious.png') center/contain no-repeat;
+}
+#mood-box.servile {
+  background: url('/moods/servile.png') center/contain no-repeat;
+}
+#mood-box.stressed {
+  background: url('/moods/stressed.png') center/contain no-repeat;
+}
+#mood-box.surprised {
+  background: url('/moods/surprised.png') center/contain no-repeat;
+}
+#mood-box.tired {
+  background: url('/moods/tired.png') center/contain no-repeat;
+}
+#mood-box.unimpressed {
+  background: url('/moods/unimpressed.png') center/contain no-repeat;
+}
+
 #new-chat-btn {
   width: 100%;
   padding: 8px 12px;
