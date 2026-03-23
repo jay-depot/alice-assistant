@@ -11,7 +11,7 @@ export const personalityHeaderPrompt: DynamicPrompt = {
   }
 };
 
-export async function buildSystemPrompt() {
+async function buildSystemPrompt() {
   const systemPromptChunks: string[] = [];
   // First the heading
   systemPromptChunks.push(`# PC DIGITAL ASSISTANT PERSONALITY AND SYSTEM INFO\n`);

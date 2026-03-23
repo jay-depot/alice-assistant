@@ -2,7 +2,6 @@ import { createInterface } from 'readline/promises';
 import { stdin as input, stdout as output } from 'process';
 import { captureAndTranscribe } from './stt.js';
 import { startConversation } from './conversation.js';
-import { buildSystemPrompt } from './system-prompts/headers/personality-header.js';
 import { speakText } from './tts.js';
 
 export async function runSingleVoiceTurn(recordSeconds = 7): Promise<void> {

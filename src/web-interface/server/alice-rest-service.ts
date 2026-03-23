@@ -8,7 +8,6 @@ import { getORM } from '../../lib/memory.js';
 import { ChatSession, ChatSessionRound } from '../../lib/db-schemas/index.js';
 import { startConversation } from '../../lib/conversation.js';
 import { createMemory } from '../../tools/recall-memory.js';
-import { buildSystemPrompt } from '../../lib/system-prompts/headers/personality-header.js';
 import { getMood } from '../../tools/set-mood.js';
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
