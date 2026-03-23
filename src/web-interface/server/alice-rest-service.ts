@@ -6,7 +6,7 @@ import { type Server } from 'http';
 import { UserConfig } from '../../lib/user-config.js';
 import { getORM } from '../../lib/memory.js';
 import { ChatSession, ChatSessionRound } from '../../lib/db-schemas/index.js';
-import { startLLMTransaction } from '../../lib/llm-transaction.js';
+import { startConversation } from '../../lib/conversation.js';
 import { createMemory } from '../../tools/recall-memory.js';
 import { buildSystemPrompt } from '../../lib/system-prompt.js';
 import { getMood } from '../../tools/set-mood.js';
@@ -46,11 +46,11 @@ export function startServer() {
     // and returns the answer to it.
 
     const em = (await getORM()).em.fork();
-    const newSession = em.create(ChatSession, { title: 'New Chat Session', rounds: [], createdAt: new Date(), updatedAt: new Date() });
+    const newSession = em.create(ChatSession, { title: 'New Conversation', rounds: [], createdAt: new Date(), updatedAt: new Date() });
     const initialRound = em.create(ChatSessionRound, { chatSession: newSession, role: 'system', timestamp: new Date(), content: await buildSystemPrompt('chat') });
     newSession.rounds.add(initialRound);
 
-    const llmTransaction = startLLMTransaction();
+    const llmTransaction = startConversation();
     const response = await llmTransaction.executeTurn(initialRound.content);
     const assistantRound = em.create(ChatSessionRound, { chatSession: newSession, role: 'assistant', timestamp: new Date(), content: response });
     newSession.rounds.add(assistantRound);
@@ -62,7 +62,6 @@ export function startServer() {
       title: newSession.title,
       createdAt: newSession.createdAt,
       messages: [
-        { role: initialRound.role, content: initialRound.content, timestamp: initialRound.timestamp },
         { role: assistantRound.role, content: assistantRound.content, timestamp: assistantRound.timestamp }
       ]
     }});
@@ -92,11 +91,15 @@ export function startServer() {
     const userRound = em.create(ChatSessionRound, { chatSession: session, role: 'user', timestamp: new Date(), content: message });
     session.rounds.add(userRound);
 
-    const llmTransaction = startLLMTransaction();
+    const llmTransaction = startConversation();
     llmTransaction.restoreContext(session.rounds.getItems().map(round => ({ role: round.role, content: round.content })));
     const response = await llmTransaction.executeTurn(message);
     const assistantRound = em.create(ChatSessionRound, { chatSession: session, role: 'assistant', timestamp: new Date(), content: response });
     session.rounds.add(assistantRound);
+
+    const titleSummary = await llmTransaction.requestTitle();
+    session.title = titleSummary.length > 0 ? titleSummary : 'New Conversation';
+    session.updatedAt = new Date();
 
     await em.flush();
 
@@ -104,7 +107,9 @@ export function startServer() {
       id,
       title: session.title,
       createdAt: session.createdAt,
-      messages: session.rounds.getItems().map(round => ({ role: round.role, content: round.content, timestamp: round.timestamp }))
+      messages: session.rounds.getItems()
+        .filter(round => round.role !== 'system')
+        .map(round => ({ role: round.role, content: round.content, timestamp: round.timestamp }))
     }});
   });
 
@@ -156,6 +161,24 @@ export function startServer() {
 
     // This should tell the LLM to summarize the chat, so we can save it to memory, and remove the
     // session from the database.
+
+    // Step 1. Check if there are any user messages in the chat. If not, we''' just delete it.
+    const em = (await getORM()).em.fork();
+    const session = await em.findOne(ChatSession, { id: parseInt(id) }, { populate: ['rounds'] });
+    if (!session) {
+      res.status(404).json({ error: 'Chat session not found' });
+      return;
+    }
+
+    const userMessages = session.rounds.getItems().filter(round => round.role === 'user');
+    if (userMessages.length === 0) {
+      session.rounds.removeAll();
+      em.remove(session);
+      await em.flush();
+      res.json({ reply: `Chat session with id ${id} deleted successfully` });
+      return;
+    }
+
     res.json({ reply: `This is a placeholder for deleting the chat session with id ${id}` });
   });
   
@@ -167,7 +190,7 @@ export function startServer() {
     // responses, and can be displayed in the UI to give the user a sense of the assistant's 
     // current state of mind.
     res.setHeader('Cache-Control', 'no-store');
-    res.json({ mood: getMood() });
+    res.json({ mood: getMood().currentMood }); // Don't send the reason to the client.
   });
 
   const server: Server = app.listen(PORT, HOST, () => {

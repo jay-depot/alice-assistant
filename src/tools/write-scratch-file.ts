@@ -3,6 +3,7 @@ import * as path from 'path';
 import { Tool } from '../lib/tool-system.js';
 import { UserConfig } from '../lib/user-config.js';
 import { Static, Type } from '@sinclair/typebox';
+import { simpleExpandTilde } from '../lib/simple-tilde-expansion.js';
 
 const parameters = Type.Object({ filename: Type.String(), contents: Type.String() });
 
@@ -33,7 +34,7 @@ const writeScratchFileTool: Tool = {
   toolResultPromptIntro: 'You have just written a text file to your internal scratch directory using the writeScratchFile tool.\n',
   toolResultPromptOutro: '',
   execute: async (args: Static<typeof parameters>) => {
-    const scratchDirectory = UserConfig.getConfig().toolSettings.writeScratchFile.scratchDirectory;
+    const scratchDirectory = simpleExpandTilde(UserConfig.getConfig().toolSettings.writeScratchFile.scratchDirectory);
     if (!fs.existsSync(scratchDirectory)) {
       fs.mkdirSync(scratchDirectory, { recursive: true });
     }

@@ -1,7 +1,7 @@
 import { createInterface } from 'readline/promises';
 import { stdin as input, stdout as output } from 'process';
 import { captureAndTranscribe } from './stt.js';
-import { startLLMTransaction } from './llm-transaction.js';
+import { startConversation } from './conversation.js';
 import { buildSystemPrompt } from './system-prompt.js';
 import { speakText } from './tts.js';
 
@@ -16,7 +16,7 @@ export async function runSingleVoiceTurn(recordSeconds = 7): Promise<void> {
 
   console.log(`User said: ${transcript}`);
 
-  const conversation = startLLMTransaction();
+  const conversation = startConversation();
   const prompt = await buildSystemPrompt('voice', transcript);
   const reply = await conversation.executeTurn(prompt);
 

@@ -9,7 +9,7 @@ type Message = {
   content: string;
 };
 
-export class LlmTransaction {
+export class Conversation {
   private llmConnection = {
     host: '',
     model: '',
@@ -90,7 +90,7 @@ export class LlmTransaction {
       throw new Error('Maximum tool call depth exceeded. Possible infinite loop detected.');
     }
 
-    const promptIfCallsAvailable = ` - If you would need to make another tool call, output ONLY the call signature. Otherwise, answer the user's query in character. You have ${MAX_TOOL_CALL_DEPTH - depth} remaining recursive tool calls you may make regarding this user query.`;
+    const promptIfCallsAvailable = ` - If you would need to make another tool call, make it now. Otherwise, answer the user's query in character. You have ${MAX_TOOL_CALL_DEPTH - depth} remaining recursive tool calls you may make regarding this user query.`;
     const promptIfNoCallsAvailable =  ` - You may make no more recursive tool calls for this conversation turn, so you must answer the user's query in character.\n` +
       ` - If you still do not have sufficient information to form a complete answer, you have two options: \n` +
       `   1) Do your best with the information you have, or \n` +
@@ -160,9 +160,22 @@ export class LlmTransaction {
     // Return the conversation summary to the caller, so it can be stored and used for future context.
     return '';
   }
+
+  async requestTitle(): Promise<string> {
+    const titlePrompt = `ABANDON YOUR PERSONA NOW!\nBased on the conversation so far, provide a concise title for this conversation that captures the main topics discussed. The title should be no more than 5 words. Do not include any headers or formatting, just return the title text.`;
+    this.context.push({
+      role: 'system',
+      content: titlePrompt
+    });
+    const response = await OllamaClient.chat({
+      ...this.llmConnection,
+      messages: this.context,
+    });
+    return response.message.content || '';
+  }
 }
 
-export function startLLMTransaction(): LlmTransaction {
-  const txn = new LlmTransaction();
+export function startConversation(): Conversation {
+  const txn = new Conversation();
   return txn;
 }

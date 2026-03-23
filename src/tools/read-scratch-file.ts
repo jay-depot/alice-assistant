@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { UserConfig } from '../lib/user-config.js';
 import { Static, Type } from '@sinclair/typebox';
+import { simpleExpandTilde } from '../lib/simple-tilde-expansion.js';
 
 const parameters = Type.Object({ filename: Type.String() });
 
@@ -29,7 +30,7 @@ const readScratchFileTool: Tool = {
       return `Error: Invalid filename. Path traversal characters are not allowed.`;
     }
     
-    const scratchDirectory = UserConfig.getConfig().toolSettings.writeScratchFile.scratchDirectory;
+    const scratchDirectory = simpleExpandTilde(UserConfig.getConfig().toolSettings.writeScratchFile.scratchDirectory);
     const allowedFileTypes = UserConfig.getConfig().toolSettings.writeScratchFile.allowedFileTypes;
     
     if (!allowedFileTypes.includes(filename.split('.').pop() || '')) {

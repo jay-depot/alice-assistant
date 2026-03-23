@@ -2,6 +2,7 @@ import { Tool } from '../lib/tool-system.js';
 import * as fs from 'fs';
 import { UserConfig } from '../lib/user-config.js';
 import { Type } from '@sinclair/typebox';
+import { simpleExpandTilde } from '../lib/simple-tilde-expansion.js';
 
 const listScratchFilesTool: Tool = {
   name: 'listScratchFiles',
@@ -21,7 +22,7 @@ const listScratchFilesTool: Tool = {
   toolResultPromptOutro: '',
 
   execute: async () => {
-    const scratchDirectory = UserConfig.getConfig().toolSettings.writeScratchFile.scratchDirectory;
+    const scratchDirectory = simpleExpandTilde(UserConfig.getConfig().toolSettings.writeScratchFile.scratchDirectory);
     const allowedFileTypes = UserConfig.getConfig().toolSettings.writeScratchFile.allowedFileTypes;
 
     if (!fs.existsSync(scratchDirectory)) {

@@ -87,7 +87,7 @@ export async function buildSystemPrompt(scenario: PromptScenario = 'voice', user
       systemPromptChunks.push(' - Your answer MUST be only your response. Do not include emotes or descriptions of tone. Do not include narration.');
       systemPromptChunks.push(' - Get to the heart of the response first, then inject a bit of flair.')
       if (tools.length > 0) {
-        systemPromptChunks.push(' - If you are making a tool call, output ONLY the call signature AND NOTHING ELSE. OTHERWISE, RESPOND IN CHARACTER NOW.');
+        systemPromptChunks.push(' - If you are making a tool call, make it now. OTHERWISE, RESPOND IN CHARACTER NOW.');
       } else {
         systemPromptChunks.push(' - Respond in character.');
       }
@@ -100,7 +100,7 @@ export async function buildSystemPrompt(scenario: PromptScenario = 'voice', user
       systemPromptChunks.push(' - Your answer MUST be only your response. Do not include emotes or descriptions of tone. Do not include narration.');
       systemPromptChunks.push(' - Get to the heart of the response first, then inject a bit of flair.')
       if (tools.length > 0) {
-        systemPromptChunks.push(' - If you are making a tool call, output ONLY the call signature AND NOTHING ELSE. OTHERWISE, GREET THE USER IN CHARACTER NOW.');
+        systemPromptChunks.push(' - If you are making a tool call, make it now. OTHERWISE, GREET THE USER IN CHARACTER NOW.');
       } else {
         systemPromptChunks.push(' - Greet the user in character.');
       }
@@ -111,7 +111,7 @@ export async function buildSystemPrompt(scenario: PromptScenario = 'voice', user
       systemPromptChunks.push(` - Respond with no more than 2 or 3 sentences. They will appear in the assistant application log.`);
       systemPromptChunks.push(` - A quick status report would be approprate here.`);
       if (tools.length > 0) {
-        systemPromptChunks.push(' - If you are making a tool call, output ONLY the call signature AND NOTHING ELSE. OTHERWISE, INTRODUCE YOURSELF IN CHARACTER NOW.');
+        systemPromptChunks.push(' - If you are making a tool call, make it now. OTHERWISE, INTRODUCE YOURSELF IN CHARACTER NOW.');
       } else {
         systemPromptChunks.push(' - Introduce yourself in character.');
       }

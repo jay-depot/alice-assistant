@@ -1,5 +1,5 @@
 import { UserConfig } from './user-config.js'
-import { startLLMTransaction } from './llm-transaction.js';
+import { startConversation } from './conversation.js';
 import { buildSystemPrompt } from './system-prompt.js';
 import { getORM } from './memory.js';
 import { startServer } from '../web-interface/server/alice-rest-service.js';
@@ -31,7 +31,7 @@ export const AliceCore = {
     console.log('Memory system initialized.');
     console.log(`Trying talk to ${config.ollama.model} in Ollama...\n`);
     await (async () => {
-      const testConversation = startLLMTransaction();
+      const testConversation = startConversation();
       console.log(` -> Welcome back, ${config.assistantName}`);
       const reply = await testConversation.executeTurn(await buildSystemPrompt('startup'));
       console.log(` <- ${reply}`);

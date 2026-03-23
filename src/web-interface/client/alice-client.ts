@@ -29,7 +29,6 @@ interface MoodResponse {
 // ── State ──────────────────────────────────────────────────────────────────
 
 let currentSessionId: number | string | null = null;
-let pendingNewSession = false;
 let isLoading = false;
 let moodPollIntervalId: number | null = null;
 let isPollingMood = false;
@@ -68,7 +67,7 @@ async function fetchSession(id: number | string): Promise<Session> {
   return data.session;
 }
 
-async function createSession(message: string): Promise<Session> {
+async function createSession(): Promise<Session> {
   const data = await apiFetch<{ session: Session }>('/api/chat', {
     method: 'POST',
   });
@@ -266,7 +265,6 @@ async function loadSession(id: number | string): Promise<void> {
   try {
     const session = await fetchSession(id);
     currentSessionId  = session.id;
-    pendingNewSession = false;
     renderMessages(session.messages);
     enterChatMode(session.title);
     setSidebarActiveSession(session.id);
@@ -288,7 +286,7 @@ async function refreshSessionList(): Promise<void> {
 
 async function handleSend(): Promise<void> {
   const message = messageInput.value.trim();
-  if (!message || isLoading) return;
+  if (!message || isLoading || currentSessionId === null) return;
 
   messageInput.value = '';
   resizeTextarea();
@@ -299,23 +297,8 @@ async function handleSend(): Promise<void> {
   showTypingIndicator();
 
   try {
-    let session: Session;
-
-    if (pendingNewSession) {
-      session           = await createSession(message);
-      currentSessionId  = session.id;
-      pendingNewSession = false;
-      enterChatMode(session.title);
-      renderMessages(session.messages);
-      await refreshSessionList();
-      setSidebarActiveSession(session.id);
-    } else if (currentSessionId !== null) {
-      session = await patchSession(currentSessionId, message);
-      renderMessages(session.messages);
-    } else {
-      removeTypingIndicator();
-      return;
-    }
+    const session = await patchSession(currentSessionId, message);
+    renderMessages(session.messages);
   } catch (err) {
     console.error('Failed to send message:', err);
     removeTypingIndicator();
@@ -327,18 +310,37 @@ async function handleSend(): Promise<void> {
   }
 }
 
-function handleNewChat(): void {
-  currentSessionId  = null;
-  pendingNewSession = true;
-  messagesArea.innerHTML    = '';
+async function handleNewChat(): Promise<void> {
+  if (isLoading) return;
+
+  currentSessionId = null;
+  messagesArea.innerHTML = '';
   welcomeScreen.style.display = 'none';
-  sessionTitle.textContent  = 'New Conversation';
+  sessionTitle.textContent = 'Starting...';
   deleteSessionBtn.classList.add('hidden');
-  messageInput.disabled     = false;
-  sendBtn.disabled          = false;
-  messageInput.placeholder  = 'Say something to begin...';
-  messageInput.focus();
+  messageInput.disabled = true;
+  sendBtn.disabled = true;
+  messageInput.placeholder = 'Starting new conversation...';
   setSidebarActiveSession(null);
+
+  isLoading = true;
+  showTypingIndicator();
+
+  try {
+    const session = await createSession();
+    currentSessionId = session.id;
+    renderMessages(session.messages);
+    enterChatMode(session.title);
+    await refreshSessionList();
+    setSidebarActiveSession(session.id);
+  } catch (err) {
+    console.error('Failed to create session:', err);
+    removeTypingIndicator();
+    showError('Failed to start new conversation.');
+    showWelcomeScreen();
+  } finally {
+    isLoading = false;
+  }
 }
 
 async function handleDeleteSession(): Promise<void> {
@@ -352,8 +354,7 @@ async function handleDeleteSession(): Promise<void> {
   isLoading = true;
   try {
     await endSession(currentSessionId);
-    currentSessionId  = null;
-    pendingNewSession = false;
+    currentSessionId = null;
     messagesArea.innerHTML = '';
     showWelcomeScreen();
     await refreshSessionList();
@@ -382,14 +383,14 @@ function resizeTextarea(): void {
 
 // ── Event listeners ────────────────────────────────────────────────────────
 
-newChatBtn.addEventListener('click', handleNewChat);
-deleteSessionBtn.addEventListener('click', () => { handleDeleteSession(); });
-sendBtn.addEventListener('click', () => { handleSend(); });
+newChatBtn.addEventListener('click', () => { void handleNewChat(); });
+deleteSessionBtn.addEventListener('click', () => { void handleDeleteSession(); });
+sendBtn.addEventListener('click', () => { void handleSend(); });
 
 messageInput.addEventListener('keydown', (e: KeyboardEvent) => {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
-    handleSend();
+    void handleSend();
   }
 });
 

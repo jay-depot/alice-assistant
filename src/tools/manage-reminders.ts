@@ -4,6 +4,7 @@ import { UserConfig } from '../lib/user-config.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import { randomUUID } from 'crypto';
+import { simpleExpandTilde } from '../lib/simple-tilde-expansion.js';
 
 const ReminderRecord = Type.Object({
   id: Type.String(),
@@ -38,8 +39,8 @@ interface Reminder {
 
 function getReminderPath(): string {
   const config = UserConfig.getConfig();
-  const baseDir = config.toolSettings.manageReminders?.storageDirectory || 
-    path.join(config.configDirectory || process.env.HOME || '/root', 'reminders');
+  const baseDir = simpleExpandTilde(config.toolSettings.manageReminders?.storageDirectory || 
+    path.join(config.configDirectory || process.env.HOME, 'reminders'));
   
   if (!fs.existsSync(baseDir)) {
     fs.mkdirSync(baseDir, { recursive: true });
