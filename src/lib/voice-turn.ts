@@ -2,7 +2,7 @@ import { createInterface } from 'readline/promises';
 import { stdin as input, stdout as output } from 'process';
 import { captureAndTranscribe } from './stt.js';
 import { startConversation } from './conversation.js';
-import { buildSystemPrompt } from './system-prompt.js';
+import { buildSystemPrompt } from './system-prompts/headers/personality-header.js';
 import { speakText } from './tts.js';
 
 export async function runSingleVoiceTurn(recordSeconds = 7): Promise<void> {
@@ -16,9 +16,8 @@ export async function runSingleVoiceTurn(recordSeconds = 7): Promise<void> {
 
   console.log(`User said: ${transcript}`);
 
-  const conversation = startConversation();
-  const prompt = await buildSystemPrompt('voice', transcript);
-  const reply = await conversation.executeTurn(prompt);
+  const conversation = startConversation('voice');
+  const reply = await conversation.sendUserMessage(transcript);
 
   console.log(`ALICE: ${reply}`);
   await speakText(reply);

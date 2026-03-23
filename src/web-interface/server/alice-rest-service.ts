@@ -8,7 +8,7 @@ import { getORM } from '../../lib/memory.js';
 import { ChatSession, ChatSessionRound } from '../../lib/db-schemas/index.js';
 import { startConversation } from '../../lib/conversation.js';
 import { createMemory } from '../../tools/recall-memory.js';
-import { buildSystemPrompt } from '../../lib/system-prompt.js';
+import { buildSystemPrompt } from '../../lib/system-prompts/headers/personality-header.js';
 import { getMood } from '../../tools/set-mood.js';
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
@@ -46,21 +46,18 @@ export function startServer() {
     // and returns the answer to it.
 
     const em = (await getORM()).em.fork();
-    const newSession = em.create(ChatSession, { title: 'New Conversation', rounds: [], createdAt: new Date(), updatedAt: new Date() });
-    const initialRound = em.create(ChatSessionRound, { chatSession: newSession, role: 'system', timestamp: new Date(), content: await buildSystemPrompt('chat') });
-    newSession.rounds.add(initialRound);
-
-    const llmTransaction = startConversation();
-    const response = await llmTransaction.executeTurn(initialRound.content);
-    const assistantRound = em.create(ChatSessionRound, { chatSession: newSession, role: 'assistant', timestamp: new Date(), content: response });
-    newSession.rounds.add(assistantRound);
+    const conversationRecord = em.create(ChatSession, { title: 'New Conversation', rounds: [], createdAt: new Date(), updatedAt: new Date() });
+    const conversation = startConversation('chat');
+    const response = await conversation.sendUserMessage();
+    const assistantRound = em.create(ChatSessionRound, { chatSession: conversationRecord, role: 'assistant', timestamp: new Date(), content: response });
+    conversationRecord.rounds.add(assistantRound);
 
     await em.flush();
 
     res.json({ session: {
-      id: newSession.id,
-      title: newSession.title,
-      createdAt: newSession.createdAt,
+      id: conversationRecord.id,
+      title: conversationRecord.title,
+      createdAt: conversationRecord.createdAt,
       messages: [
         { role: assistantRound.role, content: assistantRound.content, timestamp: assistantRound.timestamp }
       ]
@@ -83,17 +80,12 @@ export function startServer() {
       return;
     }
 
-    // TODO: Chat rounds need some work. 
-    //   1. We need to store the "raw" message and the "pretty" message in separate fields, 
-    //      and only send "pretty" to the frontend. 
-    //   2. We need to wrap messages from the user in a continuation prompt the way we do 
-    //      for user voice continuations.
     const userRound = em.create(ChatSessionRound, { chatSession: session, role: 'user', timestamp: new Date(), content: message });
     session.rounds.add(userRound);
 
-    const llmTransaction = startConversation();
+    const llmTransaction = startConversation('chat');
     llmTransaction.restoreContext(session.rounds.getItems().map(round => ({ role: round.role, content: round.content })));
-    const response = await llmTransaction.executeTurn(message);
+    const response = await llmTransaction.sendUserMessage(message);
     const assistantRound = em.create(ChatSessionRound, { chatSession: session, role: 'assistant', timestamp: new Date(), content: response });
     session.rounds.add(assistantRound);
 

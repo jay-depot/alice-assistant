@@ -2,11 +2,15 @@ import OllamaClient, { ChatResponse } from 'ollama';
 import { UserConfig } from './user-config.js';
 import { buildOllamaToolDescriptionObject } from './tool-system.js';
 import { getTools } from '../tools/index.js';
+import { DynamicPromptConversationType } from './dynamic-prompt.js';
+import { getHeaderPrompts } from './header-prompts.js';
+import { getFooterPrompts } from './footer-prompts.js';
 
 const MAX_TOOL_CALL_DEPTH = 5;
 type Message = {
   role: string;
   content: string;
+  tool_calls?: string; // We're just going to JSON.stringify the tool calls and then deserialize them on the way back.
 };
 
 export class Conversation {
@@ -22,7 +26,7 @@ export class Conversation {
 
   private context: Message[] = [];
 
-  constructor() {
+  constructor(public type: DynamicPromptConversationType) {
     this.llmConnection = {
       ...this.llmConnection,
       host: UserConfig.getConfig().ollama.host,
@@ -58,27 +62,51 @@ export class Conversation {
     return this;
   }
 
-  async executeTurn(prompt: string): Promise<string> {
-    this.context.push({
-      "role": "user",
-      "content": prompt
+  async sendUserMessage(message?: string): Promise<string> {
+    const headerPrompts = await getHeaderPrompts({
+      conversationType: this.type,
+      enabledTools: Object.keys(UserConfig.getConfig().enabledTools).filter(toolName => UserConfig.getConfig().enabledTools[toolName])
     });
+    const footerPrompts = await getFooterPrompts({
+      conversationType: this.type,
+      enabledTools: Object.keys(UserConfig.getConfig().enabledTools).filter(toolName => UserConfig.getConfig().enabledTools[toolName])
+    });
+
+    if (message) {
+      this.context.push({
+        role: 'user',
+        content: message
+      });
+    }
+
+    const fullContext = [
+      ...headerPrompts.map(prompt => ({ role: 'system', content: prompt })),
+      ...this.context,
+      ...footerPrompts.map(prompt => ({ role: 'system', content: prompt })),
+    ]
+
+    console.log({ fullContext });
 
     const response = await OllamaClient.chat({
       ...this.llmConnection,
-      messages: this.context,
+      messages: fullContext,
       tools: buildOllamaToolDescriptionObject()
     });
-    
-    const responseContent = await this.handleToolCalls(response);
-    
-    // Add the LLM response to the context, so that it can be referred to in future turns.
-    this.context.push({
-      role: "assistant",
-      content: responseContent
-    });
 
-    return responseContent;
+    if (response.message.content && response.message.content.length > 0) {
+      this.context.push({
+        role: 'assistant',
+        content: response.message.content,
+        tool_calls: response.message.tool_calls ? JSON.stringify(response.message.tool_calls) : undefined
+      });
+    }
+
+    if (response.message.tool_calls && response.message.tool_calls.length > 0) {
+      // If the LLM made tool calls in its initial response, handle those tool calls and any subsequent responses before returning the final response to the caller.
+      return this.handleToolCalls(response);
+    }
+
+    return response.message.content || '';
   }
 
   private async handleToolCalls(response: ChatResponse, depth = 0): Promise<string> {
@@ -123,12 +151,16 @@ export class Conversation {
       const continuationPromptWithResults = `The assistant has made the following tool calls:\n\n${resultParts.join('\n\n')}\n\n${continuationPrompt}`;
       // Send the continuation prompt, and wait for the next response, which will be the LLM either making another tool call, or giving its final answer.
       this.context.push({
-        role: 'user',
+        role: 'system',
         content: continuationPromptWithResults
       });
       const nextResponse = await OllamaClient.chat({
         ...this.llmConnection,
-        messages: this.context,
+        messages: this.context.map(message => ({
+          role: message.role,
+          content: message.content,
+          tool_calls: message.tool_calls ? JSON.parse(message.tool_calls) : undefined
+        })),
         tools: buildOllamaToolDescriptionObject()
       });
 
@@ -169,13 +201,18 @@ export class Conversation {
     });
     const response = await OllamaClient.chat({
       ...this.llmConnection,
-      messages: this.context,
+      messages: this.context.map(message => ({
+        role: message.role,
+        content: message.content,
+        tool_calls: message.tool_calls ? JSON.parse(message.tool_calls) : undefined
+      })),
+      tools: buildOllamaToolDescriptionObject()
     });
     return response.message.content || '';
   }
 }
 
-export function startConversation(): Conversation {
-  const txn = new Conversation();
+export function startConversation(type: DynamicPromptConversationType): Conversation {
+  const txn = new Conversation(type);
   return txn;
 }

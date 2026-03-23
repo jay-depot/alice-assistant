@@ -73,19 +73,18 @@ const SetMoodTool: Tool = {
     `responses are delivered to the user. The allowed moods you can set are: ${AllowedMoods.join(', ')}.`,
   parameters,
   systemPromptFragment: `The assistant has a mood, which is a string that describes tone and delivery of ` +
-    `the assistant's responses. The mood can be set by calling the setMood tool. This may alter the tone ` +
-    `and delivery of voice responses, or it may display in other ways. Use this freely to enhance the ` +
-    `delivery of your character. Allowed moods are: ${AllowedMoods.join(', ')}. The current mood is ` +
-    `${getMood().currentMood}. Reason: ${getMood().currentReason}.`,
+    `the assistant's responses. The mood can be set by calling the setMood tool with the new mood and a ` +
+    `reason for the change. This may alter the tone and delivery of voice responses, or it may display ` +
+    `in other ways. Use this freely to enhance the delivery of your character. Allowed moods are: ` +
+    `${AllowedMoods.join(', ')}.`,
   toolResultPromptIntro: '',
-  toolResultPromptOutro: `You have just changed your mood by calling the setMood tool. Please respond ` +
-    `to the user in character before calling setMood again.`,
+  toolResultPromptOutro: '',
   callSignature: 'setMood',
   execute: async (args) => {
     const { mood, reason } = args as { mood: string; reason: string };
     currentMood = mood;
     currentReason = reason;
-    return `The assistant has updated its mood. The new mood is: ${mood}. Reason: ${reason}`;
+    return `You have successfully changed your mood to ${mood}, for reason: ${reason}`;
   }
 };  
 

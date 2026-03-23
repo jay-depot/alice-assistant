@@ -1,6 +1,6 @@
 import { UserConfig } from './user-config.js'
 import { startConversation } from './conversation.js';
-import { buildSystemPrompt } from './system-prompt.js';
+import { buildSystemPrompt } from './system-prompts/headers/personality-header.js';
 import { getORM } from './memory.js';
 import { startServer } from '../web-interface/server/alice-rest-service.js';
 import { runManualVoiceDemoLoop } from './voice-turn.js';
@@ -31,9 +31,9 @@ export const AliceCore = {
     console.log('Memory system initialized.');
     console.log(`Trying talk to ${config.ollama.model} in Ollama...\n`);
     await (async () => {
-      const testConversation = startConversation();
+      const testConversation = startConversation('startup');
       console.log(` -> Welcome back, ${config.assistantName}`);
-      const reply = await testConversation.executeTurn(await buildSystemPrompt('startup'));
+      const reply = await testConversation.sendUserMessage();
       console.log(` <- ${reply}`);
     })();
     console.log(`\nTalking to ${config.ollama.model} in Ollama works.`);
