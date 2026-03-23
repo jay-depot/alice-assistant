@@ -1,6 +1,5 @@
 import { UserConfig } from './user-config.js'
 import { startConversation } from './conversation.js';
-import { buildSystemPrompt } from './system-prompts/headers/personality-header.js';
 import { getORM } from './memory.js';
 import { startServer } from '../web-interface/server/alice-rest-service.js';
 import { runManualVoiceDemoLoop } from './voice-turn.js';
