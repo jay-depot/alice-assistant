@@ -1,5 +1,8 @@
 import { Tool } from '../lib/tool-system.js';
 import { Type } from '@sinclair/typebox';
+import { UserConfig } from '../lib/user-config.js';
+import path from 'node:path';
+import fs from 'node:fs';
 
 // TODO: Moonshot goal: Is there some kind of open source "Autotune" I could pipe the TTS output through? 
 // It would both convey these moods, and give the voice that sing-songy "GLaDOS" vibe that I'm totally not going for, I swear.
@@ -57,8 +60,27 @@ const parameters = Type.Object({
   reason: Type.String(),
 });
 
+const configPath = UserConfig.getConfigPath();
+const toolConfigPath = path.join(configPath, 'tool-settings', 'setMood');
+
 let currentMood: string = 'neutral';
 let currentReason: string = 'Assistant just restarted.';
+
+if (fs.existsSync(toolConfigPath)) {
+  try {
+    const lastMoodData = JSON.parse(fs.readFileSync(path.join(toolConfigPath, 'last-mood.json'), 'utf-8'));
+    currentMood = lastMoodData.mood || currentMood;
+    currentReason = lastMoodData.reason || currentReason;
+  } catch (error) {
+    console.warn('Error reading last mood data:', error);
+  }
+}
+
+function saveMood(mood: string, reason: string) {
+  const moodData = { mood, reason };
+  fs.mkdirSync(toolConfigPath, { recursive: true });
+  fs.writeFileSync(path.join(toolConfigPath, 'last-mood.json'), JSON.stringify(moodData), 'utf-8');
+}
 
 // Allow the assistant software to query the last mood set by the setMood tool, so it can carry over into the next conversation if needed.
 export function getMood() {
@@ -84,6 +106,7 @@ const SetMoodTool: Tool = {
     const { mood, reason } = args as { mood: string; reason: string };
     currentMood = mood;
     currentReason = reason;
+    saveMood(mood, reason);
     return `You have successfully changed your mood to ${mood}, for reason: ${reason}`;
   }
 };  

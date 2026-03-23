@@ -83,9 +83,7 @@ export class Conversation {
       ...headerPrompts.map(prompt => ({ role: 'system', content: prompt })),
       ...this.context,
       ...footerPrompts.map(prompt => ({ role: 'system', content: prompt })),
-    ]
-
-    console.log({ fullContext });
+    ];
 
     const response = await OllamaClient.chat({
       ...this.llmConnection,
@@ -177,8 +175,17 @@ export class Conversation {
    * 
    * @returns A promise that resolves to the LLM response
    */
-  async concludeTransactionWithSummary(): Promise<string> {
-    const terminationPrompt = `The user has terminated the assistant session. The assistant software now needs you to abandon your persona and summarize the conversation to provide context in future requests. Any tool capabilities described elsewhere are no longer available to you.
+  async requestSummary(): Promise<string> {
+    const headerPrompts = await getHeaderPrompts({
+      conversationType: this.type,
+      enabledTools: []
+    });
+    const footerPrompts = await getFooterPrompts({
+      conversationType: this.type,
+      enabledTools: []
+    });
+
+    const terminationPrompt = `The user has terminated the assistant session. The assistant software now needs you to abandon your persona and summarize the conversation to provide context in future requests.
 
  - Include no headers
  - Include no footers
@@ -188,9 +195,19 @@ export class Conversation {
  - Remain neutral and objective in your summary
  - There is no need for an end marker for this session, it will be added for you
 `;
+    const fullContext = [
+      ...headerPrompts.map(prompt => ({ role: 'system', content: prompt })),
+      ...this.context,
+      { role: 'system', content: terminationPrompt },
+      ...footerPrompts.map(prompt => ({ role: 'system', content: prompt }))
+    ];
     // Send the termination prompt, and wait for the response, which will be the conversation summary.
+    const summaryResponse = await OllamaClient.chat({
+      ...this.llmConnection,
+      messages: fullContext,
+    });
     // Return the conversation summary to the caller, so it can be stored and used for future context.
-    return '';
+    return summaryResponse.message.content || '';
   }
 
   async requestTitle(): Promise<string> {
@@ -208,7 +225,7 @@ export class Conversation {
       })),
       tools: buildOllamaToolDescriptionObject()
     });
-    return response.message.content || '';
+    return response.message.content.replaceAll(/(\n|\r)/g, ' ').replaceAll(/(\*|\#|\")/g, '') || '';
   }
 }
 
