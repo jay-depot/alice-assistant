@@ -4,11 +4,14 @@ import { DynamicPrompt, DynamicPromptConversationType } from './dynamic-prompt.j
 import { Tool } from './tool-system.js';
 
 type AlicePluginDependency = {
-  name: string;
+  id: string;
   version: string | string[];
 };
 
 export type AlicePluginMetadata = {
+  // the plugin's unique identifier. Package name, usually.
+  id: string;
+  // The plugin's human-friendly name, used in the UI and error messages. Does not have to be unique, but it should be.
   name: string;
   // semver enforced. System plugins, AND ONLY SYSTEM PLUGINS, can use the magic version 
   // string "LATEST" to always match the assistant's version.
@@ -32,6 +35,10 @@ export type AlicePluginMetadata = {
   dependencies?: AlicePluginDependency[]; 
 };
 
+declare module './alice-plugin-interface.js' {
+  export interface PluginCapabilities {}
+};
+
 export type AlicePluginInterface = {
   registerPlugin: (pluginDefinition: AlicePluginMetadata) => Promise<{
     registerTool: (toolDefinition: Tool) => void;
@@ -43,12 +50,39 @@ export type AlicePluginInterface = {
     registerFooterSystemPrompt: (promptDefinition: DynamicPrompt) => void;
 
     hooks: {
+      // Conversation hooks.
       onUserConversationWillBegin: (callback: (conversation: Conversation, type: DynamicPromptConversationType) => Promise<void>) => void;
       onUserConversationWillEnd: (callback: (conversation: Conversation, type: DynamicPromptConversationType) => Promise<void>) => void;
-      onAssistantStartup: (callback: () => Promise<void>) => void;
-      onAssistantShutdown: (callback: () => Promise<void>) => void;
+      
+      // Tool hooks. Do not use these to modify the tool call "in flight."
       onToolWillBeCalled: (callback: (tool: Readonly<Tool>, args: Readonly<Record<string, unknown>>) => Promise<void>) => void;
       onToolWasCalled: (callback: (tool: Readonly<Tool>, args: Readonly<Record<string, unknown>>, result: string) => Promise<void>) => void;
+      
+      // Startup hooks.
+      // Non-system plugins can register this hook, but it will just be 
+      // called immediately in the next tick. This is the earliest startup hook available to plugins.
+      onSystemPluginsLoaded: (callback: () => Promise<void>) => void;
+      // Ditto for this one, as far as non-system plugins are concerned. Called immediately 
+      // before non-system plugins begin loading, even if there are none to load.
+      onUserPluginsWillLoad: (callback: () => Promise<void>) => void;
+      // Called immediately after all plugins have finished loading, but before the assistant 
+      // finishes its startup process and becomes available for use.
+      onAllPluginsLoaded: (callback: () => Promise<void>) => void;
+
+      // Called immediately before the web interface becomes available for chat,
+      // and the wake word loop initializes.
+      onAssistantWillAcceptRequests: (callback: () => Promise<void>) => void;
+      
+      // Called immediately after the web interface becomes available for chat, 
+      // and the wake word loop initializes. This is the last startup hook.
+      onAssistantAcceptsRequests: (callback: () => Promise<void>) => void;
+
+      // Shutdown hooks. The exact reverse of the startup steps above.
+      onAssistantWillStopAcceptingRequests: (callback: () => Promise<void>) => void;
+      onAssistantStoppedAcceptingRequests: (callback: () => Promise<void>) => void;
+      onPluginsWillUnload: (callback: () => Promise<void>) => void;
+      onUserPluginsUnloaded: (callback: () => Promise<void>) => void;
+      onSystemPluginsWillUnload: (callback: () => Promise<void>) => void;
     };
 
     // This function tells the plugin system to create or load the config 
@@ -61,6 +95,18 @@ export type AlicePluginInterface = {
       updatePluginConfig: (newConfig: Static<T>) => Promise<Static<T>>;
       getSystemConfig(): any, // any is temporary until the system config gets type enforcement
     }>;
+
+    // `offer` may only be called once per plugin, and may only be called during the plugin's 
+    // registerPlugin function. It allows the plugin to offer "capabilities" to other plugins 
+    // that declare a dependency on it.
+    offer: <T extends keyof PluginCapabilities>(capabilities: PluginCapabilities[T]) => void;
+    // Request another plugin's offered API.
+    // Plugins may only `request` capabilities from plugins on which they have declared an 
+    // explicit dependency. Violations of this policy cause a fatal error when encountered, 
+    // with an error message that clearly explains the problem and how to fix it.
+    // Returns whatever the requested plugin "offers". If the requested plugin does not offer 
+    // any API, request returns undefined.
+    request: <T extends keyof PluginCapabilities>(pluginName: T) => PluginCapabilities[T] | undefined;
   }>;
 };
 

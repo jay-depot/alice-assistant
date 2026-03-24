@@ -1,5 +1,15 @@
 import { Static, Type } from '@sinclair/typebox';
 import { AlicePlugin, AlicePluginInterface } from '../../lib/alice-plugin-interface.js';
+import { MikroORM } from '@mikro-orm/sqlite';
+
+declare module '../../lib/alice-plugin-interface.js' {
+  export interface PluginCapabilities {
+    memory: {
+      registerDatabaseModels: (entities: any[]) => void; // TODO: Figure out the type for this. We want it to be something that forces the plugin developer to return MikroORM entity definitions.
+      onDatabaseReady: (callback: (orm: MikroORM) => void) => void;
+    }
+  }
+};
 
 const parameters = Type.Object({ keyword: Type.Optional(Type.String()), date: Type.Optional(Type.String()) });
 
@@ -8,7 +18,8 @@ const memoryPlugin: AlicePlugin = {
   // if the plugin is disabled. Thus function should not rely on any external state, 
   // and should just return a plain object with the metadata.
   pluginMetadata: {
-    name: 'memory',
+    id: 'memory',
+    name: 'Memory Plugin',
     version: 'LATEST', // This is a magic version string only system plugins are allowed to use. It matches the assistant package version at runtime.
     description: 'A plugin that allows the assistant to recall summaries of finished ' +
       'conversations with the user. Also provides a MikroORM instance connected to a ' +
@@ -24,19 +35,29 @@ const memoryPlugin: AlicePlugin = {
 
     const plugin = await pluginInterface.registerPlugin(memoryPlugin.pluginMetadata);
 
-    const config =await plugin.config(Type.Object({
+    const config = await plugin.config(Type.Object({
       includePersonalityChangeLlmHint: Type.Optional(Type.Boolean()),
     }));
-
-    // First, we'd set up the database here.
-    // then call something like:
-
-    // plugin.offer({ orm: myOrmInstance });
-
-    // which any plugin that declares a dependency on "memory" can access via 
-    // their own call to plugin.request('memory', 'orm') or something like that.
-    // Hard part: Get type checking to work across these boundaries automatically, and without just bypassing the type system.
-
+    
+    // First we'd have to load our own ORM models, then call
+    plugin.offer<'memory'>({ 
+      registerDatabaseModels: (entities) => {
+        // Add these entity definitions to the array we'll pass into MikroORM when we initialize it. 
+        // We may want to have some kind of validation here to make sure the entities are well-formed, 
+        // and to provide helpful error messages if not.
+      },
+      onDatabaseReady: (callback: (orm: MikroORM) => void) => { 
+        /* store the callback and call it with the orm instance once it's ready */ 
+      }
+    });
+    // then we'd go through the rest of the setup first. After all plugins are loaded, and any 
+    // plugins that depend on us have had a chance to register their ORM models and their onDatabaseReady 
+    // callbacks, we'd initialize the ORM instance, and call all the stored onDatabaseReady callbacks 
+    // with the instance, so that any plugin that needs direct access to the assistant's sqlite database 
+    // can have it. (And in theory, potentially use different database backends without the plugins giving 
+    // a damn, but we'll see about that later.)
+    // After that, any calls to registerDatabaseModels or onDatabaseReady should throw.
+   
     plugin.registerTool({
         name: 'recallMemory',
         availableFor: ['chat-session', 'voice-session', 'autonomy'],

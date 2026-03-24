@@ -2,6 +2,7 @@ import { AlicePlugin } from '../../lib/alice-plugin-interface.js';
 
 const dailyGoalsPlugin: AlicePlugin = {
   pluginMetadata: {
+    id: 'daily-goals',
     name: 'Daily Goals Plugin',
     description: 'Allows the assistant to track any daily goals the user requests to ' +
       'set. The assistant should then check in occasionally to see how the user is doing ' +
@@ -13,9 +14,9 @@ const dailyGoalsPlugin: AlicePlugin = {
       'of the system prompts until it calls the `acknowledgeYesterdaysGoals` tool.',
     version: 'LATEST',
     dependencies: [
-      { name: 'memory', version: 'LATEST' }, 
-      { name: 'datetime', version: 'LATEST' },
-      { name: 'reminders-broker', version: 'LATEST' },
+      { id: 'memory', version: 'LATEST' }, 
+      { id: 'datetime', version: 'LATEST' },
+      { id: 'reminders-broker', version: 'LATEST' },
     ],
     required: false,
     system: true,

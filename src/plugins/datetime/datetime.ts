@@ -2,6 +2,7 @@ import { AlicePlugin, AlicePluginInterface } from '../../lib/alice-plugin-interf
 
 const datetimePlugin: AlicePlugin = {
   pluginMetadata: {
+    id: 'datetime',
     name: 'Date and Time Plugin',
     description: 'Provides the current date and time to the assistant.',
     version: 'LATEST',

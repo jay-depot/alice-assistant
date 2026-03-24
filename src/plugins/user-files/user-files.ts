@@ -2,6 +2,7 @@ import { AlicePlugin } from '../../lib/alice-plugin-interface.js';
 
 const userFilesPlugin: AlicePlugin = {
   pluginMetadata: {
+    id: 'user-files',
     name: 'User Files Plugin',
     description: 'Provides the assistant with tools to read the user\'s filesystem, ' +
       'within limits set by the user in the plugin configuration. Does not allow the ' +

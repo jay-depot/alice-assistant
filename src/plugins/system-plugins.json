@@ -15,6 +15,14 @@
     "name": "Scratch Files",
     "required": true
   },
+  "location-broker": {
+    "name": "Location Broker",
+    "required": true
+  },
+  "reminders-broker": {
+    "name": "Reminders Broker",
+    "required": true
+  },
   "application": {
     "name": "Application",
     "required": false
@@ -23,28 +31,28 @@
     "name": "Mood",
     "required": false
   },
-  "news": {
-    "name": "News",
-    "required": false
-  },
-  "reminders": {
-    "name": "Reminders",
-    "required": false
-  },
-  "schedule": {
-    "name": "Schedule",
+  "news-broker": {
+    "name": "News Broker",
     "required": false
   },
   "user-files": {
     "name": "User Files",
     "required": false
   },
-  "weather": {
-    "name": "Weather",
+  "weather-broker": {
+    "name": "Weather Broker",
     "required": false
   },
-  "web-search": {
-    "name": "Web Search",
+  "web-search-broker": {
+    "name": "Web Search Broker",
+    "required": false
+  },
+  "appointments": {
+    "name": "Appointments",
+    "required": false
+  },
+  "daily-goals": {
+    "name": "Daily Goals",
     "required": false
   }
 }

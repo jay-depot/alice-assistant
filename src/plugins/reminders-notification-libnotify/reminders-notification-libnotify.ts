@@ -2,12 +2,13 @@ import { AlicePlugin } from '../../lib/alice-plugin-interface.js';
 
 const remindersNotificationLibnotifyPlugin: AlicePlugin = {
   pluginMetadata: {
+    id: 'reminders-notification-libnotify',
     name: 'Reminders Notification Libnotify Plugin',
     description: 'A reminders-broker notification provider plugin that uses libnotify ' +
       'to send notifications directly to the user without needing the LLM at all.',
     version: 'LATEST',
     dependencies: [
-      { name: 'reminders-broker', version: 'LATEST' },
+      { id: 'reminders-broker', version: 'LATEST' },
     ],
     required: false,
     system: true,

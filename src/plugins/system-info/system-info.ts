@@ -2,6 +2,7 @@ import { AlicePlugin } from '../../lib/alice-plugin-interface.js';
 
 const systemInfoPlugin: AlicePlugin = {
   pluginMetadata: {
+    id: 'system-info',
     name: 'System Info Plugin',
     description: 'Provides the assistant with information about the system it is running on, ' +
       'including but not limited to: system resources (CPU, memory, disk usage), operating ' +
