@@ -37,10 +37,6 @@ export class Conversation {
         ...UserConfig.getConfig().ollama.options,
       }
     }
-
-    if (UserConfig.getConfig().ollama.options) {
-      this.llmConnection.options = UserConfig.getConfig().ollama.options;
-    }
   }
 
   /**

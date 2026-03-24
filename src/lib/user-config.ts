@@ -8,12 +8,14 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
-import { SystemConfig } from './system-config.js';
+// TODO: Validate loaded files against these schemas.
+import { SystemConfigBasic } from './types/system-config-basic.js'; 
+import { SystemConfigFull } from './types/system-config-full.js';
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 
 export const UserConfig = (() => {
-  let config: any; // TODO: Change this config to use convict, so we get type checking and validation for free. This will also allow us to easily add new config options in the future, and provide better error messages when the config is invalid.
+  let config: SystemConfigFull; // TODO: Change this config to use convict, so we get type checking and validation for free. This will also allow us to easily add new config options in the future, and provide better error messages when the config is invalid.
   return {
     getConfigPath: () => {
       const homeDir = os.homedir();
@@ -97,7 +99,7 @@ export const UserConfig = (() => {
       // We don't want to return the config here, since we want its consumers to use the cached copy.
     },
 
-    getConfig: () => {
+    getConfig: (): SystemConfigFull => {
       if (!config) {
         throw new Error('Config not loaded. Please call UserConfig.load() before calling getConfig().');
       }
