@@ -1,4 +1,12 @@
 {
+  "datetime": {
+    "name": "Date and Time",
+    "required": true
+  },
+  "system-info": {
+    "name": "System Info",
+    "required": true
+  },
   "memory": {
     "name": "Memory",
     "required": true
@@ -7,12 +15,12 @@
     "name": "Scratch Files",
     "required": true
   },
-  "mood": {
-    "name": "Mood",
-    "required": false
-  },
   "application": {
     "name": "Application",
+    "required": false
+  },
+  "mood": {
+    "name": "Mood",
     "required": false
   },
   "news": {
@@ -29,6 +37,14 @@
   },
   "user-files": {
     "name": "User Files",
+    "required": false
+  },
+  "weather": {
+    "name": "Weather",
+    "required": false
+  },
+  "web-search": {
+    "name": "Web Search",
     "required": false
   }
 }

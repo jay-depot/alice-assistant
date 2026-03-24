@@ -1,5 +1,5 @@
 import { Static, Type } from '@sinclair/typebox';
-import { AlicePlugin, AlicePluginInterface } from '../../lib/alice-plugin-system.js';
+import { AlicePlugin, AlicePluginInterface } from '../../lib/alice-plugin-interface.js';
 
 const parameters = Type.Object({ keyword: Type.Optional(Type.String()), date: Type.Optional(Type.String()) });
 
@@ -10,10 +10,11 @@ const memoryPlugin: AlicePlugin = {
   pluginMetadata: {
     name: 'memory',
     version: 'LATEST', // This is a magic version string only system plugins are allowed to use. It matches the assistant package version at runtime.
-    description: 'A plugin that allows the assistant to recall summaries of finished conversations with the user.',
+    description: 'A plugin that allows the assistant to recall summaries of finished ' +
+      'conversations with the user. Also provides a MikroORM instance connected to a ' +
+      'sqlite database for other plugins to use for storing information across sessions.',
     system: true, // only plugins listed in src/plugins/system-plugins.json are allowed to set this to true. The only thing it does is allow the plugin to be marked "required" as well.
     required: true, // This plugin cannot be disabled because it provides some kind of core functionality for the assistant (In this case, the database). 
-    dependencies: [],
   },
 
   async registerPlugin(pluginInterface: AlicePluginInterface) {

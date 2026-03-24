@@ -1,0 +1,31 @@
+import { AlicePlugin } from '../../lib/alice-plugin-interface.js';
+
+const dailyGoalsPlugin: AlicePlugin = {
+  pluginMetadata: {
+    name: 'Daily Goals Plugin',
+    description: 'Allows the assistant to track any daily goals the user requests to ' +
+      'set. The assistant should then check in occasionally to see how the user is doing ' +
+      'on these goals, and offer encouragement, assistance, or lighthearted mockery as ' +
+      'needed. These are different from to-do list items in that they are no longer ' +
+      'relevant at the end of the day, even if not completed. A summary of completed items ' +
+      'is written to the database at the end of the day, and all incomplete items are ' +
+      'cleared. The assistant is given the list of yesterday\'s completed goals as part ' +
+      'of the system prompts until it calls the `acknowledgeYesterdaysGoals` tool.',
+    version: 'LATEST',
+    dependencies: [
+      { name: 'memory', version: 'LATEST' }, 
+      { name: 'datetime', version: 'LATEST' },
+      { name: 'reminders-broker', version: 'LATEST' },
+    ],
+    required: false,
+    system: true,
+  },
+
+  async registerPlugin(pluginInterface) {
+    const plugin = await pluginInterface.registerPlugin(dailyGoalsPlugin.pluginMetadata);
+    // Don't get distracted with implementing this until the plugin conversion is done.
+    // But this is planned to be one of the better features of this thing, so it's happening soon.
+  }
+};
+
+export default dailyGoalsPlugin;
