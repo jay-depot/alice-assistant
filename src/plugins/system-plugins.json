@@ -1,0 +1,34 @@
+{
+  "memory": {
+    "name": "Memory",
+    "required": true
+  },
+  "scratch-files": {
+    "name": "Scratch Files",
+    "required": true
+  },
+  "mood": {
+    "name": "Mood",
+    "required": false
+  },
+  "application": {
+    "name": "Application",
+    "required": false
+  },
+  "news": {
+    "name": "News",
+    "required": false
+  },
+  "reminders": {
+    "name": "Reminders",
+    "required": false
+  },
+  "schedule": {
+    "name": "Schedule",
+    "required": false
+  },
+  "user-files": {
+    "name": "User Files",
+    "required": false
+  }
+}
