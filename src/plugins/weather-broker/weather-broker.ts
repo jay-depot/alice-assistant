@@ -1,6 +1,7 @@
 import { AlicePlugin } from '../../lib/alice-plugin-interface.js';
+import { LocationData } from '../location-broker/location-broker.js';
 
-type WeatherAlert = {
+export type WeatherAlert = {
   title: string;
   description: string;
   severity: 'advisory' | 'watch' | 'warning';
@@ -8,7 +9,7 @@ type WeatherAlert = {
   expiryDate: Date;
 };
 
-type WeatherData = {
+export type WeatherData = {
   temperature: number; // in degrees Celsius
   temperatureUnit: string; // e.g. "C" for Celsius, "F" for Fahrenheit, etc.
   condition: string; // e.g. "sunny", "cloudy", "rainy", etc.
@@ -26,16 +27,14 @@ type WeatherData = {
     precipitationChance: number; // percentage
     precipitationChanceUnit: string; // e.g. "%" for percentage
   }[];
-  alerts: WeatherAlert[];
+  alerts?: WeatherAlert[];
 };
 
 declare module '../../lib/alice-plugin-interface.js' {
   export interface PluginCapabilities {
     'weather-broker': {
-      // This API is intentionally minimal for now, and will likely expand in the future. 
-      // For now, it just allows plugins to offer weather data in a standardized format, and to request weather data from any plugin that has it.
-      registerWeatherProvider: (name: string, callback: (location: string) => Promise<WeatherData>) => void;
-      requestWeatherData: () => Promise<WeatherData | undefined>; // returns undefined if no plugin offers weather data, otherwise returns the most recently offered weather data.
+      registerWeatherProvider: (name: string, callback: (location: LocationData) => Promise<WeatherData>) => void;
+      requestWeatherData: () => Promise<Record<string, WeatherData> | undefined>; // returns undefined if no plugin offers weather data, otherwise returns the most recently offered weather data.
     }
   }
 }
@@ -45,8 +44,7 @@ const weatherBrokerPlugin: AlicePlugin = {
     id: 'weather-broker',
     name: 'Weather Broker Plugin',
     description: 'Provides an API for other plugins to offer weather data to the assistant, ' +
-      'and for other plugins to request weather data from any plugin that has it.',
-      // TODO: Should we allow multiple weather providers to be registered at once?
+      'and for other plugins to request weather data from any plugin that offers it.',
     version: 'LATEST',
     dependencies: [
       { id: 'location-broker', version: 'LATEST' },
@@ -61,14 +59,28 @@ const weatherBrokerPlugin: AlicePlugin = {
 
   async registerPlugin(pluginInterface) {
     const plugin = await pluginInterface.registerPlugin(weatherBrokerPlugin.pluginMetadata);
+    const weatherProviderCallbacks: Record<string, (location: LocationData) => Promise<WeatherData>> = {};
+    const { requestLocationData } = plugin.request('location-broker');
+
     plugin.offer<'weather-broker'>({
       registerWeatherProvider: (name, callback) => {
         // Store the callback and call it whenever we want to get weather data from this provider.
+        weatherProviderCallbacks[name] = callback;
       },
-      requestWeatherData: () => {
-        // Call the most recently registered weather provider's callback and return the result,
-        // or return undefined if no provider is registered.
-        return undefined;
+      requestWeatherData: async () => {
+        // Call all registered weather providers' callbacks and return the results in an object 
+        // keyed by provider name. or return undefined if no providers are registered.
+        if (Object.keys(weatherProviderCallbacks).length === 0) {
+          return undefined;
+        }
+
+        const results: Record<string, WeatherData> = {};
+        await Promise.all(Object.entries(weatherProviderCallbacks).map(async ([name, callback]) => {
+          const locationData = await requestLocationData();
+          results[name] = await callback(locationData);
+        }));
+        
+        return results;
       },
     });
   }

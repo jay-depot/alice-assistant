@@ -7,6 +7,7 @@ declare module '../../lib/alice-plugin-interface.js' {
     memory: {
       registerDatabaseModels: (entities: any[]) => void; // TODO: Figure out the type for this. We want it to be something that forces the plugin developer to return MikroORM entity definitions.
       onDatabaseReady: (callback: (orm: MikroORM) => void) => void;
+      saveMemory: (content: string, keywords?: string[]) => Promise<void>;
     }
   }
 };
@@ -38,7 +39,7 @@ const memoryPlugin: AlicePlugin = {
     const config = await plugin.config(Type.Object({
       includePersonalityChangeLlmHint: Type.Optional(Type.Boolean()),
     }));
-    
+
     // First we'd have to load our own ORM models, then call
     plugin.offer<'memory'>({ 
       registerDatabaseModels: (entities) => {
@@ -48,6 +49,9 @@ const memoryPlugin: AlicePlugin = {
       },
       onDatabaseReady: (callback: (orm: MikroORM) => void) => { 
         /* store the callback and call it with the orm instance once it's ready */ 
+      },
+      saveMemory: async (content: string, keywords?: string[]) => {
+        // TBD: This is where we'd save a memory to the database, along with any associated keywords. 
       }
     });
     // then we'd go through the rest of the setup first. After all plugins are loaded, and any 
@@ -57,7 +61,7 @@ const memoryPlugin: AlicePlugin = {
     // can have it. (And in theory, potentially use different database backends without the plugins giving 
     // a damn, but we'll see about that later.)
     // After that, any calls to registerDatabaseModels or onDatabaseReady should throw.
-   
+
     plugin.registerTool({
         name: 'recallMemory',
         availableFor: ['chat-session', 'voice-session', 'autonomy'],
@@ -132,7 +136,8 @@ const memoryPlugin: AlicePlugin = {
       name: 'memoryHeader',
       weight: 1000,
       getPrompt: async (context): Promise<string | false> => {
-        // TBD
+        // Fetch the 10 (or so?) most recent memories from the database, and return them 
+        // in a nicely formatted markdown string to be included in the system prompts.
         return false;
       }
     });

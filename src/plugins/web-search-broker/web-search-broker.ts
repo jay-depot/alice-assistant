@@ -13,7 +13,7 @@ declare module '../../lib/alice-plugin-interface.js' {
       // This API is intentionally minimal for now, and will likely expand in the future. 
       // For now, it just allows plugins to offer general purpose web search data in a standardized format, and to request general purpose web search data from any plugin that offers it.
       registerWebSearchProvider: (name: string, callback: (query: string) => Promise<WebSearchResult[]>) => void;
-      requestWebSearchData: (query: string) => Promise<WebSearchResult[] | undefined>; // returns undefined if no plugin offers web search data, otherwise returns the most recently offered web search data.
+      requestWebSearchData: (query: string) => Promise<Record<string, WebSearchResult[]>>;
     }
   }
 }
@@ -39,14 +39,25 @@ const webSearchBrokerPlugin: AlicePlugin = {
   async registerPlugin(pluginInterface) {
     const plugin = await pluginInterface.registerPlugin(webSearchBrokerPlugin.pluginMetadata);
 
+    const webSearchProviderCallbacks: Record<string, (query: string) => Promise<WebSearchResult[]>> = {};
+
     plugin.offer<'web-search-broker'>({
       registerWebSearchProvider: (name, callback) => {
         // Store the callback and call it whenever we want to get web search results from this provider.
+        webSearchProviderCallbacks[name] = callback;
       },
-      requestWebSearchData: (query) => {
-        // Call the most recently registered web search provider's callback with the query and return the result,
-        // or return undefined if no provider is registered.
-        return undefined;
+      requestWebSearchData: async (query) => {
+        // Call all registered web search providers' callbacks with the query and return the results in an object 
+        // keyed by provider name, or return an empty object if no providers are registered.
+        if (Object.keys(webSearchProviderCallbacks).length === 0) {
+          return {};
+        }
+
+        const results: Record<string, WebSearchResult[]> = {};
+        await Promise.all(Object.entries(webSearchProviderCallbacks).map(async ([name, callback]) => {
+          results[name] = await callback(query);
+        }));
+        return results;
       },
     });
   }
