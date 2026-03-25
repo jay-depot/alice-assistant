@@ -35,6 +35,7 @@ declare module '../../lib/alice-plugin-interface.js' {
     'weather-broker': {
       registerWeatherProvider: (name: string, callback: (location: LocationData) => Promise<WeatherData>) => void;
       requestWeatherData: () => Promise<Record<string, WeatherData> | undefined>; // returns undefined if no plugin offers weather data, otherwise returns the most recently offered weather data.
+      getPreferredProviderId: () => Promise<string>;
     }
   }
 }
@@ -81,6 +82,9 @@ const weatherBrokerPlugin: AlicePlugin = {
         }));
         
         return results;
+      },
+      async getPreferredProviderId() {
+        return ''; //TODO
       },
     });
   }

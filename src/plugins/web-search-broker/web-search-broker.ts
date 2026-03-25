@@ -10,10 +10,24 @@ type WebSearchResult = {
 declare module '../../lib/alice-plugin-interface.js' {
   export interface PluginCapabilities {
     'web-search-broker': {
-      // This API is intentionally minimal for now, and will likely expand in the future. 
-      // For now, it just allows plugins to offer general purpose web search data in a standardized format, and to request general purpose web search data from any plugin that offers it.
+      /**
+       * Regesters a web search provider to handle requests
+       * @param name 
+       * @param callback 
+       * @returns void
+       */
       registerWebSearchProvider: (name: string, callback: (query: string) => Promise<WebSearchResult[]>) => void;
+      /**
+       * Request a web search from all available providers.
+       * @param query 
+       * @returns A promise that resolves to the search result sets, keyed by provider ID
+       */
       requestWebSearchData: (query: string) => Promise<Record<string, WebSearchResult[]>>;
+      /**
+       * Returns the ID of the user's configured "preferred" search provider.
+       * @returns A promise that resolves to the ID of the configured "preferred search provider"
+       */
+      getPreferredProviderId: () => Promise<string>;
     }
   }
 }
@@ -59,6 +73,9 @@ const webSearchBrokerPlugin: AlicePlugin = {
         }));
         return results;
       },
+      async getPreferredProviderId() {
+        return ''; //TODO
+      }
     });
   }
 };
