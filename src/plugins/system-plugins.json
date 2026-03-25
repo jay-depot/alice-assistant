@@ -1,58 +1,72 @@
-{
-  "datetime": {
+[
+  {
+    "id": "datetime",
     "name": "Date and Time",
     "required": true
   },
-  "system-info": {
+  {
+    "id": "system-info",
     "name": "System Info",
     "required": true
   },
-  "memory": {
+  {
+    "id": "memory",
     "name": "Memory",
     "required": true
   },
-  "scratch-files": {
+  {
+    "id": "scratch-files",
     "name": "Scratch Files",
     "required": true
   },
-  "location-broker": {
+  {
+    "id": "location-broker",
     "name": "Location Broker",
     "required": true
   },
-  "reminders-broker": {
+  {
+    "id": "reminders-broker",
     "name": "Reminders Broker",
     "required": true
   },
-  "application": {
+  {
+    "id": "application",
     "name": "Application",
     "required": false
   },
-  "mood": {
+  {
+    "id": "mood",
     "name": "Mood",
     "required": false
   },
-  "news-broker": {
+  {
+    "id": "news-broker",
     "name": "News Broker",
     "required": false
   },
-  "user-files": {
+  {
+    "id": "user-files",
     "name": "User Files",
     "required": false
   },
-  "weather-broker": {
+  {
+    "id": "weather-broker",
     "name": "Weather Broker",
     "required": false
   },
-  "web-search-broker": {
+  {
+    "id": "web-search-broker",
     "name": "Web Search Broker",
     "required": false
   },
-  "appointments": {
+  {
+    "id": "appointments",
     "name": "Appointments",
     "required": false
   },
-  "daily-goals": {
+  {
+    "id": "daily-goals",
     "name": "Daily Goals",
     "required": false
   }
-}
+]

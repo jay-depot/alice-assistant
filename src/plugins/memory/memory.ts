@@ -1,8 +1,8 @@
 import { Static, Type } from '@sinclair/typebox';
-import { AlicePlugin, AlicePluginInterface } from '../../lib/alice-plugin-interface.js';
+import { AlicePlugin, AlicePluginInterface } from '../../lib/types/alice-plugin-interface.js';
 import { MikroORM } from '@mikro-orm/sqlite';
 
-declare module '../../lib/alice-plugin-interface.js' {
+declare module '../../lib/types/alice-plugin-interface.js' {
   export interface PluginCapabilities {
     memory: {
       /**
@@ -26,8 +26,8 @@ declare module '../../lib/alice-plugin-interface.js' {
       /**
        * Registers a function to be called once the database is initialized and ready to use.
        * 
-       * Ensure any use of the database in your plugin only does so *after* this callback 
-       * is called, to avoid any issues with the database not being ready.
+       * Ensure any use of the database in your plugin only happens in this callback, or 
+       * otherwise ensure it has been called somehow beforehand.
        * 
        * This function may be called at any time (Dependency ordering ensures it will be 
        * available by the time your plugin loads), and any number of times, but calling 
@@ -43,10 +43,11 @@ declare module '../../lib/alice-plugin-interface.js' {
        * indicates something went wrong in your plugin if it's exceeded. Check for excessive 
        * recursion or infinite loops.
        * 
-       * @param callback 
-       * @returns 
+       * @param callback The function to be called once the database is ready. It receives the 
+       *                 MikroORM instance as an argument.
+       * @returns A promise that resolves with the return value of the callback.
        */
-      onDatabaseReady: (callback: (orm: MikroORM) => void) => void;
+      onDatabaseReady: <T>(callback: (orm: MikroORM) => Promise<T>) => Promise<T>;
 
       /**
        * Converts a text block into a memory and persists it to the database. Handles all 
@@ -103,8 +104,12 @@ const memoryPlugin: AlicePlugin = {
         // We may want to have some kind of validation here to make sure the entities are well-formed, 
         // and to provide helpful error messages if not.
       },
-      onDatabaseReady: (callback: (orm: MikroORM) => void) => { 
-        /* store the callback and call it with the orm instance once it's ready */ 
+      onDatabaseReady: <T>(callback: (orm: MikroORM) => Promise<T>): Promise<T> => {
+        // If the database is already ready, call the callback immediately. Otherwise, add it to a queue to be called once the database is ready. 
+        // We may want to have some safeguards here to prevent infinite loops or excessive recursion if a plugin does something weird in its onDatabaseReady callback.
+
+        throw new Error('Not implemented yet');
+        //return callback(orm);
       },
       saveMemory: async (content: string, keywords?: string[]) => {
         // TBD: This is where we'd save a memory to the database, along with any associated keywords. 

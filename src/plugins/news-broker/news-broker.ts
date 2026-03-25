@@ -1,14 +1,14 @@
-import { AlicePlugin } from '../../lib/alice-plugin-interface.js';
+import { AlicePlugin } from '../../lib/types/alice-plugin-interface.js';
 
 type NewsItem = {
   headline: string;
-  preview: string;
+  preview?: string;
   url: string;
   source: string;
   publishedAt: Date;
 };
 
-declare module '../../lib/alice-plugin-interface.js' {
+declare module '../../lib/types/alice-plugin-interface.js' {
   export interface PluginCapabilities {
     'news-broker': {
       // This API is intentionally minimal for now, and will likely expand in the future. 

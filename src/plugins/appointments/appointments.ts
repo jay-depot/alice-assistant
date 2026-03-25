@@ -1,4 +1,4 @@
-import { AlicePlugin } from '../../lib/alice-plugin-interface.js';
+import { AlicePlugin } from '../../lib/types/alice-plugin-interface.js';
 
 const appointmentsPlugin: AlicePlugin = {
   pluginMetadata: {

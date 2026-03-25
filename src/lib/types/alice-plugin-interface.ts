@@ -1,8 +1,8 @@
 import { Static, TSchema } from '@sinclair/typebox';
-import { Conversation } from './conversation.js';
-import { DynamicPrompt, DynamicPromptConversationType } from './dynamic-prompt.js';
-import { Tool } from './tool-system.js';
-import { SystemConfigFull } from './types/system-config-full.js';
+import { Conversation } from '../conversation.js';
+import { DynamicPrompt, DynamicPromptConversationType } from '../dynamic-prompt.js';
+import { Tool } from '../tool-system.js';
+import { SystemConfigFull } from './system-config-full.js';
 
 type AlicePluginDependency = {
   id: string;
@@ -94,19 +94,30 @@ export type AlicePluginInterface = {
     config: <T extends TSchema>(validationSchema: T) => Promise<{
       getPluginConfig: () => Static<T>;
       updatePluginConfig: (newConfig: Static<T>) => Promise<Static<T>>;
-      getSystemConfig(): SystemConfigFull, // any is temporary until the system config gets type enforcement
+      getSystemConfig(): SystemConfigFull,
     }>;
 
-    // `offer` may only be called once per plugin, and may only be called during the plugin's 
-    // registerPlugin function. It allows the plugin to offer "capabilities" to other plugins 
-    // that declare a dependency on it.
+    /**
+     * Use this function to offer an API to any plugins that declare a dependency on this plugin.
+     * 
+     * A plugin may only call `offer` once, and may only call it during its registration callback.
+     * The plugin system will throw an error if a plugin violates either of these rules, with 
+     * an error message that tell the user which plugin to disable to fix their assistant.
+     * 
+     * @param capabilities: An object containing the methods and properties the plugin would 
+     *                      like to expose to dependencies.
+     * @returns void
+     */
     offer: <T extends keyof PluginCapabilities>(capabilities: PluginCapabilities[T]) => void;
-    // Request another plugin's offered API.
-    // Plugins may only `request` capabilities from plugins on which they have declared an 
-    // explicit dependency. Violations of this policy cause a fatal error when encountered, 
-    // with an error message that clearly explains the problem and how to fix it.
-    // Returns whatever the requested plugin "offers". If the requested plugin does not offer 
-    // any API, request returns undefined.
+
+    /**
+     * Request the offered API of a plugin on which this plugin has declared a dependency. The 
+     * plugin system will throw an error if this function is called for a plugin that is not 
+     * declared as a dependency, even if that plugin is a required system plugin.
+     * 
+     * @param pluginName The name of the plugin whose offered API you want to use.
+     * @returns The offered API of the requested plugin, or undefined if the plugin does not offer any API.
+     */
     request: <T extends keyof PluginCapabilities>(pluginName: T) => PluginCapabilities[T] | undefined;
   }>;
 };

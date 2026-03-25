@@ -1,4 +1,4 @@
-import { AlicePlugin } from '../../lib/alice-plugin-interface.js';
+import { AlicePlugin } from '../../lib/types/alice-plugin-interface.js';
 import { LocationData } from '../location-broker/location-broker.js';
 
 export type WeatherAlert = {
@@ -30,7 +30,7 @@ export type WeatherData = {
   alerts?: WeatherAlert[];
 };
 
-declare module '../../lib/alice-plugin-interface.js' {
+declare module '../../lib/types/alice-plugin-interface.js' {
   export interface PluginCapabilities {
     'weather-broker': {
       registerWeatherProvider: (name: string, callback: (location: LocationData) => Promise<WeatherData>) => void;

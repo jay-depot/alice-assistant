@@ -1,4 +1,4 @@
-import { AlicePlugin } from '../../lib/alice-plugin-interface.js';
+import { AlicePlugin } from '../../lib/types/alice-plugin-interface.js';
 
 type WebSearchResult = {
   title: string;
@@ -7,7 +7,7 @@ type WebSearchResult = {
   source: string; // the name of the plugin that provided this search result
 };
 
-declare module '../../lib/alice-plugin-interface.js' {
+declare module '../../lib/types/alice-plugin-interface.js' {
   export interface PluginCapabilities {
     'web-search-broker': {
       /**

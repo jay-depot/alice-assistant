@@ -1,6 +1,6 @@
-import { AlicePlugin } from '../../lib/alice-plugin-interface.js';
+import { AlicePlugin } from '../../lib/types/alice-plugin-interface.js';
 
-declare module '../../lib/alice-plugin-interface.js' {
+declare module '../../lib/types/alice-plugin-interface.js' {
   export interface PluginCapabilities {
     mood: {
       getMood: () => Promise<{ mood: string; reason: string }>; // returns the assistant's current mood and the reason for that mood, or an empty string if no mood is set.

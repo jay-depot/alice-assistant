@@ -1,4 +1,4 @@
-import { AlicePlugin, AlicePluginInterface } from '../../lib/alice-plugin-interface.js';
+import { AlicePlugin, AlicePluginInterface } from '../../lib/types/alice-plugin-interface.js';
 
 const datetimePlugin: AlicePlugin = {
   pluginMetadata: {

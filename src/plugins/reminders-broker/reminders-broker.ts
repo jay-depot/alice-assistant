@@ -1,4 +1,4 @@
-import { AlicePlugin } from '../../lib/alice-plugin-interface.js';
+import { AlicePlugin } from '../../lib/types/alice-plugin-interface.js';
 
 type Reminder = {
   id: string;
@@ -8,7 +8,7 @@ type Reminder = {
   source: string; // the name of the plugin that provided this reminder
 };
 
-declare module '../../lib/alice-plugin-interface.js' {
+declare module '../../lib/types/alice-plugin-interface.js' {
   export interface PluginCapabilities {
     'reminders-broker': {
       // This API is intentionally minimal for now, and will likely expand in the future. 
