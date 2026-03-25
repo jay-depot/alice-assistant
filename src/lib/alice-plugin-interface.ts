@@ -2,6 +2,7 @@ import { Static, TSchema } from '@sinclair/typebox';
 import { Conversation } from './conversation.js';
 import { DynamicPrompt, DynamicPromptConversationType } from './dynamic-prompt.js';
 import { Tool } from './tool-system.js';
+import { SystemConfigFull } from './types/system-config-full.js';
 
 type AlicePluginDependency = {
   id: string;
@@ -93,7 +94,7 @@ export type AlicePluginInterface = {
     config: <T extends TSchema>(validationSchema: T) => Promise<{
       getPluginConfig: () => Static<T>;
       updatePluginConfig: (newConfig: Static<T>) => Promise<Static<T>>;
-      getSystemConfig(): any, // any is temporary until the system config gets type enforcement
+      getSystemConfig(): SystemConfigFull, // any is temporary until the system config gets type enforcement
     }>;
 
     // `offer` may only be called once per plugin, and may only be called during the plugin's 
