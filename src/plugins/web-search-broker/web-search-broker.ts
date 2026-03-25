@@ -11,18 +11,20 @@ declare module '../../lib/alice-plugin-interface.js' {
   export interface PluginCapabilities {
     'web-search-broker': {
       /**
-       * Regesters a web search provider to handle requests
+       * Registers a web search provider to handle requests
        * @param name 
        * @param callback 
        * @returns void
        */
       registerWebSearchProvider: (name: string, callback: (query: string) => Promise<WebSearchResult[]>) => void;
+
       /**
        * Request a web search from all available providers.
        * @param query 
        * @returns A promise that resolves to the search result sets, keyed by provider ID
        */
       requestWebSearchData: (query: string) => Promise<Record<string, WebSearchResult[]>>;
+
       /**
        * Returns the ID of the user's configured "preferred" search provider.
        * @returns A promise that resolves to the ID of the configured "preferred search provider"

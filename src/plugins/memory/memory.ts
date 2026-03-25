@@ -5,8 +5,68 @@ import { MikroORM } from '@mikro-orm/sqlite';
 declare module '../../lib/alice-plugin-interface.js' {
   export interface PluginCapabilities {
     memory: {
+      /**
+       * Register MikroORM entity definitions to be included in the assistant's database. 
+       * These will be added to the ORM before it is initialized, so that plugins can use 
+       * the database for storing and retrieving information across sessions. Table names 
+       * should be prefixed with the plugin's PascalCased id to avoid conflicts with other 
+       * plugins. For example, if your plugin's id is "my-plugin", and you have an entity 
+       * called "Note", you should name the table "MyPluginNote". Future versions of this 
+       * API may introduce enforcement of this naming convention.
+       * 
+       * Must be called during your plugin's registerPlugin function *only*. Calling this 
+       * function after all plugins are registered will throw an error.
+       * 
+       * @param entities An array of MikroORM entity definitions to be added to the ORM. 
+       *                 Prefix all table names with your plugin's id.
+       * @returns 
+       */
       registerDatabaseModels: (entities: any[]) => void; // TODO: Figure out the type for this. We want it to be something that forces the plugin developer to return MikroORM entity definitions.
+
+      /**
+       * Registers a function to be called once the database is initialized and ready to use.
+       * 
+       * Ensure any use of the database in your plugin only does so *after* this callback 
+       * is called, to avoid any issues with the database not being ready.
+       * 
+       * This function may be called at any time (Dependency ordering ensures it will be 
+       * available by the time your plugin loads), and any number of times, but calling 
+       * it after all plugins have loaded will usually just call back on the next tick.
+       * 
+       * You can call this once, during your plugin registration and cache the ORM instance 
+       * for later, or you may wrap any database related activity in callbacks passed to this 
+       * function.
+       * 
+       * The memory plugin has a (rather unreasonably large) limit to the number of calls 
+       * to this function it will queue up, after which it will start throwing. This limit 
+       * is meant to be large enough that no real-world use will run into it, and it typically 
+       * indicates something went wrong in your plugin if it's exceeded. Check for excessive 
+       * recursion or infinite loops.
+       * 
+       * @param callback 
+       * @returns 
+       */
       onDatabaseReady: (callback: (orm: MikroORM) => void) => void;
+
+      /**
+       * Converts a text block into a memory and persists it to the database. Handles all 
+       * keyword extraction automatically.
+       * 
+       * This allows other plugins to save memories of interactions handled outside of the 
+       * normal chat or voice loop as if they were conversations. Your plugin is responsible 
+       * for summarizing the interaction as bullet points in plain language. Use this if 
+       * your plugin exposes alternative interfaces, such as though chat services, email, 
+       * SMS, or even some custom retro-looking desktop application. Also use this if your 
+       * plugin handles events autonomously to save the results of those actions as memories.
+       * 
+       * This function may be called at any time after all plugins are loaded. If you are 
+       * only using it in response to assistant interactions, then it is guaranteed to be 
+       * available.
+       * 
+       * @param content 
+       * @param keywords 
+       * @returns 
+       */
       saveMemory: (content: string, keywords?: string[]) => Promise<void>;
     }
   }
@@ -30,10 +90,6 @@ const memoryPlugin: AlicePlugin = {
   },
 
   async registerPlugin(pluginInterface: AlicePluginInterface) {
-    // If dependencies are declared here, then registerPlugin will not resolve until those dependencies are loaded.
-    // If any dependencies are disabled or missing, resulting in an impossible setup, the plugin system should prevent the assistant from starting, and explain why in console output.
-    // If any dependencies fail to load for any reason, the plugin system should prevent the assistant from starting, and explain why in console output.
-
     const plugin = await pluginInterface.registerPlugin(memoryPlugin.pluginMetadata);
 
     const config = await plugin.config(Type.Object({

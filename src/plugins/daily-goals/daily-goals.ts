@@ -13,6 +13,14 @@ const dailyGoalsPlugin: AlicePlugin = {
       'cleared. The assistant is given the list of yesterday\'s completed goals as part ' +
       'of the system prompts until it calls the `acknowledgeYesterdaysGoals` tool.',
     version: 'LATEST',
+
+    // If dependencies are declared here, then registerPlugin will not resolve until those 
+    // dependencies are loaded.
+    // If any dependencies are disabled or missing, resulting in an impossible setup, the 
+    // plugin system should prevent the assistant from starting, and explain why in console 
+    // output.
+    // If any dependencies fail to load for any reason, the plugin system should prevent 
+    // the assistant from starting, and explain why in console output.
     dependencies: [
       { id: 'memory', version: 'LATEST' }, 
       { id: 'datetime', version: 'LATEST' },
