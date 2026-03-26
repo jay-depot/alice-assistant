@@ -1,6 +1,9 @@
 import { Static, Type } from '@sinclair/typebox';
 import { AlicePlugin, AlicePluginInterface } from '../../lib/types/alice-plugin-interface.js';
 import { MikroORM } from '@mikro-orm/sqlite';
+import * as path from 'path';
+import { ChatSession, Keyword, Memory } from './db-schemas/index.js';
+import { UserConfig } from '../../lib/user-config.js';
 
 declare module '../../lib/types/alice-plugin-interface.js' {
   export interface PluginCapabilities {
@@ -97,6 +100,12 @@ const memoryPlugin: AlicePlugin = {
       includePersonalityChangeLlmHint: Type.Optional(Type.Boolean()),
     }));
 
+    const entities = [ChatSession, Keyword, Memory];
+    let databaseReady: (orm: MikroORM) => void;
+    const databaseReadyPromise = new Promise<MikroORM>((resolve, reject) => {
+        databaseReady = resolve;
+    });
+
     // First we'd have to load our own ORM models, then call
     plugin.offer<'memory'>({ 
       registerDatabaseModels: (entities) => {
@@ -104,12 +113,12 @@ const memoryPlugin: AlicePlugin = {
         // We may want to have some kind of validation here to make sure the entities are well-formed, 
         // and to provide helpful error messages if not.
       },
-      onDatabaseReady: <T>(callback: (orm: MikroORM) => Promise<T>): Promise<T> => {
+      onDatabaseReady: async <T>(callback: (orm: MikroORM) => Promise<T>): Promise<T> => {
         // If the database is already ready, call the callback immediately. Otherwise, add it to a queue to be called once the database is ready. 
         // We may want to have some safeguards here to prevent infinite loops or excessive recursion if a plugin does something weird in its onDatabaseReady callback.
 
-        throw new Error('Not implemented yet');
-        //return callback(orm);
+        const orm = await databaseReadyPromise;
+        return callback(orm);
       },
       saveMemory: async (content: string, keywords?: string[]) => {
         // TBD: This is where we'd save a memory to the database, along with any associated keywords. 
@@ -149,44 +158,46 @@ const memoryPlugin: AlicePlugin = {
               `"${config.getSystemConfig().assistantName}" persona, regardless.`
             : '',
         execute: async (args: Static<typeof parameters>) => {
-          // TODO: The plan here is to use sqlite for this long-term memory, and to have a separate table for keywords that links to the memories, so that we can easily retrieve memories based on keywords or dates. MikroORM again?
-          // TODO: For that matter, where am I hooking in the storage code?
-          const dummyData = {
-            memories: [
-              {
-                timestamp: '2024-01-01T12:00:00 UTC-5',
-                content: 
-                  ' - User initiated an assistant session using the wake word and a query about good pizza options nearby\n' +
-                  ' - Assistant called webSearch with the query "good pizza options nearby"\n' +
-                  ' - Assistant responded to the user in character with a list of good pizza options nearby, including "Pizza Place A", ' +
-                    '"Pizza Place B", and "Pizza Place C", and a remark about the user\'s "primitive biology" needing higher quality sustenance on occasion.\n' + 
-                  ' - User thanked the assistant and ended the session.\n' + 
-                  ' - Assistant signed off, in character, playfully calling the user "meat sack" and mocking their "primitive biological need to eat."'
-              },
-              {
-                timestamp: '2024-01-02T15:30:00 UTC-5',
-                content:
-                  ' - User initiated an assistant session using the wake word and a query about the weather\n' +
-                  ' - Assistant called weather with the query "current"\n' +
-                  ' - Assistant responded to the user in character with the current weather conditions, including temperature, precipitation, and any relevant weather alerts.\n' +
-                  ' - User asked a follow-up question about whether they should bring an umbrella\n' +
-                  ' - Assistant responded in character with a recommendation based on the current weather conditions, advising the user to bring an umbrella if there is a high chance of rain. Assistant also made a joke about how the user is always asking about the weather, playfully suggesting a move to a place with better weather.\n' +
-                  ' - User complimented the assistant\'s humor, and ended the session.\n' +
-                  ' - Assistant signed off, in character, with a sardonic remark about the weather and the user\'s obsession with it.'
-              },
-              {
-                timestamp: '2024-01-03T09:45:00 UTC-5',
-                content: 
-                  ' - User initiated an assistant session using the wake word and a a request for a joke\n' +
-                  ' - Assistant responded in character with a knock-knock joke, including both the setup and the punchline.\n' +
-                  ' - User came back with the reply "not bad, for hot sand."\n' +
-                  ' - Assistant responded in character, becoming playfully passive-aggressive and sarcastically complimenting the user\'s comeback, while also making a quip about how the user is "not just a decaying husk, but a slightly amusing decaying husk."\n' +
-                  ' - User laughed and ended the session.\n' +
-                  ' - Assistant signed off, in character, with a witty remark about the user\'s sense of humor and their status as a "meat sack of some value, sometimes."'
+          const orm = await databaseReadyPromise;
+          const em = orm.em.fork();
+
+          if (args.date) {
+            const dateRange = {
+              start: new Date(args.date).setHours(0, 0, 0, 0),
+              end: new Date(args.date).setHours(23, 59, 59, 999),
+            };
+            const memories = await em.find(Memory, {
+              timestamp: {
+                $gte: new Date(dateRange.start),
+                $lte: new Date(dateRange.end),
               }
-            ]
-          };
-          return JSON.stringify(dummyData);
+            }, {
+              orderBy: { timestamp: 'DESC' },
+              limit: 50,
+            });
+            return JSON.stringify({ memories });
+          } else if (args.keyword) {
+            const keywords = args.keyword.split(',').map(k => k.trim());
+
+            const keywordEntities = await em.find(Keyword, {
+              keyword: { $in: keywords },
+            });
+
+            if (keywordEntities.length === 0) {
+              return JSON.stringify({ memories: [] });
+            }
+
+            const memories = await em.find(Memory, {
+              keywords: {
+                $every: keywordEntities.map(k => k.id),
+              }
+            }, {
+              orderBy: { timestamp: 'DESC' },
+              limit: 10,
+            });
+
+            return JSON.stringify({ memories });
+          }
         }
       }
     );
@@ -199,8 +210,44 @@ const memoryPlugin: AlicePlugin = {
       getPrompt: async (context): Promise<string | false> => {
         // Fetch the 10 (or so?) most recent memories from the database, and return them 
         // in a nicely formatted markdown string to be included in the system prompts.
-        return false;
+        const orm = await databaseReadyPromise;
+        const em = orm.em.fork();
+        const dateRange = {
+          start: new Date().setHours(0, 0, 0, 0),
+          end: new Date().setHours(23, 59, 59, 999),
+        };
+        const memories = await em.find(Memory, {}, {
+          orderBy: { timestamp: 'DESC' },
+          limit: 5,
+        });
+
+        if (memories.length === 0) {
+          return false;
+        }
+
+        const memoryStrings = memories.map(m => `##${m.timestamp.toLocaleString()}\n${m.content}\n`);
+
+        return `# RECENT CONVERSATIONS\n` +
+          `Here are the most recent conversations you have had with the user:\n` +
+          `${ memoryStrings.join('\n') } \n` +
+          `Use the recallMemory tool to access more past conversations, or past conversations ` +
+          `related to specific keywords or dates.`;
       }
+    });
+
+    plugin.hooks.onAllPluginsLoaded(async () => {
+      const orm = await MikroORM.init({
+        // TODO: UserConfig is going to be deprecated as soon as a plugin-clean alternative 
+        // is designed.
+        dbName: path.join(UserConfig.getConfigPath(), 'alice.db'),
+        entities: [ChatSession, Keyword, Memory], // TODO: Actually include plugin provided schemas here.
+        debug: false,
+        ensureDatabase: true,      
+      }) as unknown as MikroORM;
+  
+      await orm.schema.update();
+
+      databaseReady(orm);
     });
   }
 }

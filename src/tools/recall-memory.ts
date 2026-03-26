@@ -2,7 +2,7 @@ import { Static, Type } from '@sinclair/typebox';
 import { Tool } from '../lib/tool-system.js';
 import { UserConfig } from '../lib/user-config.js';
 import { MikroORM } from '@mikro-orm/sqlite';
-import { Keyword, Memory } from '../lib/db-schemas/index.js';
+import { Keyword, Memory } from '../plugins/memory/db-schemas/index.js';
 
 const parameters = Type.Object({ keyword: Type.Optional(Type.String()), date: Type.Optional(Type.String()) });
 
