@@ -56,7 +56,7 @@ const webUiPlugin: AlicePlugin = {
         res.send(customStyle);
       });
     
-      app.use(express.static(path.join(currentDir, '../client'), { fallthrough: true }));
+      app.use(express.static(path.join(currentDir, 'client'), { fallthrough: true }));
       
       app.post('/api/chat', async (req, res) => {
         // Creates a new chat sessions with the assistant. Sends an initial "You've been 
