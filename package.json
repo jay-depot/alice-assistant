@@ -7,7 +7,7 @@
   "type": "module",
   "main": "dist/lib.js",
   "scripts": {
-    "build": "tsc && cp src/web-interface/client/*.{html,css} dist/web-interface/client/",
+    "build": "tsc",
     "start": "node dist/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

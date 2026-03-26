@@ -37,6 +37,7 @@ const webUiPlugin: AlicePlugin = {
     fs.mkdirSync(userWebInterfaceDir, { recursive: true });
     
     plugin.hooks.onAssistantWillAcceptRequests(async () => {
+      // TODO: Organize this crap into files.
       console.log(`Starting web UI on ${UserConfig.getConfig().webInterface.bindToAddress}:${UserConfig.getConfig().webInterface.port}...`);
       const orm = await onDatabaseReady(async (orm) => orm);
       const app = express();
@@ -87,10 +88,10 @@ const webUiPlugin: AlicePlugin = {
         // id, and return the assistant's reply. The message should be added to the conversation 
         // history for that chat session in the database, and the assistant's reply should also be 
         // added to the conversation history in the database.
-    
+
         const { id } = req.params;
         const { message } = req.body;
-    
+
         const em = orm.em.fork();
         const session = await em.findOne(ChatSession, { id: parseInt(id) }, { populate: ['rounds'] });
         if (!session) {
@@ -100,19 +101,19 @@ const webUiPlugin: AlicePlugin = {
     
         const userRound = em.create(ChatSessionRound, { chatSession: session, role: 'user', timestamp: new Date(), content: message });
         session.rounds.add(userRound);
-    
+
         const llmTransaction = startConversation('chat');
         llmTransaction.restoreContext(session.rounds.getItems().map(round => ({ role: round.role, content: round.content })));
         const response = await llmTransaction.sendUserMessage(message);
         const assistantRound = em.create(ChatSessionRound, { chatSession: session, role: 'assistant', timestamp: new Date(), content: response });
         session.rounds.add(assistantRound);
-    
+
         const titleSummary = await llmTransaction.requestTitle();
         session.title = titleSummary.length > 0 ? titleSummary : 'New Conversation';
         session.updatedAt = new Date();
-    
+
         await em.flush();
-    
+
         res.json({ session: {
           id,
           title: session.title,
@@ -122,16 +123,16 @@ const webUiPlugin: AlicePlugin = {
             .map(round => ({ role: round.role, content: round.content, timestamp: round.timestamp }))
         }});
       });
-    
+
       app.get('/api/chat', async (req, res) => {
         // This should return a list of open chat sessions. Each session should include 
         // the id, the creation timestamp, the last message timestamp, an LLM-provided 
         // title for the conversation, and the last message from the user and the assistant.
-    
+
         const em = orm.em.fork();
-    
+
         const sessions = await em.find(ChatSession, {}, { populate: ['rounds'] });
-    
+
         res.json({ sessions: sessions.map(session => ({
           id: session.id,
           title: session.title,
@@ -142,20 +143,20 @@ const webUiPlugin: AlicePlugin = {
           }) 
         )});
       });
-    
+
       app.get('/api/chat/:id', async (req, res) => {
         const { id } = req.params;
         // This should return the full message history for the chat session with the given id, 
         // including both user and assistant messages, in chronological order, as well as the 
         // conversation title, and creation timestamp.
-    
+
         const em = orm.em.fork();
         const session = await em.findOne(ChatSession, { id: parseInt(id) }, { populate: ['rounds'] });
         if (!session) {
           res.status(404).json({ error: 'Chat session not found' });
           return;
         }
-    
+
         res.json({ session: {
           id,
           title: session.title,
@@ -164,14 +165,14 @@ const webUiPlugin: AlicePlugin = {
           messages: session.rounds.getItems().filter(round => round.role !== 'system').map(round => ({ role: round.role, content: round.content, timestamp: round.timestamp }))
         }});
       });
-    
+
       app.delete('/api/chat/:id', async (req, res) => {
         const { id } = req.params;
         // TODO: wire up to Alice assistant logic.
-    
+
         // This should tell the LLM to summarize the chat, so we can save it to memory, and remove the
         // session from the database.
-    
+
         // Step 1. Check if there are any user messages in the chat. If not, we''' just delete it.
         const em = orm.em.fork();
         const session = await em.findOne(ChatSession, { id: parseInt(id) }, { populate: ['rounds'] });
@@ -179,7 +180,7 @@ const webUiPlugin: AlicePlugin = {
           res.status(404).json({ error: 'Chat session not found' });
           return;
         }
-    
+
         const userMessages = session.rounds.getItems().filter(round => round.role === 'user');
         if (userMessages.length === 0) {
           session.rounds.removeAll();
@@ -188,10 +189,10 @@ const webUiPlugin: AlicePlugin = {
           res.json({ reply: `Chat session with id ${id} deleted successfully` });
           return;
         }
-    
+
         res.json({ reply: `This is a placeholder for deleting the chat session with id ${id}` });
       });
-      
+
       app.get('/api/mood', async (req, res) => {
         // TODO: wire up to Alice assistant logic. 
     
