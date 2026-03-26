@@ -7,7 +7,6 @@ import { type Server } from 'http';
 import { UserConfig } from '../../lib/user-config.js';
 import { ChatSession, ChatSessionRound } from '../../plugins/memory/db-schemas/index.js';
 import { startConversation } from '../../lib/conversation.js';
-import { getMood } from '../../tools/set-mood.js';
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 
@@ -20,6 +19,7 @@ const webUiPlugin: AlicePlugin = {
     version: 'LATEST',
     dependencies: [
       { id: 'memory', version: 'LATEST' },
+      { id: 'mood', version: 'LATEST' },
     ], // probably no plugins should depend on this one, since it's so core to the assistant's functionality. Should we enforce that somehow?
     required: true,
     system: true,
@@ -28,6 +28,7 @@ const webUiPlugin: AlicePlugin = {
   async registerPlugin(pluginInterface) {
     const plugin = await pluginInterface.registerPlugin(webUiPlugin.pluginMetadata); 
     const { registerDatabaseModels, onDatabaseReady, saveMemory } = plugin.request('memory');
+    const { getMood } = plugin.request('mood');
 
     const PORT = UserConfig.getConfig().webInterface.port;
     const HOST = UserConfig.getConfig().webInterface.bindToAddress;
@@ -201,7 +202,7 @@ const webUiPlugin: AlicePlugin = {
         // responses, and can be displayed in the UI to give the user a sense of the assistant's 
         // current state of mind.
         res.setHeader('Cache-Control', 'no-store');
-        res.json({ mood: getMood().currentMood }); // Don't send the reason to the client.
+        res.json({ mood: (await getMood()).mood }); // Don't send the reason to the client.
       });
     
       const server: Server = app.listen(PORT, HOST, () => {

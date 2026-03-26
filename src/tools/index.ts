@@ -11,8 +11,6 @@ import openApplicationTool from './open-application.js';
 import previewUserTextFileTool from './preview-user-text-file.js';
 import readScratchFileTool from './read-scratch-file.js';
 import readUserTextFileTool from './read-user-text-file.js';
-import recallMemoryTool from './recall-memory.js';
-import setMoodTool from './set-mood.js';
 import systemHealthCheckTool from './system-health.js';
 import writeScratchFileTool from './write-scratch-file.js';
 import writeUserTextFileTool from './write-user-text-file.js';
@@ -53,12 +51,6 @@ export function getTools() {
   }
   if (enabledTools.readUserTextFile) {
     tools.push(readUserTextFileTool);
-  }
-  if (enabledTools.recallMemory) {
-    tools.push(recallMemoryTool);
-  }
-  if (enabledTools.setMood) {
-    tools.push(setMoodTool);
   }
   if (enabledTools.systemHealthCheck) {
     tools.push(systemHealthCheckTool);

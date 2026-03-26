@@ -1,7 +1,6 @@
 import { UserConfig } from '../../user-config.js';
-import { getTools } from '../../../tools/index.js';
 import { getSystemInfo } from '../../system-info.js';
-import { DynamicPrompt, DynamicPromptConversationType } from '../../dynamic-prompt.js';
+import { DynamicPrompt } from '../../dynamic-prompt.js';
 
 export const personalityHeaderPrompt: DynamicPrompt = {
   name: 'personalityHeader',
