@@ -1,43 +1,45 @@
 import { Static, TSchema } from '@sinclair/typebox';
-import { Conversation } from './conversation.js';
-import { DynamicPrompt, DynamicPromptConversationType } from './dynamic-prompt.js';
+import { DynamicPrompt } from './dynamic-prompt.js';
 import { Tool } from './tool-system.js';
 import { AlicePlugin, AlicePluginInterface, AlicePluginMetadata, PluginCapabilities } from './types/alice-plugin-interface.js'
 import { UserConfig } from './user-config.js';
 import { SystemConfigFull } from './types/system-config-full.js';
+import { PluginHooks } from './plugin-hooks.js';
 
 const loadedPlugins: AlicePlugin[] = [];
 const registeredPlugins: Record<string, AlicePlugin> = {};
+
+const pluginCapabilities = {} as PluginCapabilities;
 
 function createPluginInterface(pluginMetadata: AlicePluginMetadata): AlicePluginInterface {
   return {
     registerPlugin: async (pluginDefinition: AlicePluginMetadata) => {
       // TODO: Parse the given metadata for dependencies, and wait for them to be loaded before 
       // returning the plugin interface.
-      
+
       return {
         registerTool: (toolDefinition: Tool) => {},
         registerHeaderSystemPrompt: (promptDefinition: DynamicPrompt) => {},
         registerFooterSystemPrompt: (promptDefinition: DynamicPrompt) => {},
-        hooks: {
-          onUserConversationWillBegin: (callback: (conversation: Conversation, type: DynamicPromptConversationType) => Promise<void>) => {},
-          onUserConversationWillEnd: (callback: (conversation: Conversation, type: DynamicPromptConversationType) => Promise<void>) => {},
-          onToolWillBeCalled: (callback: (tool: Readonly<Tool>, args: Readonly<Record<string, unknown>>) => Promise<void>) => {},
-          onToolWasCalled: (callback: (tool: Readonly<Tool>, args: Readonly<Record<string, unknown>>, result: string) => Promise<void>) => {},
-          onSystemPluginsLoaded: (callback: () => Promise<void>) => {},
-          onUserPluginsWillLoad: (callback: () => Promise<void>) => {},
-          onAllPluginsLoaded: (callback: () => Promise<void>) => {},
-          onAssistantWillAcceptRequests: (callback: () => Promise<void>) => {},
-          onAssistantAcceptsRequests: (callback: () => Promise<void>) => {},
-          onAssistantWillStopAcceptingRequests: (callback: () => Promise<void>) => {},
-          onAssistantStoppedAcceptingRequests: (callback: () => Promise<void>) => {},
-          onPluginsWillUnload: (callback: () => Promise<void>) => {},
-          onUserPluginsUnloaded: (callback: () => Promise<void>) => {},
-          onSystemPluginsWillUnload: (callback: () => Promise<void>) => {},
+        hooks: PluginHooks,
+
+        offer<T extends keyof PluginCapabilities>(capabilities: PluginCapabilities[T]): void {
+          if (pluginCapabilities[pluginMetadata.id]) {
+            throw new Error(`Plugin ${pluginMetadata.id} has already offered its capabilities. A plugin may only call offer once, and only during its registration callback.`);
+          }
+          pluginCapabilities[pluginMetadata.id] = capabilities;
         },
-        offer<T extends keyof PluginCapabilities>(capabilities: PluginCapabilities[T]): void {},
-        request<T extends keyof PluginCapabilities>(pluginID: T): PluginCapabilities[T] {
-          return {} as PluginCapabilities[T];
+
+        request<T extends keyof PluginCapabilities>(pluginID: T): PluginCapabilities[T] | undefined {
+          if (!pluginMetadata.dependencies?.find(dep => dep.id === pluginID)) {
+            throw new Error(`Plugin ${pluginMetadata.id} attempted to request the capabilities of plugin ${pluginID}, but it is not declared as a dependency. A plugin may only request the capabilities of plugins on which it declares a dependency.`);
+          }
+
+          if (!pluginCapabilities[pluginID]) {
+            return undefined;
+          }
+
+          return pluginCapabilities[pluginID];
         },
         config: async <T extends TSchema>(schema: T) => {
           return {

@@ -1,8 +1,8 @@
 import { Static, TSchema } from '@sinclair/typebox';
-import { Conversation } from '../conversation.js';
-import { DynamicPrompt, DynamicPromptConversationType } from '../dynamic-prompt.js';
+import { DynamicPrompt } from '../dynamic-prompt.js';
 import { Tool } from '../tool-system.js';
 import { SystemConfigFull } from './system-config-full.js';
+import { AlicePluginHooks } from './alice-plugin-hooks.js';
 
 type AlicePluginDependency = {
   id: string;
@@ -50,41 +50,7 @@ export type AlicePluginInterface = {
     // And for footer weights, nothing higher than 9999 unless you're a system plugin.
     registerFooterSystemPrompt: (promptDefinition: DynamicPrompt) => void;
 
-    hooks: {
-      // Conversation hooks.
-      onUserConversationWillBegin: (callback: (conversation: Conversation, type: DynamicPromptConversationType) => Promise<void>) => void;
-      onUserConversationWillEnd: (callback: (conversation: Conversation, type: DynamicPromptConversationType) => Promise<void>) => void;
-      
-      // Tool hooks. Do not use these to modify the tool call "in flight."
-      onToolWillBeCalled: (callback: (tool: Readonly<Tool>, args: Readonly<Record<string, unknown>>) => Promise<void>) => void;
-      onToolWasCalled: (callback: (tool: Readonly<Tool>, args: Readonly<Record<string, unknown>>, result: string) => Promise<void>) => void;
-      
-      // Startup hooks.
-      // Non-system plugins can register this hook, but it will just be 
-      // called immediately in the next tick. This is the earliest startup hook available to plugins.
-      onSystemPluginsLoaded: (callback: () => Promise<void>) => void;
-      // Ditto for this one, as far as non-system plugins are concerned. Called immediately 
-      // before non-system plugins begin loading, even if there are none to load.
-      onUserPluginsWillLoad: (callback: () => Promise<void>) => void;
-      // Called immediately after all plugins have finished loading, but before the assistant 
-      // finishes its startup process and becomes available for use.
-      onAllPluginsLoaded: (callback: () => Promise<void>) => void;
-
-      // Called immediately before the web interface becomes available for chat,
-      // and the wake word loop initializes.
-      onAssistantWillAcceptRequests: (callback: () => Promise<void>) => void;
-      
-      // Called immediately after the web interface becomes available for chat, 
-      // and the wake word loop initializes. This is the last startup hook.
-      onAssistantAcceptsRequests: (callback: () => Promise<void>) => void;
-
-      // Shutdown hooks. The exact reverse of the startup steps above.
-      onAssistantWillStopAcceptingRequests: (callback: () => Promise<void>) => void;
-      onAssistantStoppedAcceptingRequests: (callback: () => Promise<void>) => void;
-      onPluginsWillUnload: (callback: () => Promise<void>) => void;
-      onUserPluginsUnloaded: (callback: () => Promise<void>) => void;
-      onSystemPluginsWillUnload: (callback: () => Promise<void>) => void;
-    };
+    hooks: AlicePluginHooks;
 
     // This function tells the plugin system to create or load the config 
     // file for this plugin from the default location, which is 
@@ -98,11 +64,11 @@ export type AlicePluginInterface = {
     }>;
 
     /**
-     * Use this function to offer an API to any plugins that declare a dependency on this plugin.
+     * Use this function to offer an API to any plugins that declare a dependency on your plugin.
      * 
      * A plugin may only call `offer` once, and may only call it during its registration callback.
      * The plugin system will throw an error if a plugin violates either of these rules, with 
-     * an error message that tell the user which plugin to disable to fix their assistant.
+     * an error message that tells the user which plugin to disable to fix their assistant.
      * 
      * @param capabilities: An object containing the methods and properties the plugin would 
      *                      like to expose to dependencies.

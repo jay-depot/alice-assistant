@@ -8,3 +8,7 @@ const headerPrompts: DynamicPrompt[] = [personalityHeaderPrompt, scenarioHeaderP
 export async function getHeaderPrompts(context: DynamicPromptContext): Promise<string[]> {
   return processDynamicPrompts(context, headerPrompts);
 }
+
+export function addHeaderPrompt(prompt: DynamicPrompt) {
+  headerPrompts.push(prompt);
+}
