@@ -1,6 +1,6 @@
 import { Static, Type } from '@sinclair/typebox';
-import { Tool } from '../lib/tool-system.js';
-import { UserConfig } from '../lib/user-config.js';
+import { Tool } from '../../../lib/tool-system.js';
+import { UserConfig } from '../../../lib/user-config.js';
 import * as fs from 'fs';
 import * as path from 'path';
 

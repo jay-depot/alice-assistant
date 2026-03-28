@@ -1,5 +1,10 @@
 import { Type } from '@sinclair/typebox';
 import { AlicePlugin } from '../../lib/types/alice-plugin-interface.js';
+import findUserFilesTool from './tools/find-user-files.js';
+import getDirectoryListingTool from './tools/get-directory-listing.js';
+import previewUserTextFileTool from './tools/preview-user-text-file.js';
+import readUserTextFileTool from './tools/read-user-text-file.js';
+import writeUserTextFileTool from './tools/write-user-text-file.js';
 
 declare module '../../lib/types/alice-plugin-interface.js' {
   export interface PluginCapabilities {
@@ -110,6 +115,11 @@ const userFilesPlugin: AlicePlugin = {
     });
 
     // Register tools after that here:
+    plugin.registerTool(findUserFilesTool);
+    plugin.registerTool(getDirectoryListingTool);
+    plugin.registerTool(previewUserTextFileTool);
+    plugin.registerTool(readUserTextFileTool);
+    plugin.registerTool(writeUserTextFileTool);
   }
 };
 

@@ -1,5 +1,5 @@
 import { Static, Type } from '@sinclair/typebox';
-import { Tool } from '../lib/tool-system.js';
+import { Tool } from '../../../lib/tool-system.js';
 
 const parameters = Type.Object({ path: Type.String(), contents: Type.String() });
 
