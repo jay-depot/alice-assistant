@@ -30,13 +30,18 @@
     "required": true
   },
   {
-    "id": "application",
-    "name": "Application",
-    "required": false
+    "id": "web-ui",
+    "name": "Web UI",
+    "required": true
   },
   {
     "id": "mood",
     "name": "Mood",
+    "required": true
+  },
+  {
+    "id": "application",
+    "name": "Application",
     "required": false
   },
   {

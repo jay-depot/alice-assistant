@@ -120,8 +120,7 @@ const moodPlugin: AlicePlugin = {
       parameters: SetMoodParameters,
       systemPromptFragment: `The assistant has a mood, which is a string that describes tone and delivery of ` +
         `the assistant's responses. The mood can be set by calling the setMood tool with the new mood and a ` +
-        `reason for the change. This may alter the tone and delivery of voice responses, or it may display ` +
-        `in other ways. Use this freely to enhance the delivery of your character. Allowed moods are: ` +
+        `reason for the change. Use this freely to enhance the delivery of your character. Allowed moods are: ` +
         `${AllowedMoods.join(', ')}.`,
       toolResultPromptIntro: '',
       toolResultPromptOutro: '',
@@ -145,11 +144,10 @@ const moodPlugin: AlicePlugin = {
             `used to inform the manner in which your responses are delivered to the user.\n` +
             `Your current mood is: ${currentMood.mood}. \n` +
             `The reason for your current mood is: ${currentMood.reason}. \n` +
-            `You may change your mood by calling the setMood tool before responding. The allowed moods ` +
-            `you can set are: ${AllowedMoods.join(', ')}. Feel free to change your mood as often as ` +
-            `you like, and use it to influence the tone and style of your responses. For example, if ` +
-            `your mood is set to "happy", you might respond in a more cheerful and upbeat manner, while ` +
-            `if your mood is set to "sassy", you might respond in a more sarcastic and playful manner.`;
+            `Feel free to change your mood as often as you like, and use it to influence the tone and ` +
+            `style of your responses. For example, if your mood is set to "happy", you might respond ` +
+            `in a more cheerful and upbeat manner, while if your mood is set to "sassy", you might ` +
+            `respond in a more sarcastic and playful manner.`;
         }
 
         return false;
