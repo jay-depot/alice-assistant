@@ -1,9 +1,9 @@
 import { Static, Type } from '@sinclair/typebox';
-import { Tool } from '../lib/tool-system.js';
+import { Tool } from '../../../lib/tool-system.js';
 import * as fs from 'fs';
 import * as path from 'path';
-import { UserConfig } from '../lib/user-config.js';
-import { simpleExpandTilde } from '../lib/simple-tilde-expansion.js';
+import { UserConfig } from '../../../lib/user-config.js';
+import { simpleExpandTilde } from '../../../lib/simple-tilde-expansion.js';
 
 const parameters = Type.Object({ filename: Type.String() });
 

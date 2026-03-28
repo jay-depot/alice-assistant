@@ -1,8 +1,8 @@
-import { Tool } from '../lib/tool-system.js';
+import { Tool } from '../../../lib/tool-system.js';
 import * as fs from 'fs';
-import { UserConfig } from '../lib/user-config.js';
+import { UserConfig } from '../../../lib/user-config.js';
 import { Type } from '@sinclair/typebox';
-import { simpleExpandTilde } from '../lib/simple-tilde-expansion.js';
+import { simpleExpandTilde } from '../../../lib/simple-tilde-expansion.js';
 
 const listScratchFilesTool: Tool = {
   name: 'listScratchFiles',

@@ -1,4 +1,9 @@
 import { AlicePlugin } from '../../lib/types/alice-plugin-interface.js';
+import appendScratchFileTool from './tools/append-scratch-file.js';
+import deleteScratchFileTool from './tools/delete-scratch-file.js';
+import listScratchFilesTool from './tools/list-scratch-files.js';
+import readScratchFileTool from './tools/read-scratch-file.js';
+import writeScratchFileTool from './tools/write-scratch-file.js';
 
 const scratchFilesPlugin: AlicePlugin = {
   pluginMetadata: {
@@ -15,6 +20,12 @@ const scratchFilesPlugin: AlicePlugin = {
 
   async registerPlugin(pluginInterface) {
     const plugin = await pluginInterface.registerPlugin(scratchFilesPlugin.pluginMetadata);
+
+    plugin.registerTool(appendScratchFileTool);
+    plugin.registerTool(deleteScratchFileTool);
+    plugin.registerTool(listScratchFilesTool);
+    plugin.registerTool(readScratchFileTool);
+    plugin.registerTool(writeScratchFileTool);
   }
 };
 
