@@ -3,8 +3,8 @@
 // import * as path from "path";
 // import * as childProcess from "child_process";
 import { Static, Type } from "@sinclair/typebox";
-import { Tool } from "../lib/tool-system.js";
-import { UserConfig } from "../lib/user-config.js";
+import { Tool } from "../../lib/tool-system.js";
+import { UserConfig } from "../../lib/user-config.js";
 
 type AvailableApplicationDescription = {
   alias: string;
@@ -21,7 +21,7 @@ type AvailableApplication = {
 
 const parameters = Type.Object({ application: Type.Optional(Type.String()), parameters: Type.Record(Type.String(), Type.String()) });
 
-const openApplicationTool: Tool = {
+export const openApplicationTool: Tool = {
   name: "openApplication",
   availableFor: ['chat-session', 'voice-session'],
   description: "Allows the assistant to open applications, files, folders and web pages on behalf of the user. This " +
@@ -62,5 +62,3 @@ const openApplicationTool: Tool = {
     return `Opened ${application} with parameters ${JSON.stringify(parameters)}`;
   }
 };
-
-export default openApplicationTool;

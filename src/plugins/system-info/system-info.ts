@@ -1,4 +1,5 @@
 import { AlicePlugin } from '../../lib/types/alice-plugin-interface.js';
+import systemHealthCheckTool from './tools/system-health.js';
 
 const systemInfoPlugin: AlicePlugin = {
   pluginMetadata: {
@@ -19,6 +20,8 @@ const systemInfoPlugin: AlicePlugin = {
 
   async registerPlugin(pluginInterface) {
     const plugin = await pluginInterface.registerPlugin(systemInfoPlugin.pluginMetadata);
+
+    plugin.registerTool(systemHealthCheckTool);
   }
 };
 

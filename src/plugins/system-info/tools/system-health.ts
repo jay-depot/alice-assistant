@@ -1,6 +1,6 @@
 import { Type } from '@sinclair/typebox';
-import { Tool } from '../lib/tool-system.js';
-import { UserConfig } from '../lib/user-config.js';
+import { Tool } from '../../../lib/tool-system.js';
+import { UserConfig } from '../../../lib/user-config.js';
 
 const systemHealthCheckTool: Tool = {
   name: 'systemHealthCheck',

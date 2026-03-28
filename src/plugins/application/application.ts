@@ -1,4 +1,5 @@
 import { AlicePlugin } from '../../lib/types/alice-plugin-interface.js';
+import { openApplicationTool } from './tool.js';
 
 const applicationPlugin: AlicePlugin = {
   pluginMetadata: {
@@ -16,7 +17,10 @@ const applicationPlugin: AlicePlugin = {
 
   async registerPlugin(pluginInterface) {
     const plugin = await pluginInterface.registerPlugin(applicationPlugin.pluginMetadata);
+
+    plugin.registerTool(openApplicationTool);
   }
+
 };
 
 export default applicationPlugin;

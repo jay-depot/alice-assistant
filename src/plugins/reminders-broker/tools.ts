@@ -1,10 +1,10 @@
 import { Static, Type } from '@sinclair/typebox';
-import { Tool } from '../lib/tool-system.js';
-import { UserConfig } from '../lib/user-config.js';
+import { Tool } from '../../lib/tool-system.js';
+import { UserConfig } from '../../lib/user-config.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import { randomUUID } from 'crypto';
-import { simpleExpandTilde } from '../lib/simple-tilde-expansion.js';
+import { simpleExpandTilde } from '../../lib/simple-tilde-expansion.js';
 
 const ReminderRecord = Type.Object({
   id: Type.String(),
@@ -20,12 +20,22 @@ const parameters = Type.Object({
     Type.Literal('create'),
     Type.Literal('list'),
     Type.Literal('complete'),
-    Type.Literal('delete')
+    Type.Literal('delete'),
+    Type.Literal('updateDescription'),
+    Type.Literal('rescheduleOne'),
+    Type.Literal('rescheduleAll')
   ]),
   title: Type.Optional(Type.String({ description: 'Reminder title (required for create)' })),
   dueAt: Type.Optional(Type.String({ description: 'ISO 8601 datetime (required for create)' })),
-  recurrence: Type.Optional(Type.String({ description: 'Recurrence pattern: daily, weekly, monthly (optional)' })),
-  id: Type.Optional(Type.String({ description: 'Reminder ID (required for complete/delete)' }))
+  recurrence: Type.Optional(Type.String({ 
+    description: 'Recurrence pattern: daily, weekly, monthly (optional)' 
+  })),
+  id: Type.Optional(Type.String({ 
+    description: 'Reminder ID (required for complete/delete/updateDescription/rescheduleOne/rescheduleAll)' 
+  })),
+  description: Type.Optional(Type.String({
+     description: 'Additional details about the reminder (optional)' 
+  }))
 });
 
 interface Reminder {
