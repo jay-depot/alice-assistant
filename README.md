@@ -27,9 +27,9 @@ in ``./config-default/example-personalities/`
 ## Work In Progress
 
 This project is not _quite_ functional yet. It currently connects to the LLM and correctly 
-loads its config files. The next milestone is to add a simple web ui, as a secondary way 
-to interact with the assistant and test tool calls. After that is in place, the next milestone 
-is the actual audio pipeline and wake word loop.
+loads its config files, then runs a basic Web UI to talk to your assistant that way until you interrupt it with ^C. There is also a functional plugin architecture with semantics for dynamically loading and type-checking plugin-scoped configuration, type-checked external API offer and request semantics between plugins, and dependency checks.
+
+The next milestone is improving the web UI so other plugins may add their own elements to it. Following that, will be a proof-of-concept wake-word -> dictation -> assistant request loop, and then filling in the missing functionality in all system plugins.
 
 ## Installation
 
@@ -51,27 +51,9 @@ is the actual audio pipeline and wake word loop.
 
 In its current state, you can pull this code, install it, compile it, and run it, and if 
 you have ollama set up correctly, it will send a "startup prompt" to your assistant, print 
-the response on your terminal, and exit.
+the response on your terminal, and then start a basic Web UI to chat with the assistant.
 
-You can also run a manual voice demo loop (Linux-focused) by setting an environment variable:
-
-```bash
-ALICE_VOICE_DEMO=1 npm start
-```
-
-In voice demo mode:
-- Press Enter to record a short microphone clip
-- ALICE transcribes it with Whisper, sends it to the model, and speaks the response via Piper
-- Type `q` to quit the loop
-
-Voice demo prerequisites (in addition to the dependencies above):
-- A recorder command: `arecord` (preferred) or `ffmpeg`
-- A playback command: `paplay`, `aplay`, or `ffplay`
-- A transcription command: `whisper` (OpenAI Whisper CLI) or `whisper-cli` (whisper.cpp)
-
-Optional environment variables:
-- `ALICE_WHISPER_CMD=whisper` or `ALICE_WHISPER_CMD=whisper-cli` to force a specific backend
-- `ALICE_WHISPER_MODEL=base` (or another OpenAI Whisper model name) when using `whisper`
+The next milestone is an actual wake word and voice interaction loop, and 
 
 Future plans for how to interact with this assistant may go one of two ways:
 1. A user-scoped systemd service that runs in the background listening for wake words, and 
