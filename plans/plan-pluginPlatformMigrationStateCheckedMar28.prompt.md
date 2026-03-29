@@ -44,38 +44,45 @@ Phase A: Runtime enforcement foundation (blocking)
 9. system plugin manifest loading from `src/plugins/system-plugins.json`
 10. optional user plugin list loading from `~/.alice-assistant/plugins.json` (non-fatal if absent)
 11. unknown id, missing dependency, and cycle detection with actionable diagnostics
+12. loader hands off to engine init when validation passes
 
-12. Integrate plugin runtime into `src/lib/alice-core.ts` startup path:
-13. initialize plugin engine before conversation and web/voice readiness
-14. execute startup/shutdown hook timeline deterministically
+13. Integrate plugin runtime into `src/lib/alice-core.ts` startup path:
+14. initialize plugin engine before conversation and web/voice readiness (Question: Should we just move voice into a required plugin like we did web chat and get this for free?)
+15. execute startup/shutdown hook timeline deterministically
 
 Phase B: Memory lifecycle completion
-15. Finalize memory registration lifecycle in `src/plugins/memory/memory.ts`:
-16. collect dependent model registrations before ORM init
-17. initialize ORM once after plugin registration phase
-18. trigger `onDatabaseReady` callbacks after ORM readiness
-19. reject late `registerDatabaseModels`/`onDatabaseReady` registration attempts
-20. implement `saveMemory` behavior (currently stub/TODO)
+16. Finalize memory registration lifecycle in `src/plugins/memory/memory.ts`:
+17. collect dependent model registrations before ORM init
+18. initialize ORM once after plugin registration phase
+19. trigger `onDatabaseReady` callbacks after ORM readiness
+20. reject late `registerDatabaseModels`/`onDatabaseReady` registration attempts
+21. implement `saveMemory` behavior (currently stub/TODO)
 
 Phase C: Broker/provider wiring
-21. Wire provider plugins to brokers:
-22. `static-location` -> register with `location-broker`
-23. `reminders-notification-conversation` -> register notification provider with `reminders-broker`
-24. `reminders-notification-libnotify` -> register notification provider with `reminders-broker`
-25. validate broker conflict and empty-provider behavior paths
+22. Wire provider plugins to brokers:
+23. `static-location` -> register with `location-broker`
+24. `reminders-notification-conversation` -> register notification provider with `reminders-broker`
+25. `reminders-notification-libnotify` -> register notification provider with `reminders-broker`
+26. validate broker conflict and empty-provider behavior paths
 
 Phase D: Feature completion and hardening
-26. Implement currently metadata-only/placeholder plugins:
-27. `appointments`
-28. `daily-goals`
-29. finalize `mood` capability usage path where needed
-30. Add runtime diagnostics report:
-31. plugin load order and resolved dependencies
-32. offered/requested capabilities
-33. hook execution summary and violations
-34. Add fallback controls:
-35. built-ins-only mode switch
-36. safe startup behavior when user plugin list is absent/invalid
+27. Implement currently metadata-only/placeholder plugins:
+28. `appointments`
+29. `daily-goals`
+30. finalize `mood` capability usage path where needed
+31. Add runtime diagnostics report:
+32. plugin load order and resolved dependencies
+33. offered/requested capabilities
+34. hook execution summary and violations
+35. Add fallback controls:
+36. built-ins-only mode switch
+37. safe startup behavior when user plugin list is absent/invalid
+
+Phase E: Nice-to-haves
+38. "Optional dependencies": I've already run into this with `web-ui`. It's making `mood` a required plugin, when ideally it would be an optional thing users can enable for fun. Add a separate optional dependency declaration. Setting it means plugin registration waits for the optional dependencies to load, if present, and allows plugins to request capabilities from them if they exist, but not fail if they aren't present. This would allow for more flexible plugin ecosystems where certain features can be gated behind optional plugins without hard dependencies.
+39. Hot-loading.
+40. Monorepo? pnpm?
+41. Beef up the web ui with plugin management, general config, and diagnostics surfaces, in addition to the assistant chat. This may require doing the monorepo thing, and then moving the front-end into its own package so it can be built with react and webpack.
 
 **Relevant files**
 - `src/lib/alice-plugin-engine.ts` — runtime enforcement and registration behavior
