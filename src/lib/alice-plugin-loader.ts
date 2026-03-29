@@ -51,6 +51,9 @@ export async function loadPlugins() {
   const systemPluginsPath = path.join(import.meta.dirname, '..', 'plugins');
   const userPluginsPath = path.join(aliceDir, 'user-plugins');
 
+  const packageJson = JSON.parse(await readFile(path.join(import.meta.dirname, '..', 'package.json'), 'utf-8'));
+  const aliceVersion = packageJson.version;
+
   const systemPlugins: { id: string, name: string, required: boolean }[] = JSON.parse(await readFile(path.join(systemPluginsPath, 'system-plugins.json'), 'utf-8'));
 
   const enabledSystemPlugins = systemPlugins.map(plugin => {
@@ -109,6 +112,18 @@ export async function loadPlugins() {
       const found = enabledPlugins.find(p => p.pluginMetadata.id === dependency.id);
       if (!found) {
         throw new Error(`Plugin ${plugin.pluginMetadata.id} is missing dependency: ${dependency.id}. Please add and enable ${dependency.id}, or disable ${plugin.pluginMetadata.id} to continue.`);
+      }
+
+      // Handle system plugins, which all have the special version string "LATEST" which is 
+      // supposed to match whatever our npm package version is. They're also the only 
+      // plugins allowed to use this special version string.
+      if (plugin.pluginMetadata.system) {
+        if (found.pluginMetadata.version === 'LATEST') {
+          found.pluginMetadata.version = aliceVersion;
+        }
+        if (dependency.version === 'LATEST') {
+          dependency.version = aliceVersion;
+        }
       }
 
       if (!satisfies(found.pluginMetadata.version, dependency.version)) {
