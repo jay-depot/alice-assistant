@@ -1,13 +1,12 @@
-import { Static, Type } from '@sinclair/typebox';
+import { Static, Type } from 'typebox';
 import { Tool } from '../../../lib/tool-system.js';
 import * as fs from 'fs';
 import * as path from 'path';
-import { UserConfig } from '../../../lib/user-config.js';
 import { simpleExpandTilde } from '../../../lib/simple-tilde-expansion.js';
 
 const parameters = Type.Object({ filename: Type.String() });
 
-const deleteScratchFileTool: Tool = {
+const deleteScratchFileTool: (config) => Tool = (config) => ({
   name: 'deleteScratchFile',
   availableFor: ['autonomy', 'chat-session', 'voice-session'],
   dependencies: ['writeScratchFile', 'readScratchFile', 'listScratchFiles'],
@@ -24,8 +23,8 @@ const deleteScratchFileTool: Tool = {
   toolResultPromptOutro: '',
   execute: async (args: Static<typeof parameters>) => {
     const filename = args.filename;
-    const allowedFileTypes = UserConfig.getConfig().toolSettings.writeScratchFile.allowedFileTypes;
-    const scratchDirectory = simpleExpandTilde(UserConfig.getConfig().toolSettings.writeScratchFile.scratchDirectory);
+    const allowedFileTypes = config.allowedFileTypes;
+    const scratchDirectory = simpleExpandTilde(config.scratchDirectory);
 
     if (!allowedFileTypes.includes(filename.split('.').pop() || '')) {
       return `Error: File type not allowed.`;
@@ -44,6 +43,6 @@ const deleteScratchFileTool: Tool = {
     fs.unlinkSync(filePath);
     return `Deleted file ${filename}.`;
   }
-};
+});
 
 export default deleteScratchFileTool;

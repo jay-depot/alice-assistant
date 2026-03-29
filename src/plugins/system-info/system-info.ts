@@ -1,5 +1,15 @@
+import { Type } from 'typebox';
 import { AlicePlugin } from '../../lib/types/alice-plugin-interface.js';
 import systemHealthCheckTool from './tools/system-health.js';
+
+const SystemInfoPluginConfigSchema = Type.Object({
+  mustMentionIfNetworkDown: Type.Boolean({
+    description: 'Whether the assistant must mention in its response if the network connectivity status is "disconnected" or "limited" in the results of the systemHealthCheck tool.',
+    default: true,
+  }),
+});
+
+export type SystemInfoPluginConfigSchema = Type.Static<typeof SystemInfoPluginConfigSchema>;
 
 const systemInfoPlugin: AlicePlugin = {
   pluginMetadata: {
@@ -21,7 +31,11 @@ const systemInfoPlugin: AlicePlugin = {
   async registerPlugin(pluginInterface) {
     const plugin = await pluginInterface.registerPlugin(systemInfoPlugin.pluginMetadata);
 
-    plugin.registerTool(systemHealthCheckTool);
+    const config = await plugin.config(SystemInfoPluginConfigSchema, {
+      mustMentionIfNetworkDown: true,
+    });
+
+    plugin.registerTool(systemHealthCheckTool(config.getPluginConfig()));
   }
 };
 

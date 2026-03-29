@@ -1,4 +1,4 @@
-import { Static, Type } from '@sinclair/typebox';
+import { Static, Type } from 'typebox';
 import { Tool } from '../../../lib/tool-system.js';
 import { UserConfig } from '../../../lib/user-config.js';
 import * as fs from 'fs';
@@ -80,7 +80,7 @@ function searchDirectory(
   }
 }
 
-const findUserFilesTool: Tool = {
+const findUserFilesTool: (config) => Tool = (config) => ({
   name: 'findUserFiles',
   availableFor: ['chat-session', 'voice-session', 'autonomy'],
   dependencies: [],
@@ -95,13 +95,10 @@ const findUserFilesTool: Tool = {
     `allowed directories for security.`,
   callSignature: 'findUserFiles',
   parameters,
-  toolResultPromptIntro: `You have just performed a file search using the findUserFiles tool. Results are provided as a JSON array with ` +
-    `path, size (in bytes), and modification timestamp. Use this information to help the user locate or identify ` +
-    `the file they're looking for. If there are many results, summarize the most relevant ones.`,
+  toolResultPromptIntro: ``,
   toolResultPromptOutro: '',
   execute: async (args: Static<typeof parameters>) => {
-    const config = UserConfig.getConfig();
-    const allowedRoots = config.toolSettings.findUserFiles?.allowedRoots || [];
+    const allowedRoots = config.allowedRoots || [];
 
     if (allowedRoots.length === 0) {
       return JSON.stringify({
@@ -138,6 +135,6 @@ const findUserFilesTool: Tool = {
       results: results.slice(0, limit)
     });
   }
-};
+});
 
 export default findUserFilesTool;

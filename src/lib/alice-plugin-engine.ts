@@ -1,4 +1,5 @@
-import { Static, TSchema } from '@sinclair/typebox';
+import { Type } from 'typebox';
+import Schema from 'typebox/schema'
 import { DynamicPrompt } from './dynamic-prompt.js';
 import { Tool } from './tool-system.js';
 import { AlicePlugin, AlicePluginInterface, AlicePluginMetadata, PluginCapabilities } from './types/alice-plugin-interface.js'
@@ -8,6 +9,9 @@ import { PluginHooks } from './plugin-hooks.js';
 import { addHeaderPrompt } from './header-prompts.js';
 import { addFooterPrompt } from './footer-prompts.js';
 import { addTool } from './tools.js';
+import { exists, mkdir, writeFile } from './node/fs-promised.js';
+import path from 'node:path';
+import { readFile } from 'node:fs/promises';
 
 const loadedPlugins: AlicePlugin[] = [];
 const registeredPlugins: Record<string, AlicePlugin> = {};
@@ -22,8 +26,15 @@ const loadingPromises: Record<string, {
   reject: (error: any) => void,
 }> = {};
 
+function validatePluginConfig(config: unknown, schema: Type.TSchema, pluginId: string): void {
+  const validationResult = Schema.Check(schema, config);
+  if (!validationResult) {
+    throw new Error(`Config file for plugin ${pluginId} is invalid.`);
+  }
+}
+
 function createPluginInterface(pluginMetadata: AlicePluginMetadata): AlicePluginInterface {
-  return {
+  const api = {
     registerPlugin: async (pluginDefinition: AlicePluginMetadata) => {
       const dependencyIds = pluginDefinition.dependencies?.map(dep => dep.id) || [];      
       const dependencyPromises = dependencyIds.map(depId => loadingPromises[depId].promise);
@@ -115,17 +126,41 @@ function createPluginInterface(pluginMetadata: AlicePluginMetadata): AlicePlugin
           return pluginCapabilities[pluginID];
         },
 
-        config: async <T extends TSchema>(schema: T) => {
+        config: async (schema, defaults) => {
+          // Get config directory root
+          const configDir = UserConfig.getConfigPath();
+          // Check for plugin-settings directory, create if doesn't exist
+          const pluginSettingsDir = path.join(configDir, 'plugin-settings');
+
+          if (!await exists(pluginSettingsDir)) {
+            await mkdir(pluginSettingsDir);
+          }
+
+          // check for this plugin's config directory, create if doesn't exist
+          const pluginConfigDir = path.join(pluginSettingsDir, pluginMetadata.id);
+          if (!await exists(pluginConfigDir)) {
+            await mkdir(pluginConfigDir);
+          }
+
+          // check for this plugin's config file, create if doesn't exist with default values from schema
+          const pluginConfigPath = path.join(pluginConfigDir, `${pluginMetadata.id}.json`);
+          if (!await exists(pluginConfigPath)) {
+            const defaultConfig = defaults;
+            validatePluginConfig(defaultConfig, schema, pluginMetadata.id);
+
+            await writeFile(pluginConfigPath, JSON.stringify(defaultConfig, null, 2), 'utf-8');
+          }
+
+          const configContent = JSON.parse(await readFile(pluginConfigPath, 'utf-8'));
+          validatePluginConfig(configContent, schema, pluginMetadata.id);
+
+          // load this plugin's config file, validate against schema, and return the config object
           return {
-            getPluginConfig: () => {
-              // For now, we'll just return an empty object, but in the future this will load 
-              // the config from disk and validate it against the provided schema.
-              return {} as Static<T>;
+            getPluginConfig() {
+              // Asserted to be Type.Static<typeof schema>, but if we actually dare to say that, we get a TS2589.
+              return configContent; 
             },
-            updatePluginConfig(newConfig) {
-              // Eventually, this will validate and save the new config to disk before returning.
-              return Promise.resolve(newConfig);
-            },
+
             getSystemConfig() {
               return UserConfig.getConfig() as SystemConfigFull;
             },
@@ -133,7 +168,9 @@ function createPluginInterface(pluginMetadata: AlicePluginMetadata): AlicePlugin
         }
       };
     }
-  };
+  } as AlicePluginInterface;
+
+  return api;
 }
 
 export const AlicePluginEngine = {

@@ -5,7 +5,7 @@ export const toolsHeaderPrompt: DynamicPrompt = {
   name: 'toolsHeader',
   weight: 10,
   getPrompt: async (context): Promise<string | false> => {
-      // Then the TOOLS section, which will list the tools that the assistant has access to, and how to use them.
+    // Then the TOOLS section, which will list the tools that the assistant has access to, and how to use them.
     const tools = getTools();
     if (tools.length > 0) {
       const systemPromptChunks: string[] = [];

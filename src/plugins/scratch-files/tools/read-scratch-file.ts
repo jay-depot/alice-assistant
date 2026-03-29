@@ -1,13 +1,12 @@
 import { Tool } from '../../../lib/tool-system.js';
 import * as fs from 'fs';
 import * as path from 'path';
-import { UserConfig } from '../../../lib/user-config.js';
-import { Static, Type } from '@sinclair/typebox';
+import { Static, Type } from 'typebox';
 import { simpleExpandTilde } from '../../../lib/simple-tilde-expansion.js';
 
 const parameters = Type.Object({ filename: Type.String() });
 
-const readScratchFileTool: Tool = {
+const readScratchFileTool: (config) => Tool = (config) => ({
   name: 'readScratchFile',
   availableFor: ['autonomy', 'chat-session', 'voice-session'],
   dependencies: ['writeScratchFile', 'listScratchFiles'],
@@ -30,8 +29,8 @@ const readScratchFileTool: Tool = {
       return `Error: Invalid filename. Path traversal characters are not allowed.`;
     }
     
-    const scratchDirectory = simpleExpandTilde(UserConfig.getConfig().toolSettings.writeScratchFile.scratchDirectory);
-    const allowedFileTypes = UserConfig.getConfig().toolSettings.writeScratchFile.allowedFileTypes;
+    const scratchDirectory = simpleExpandTilde(config.scratchDirectory);
+    const allowedFileTypes = config.allowedFileTypes;
     
     if (!allowedFileTypes.includes(filename.split('.').pop() || '')) {
       return `Error: File type not allowed.`;
@@ -46,6 +45,6 @@ const readScratchFileTool: Tool = {
     const contents = fs.readFileSync(filePath, 'utf-8');
     return `Contents of file ${filename} :\n== BEGIN FILE ==\n${contents}\n== END FILE ==`;
   }
-};
+});
 
 export default readScratchFileTool;

@@ -18,7 +18,7 @@ export class Conversation {
     host: '',
     model: '',
     options: {
-      num_ctx: 16000, // Ollama defaults to ~4k on most consumer GPUs, but Qwen models can go a LOT higher without using much vram. At home I set it to 128k and it only uses about 10gb of vram.
+      num_ctx: 128000, // Ollama defaults to ~4k on most consumer GPUs, but Qwen models can go a LOT higher without using much vram. At home I set it to 128k and it only uses about 10gb of vram.
       think: "low" // Ollama docs say this setting works for "some" models. Testing this with Qwen to see if I can tune speed/accuracy a bit.
       // TODO: Moonshot idea: If this doesn't work, or really even if it does, find or train a functionGemma model to predict how much thinking a request will need and route to different models and thinking levels accordingly.
     },
@@ -59,14 +59,8 @@ export class Conversation {
   }
 
   async sendUserMessage(message?: string): Promise<string> {
-    const headerPrompts = await getHeaderPrompts({
-      conversationType: this.type,
-      enabledTools: Object.keys(UserConfig.getConfig().enabledTools).filter(toolName => UserConfig.getConfig().enabledTools[toolName])
-    });
-    const footerPrompts = await getFooterPrompts({
-      conversationType: this.type,
-      enabledTools: Object.keys(UserConfig.getConfig().enabledTools).filter(toolName => UserConfig.getConfig().enabledTools[toolName])
-    });
+    const headerPrompts = await getHeaderPrompts({ conversationType: this.type });
+    const footerPrompts = await getFooterPrompts({ conversationType: this.type });
 
     if (message) {
       this.context.push({
@@ -112,7 +106,7 @@ export class Conversation {
       throw new Error('Maximum tool call depth exceeded. Possible infinite loop detected.');
     }
 
-    const promptIfCallsAvailable = ` - If you would need to make another tool call, make it now. Otherwise, answer the user's query in character. You have ${MAX_TOOL_CALL_DEPTH - depth} remaining recursive tool calls you may make regarding this user query.`;
+    const promptIfCallsAvailable = ` - If you need to make another tool call, make it now. Otherwise, answer the user's query in character. You have ${MAX_TOOL_CALL_DEPTH - depth} remaining recursive tool calls you may make regarding this user query.`;
     const promptIfNoCallsAvailable =  ` - You may make no more recursive tool calls for this conversation turn, so you must answer the user's query in character.\n` +
       ` - If you still do not have sufficient information to form a complete answer, you have two options: \n` +
       `   1) Do your best with the information you have, or \n` +
@@ -132,8 +126,6 @@ export class Conversation {
         const tool = tools.find(t => t.name === toolName);
         if (!tool) {
           return `Tool ${toolName} is not recognized.`;
-        } else if (!UserConfig.getConfig().enabledTools[toolName]) {
-          return `Tool ${toolName} is not enabled in the user configuration.`;
         }
         try {
           const result = await tool.execute(toolArgs);
@@ -172,14 +164,8 @@ export class Conversation {
    * @returns A promise that resolves to the LLM response
    */
   async requestSummary(): Promise<string> {
-    const headerPrompts = await getHeaderPrompts({
-      conversationType: this.type,
-      enabledTools: []
-    });
-    const footerPrompts = await getFooterPrompts({
-      conversationType: this.type,
-      enabledTools: []
-    });
+    const headerPrompts = await getHeaderPrompts({ conversationType: this.type });
+    const footerPrompts = await getFooterPrompts({ conversationType: this.type });
 
     const terminationPrompt = `The user has terminated the assistant session. The assistant software now needs you to abandon your persona and summarize the conversation to provide context in future requests.
 

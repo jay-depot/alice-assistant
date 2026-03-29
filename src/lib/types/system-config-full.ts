@@ -1,4 +1,4 @@
-import { Type, Static } from '@sinclair/typebox';
+import { Type, Static } from 'typebox';
 import { SystemConfigBasic } from './system-config-basic.js';
 
 export const SystemConfigFull = Type.Intersect([
@@ -6,12 +6,6 @@ export const SystemConfigFull = Type.Intersect([
   Type.Object({
     configDirectory: Type.String(),
     personality: Type.Record(Type.String(), Type.String()),
-    tools: Type.Optional(Type.Record(Type.String(), Type.Object({
-      enabled: Type.Boolean(),
-      config: Type.Optional(Type.Record(Type.String(), Type.Any())),
-    }))),
-    enabledTools: Type.Optional(Type.Record(Type.String(), Type.Boolean())),
-    toolSettings: Type.Optional(Type.Record(Type.String(), Type.Any())),
   }),
 ]);
 

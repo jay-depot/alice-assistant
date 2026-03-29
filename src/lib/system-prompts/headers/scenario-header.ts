@@ -4,7 +4,7 @@ import { UserConfig } from '../../user-config.js';
 
 export const scenarioHeaderPrompt: DynamicPrompt = {
   name: 'scenarioHeader',
-  weight: 1000,
+  weight: 99999,
   getPrompt: async (context): Promise<string | false> => {
     const systemPromptChunks: string[] = [];
     const scenario = context.conversationType;
@@ -44,13 +44,12 @@ export const scenarioHeaderPrompt: DynamicPrompt = {
       case 'startup':
         systemPromptChunks.push(` - You are a digital assistant application that has just been restarted and is now waiting for user requests.`);
         systemPromptChunks.push(` - Respond with no more than 2 or 3 sentences. They will appear in the assistant application log.`);
-        systemPromptChunks.push(` - A quick status report would be appropriate here.`);
         systemPromptChunks.push(' - Avoid narration or emotes. Stick to what you want to SAY.');
         if (tools.length > 0) {
           systemPromptChunks.push(' - Feel free to make a tool call if you feel it would help you make a better startup message, or set a mood.');
-          systemPromptChunks.push(' - If you are making a tool call, make it now. OTHERWISE, INTRODUCE YOURSELF OR GIVE A QUICK STATUS REPORT IN CHARACTER NOW.');
+          systemPromptChunks.push(' - If you are making a tool call, make it now. OTHERWISE, INTRODUCE YOURSELF IN CHARACTER NOW.');
         } else {
-          systemPromptChunks.push(' - Introduce yourself or give a quick status report in character.');
+          systemPromptChunks.push(' - Introduce yourself in character.');
         }
 
         return systemPromptChunks.join('\n');

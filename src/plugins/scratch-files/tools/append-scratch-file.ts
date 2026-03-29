@@ -1,15 +1,12 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { Tool } from '../../../lib/tool-system.js';
-import { UserConfig } from '../../../lib/user-config.js';
-import { Static, Type } from '@sinclair/typebox';
+import { Static, Type } from 'typebox';
 import { simpleExpandTilde } from '../../../lib/simple-tilde-expansion.js';
 
 const parameters = Type.Object({ filename: Type.String(), contents: Type.String() });
 
-UserConfig.load();
-
-const appendScratchFileTool: Tool = {
+const appendScratchFileTool: (config) => Tool = (config) => ({
   name: 'appendScratchFile',
   availableFor: ['autonomy', 'chat-session', 'voice-session'],
   dependencies: ['readScratchFile', 'listScratchFiles', 'writeScratchFile'],
@@ -25,21 +22,21 @@ const appendScratchFileTool: Tool = {
     `long-term planning or task management. You must provide the filename and the contents of the file as ` +
     `arguments. For example, if you add a reminder to the end of a file called "reminders.md", you would call ` +
     `appendScratchFile with the filename set to "reminders.txt" and the contents set to the text you want to add. ` +
-    `You may only use the extensions ${UserConfig.getConfig().toolSettings.writeScratchFile.allowedFileTypes.join(', ')} for the ` +
-    `filename, and the contents of the file must not exceed ${UserConfig.getConfig().toolSettings.writeScratchFile.maxFileSizeKB} ` +
+    `You may only use the extensions ${config.allowedFileTypes.join(', ')} for the ` +
+    `filename, and the contents of the file must not exceed ${config.maxFileSizeKB} ` +
     `KB in size. You should also ensure that the filename does not contain any path traversal characters.`,
   callSignature: 'appendScratchFile',
   parameters,
   toolResultPromptIntro: 'You have just updated a text file in your internal scratch directory using the appendScratchFile tool.\n',
   toolResultPromptOutro: '',
   execute: async (args: Static<typeof parameters>) => {
-    const scratchDirectory = simpleExpandTilde(UserConfig.getConfig().toolSettings.writeScratchFile.scratchDirectory);
+    const scratchDirectory = simpleExpandTilde(config.scratchDirectory);
     if (!fs.existsSync(scratchDirectory)) {
       fs.mkdirSync(scratchDirectory, { recursive: true });
     }
-    const allowedFileTypes = UserConfig.getConfig().toolSettings.writeScratchFile.allowedFileTypes;
-    const maxFileSizeKB = UserConfig.getConfig().toolSettings.writeScratchFile.maxFileSizeKB;
-    const allowOverwrite = UserConfig.getConfig().toolSettings.writeScratchFile.allowOverwrite;
+    const allowedFileTypes = config.allowedFileTypes;
+    const maxFileSizeKB = config.maxFileSizeKB;
+    const allowOverwrite = config.allowOverwrite;
 
     const filename = args.filename;
     const contents = args.contents;
@@ -78,6 +75,6 @@ const appendScratchFileTool: Tool = {
 
     return `Updated file ${filename}. ${contents.length} characters appended.\nErrors: none.`;
   }
-};
+});
 
 export default appendScratchFileTool;

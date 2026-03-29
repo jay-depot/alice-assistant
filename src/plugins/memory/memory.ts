@@ -1,4 +1,4 @@
-import { Static, Type } from '@sinclair/typebox';
+import { Static, Type } from 'typebox';
 import { AlicePlugin, AlicePluginInterface } from '../../lib/types/alice-plugin-interface.js';
 import { MikroORM } from '@mikro-orm/sqlite';
 import * as path from 'path';
@@ -78,6 +78,12 @@ declare module '../../lib/types/alice-plugin-interface.js' {
 
 const parameters = Type.Object({ keyword: Type.Optional(Type.String()), date: Type.Optional(Type.String()) });
 
+const MemoryPluginConfigSchema = Type.Object({
+  includePersonalityChangeLlmHint: Type.Optional(Type.Boolean()),
+});
+
+export type MemoryPluginConfigSchema = Type.Static<typeof MemoryPluginConfigSchema>;
+
 const memoryPlugin: AlicePlugin = {
   // The Alice plugin system may call this to retrieve the plugin's metadata even 
   // if the plugin is disabled. Thus function should not rely on any external state, 
@@ -96,9 +102,9 @@ const memoryPlugin: AlicePlugin = {
   async registerPlugin(pluginInterface: AlicePluginInterface) {
     const plugin = await pluginInterface.registerPlugin(memoryPlugin.pluginMetadata);
 
-    const config = await plugin.config(Type.Object({
-      includePersonalityChangeLlmHint: Type.Optional(Type.Boolean()),
-    }));
+    const config = await plugin.config(MemoryPluginConfigSchema, {
+      includePersonalityChangeLlmHint: false,
+    });
 
     const entities = [ChatSession, Keyword, Memory];
     let databaseReady: (orm: MikroORM) => void;
@@ -210,12 +216,13 @@ const memoryPlugin: AlicePlugin = {
       getPrompt: async (context): Promise<string | false> => {
         // Fetch the 10 (or so?) most recent memories from the database, and return them 
         // in a nicely formatted markdown string to be included in the system prompts.
+        if (context.conversationType === 'startup') {
+          return false;
+        }
+        
         const orm = await databaseReadyPromise;
         const em = orm.em.fork();
-        const dateRange = {
-          start: new Date().setHours(0, 0, 0, 0),
-          end: new Date().setHours(23, 59, 59, 999),
-        };
+
         const memories = await em.find(Memory, {}, {
           orderBy: { timestamp: 'DESC' },
           limit: 5,

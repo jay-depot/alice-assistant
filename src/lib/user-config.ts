@@ -69,33 +69,6 @@ export const UserConfig = (() => {
           as the config directory and default config file should have been created if they \
           didn't exist. Please check the permissions of the config directory and try again.`);
       }
-
-      const enabledToolsList = (() => {
-        const filePath = path.join(toolSettingsDir, 'tools.json');
-        const fileData = fs.readFileSync(filePath, 'utf-8');
-        return JSON.parse(fileData);
-      })();
-
-      config.enabledTools = enabledToolsList;
-
-      config.toolSettings = {};
-      Object.keys(config.enabledTools).forEach((toolFolder) => {
-        if (!config.enabledTools[toolFolder]) {
-          return;
-        }
-        config.toolSettings[toolFolder] = {};
-        
-        try {
-          const configFile = path.join(toolSettingsDir, toolFolder, `${toolFolder}.json`);
-          const toolConfig = fs.readFileSync(configFile, { encoding: 'utf-8' });
-
-          config.toolSettings[toolFolder] = JSON.parse(toolConfig);
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        } catch (error) {
-          console.log(`WARNING: Tool ${toolFolder} has no valid config.`);
-        }
-      });
-
       // We don't want to return the config here, since we want its consumers to use the cached copy.
     },
 

@@ -1,4 +1,4 @@
-import { TSchema } from '@sinclair/typebox';
+import { TSchema } from 'typebox';
 import { getTools } from './tools.js';
 import { UserConfig } from './user-config.js';
 
@@ -10,7 +10,7 @@ type OllamaRequestToolsPropItem = {
   'function': {
     name: string;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Temporary until typebox is added
-    parameters: Record<string, any>; // TODO Since this is a JSON schema, we may as well use @sinclair/typebox to generate them easily
+    parameters: Record<string, any>; // TODO Since this is a JSON schema, we may as well use typebox to generate them easily
     description: string;
   };
 };
@@ -41,7 +41,7 @@ export type Tool = {
   // This is the exact string that the LLM should output when it wants to call the tool. It should be 
   // unique enough that it won't be accidentally generated in normal conversation.
   callSignature: string; 
-  // The parameters for the tool, as a JSON schema. This project incorporates @sinclair/typebox, so you 
+  // The parameters for the tool, as a JSON schema. This project incorporates typebox, so you 
   // should use that to define the parameters and the tool's function signature together..
   parameters: TSchema,
   // This is the prompt fragment used as a "preamble" when the LLM receives the result of a tool call. 

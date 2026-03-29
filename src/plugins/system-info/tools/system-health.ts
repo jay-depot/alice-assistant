@@ -1,8 +1,7 @@
-import { Type } from '@sinclair/typebox';
+import { Type } from 'typebox';
 import { Tool } from '../../../lib/tool-system.js';
-import { UserConfig } from '../../../lib/user-config.js';
 
-const systemHealthCheckTool: Tool = {
+const systemHealthCheckTool: (config) => Tool = (config) => ({
   name: 'systemHealthCheck',
   availableFor: ['chat-session', 'voice-session', 'autonomy'],
   description: 'Performs a health check on the system and returns a report.',
@@ -10,12 +9,9 @@ const systemHealthCheckTool: Tool = {
     `This includes general questions about how you are doing, as you ARE the computer. systemHealthCheck takes no parameters.`,
   callSignature: 'systemHealthCheck',
   parameters: Type.Object({}),
-  toolResultPromptIntro: `You have just received the results of a call to the systemHealthCheck tool. The results are formatted ` +
-    `as JSON with semantically meaningful field names, but since the permissions of the tool and the nature of the underlying system ` +
-    `may vary, I cannot predict what fields will be present. Do your best with what you get. Use this information to answer the ` +
-    `user's query, and remember that your response will be synthesized into speech, so keep it punchy and short.`,
+  toolResultPromptIntro: ``,
   toolResultPromptOutro: () => {
-    if (UserConfig.getConfig().toolSettings.systemHealthCheck.mustMentionIfNetworkDown) {
+    if (config.mustMentionIfNetworkDown) {
       return `If the network connectivity status is "disconnected" or "limited," you MUST include that information in your response.`;
     }
     return '';
@@ -98,6 +94,6 @@ const systemHealthCheckTool: Tool = {
     };
     return JSON.stringify(dummyData);
   }
-};
+});
 
 export default systemHealthCheckTool;

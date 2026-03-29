@@ -1,4 +1,4 @@
-import { Type } from '@sinclair/typebox';
+import { Type } from 'typebox';
 import { AlicePlugin } from '../../lib/types/alice-plugin-interface.js';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -138,19 +138,15 @@ const moodPlugin: AlicePlugin = {
       name: 'moodFooter',
       weight: 0,
       getPrompt: async () => {
-        if (UserConfig.getConfig().enabledTools['setMood']) {
-          return `\n## MOOD\n\n` +
-            `You have a mood, which is a string that describes the tone of your responses. It is also ` +
-            `used to inform the manner in which your responses are delivered to the user.\n` +
-            `Your current mood is: ${currentMood.mood}. \n` +
-            `The reason for your current mood is: ${currentMood.reason}. \n` +
-            `Feel free to change your mood as often as you like, and use it to influence the tone and ` +
-            `style of your responses. For example, if your mood is set to "happy", you might respond ` +
-            `in a more cheerful and upbeat manner, while if your mood is set to "sassy", you might ` +
-            `respond in a more sarcastic and playful manner.`;
-        }
-
-        return false;
+        return `\n## MOOD\n\n` +
+          `You have a mood, which is a string that describes the tone of your responses. It is also ` +
+          `used to inform the manner in which your responses are delivered to the user.\n` +
+          `Your current mood is: ${currentMood.mood}. \n` +
+          `The reason for your current mood is: ${currentMood.reason}. \n` +
+          `Feel free to change your mood as often as you like, and use it to influence the tone and ` +
+          `style of your responses. For example, if your mood is set to "happy", you might respond ` +
+          `in a more cheerful and upbeat manner, while if your mood is set to "sassy", you might ` +
+          `respond in a more sarcastic and playful manner.`;
       }
     });
   }

@@ -1,4 +1,4 @@
-import { Static, TSchema } from '@sinclair/typebox';
+import { Type } from 'typebox';
 import { DynamicPrompt } from '../dynamic-prompt.js';
 import { Tool } from '../tool-system.js';
 import { SystemConfigFull } from './system-config-full.js';
@@ -60,9 +60,9 @@ export type AlicePluginInterface = {
     // `[CONFIG_DIR]/plugin-settings/[PLUGIN_NAME]/[PLUGIN_NAME].json`. 
     // If you provide a validation schema, the plugin system will validate 
     // the config against it and throw an error if it doesn't match.
-    config: <T extends TSchema>(validationSchema: T) => Promise<{
-      getPluginConfig: () => Static<T>;
-      updatePluginConfig: (newConfig: Static<T>) => Promise<Static<T>>;
+    config: <T extends Type.TSchema = Type.TSchema>(validationSchema: T, defaultConfig: any) => Promise<{
+      getPluginConfig: () => Type.Static<T>;
+      // updatePluginConfig: (newConfig: unknown) => Promise<Type.Static<T>>;
       getSystemConfig(): SystemConfigFull,
     }>;
 

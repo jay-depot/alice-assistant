@@ -1,4 +1,4 @@
-import { Static, Type } from '@sinclair/typebox';
+import { Static, Type } from 'typebox';
 import { Tool } from '../../../lib/tool-system.js';
 import { UserConfig } from '../../../lib/user-config.js';
 import * as fs from 'fs';
@@ -36,7 +36,7 @@ function isAllowedExtension(filePath: string, allowedExtensions: string[]): bool
   return allowedExtensions.includes(ext);
 }
 
-const readUserTextFileTool: Tool = {
+const readUserTextFileTool: (config) => Tool = (config) => ({
   name: 'readUserTextFile',
   availableFor: ['chat-session', 'voice-session'],
   dependencies: [],
@@ -55,9 +55,8 @@ const readUserTextFileTool: Tool = {
     `question, summarize the content, or extract relevant information.`,
   toolResultPromptOutro: '',
   execute: async (args: Static<typeof parameters>) => {
-    const config = UserConfig.getConfig();
-    const allowedRoots = config.toolSettings.readUserTextFile?.allowedRoots || [];
-    const allowedExtensions = config.toolSettings.readUserTextFile?.allowedExtensions || ['.txt', '.md', '.csv', '.json', '.log'];
+    const allowedRoots = config.allowedRoots || [];
+    const allowedExtensions = config.allowedExtensions || ['.txt', '.md', '.csv', '.json', '.log'];
 
     if (allowedRoots.length === 0) {
       return JSON.stringify({
@@ -133,6 +132,6 @@ const readUserTextFileTool: Tool = {
       });
     }
   }
-};
+});
 
 export default readUserTextFileTool;

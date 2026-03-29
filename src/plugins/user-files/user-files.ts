@@ -1,4 +1,4 @@
-import { Type } from '@sinclair/typebox';
+import { Type } from 'typebox';
 import { AlicePlugin } from '../../lib/types/alice-plugin-interface.js';
 import findUserFilesTool from './tools/find-user-files.js';
 import getDirectoryListingTool from './tools/get-directory-listing.js';
@@ -6,6 +6,16 @@ import previewUserTextFileTool from './tools/preview-user-text-file.js';
 import readUserTextFileTool from './tools/read-user-text-file.js';
 import writeUserTextFileTool from './tools/write-user-text-file.js';
 
+const UserFilesPluginConfigSchema = Type.Object({
+  allowedFilePaths: Type.Array(Type.String(), { default: []}),
+  allowedFileTypesReadOnly: Type.Array(Type.String(), { default: []}),
+  allowedFileTypesWrite: Type.Array(Type.String(), { default: []}),
+}, { description: 'Configuration for the user files plugin. Allows the user to specify ' +
+  'which file paths and file types the assistant is allowed to access. If left empty, ' +
+  'the assistant will not be able to access any files.'
+});
+
+export type UserFilesPluginConfigSchema = Type.Static<typeof UserFilesPluginConfigSchema>;
 declare module '../../lib/types/alice-plugin-interface.js' {
   export interface PluginCapabilities {
     'user-files': {
@@ -61,14 +71,11 @@ const userFilesPlugin: AlicePlugin = {
 
   async registerPlugin(pluginInterface) {
     const plugin = await pluginInterface.registerPlugin(userFilesPlugin.pluginMetadata);
-    const config = await plugin.config(Type.Object({
-      allowedFilePaths: Type.Array(Type.String(), { default: []}),
-      allowedFileTypesReadOnly: Type.Array(Type.String(), { default: []}),
-      allowedFileTypesWrite: Type.Array(Type.String(), { default: []}),
-    }, { description: 'Configuration for the user files plugin. Allows the user to specify ' +
-      'which file paths and file types the assistant is allowed to access. If left empty, ' +
-      'the assistant will not be able to access any files.'
-    }));
+    const config = await plugin.config(UserFilesPluginConfigSchema, {
+      allowedFilePaths: [],
+      allowedFileTypesReadOnly: [],
+      allowedFileTypesWrite: [],
+    });
 
     const handlers: FileHandler[] = [];
 
@@ -115,10 +122,10 @@ const userFilesPlugin: AlicePlugin = {
     });
 
     // Register tools after that here:
-    plugin.registerTool(findUserFilesTool);
+    plugin.registerTool(findUserFilesTool(config.getPluginConfig()));
     plugin.registerTool(getDirectoryListingTool);
     plugin.registerTool(previewUserTextFileTool);
-    plugin.registerTool(readUserTextFileTool);
+    plugin.registerTool(readUserTextFileTool(config.getPluginConfig()));
     plugin.registerTool(writeUserTextFileTool);
   }
 };

@@ -1,5 +1,17 @@
+import { Type } from 'typebox';
 import { AlicePlugin } from '../../lib/types/alice-plugin-interface.js';
 import { openApplicationTool } from './tool.js';
+
+export const ApplicationPluginConfigSchema = Type.Object({
+  availableApplications: Type.Array(Type.Object({
+    alias: Type.String(),
+    relevantTopics: Type.Array(Type.String()),
+    commandLine: Type.String(),
+    arguments: Type.String(),
+  }))
+});
+
+export type ApplicationPluginConfigSchema = Type.Static<typeof ApplicationPluginConfigSchema>;
 
 const applicationPlugin: AlicePlugin = {
   pluginMetadata: {
@@ -18,9 +30,12 @@ const applicationPlugin: AlicePlugin = {
   async registerPlugin(pluginInterface) {
     const plugin = await pluginInterface.registerPlugin(applicationPlugin.pluginMetadata);
 
-    plugin.registerTool(openApplicationTool);
-  }
+    const config = await plugin.config(ApplicationPluginConfigSchema, {
+      availableApplications: []
+    });
 
+    plugin.registerTool(openApplicationTool(config.getPluginConfig()));
+  }
 };
 
 export default applicationPlugin;

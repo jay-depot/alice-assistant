@@ -1,6 +1,7 @@
 import { UserConfig } from './user-config.js'
 import { startConversation } from './conversation.js';
 import { runManualVoiceDemoLoop } from './voice-turn.js';
+import { loadPlugins } from './alice-plugin-loader.js';
 
 export const AliceCore = {
   start: async () => {
@@ -14,16 +15,7 @@ export const AliceCore = {
     }
     
     console.log('Config loaded successfully.');
-    // console.log('Checking for a running piper-tts web server on localhost:5002...');
-    // TODO: Check if piper-tts web server is running, and start it if not.
-    // console.log('Piper-TTS web server is running.');
-    // console.log('Checking audio output...');
-    // No idea how we even do this in node yet. TBD.
-    // console.log('Audio output is working. Playing startup sound.');
-
-    // Write a memory to the database about being started up, so we have a record of it in the memory system and it can be referred back to for context in future interactions.
-
-    console.log('Memory system initialized.');
+    await loadPlugins();
     console.log(`Trying talk to ${config.ollama.model} in Ollama...\n`);
     await (async () => {
       const testConversation = startConversation('startup');

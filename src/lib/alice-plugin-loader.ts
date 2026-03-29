@@ -51,7 +51,7 @@ export async function loadPlugins() {
   const systemPluginsPath = path.join(import.meta.dirname, '..', 'plugins');
   const userPluginsPath = path.join(aliceDir, 'user-plugins');
 
-  const packageJson = JSON.parse(await readFile(path.join(import.meta.dirname, '..', 'package.json'), 'utf-8'));
+  const packageJson = JSON.parse(await readFile(path.join(import.meta.dirname, '..', '..', 'package.json'), 'utf-8'));
   const aliceVersion = packageJson.version;
 
   const systemPlugins: { id: string, name: string, required: boolean }[] = JSON.parse(await readFile(path.join(systemPluginsPath, 'system-plugins.json'), 'utf-8'));
@@ -103,7 +103,7 @@ export async function loadPlugins() {
     const pluginPath = systemPlugin ?
       path.join(systemPluginsPath, pluginId, `${pluginId}.js`) : 
       path.join(userPluginsPath, pluginId, `${pluginId}.js`);
-    const pluginModule = await import(pluginPath) as AlicePlugin;
+    const pluginModule = (await import(pluginPath)).default as AlicePlugin;
     return pluginModule;
   }));
 

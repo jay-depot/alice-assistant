@@ -1,4 +1,4 @@
-import { Static, Type } from '@sinclair/typebox';
+import { Static, Type } from 'typebox';
 import { Tool } from '../../lib/tool-system.js'
 import { UserConfig } from '../../lib/user-config.js';
 
@@ -31,15 +31,15 @@ const getNewsHeadlines: Tool = {
     `The "headlines" field is an array of objects, each representing a news headline. Each object has a "headline" field, which is a string containing the headline text, and a "source" field, which is a string containing the name of the news source. Use this information to answer the user's query, and remember that your response will be synthesized into speech, so keep it punchy and short.`,
   toolResultPromptOutro: () => {
     const promptOutroParts: string[] = [];
-    if (UserConfig.getConfig().toolSettings.getNewsHeadlines.generallyTrustedSources.length > 0) {
-      promptOutroParts.push(`The user generally trusts the following, or similar, news sources: ${UserConfig.getConfig().toolSettings.getNewsHeadlines.generallyTrustedSources.join(', ')}.`);
-    }
-    if (UserConfig.getConfig().toolSettings.getNewsHeadlines.marginallyTrustedSources.length > 0) {
-      promptOutroParts.push(`The user is somewhat skeptical of the following, or similar, news sources: ${UserConfig.getConfig().toolSettings.getNewsHeadlines.marginallyTrustedSources.join(', ')}.`);
-    }
-    if (UserConfig.getConfig().toolSettings.getNewsHeadlines.untrustedSources.length > 0) {
-      promptOutroParts.push(`The user does not trust the following, or similar, news sources: ${UserConfig.getConfig().toolSettings.getNewsHeadlines.untrustedSources.join(', ')}.`);
-    }
+    // if (UserConfig.getConfig().toolSettings.getNewsHeadlines.generallyTrustedSources.length > 0) {
+    //   promptOutroParts.push(`The user generally trusts the following, or similar, news sources: ${UserConfig.getConfig().toolSettings.getNewsHeadlines.generallyTrustedSources.join(', ')}.`);
+    // }
+    // if (UserConfig.getConfig().toolSettings.getNewsHeadlines.marginallyTrustedSources.length > 0) {
+    //   promptOutroParts.push(`The user is somewhat skeptical of the following, or similar, news sources: ${UserConfig.getConfig().toolSettings.getNewsHeadlines.marginallyTrustedSources.join(', ')}.`);
+    // }
+    // if (UserConfig.getConfig().toolSettings.getNewsHeadlines.untrustedSources.length > 0) {
+    //   promptOutroParts.push(`The user does not trust the following, or similar, news sources: ${UserConfig.getConfig().toolSettings.getNewsHeadlines.untrustedSources.join(', ')}.`);
+    // }
     return promptOutroParts.join(' ');
   },
   execute: async (args: Static<typeof parameters>) => {

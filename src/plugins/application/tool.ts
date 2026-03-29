@@ -2,9 +2,10 @@
 // import * as fs from "fs";
 // import * as path from "path";
 // import * as childProcess from "child_process";
-import { Static, Type } from "@sinclair/typebox";
+import { Static, Type } from "typebox";
 import { Tool } from "../../lib/tool-system.js";
 import { UserConfig } from "../../lib/user-config.js";
+import { config } from 'node:process';
 
 type AvailableApplicationDescription = {
   alias: string;
@@ -21,7 +22,7 @@ type AvailableApplication = {
 
 const parameters = Type.Object({ application: Type.Optional(Type.String()), parameters: Type.Record(Type.String(), Type.String()) });
 
-export const openApplicationTool: Tool = {
+export const openApplicationTool: (config) => Tool = (config) => ({
   name: "openApplication",
   availableFor: ['chat-session', 'voice-session'],
   description: "Allows the assistant to open applications, files, folders and web pages on behalf of the user. This " +
@@ -46,7 +47,7 @@ export const openApplicationTool: Tool = {
       // Return the list of available applications and their relevant topics. Lucky for us, this is already defined 
       // in the config, so we can just return that.
       // For safety, we'll filter out the command line from what the LLM sees though.
-      const availableApplications = UserConfig.getConfig().toolSettings.openApplication.availableApplications.map((app: AvailableApplicationDescription) => ({
+      const availableApplications = config.availableApplications.map((app: AvailableApplicationDescription) => ({
         alias: app.alias,
         relevantTopics: app.relevantTopics,
         arguments: app.arguments
@@ -61,4 +62,4 @@ export const openApplicationTool: Tool = {
     
     return `Opened ${application} with parameters ${JSON.stringify(parameters)}`;
   }
-};
+});

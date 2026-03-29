@@ -1,10 +1,9 @@
 import { Tool } from '../../../lib/tool-system.js';
 import * as fs from 'fs';
-import { UserConfig } from '../../../lib/user-config.js';
-import { Type } from '@sinclair/typebox';
+import { Type } from 'typebox';
 import { simpleExpandTilde } from '../../../lib/simple-tilde-expansion.js';
 
-const listScratchFilesTool: Tool = {
+const listScratchFilesTool: (config) => Tool = (config) => ({
   name: 'listScratchFiles',
   availableFor: ['autonomy', 'chat-session', 'voice-session'],
   dependencies: ['writeScratchFile', 'readScratchFile'],
@@ -22,8 +21,8 @@ const listScratchFilesTool: Tool = {
   toolResultPromptOutro: '',
 
   execute: async () => {
-    const scratchDirectory = simpleExpandTilde(UserConfig.getConfig().toolSettings.writeScratchFile.scratchDirectory);
-    const allowedFileTypes = UserConfig.getConfig().toolSettings.writeScratchFile.allowedFileTypes;
+    const scratchDirectory = simpleExpandTilde(config.scratchDirectory);
+    const allowedFileTypes = config.allowedFileTypes;
 
     if (!fs.existsSync(scratchDirectory)) {
       return `Your internal scratch directory is currently empty.`;
@@ -37,6 +36,6 @@ const listScratchFilesTool: Tool = {
 
     return `Files in your internal scratch directory:\n${files.filter((file: string) => allowedFileTypes.includes(file.split('.').pop() || '')).join('\n')}\n\n Total files: ${files.length} \nUse the readScratchFile tool with the filename as an argument to read the contents of any of these files. Use the writeScratchFile tool to create new files in this directory, or replace existing ones. Use the deleteScratchFile tool to delete any of these files when you no longer need them. Remember, these files are only accessible to you, the assistant, so there is no reason to talk about them specifically.`;
   }
-};
+});
 
 export default listScratchFilesTool;
