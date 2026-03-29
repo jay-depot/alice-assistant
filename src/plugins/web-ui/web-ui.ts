@@ -1,5 +1,5 @@
 import { AlicePlugin } from '../../lib/types/alice-plugin-interface.js';
-import express from 'express';
+import express,  {Express } from 'express';
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
@@ -9,6 +9,16 @@ import { ChatSession, ChatSessionRound } from '../../plugins/memory/db-schemas/i
 import { startConversation } from '../../lib/conversation.js';
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
+
+declare module '../../lib/types/alice-plugin-interface.js' {
+  export interface PluginCapabilities {
+    'web-ui': {
+      express: Express;
+      // addCss: (path: string) => void; // This will be for plugins to add CSS files to be served by the web UI.
+      // addJsx: {path: string) => void; // This will be for plugins to add React components to be served by the web UI. This script should load all other components you need, and call the appropriate front-end hooks to add itself to the UI.
+    }
+  }
+}
 
 const webUiPlugin: AlicePlugin = {
   pluginMetadata: {
@@ -25,6 +35,7 @@ const webUiPlugin: AlicePlugin = {
     system: true,
   },
 
+
   async registerPlugin(pluginInterface) {
     const plugin = await pluginInterface.registerPlugin(webUiPlugin.pluginMetadata); 
     const { registerDatabaseModels, onDatabaseReady, saveMemory } = plugin.request('memory');
@@ -36,29 +47,47 @@ const webUiPlugin: AlicePlugin = {
     const userStylePath = path.join(userWebInterfaceDir, 'user-style.css');
     
     fs.mkdirSync(userWebInterfaceDir, { recursive: true });
-    
-    plugin.hooks.onAssistantWillAcceptRequests(async () => {
+
+    const app = express();
+    app.use(express.json());
+
+    app.get('/user-style.css', (_req, res) => {
+      console.log(`Serving user style from ${userStylePath}`);
+      res.setHeader('Cache-Control', 'no-store');
+      if (!fs.existsSync(userStylePath)) {
+        res.status(204).end();
+        return;
+      }
+  
+      res.type('text/css');
+      const customStyle = fs.readFileSync(userStylePath, 'utf-8');
+  
+      res.send(customStyle);
+    });
+  
+    app.use(express.static(path.join(currentDir, 'client'), { fallthrough: true }));
+
+    plugin.offer<'web-ui'>({
+      express: app,
+      // addCss: (cssPath: string) => {
+      //   // Create an express route for this CSS file, and then add it to the list of 
+      //   // CSS files the front-end should load. Those will need to make their way into
+      //   // the HTML payload we send somehow, but we'll handle that later.
+      // },
+      // addJsx: (jsxPath: string) => {
+      //   // Create an express route for this JSX file, and then add it to the list of 
+      //   // JSX files the front-end should load. For this, we can be a little lazier, 
+      //   // and make an endpoint that lists these, and have the front-end's bootstrap
+      //   // script load them dynamically. After all, the less we have to muck with the
+      //   // HTML payload, the better.`
+      // },
+    });
+
+    plugin.hooks.onAssistantAcceptsRequests(async () => {
       // TODO: Organize this crap into files.
       console.log(`Starting web UI on ${UserConfig.getConfig().webInterface.bindToAddress}:${UserConfig.getConfig().webInterface.port}...`);
       const orm = await onDatabaseReady(async (orm) => orm);
-      const app = express();
-      app.use(express.json());
     
-      app.get('/user-style.css', (_req, res) => {
-        console.log(`Serving user style from ${userStylePath}`);
-        res.setHeader('Cache-Control', 'no-store');
-        if (!fs.existsSync(userStylePath)) {
-          res.status(204).end();
-          return;
-        }
-    
-        res.type('text/css');
-        const customStyle = fs.readFileSync(userStylePath, 'utf-8');
-    
-        res.send(customStyle);
-      });
-    
-      app.use(express.static(path.join(currentDir, 'client'), { fallthrough: true }));
       
       app.post('/api/chat', async (req, res) => {
         // Creates a new chat sessions with the assistant. Sends an initial "You've been 
