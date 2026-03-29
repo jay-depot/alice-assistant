@@ -2,7 +2,7 @@ import { Static, Type } from 'typebox';
 import { AlicePlugin, AlicePluginInterface } from '../../lib/types/alice-plugin-interface.js';
 import { MikroORM } from '@mikro-orm/sqlite';
 import * as path from 'path';
-import { ChatSession, Keyword, Memory } from './db-schemas/index.js';
+import { ChatSession, ChatSessionRound, Keyword, Memory } from './db-schemas/index.js';
 import { UserConfig } from '../../lib/user-config.js';
 
 declare module '../../lib/types/alice-plugin-interface.js' {
@@ -106,9 +106,9 @@ const memoryPlugin: AlicePlugin = {
       includePersonalityChangeLlmHint: false,
     });
 
-    const entities = [ChatSession, Keyword, Memory];
+    const entities = [ChatSession, ChatSessionRound, Keyword, Memory];
     let databaseReady: (orm: MikroORM) => void;
-    const databaseReadyPromise = new Promise<MikroORM>((resolve, reject) => {
+    const databaseReadyPromise = new Promise<MikroORM>((resolve) => {
         databaseReady = resolve;
     });
 
@@ -219,7 +219,7 @@ const memoryPlugin: AlicePlugin = {
         if (context.conversationType === 'startup') {
           return false;
         }
-        
+
         const orm = await databaseReadyPromise;
         const em = orm.em.fork();
 
@@ -243,11 +243,12 @@ const memoryPlugin: AlicePlugin = {
     });
 
     plugin.hooks.onAllPluginsLoaded(async () => {
+      console.log('All plugins loaded, initializing memory plugin database...');
       const orm = await MikroORM.init({
         // TODO: UserConfig is going to be deprecated as soon as a plugin-clean alternative 
         // is designed.
         dbName: path.join(UserConfig.getConfigPath(), 'alice.db'),
-        entities: [ChatSession, Keyword, Memory], // TODO: Actually include plugin provided schemas here.
+        entities: entities,
         debug: false,
         ensureDatabase: true,      
       }) as unknown as MikroORM;
@@ -255,6 +256,12 @@ const memoryPlugin: AlicePlugin = {
       await orm.schema.update();
 
       databaseReady(orm);
+      console.log('Memory plugin database is ready to use.');
+
+      plugin.hooks.onAssistantWillStopAcceptingRequests(async () => {
+        console.log('Assistant will stop accepting requests. Closing database connection...');
+        await orm.close();
+      });
     });
   }
 }

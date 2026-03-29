@@ -1,10 +1,41 @@
 import { UserConfig } from './user-config.js'
 import { startConversation } from './conversation.js';
-import { runManualVoiceDemoLoop } from './voice-turn.js';
 import { loadPlugins } from './alice-plugin-loader.js';
 import { PluginHookInvocations } from './plugin-hooks.js';
 
 export const AliceCore = {
+  dummyLoop: async () => {
+    // This is a dummy loop to keep the assistant running until I 
+    // add the actual voice loop.
+    console.log('Entering main loop. Press Ctrl+C to exit.');
+    let shuttingDown = false;
+    const cleanupSignalHandlers = () => {
+      process.off('SIGINT', shutdown);
+      process.off('SIGTERM', shutdown);
+    };
+
+    const shutdown = async (signal: NodeJS.Signals) => {
+      if (shuttingDown) {
+        return;
+      }
+      shuttingDown = true;
+      console.log(`\nReceived ${signal}, shutting down gracefully...`);
+      cleanupSignalHandlers();
+      await PluginHookInvocations.invokeOnAssistantWillStopAcceptingRequests();
+      await PluginHookInvocations.invokeOnAssistantStoppedAcceptingRequests();
+      await PluginHookInvocations.invokeOnPluginsWillUnload();
+      console.log('All plugins have been notified of shutdown. Exiting now.');
+      process.exit(0);
+    };
+    
+    process.on('SIGINT', shutdown);
+    process.on('SIGTERM', shutdown);
+
+    while (!shuttingDown) {
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+  },
+
   start: async () => {
     const configPath = UserConfig.getConfigPath(); // I'm probably going to pass this into the LLM context at some point? IDK, might be fun.
     console.log(`ALICE Assistant starting with config path: ${configPath}`);
@@ -26,11 +57,9 @@ export const AliceCore = {
       console.log(` <- ${reply}`);
     })();
     console.log(`\nTalking to ${config.ollama.model} in Ollama works.`);
+
     await PluginHookInvocations.invokeOnAssistantAcceptsRequests();
 
-    if (process.env.ALICE_VOICE_DEMO === '1') {
-      console.log('ALICE_VOICE_DEMO=1 detected. Starting manual voice demo loop.');
-      await runManualVoiceDemoLoop();
-    }
+    await AliceCore.dummyLoop();
   }
 }

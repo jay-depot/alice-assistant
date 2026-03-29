@@ -1,5 +1,5 @@
 import { AlicePlugin } from '../../lib/types/alice-plugin-interface.js';
-import express,  {Express } from 'express';
+import express,  { Express } from 'express';
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
@@ -34,7 +34,6 @@ const webUiPlugin: AlicePlugin = {
     required: true,
     system: true,
   },
-
 
   async registerPlugin(pluginInterface) {
     const plugin = await pluginInterface.registerPlugin(webUiPlugin.pluginMetadata); 
@@ -234,48 +233,21 @@ const webUiPlugin: AlicePlugin = {
         res.json({ mood: (await getMood()).mood }); // Don't send the reason to the client.
       });
     
-      const server: Server = app.listen(PORT, HOST, () => {
+      const server: Server = app.listen(PORT, HOST, (err) => {
+        if (err) {
+          console.error('Error starting web UI server:', err);
+          process.exit(1);          
+        }
         console.log(`Server running at http://${HOST}:${PORT}/`);
       });
       
-      await new Promise<void>((resolve, reject) => {
-        let shuttingDown = false;
-        
-        const cleanupSignalHandlers = () => {
-          process.off('SIGINT', shutdown);
-          process.off('SIGTERM', shutdown);
-        };
-        
-        const shutdown = async (signal: NodeJS.Signals) => {
-          if (shuttingDown) {
+      plugin.hooks.onAssistantWillStopAcceptingRequests(async () => {
+        console.log('Assistant will stop accepting requests. Shutting down web UI server...');
+        server.close(async (serverErr?: Error) => {
+          if (serverErr) {
+            console.error('Error shutting down web UI server:', serverErr);
             return;
           }
-          shuttingDown = true;
-          console.log(`Received ${signal}, shutting down gracefully...`);
-          cleanupSignalHandlers();
-          
-          server.close(async (serverErr?: Error) => {
-            if (serverErr) {
-              reject(serverErr);
-              return;
-            }
-            
-            try {
-              // TODO: Move this to memory plugin
-              await orm.close(true);
-              resolve();
-            } catch (ormErr) {
-              reject(ormErr instanceof Error ? ormErr : new Error(String(ormErr)));
-            }
-          });
-        };
-        
-        process.on('SIGINT', shutdown);
-        process.on('SIGTERM', shutdown);
-        
-        server.on('error', (err) => {
-          cleanupSignalHandlers();
-          reject(err);
         });
       });
     });
