@@ -1,5 +1,5 @@
 import { TSchema } from '@sinclair/typebox';
-import { getTools } from '../tools/index.js';
+import { getTools } from './tools.js';
 import { UserConfig } from './user-config.js';
 
 type ToolPromptFragmentFunction =  string | (() => string);

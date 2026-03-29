@@ -1,4 +1,4 @@
-import { getTools } from '../../../tools/index.js';
+import { getTools } from '../../tools.js';
 import { DynamicPrompt } from '../../dynamic-prompt.js';
 import { UserConfig } from '../../user-config.js';
 

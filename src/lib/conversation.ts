@@ -1,7 +1,7 @@
 import OllamaClient, { ChatResponse } from 'ollama';
 import { UserConfig } from './user-config.js';
 import { buildOllamaToolDescriptionObject } from './tool-system.js';
-import { getTools } from '../tools/index.js';
+import { getTools } from './tools.js';
 import { DynamicPromptConversationType } from './dynamic-prompt.js';
 import { getHeaderPrompts } from './header-prompts.js';
 import { getFooterPrompts } from './footer-prompts.js';
