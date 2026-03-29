@@ -108,6 +108,16 @@ export async function loadPlugins() {
   }));
 
   enabledPlugins.forEach(plugin => {
+    // Check for user plugins claiming to be system plugins or required plugins. This keeps out 
+    // one specific kind of low-effort malware.
+    const isUsingPrivilegedFlags = plugin.pluginMetadata.system || plugin.pluginMetadata.required;
+    if (isUsingPrivilegedFlags && !systemPlugins.find(p => p.id === plugin.pluginMetadata.id)) {
+      throw new Error(`Plugin ${plugin.pluginMetadata.id} is claiming to be a system or required ` +
+        `plugin and is not one. Assistant startup has been halted in case this is an attempt to ` +
+        `do something nasty. To fix your assistant immediately, disable this plugin by ` +
+        `removing it from your enabled-plugins.json. If you are developing this plugin, You need to ` +
+        `remove the "system" and "required" flags from your plugin metadata and never add them again.`);
+    }
     plugin.pluginMetadata.dependencies?.forEach(dependency => {
       const found = enabledPlugins.find(p => p.pluginMetadata.id === dependency.id);
       if (!found) {
