@@ -33,7 +33,11 @@ function createPluginInterface(pluginMetadata: AlicePluginMetadata): AlicePlugin
       return {
         registerTool: (toolDefinition: Tool) => {
           if (registeredToolNames[toolDefinition.name]) {
-            throw new Error(`Plugin ${pluginMetadata.id} attempted to register a tool with name "${toolDefinition.name}", but that name is already registered by plugin ${registeredToolNames[toolDefinition.name]}. Disable one of these plugins to fix your assistant. If you are developing one of these plugins, change the name of this tool.`);
+            throw new Error(`Plugin ${pluginMetadata.id} attempted to register a tool with name ` +
+              `"${toolDefinition.name}", but that name is already registered by plugin ` +
+              `${registeredToolNames[toolDefinition.name]}. Disable one of these plugins to fix ` +
+              `your assistant. If you are developing one of these plugins, change the name of ` +
+              `this tool.`);
           }
 
           registeredToolNames[toolDefinition.name] = pluginMetadata.id;
@@ -41,42 +45,52 @@ function createPluginInterface(pluginMetadata: AlicePluginMetadata): AlicePlugin
         },
 
         registerHeaderSystemPrompt: (promptDefinition: DynamicPrompt) => {
-          const minWeight = pluginMetadata.system ? Infinity : 0;
-          const maxWeight = pluginMetadata.system ? Infinity : 9999;
-          if (promptDefinition.weight < minWeight || promptDefinition.weight > maxWeight) {
-            throw new Error(`Plugin ${pluginMetadata.id} attempted to register a header system prompt with ` +
-              `invalid weight ${promptDefinition.weight}. Non-system plugins may only register header system ` +
-              `prompts with weights between 0 and 9999. Disable ${pluginMetadata.id} to fix your assistant, ` +
-              `or change the weight of this prompt if you are developing this plugin.`);
+          if (!pluginMetadata.system) {
+            const minWeight = 0;
+            const maxWeight = 9999;
+            if (promptDefinition.weight < minWeight || promptDefinition.weight > maxWeight) {
+              throw new Error(`Plugin ${pluginMetadata.id} attempted to register a header system prompt with ` +
+                `invalid weight ${promptDefinition.weight}. Non-system plugins may only register header system ` +
+                `prompts with weights between 0 and 9999. Disable ${pluginMetadata.id} to fix your assistant, ` +
+                `or change the weight of this prompt if you are developing this plugin.`);
+            }
           }
 
           if (registeredHeaderPromptNames[promptDefinition.name]) {
             throw new Error(`Plugin ${pluginMetadata.id} attempted to register a header system prompt with ` +
               `name "${promptDefinition.name}", but that name is already registered by plugin ` +
               `${registeredHeaderPromptNames[promptDefinition.name]}. Disable one of these plugins to fix ` +
-              `your assistant. If you are developing one of these plugins, change the name of this prompt.`);
+              `your assistant. If you are developing one of these plugins, change the name of this prompt. ` +
+              `A well-designed plugin should only ever have to register at most one of each type of system ` +
+              `prompt, and the convention is to give all of your prompts the same name as your plugin ID.`);
           }
 
+          registeredHeaderPromptNames[promptDefinition.name] = pluginMetadata.id;
           addHeaderPrompt(promptDefinition);
         },
 
         registerFooterSystemPrompt: (promptDefinition: DynamicPrompt) => {
-          const minWeight = pluginMetadata.system ? Infinity : 0;
-          const maxWeight = pluginMetadata.system ? Infinity : 9999;
-          if (promptDefinition.weight < minWeight || promptDefinition.weight > maxWeight) {
-            throw new Error(`Plugin ${pluginMetadata.id} attempted to register a footer system prompt with ` +
-              `invalid weight ${promptDefinition.weight}. Non-system plugins may only register footer system ` +
-              `prompts with weights between 0 and 9999. Disable ${pluginMetadata.id} to fix your assistant, ` +
-              `or change the weight of this prompt if you are developing this plugin.`);
+          if (!pluginMetadata.system) {
+            const minWeight = 0;
+            const maxWeight = 9999;
+            if (promptDefinition.weight < minWeight || promptDefinition.weight > maxWeight) {
+              throw new Error(`Plugin ${pluginMetadata.id} attempted to register a footer system prompt with ` +
+                `invalid weight ${promptDefinition.weight}. Non-system plugins may only register footer system ` +
+                `prompts with weights between 0 and 9999. Disable ${pluginMetadata.id} to fix your assistant, ` +
+                `or change the weight of this prompt if you are developing this plugin.`);
+            }
           }
 
           if (registeredFooterPromptNames[promptDefinition.name]) {
             throw new Error(`Plugin ${pluginMetadata.id} attempted to register a footer system prompt with ` +
               `name "${promptDefinition.name}", but that name is already registered by plugin ` +
               `${registeredFooterPromptNames[promptDefinition.name]}. Disable one of these plugins to fix ` +
-              `your assistant. If you are developing one of these plugins, change the name of this prompt.`);
+              `your assistant. If you are developing one of these plugins, change the name of this prompt. ` +
+              `A well-designed plugin should only ever have to register at most one of each type of system ` +
+              `prompt, and the convention is to give all of your prompts the same name as your plugin ID.`);
           }
 
+          registeredFooterPromptNames[promptDefinition.name] = pluginMetadata.id;
           addFooterPrompt(promptDefinition);
         },
 

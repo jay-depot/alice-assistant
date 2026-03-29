@@ -59,9 +59,8 @@ export type Tool = {
 }
 
 export function buildOllamaToolDescriptionObject(): OllamaRequestToolsPropItem[] {
-  const config = UserConfig.getConfig();
   const tools = getTools();
-  return tools.filter(tool => config.enabledTools[tool.name]).map(tool=>({
+  return tools.map(tool=>({
     type: 'function',
     function: {
       name: tool.name,

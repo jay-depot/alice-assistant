@@ -3,12 +3,13 @@ import { AlicePlugin } from '../lib.js';
 import { exists, readFile, readdir } from './node/fs-promised.js';
 import { UserConfig } from './user-config.js';
 import { AlicePluginEngine } from './alice-plugin-engine.js';
+import { satisfies } from 'semver';
 
 type EnabledPluginsConfig = {
   system: Record<string, boolean>;
   user: {
     enableUserPlugins: boolean;
-    plugins: Record<string, boolean>[];
+    plugins: Record<string, boolean>;
   }
 }
 
@@ -32,7 +33,7 @@ const defaultEnabledPlugins: EnabledPluginsConfig = {
   },
   "user": {
     "enableUserPlugins": false,
-    "plugins": []
+    "plugins": {}
   }
 }
 
@@ -47,10 +48,10 @@ export async function loadPlugins() {
   const userPluginConfigPath = path.join(aliceDir, 'plugin-settings', 'enabled-plugins.json');
   const userPluginConfigExists = await exists(userPluginConfigPath);
   const userEnabledPlugins: EnabledPluginsConfig = userPluginConfigExists ? JSON.parse(await readFile(userPluginConfigPath, 'utf-8')) : defaultEnabledPlugins;
-  const systemPluginsPath = path.join(__dirname, '..', 'plugins');
+  const systemPluginsPath = path.join(import.meta.dirname, '..', 'plugins');
   const userPluginsPath = path.join(aliceDir, 'user-plugins');
 
-  const systemPlugins: { id: string, name: string, required: boolean }[] = JSON.parse(await readFile(systemPluginsPath, 'utf-8'));
+  const systemPlugins: { id: string, name: string, required: boolean }[] = JSON.parse(await readFile(path.join(systemPluginsPath, 'system-plugins.json'), 'utf-8'));
 
   const enabledSystemPlugins = systemPlugins.map(plugin => {
     if (plugin.required && !userEnabledPlugins.system[plugin.id]) {
@@ -72,7 +73,10 @@ export async function loadPlugins() {
     throw new Error(`Unknown system plugins found in enabled-plugins.json: ${unknownSystemPlugins.join(', ')}. Please remove these entries to continue.`);
   }
 
-  const existingUserPluginDirs = await readdir(userPluginsPath);
+  const existingUserPluginDirs = await readdir(userPluginsPath).catch(() => {
+    console.log('No user plugins directory found, skipping user plugin loading.');
+    return [];
+  });
   const existingUserPlugins = await Promise.all(existingUserPluginDirs.map(async dir => {
     const pluginJsonPath = path.join(userPluginsPath, dir, 'plugin.json');
     if (await exists(pluginJsonPath)) {
@@ -92,7 +96,10 @@ export async function loadPlugins() {
   // means we're actually loading the `[plugin-id]/[plugin-id].js for each plugin, and then examine the 
   // exported metadata before we can actually insert them into the engine.
   const enabledPlugins = await Promise.all(allEnabledPluginIds.map(async pluginId => {
-    const pluginPath = path.join(systemPluginsPath, pluginId, `${pluginId}.js`);
+    const systemPlugin = !!enabledSystemPlugins.find(p => p.id === pluginId);
+    const pluginPath = systemPlugin ?
+      path.join(systemPluginsPath, pluginId, `${pluginId}.js`) : 
+      path.join(userPluginsPath, pluginId, `${pluginId}.js`);
     const pluginModule = await import(pluginPath) as AlicePlugin;
     return pluginModule;
   }));
@@ -104,7 +111,14 @@ export async function loadPlugins() {
         throw new Error(`Plugin ${plugin.pluginMetadata.id} is missing dependency: ${dependency.id}. Please add and enable ${dependency.id}, or disable ${plugin.pluginMetadata.id} to continue.`);
       }
 
-      // TODO: Version checking.
+      if (!satisfies(found.pluginMetadata.version, dependency.version)) {
+        throw new Error(`Plugin ${plugin.pluginMetadata.id} has an incompatible version of ` +
+          `dependency ${dependency.id}. Required version: ${dependency.version}, found version: ` +
+          `${found.pluginMetadata.version}. To fix your assistant, update the version of ` +
+          `${dependency.id} you have, or disable ${plugin.pluginMetadata.id} to continue. ` +
+          `If you are developing one of these plugins, then update your dependency version ` +
+          `to the one you currently have installed`);
+      }
     });
 
     // Cycle check:

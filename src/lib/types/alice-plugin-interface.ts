@@ -6,7 +6,10 @@ import { AlicePluginHooks } from './alice-plugin-hooks.js';
 
 type AlicePluginDependency = {
   id: string;
-  version: string | string[];
+  /**
+   * Semver range
+   */
+  version: string;
 };
 
 export type AlicePluginMetadata = {
