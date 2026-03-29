@@ -5,22 +5,81 @@ import { AlicePlugin, AlicePluginInterface, AlicePluginMetadata, PluginCapabilit
 import { UserConfig } from './user-config.js';
 import { SystemConfigFull } from './types/system-config-full.js';
 import { PluginHooks } from './plugin-hooks.js';
+import { addHeaderPrompt } from './header-prompts.js';
+import { addFooterPrompt } from './footer-prompts.js';
+import { addTool } from './tools.js';
 
 const loadedPlugins: AlicePlugin[] = [];
 const registeredPlugins: Record<string, AlicePlugin> = {};
+const registeredHeaderPromptNames: Record<string, string> = {};
+const registeredFooterPromptNames: Record<string, string> = {};
+const registeredToolNames: Record<string, string> = {};
 
 const pluginCapabilities = {} as PluginCapabilities;
+const loadingPromises: Record<string, { 
+  promise: Promise<void>, 
+  resolve: () => void, 
+  reject: (error: any) => void,
+}> = {};
 
 function createPluginInterface(pluginMetadata: AlicePluginMetadata): AlicePluginInterface {
   return {
     registerPlugin: async (pluginDefinition: AlicePluginMetadata) => {
-      // TODO: Parse the given metadata for dependencies, and wait for them to be loaded before 
-      // returning the plugin interface.
+      const dependencyIds = pluginDefinition.dependencies?.map(dep => dep.id) || [];      
+      const dependencyPromises = dependencyIds.map(depId => loadingPromises[depId].promise);
+
+      await Promise.all(dependencyPromises);
 
       return {
-        registerTool: (toolDefinition: Tool) => {},
-        registerHeaderSystemPrompt: (promptDefinition: DynamicPrompt) => {},
-        registerFooterSystemPrompt: (promptDefinition: DynamicPrompt) => {},
+        registerTool: (toolDefinition: Tool) => {
+          if (registeredToolNames[toolDefinition.name]) {
+            throw new Error(`Plugin ${pluginMetadata.id} attempted to register a tool with name "${toolDefinition.name}", but that name is already registered by plugin ${registeredToolNames[toolDefinition.name]}. Disable one of these plugins to fix your assistant. If you are developing one of these plugins, change the name of this tool.`);
+          }
+
+          registeredToolNames[toolDefinition.name] = pluginMetadata.id;
+          addTool(toolDefinition);
+        },
+
+        registerHeaderSystemPrompt: (promptDefinition: DynamicPrompt) => {
+          const minWeight = pluginMetadata.system ? Infinity : 0;
+          const maxWeight = pluginMetadata.system ? Infinity : 9999;
+          if (promptDefinition.weight < minWeight || promptDefinition.weight > maxWeight) {
+            throw new Error(`Plugin ${pluginMetadata.id} attempted to register a header system prompt with ` +
+              `invalid weight ${promptDefinition.weight}. Non-system plugins may only register header system ` +
+              `prompts with weights between 0 and 9999. Disable ${pluginMetadata.id} to fix your assistant, ` +
+              `or change the weight of this prompt if you are developing this plugin.`);
+          }
+
+          if (registeredHeaderPromptNames[promptDefinition.name]) {
+            throw new Error(`Plugin ${pluginMetadata.id} attempted to register a header system prompt with ` +
+              `name "${promptDefinition.name}", but that name is already registered by plugin ` +
+              `${registeredHeaderPromptNames[promptDefinition.name]}. Disable one of these plugins to fix ` +
+              `your assistant. If you are developing one of these plugins, change the name of this prompt.`);
+          }
+
+          addHeaderPrompt(promptDefinition);
+        },
+
+        registerFooterSystemPrompt: (promptDefinition: DynamicPrompt) => {
+          const minWeight = pluginMetadata.system ? Infinity : 0;
+          const maxWeight = pluginMetadata.system ? Infinity : 9999;
+          if (promptDefinition.weight < minWeight || promptDefinition.weight > maxWeight) {
+            throw new Error(`Plugin ${pluginMetadata.id} attempted to register a footer system prompt with ` +
+              `invalid weight ${promptDefinition.weight}. Non-system plugins may only register footer system ` +
+              `prompts with weights between 0 and 9999. Disable ${pluginMetadata.id} to fix your assistant, ` +
+              `or change the weight of this prompt if you are developing this plugin.`);
+          }
+
+          if (registeredFooterPromptNames[promptDefinition.name]) {
+            throw new Error(`Plugin ${pluginMetadata.id} attempted to register a footer system prompt with ` +
+              `name "${promptDefinition.name}", but that name is already registered by plugin ` +
+              `${registeredFooterPromptNames[promptDefinition.name]}. Disable one of these plugins to fix ` +
+              `your assistant. If you are developing one of these plugins, change the name of this prompt.`);
+          }
+
+          addFooterPrompt(promptDefinition);
+        },
+
         hooks: PluginHooks,
 
         offer<T extends keyof PluginCapabilities>(capabilities: PluginCapabilities[T]): void {
@@ -41,6 +100,7 @@ function createPluginInterface(pluginMetadata: AlicePluginMetadata): AlicePlugin
 
           return pluginCapabilities[pluginID];
         },
+
         config: async <T extends TSchema>(schema: T) => {
           return {
             getPluginConfig: () => {
@@ -74,13 +134,20 @@ export const AlicePluginEngine = {
    */
   insertPlugin: async (plugin: AlicePlugin) => {
     loadedPlugins.push(plugin);
+    let resolve: () => void, reject: (error: unknown) => void;
+
+    const promise = new Promise<void>((res, rej) => {
+      resolve = res;
+      reject = rej;
+    });
+
+    loadingPromises[plugin.pluginMetadata.id] = { promise, resolve, reject };
   },
 
   init: async () => {
-    // 1. Validate plugins and their dependencies, and throw if any problems are found.
-    loadedPlugins.forEach(plugin => {
+    loadedPlugins.forEach((plugin, index) => {
       // check for duplicate plugin ids
-      const duplicate = loadedPlugins.find(p => p.pluginMetadata.id === plugin.pluginMetadata.id);
+      const duplicate = loadedPlugins.find((p, i) => p.pluginMetadata.id === plugin.pluginMetadata.id && i !== index);
       if (duplicate) {
         throw new Error(`Duplicate plugin id found: ${plugin.pluginMetadata.id}. Please remove one of the plugins with this id to continue.`);
       }
@@ -94,21 +161,21 @@ export const AlicePluginEngine = {
         }
       });
     });
-    // 2. Call the registration callback for each plugin.
     await Promise.all(loadedPlugins.map(async plugin => {
       console.log(`Registering plugin: ${plugin.pluginMetadata.id}...`);
-      await plugin.registerPlugin(createPluginInterface(plugin.pluginMetadata));
+      try {
+        await plugin.registerPlugin(createPluginInterface(plugin.pluginMetadata));
+      } catch (error) {
+        console.error(`Error registering plugin ${plugin.pluginMetadata.id}:`, error);
+        loadingPromises[plugin.pluginMetadata.id].reject(error);
+
+        throw new Error(`Failed to register plugin ${plugin.pluginMetadata.id}. See previous logs for details.`);
+      }
+      
+      loadingPromises[plugin.pluginMetadata.id].resolve();
       registeredPlugins[plugin.pluginMetadata.id] = plugin;
       console.log(`Plugin registered: ${plugin.pluginMetadata.id}`);
     }));
-    // 3. Plugin should call `api.registerPlugin` early in the registration callback.
-    // 4. Engine receives the registration call, and checks for any dependencies. If 
-    //    any are not loaded yet, the promise is held until they are. Otherwise, resolve 
-    //    the promise with the plugin interface for that plugin.
-    // 5. Once the promise resolves, the plugin can call the plugin interface functions to
-    //    register tools, system prompts, and hooks.
-    // 6. Once the plugin's registration callback resolves, we consider the plugin loaded, 
-    //    and can continue loading any of its dependencies.
     // 7. Once all plugins are loaded, call any `onAllPluginsLoaded` hooks, and this
     //    function can return.
   },
