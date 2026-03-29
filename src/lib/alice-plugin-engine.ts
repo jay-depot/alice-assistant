@@ -12,6 +12,7 @@ import { addTool } from './tools.js';
 import { exists, mkdir, writeFile } from './node/fs-promised.js';
 import path from 'node:path';
 import { readFile } from 'node:fs/promises';
+import { PluginHookInvocations } from './plugin-hooks.js';
 
 const loadedPlugins: AlicePlugin[] = [];
 const registeredPlugins: Record<string, AlicePlugin> = {};
@@ -227,8 +228,8 @@ export const AlicePluginEngine = {
       registeredPlugins[plugin.pluginMetadata.id] = plugin;
       console.log(`Plugin registered: ${plugin.pluginMetadata.id}`);
     }));
-    // 7. Once all plugins are loaded, call any `onAllPluginsLoaded` hooks, and this
-    //    function can return.
+    
+    await PluginHookInvocations.invokeOnAllPluginsLoaded();
   },
 
   // Future plans:

@@ -5,8 +5,6 @@ const registeredHooks: {
   onUserConversationWillEnd: Array<(conversation: Conversation, type: DynamicPromptConversationType) => Promise<void>>;
   onToolWillBeCalled: Array<(tool: Readonly<Tool>, args: Readonly<Record<string, unknown>>) => Promise<void>>;
   onToolWasCalled: Array<(tool: Readonly<Tool>, args: Readonly<Record<string, unknown>>, result: string) => Promise<void>>;
-  onSystemPluginsLoaded: Array<() => Promise<void>>;
-  onUserPluginsWillLoad: Array<() => Promise<void>>;
   onAllPluginsLoaded: Array<() => Promise<void>>;
   onAssistantWillAcceptRequests: Array<() => Promise<void>>;
   onAssistantAcceptsRequests: Array<() => Promise<void>>;
@@ -20,8 +18,6 @@ const registeredHooks: {
   onUserConversationWillEnd: [],
   onToolWillBeCalled: [],
   onToolWasCalled: [],
-  onSystemPluginsLoaded: [],
-  onUserPluginsWillLoad: [],
   onAllPluginsLoaded: [],
   onAssistantWillAcceptRequests: [],
   onAssistantAcceptsRequests: [],
@@ -73,18 +69,6 @@ export const PluginHooks:AlicePluginHooks = {
       throw new Error('The onToolWasCalled hook can only be registered during plugin registration. Please disable any plugins that are trying to register this hook to fix your assistant.');
     }
     registeredHooks.onToolWasCalled.push(callback);
-  },
-  onSystemPluginsLoaded: (callback: () => Promise<void>) => {
-    if (!isRegistrationOpenForHook.onSystemPluginsLoaded) {
-      throw new Error('The onSystemPluginsLoaded hook can only be registered during plugin registration. Please disable any plugins that are trying to register this hook to fix your assistant.');
-    }
-    registeredHooks.onSystemPluginsLoaded.push(callback);
-  },
-  onUserPluginsWillLoad: (callback: () => Promise<void>) => {
-    if (!isRegistrationOpenForHook.onUserPluginsWillLoad) {
-      throw new Error('The onUserPluginsWillLoad hook can only be registered during plugin registration. Please disable any plugins that are trying to register this hook to fix your assistant.');
-    }
-    registeredHooks.onUserPluginsWillLoad.push(callback);
   },
   onAllPluginsLoaded: (callback: () => Promise<void>) => {
     if (!isRegistrationOpenForHook.onAllPluginsLoaded) {
@@ -155,18 +139,6 @@ export const PluginHookInvocations = {
   invokeOnToolWasCalled: async (tool: Readonly<Tool>, args: Readonly<Record<string, unknown>>, result: string) => {
     for (const callback of registeredHooks.onToolWasCalled) {
       await callback(tool, args, result);
-    }
-  },
-  invokeOnSystemPluginsLoaded: async () => {
-    isRegistrationOpenForHook.onSystemPluginsLoaded = false;
-    for (const callback of registeredHooks.onSystemPluginsLoaded) {
-      await callback();
-    }
-  },
-  invokeOnUserPluginsWillLoad: async () => {
-    isRegistrationOpenForHook.onUserPluginsWillLoad = false;
-    for (const callback of registeredHooks.onUserPluginsWillLoad) {
-      await callback();
     }
   },
   invokeOnAllPluginsLoaded: async () => {

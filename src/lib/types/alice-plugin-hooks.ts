@@ -7,8 +7,6 @@ export type AlicePluginHooks = {
   onUserConversationWillEnd: (callback: (conversation: Conversation, type: DynamicPromptConversationType) => Promise<void>) => void,
   onToolWillBeCalled: (callback: (tool: Readonly<Tool>, args: Readonly<Record<string, unknown>>) => Promise<void>) => void,
   onToolWasCalled: (callback: (tool: Readonly<Tool>, args: Readonly<Record<string, unknown>>, result: string) => Promise<void>) => void,
-  onSystemPluginsLoaded: (callback: () => Promise<void>) => void,
-  onUserPluginsWillLoad: (callback: () => Promise<void>) => void,
   onAllPluginsLoaded: (callback: () => Promise<void>) => void,
   onAssistantWillAcceptRequests: (callback: () => Promise<void>) => void,
   onAssistantAcceptsRequests: (callback: () => Promise<void>) => void,
