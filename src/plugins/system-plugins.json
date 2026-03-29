@@ -1,0 +1,77 @@
+[
+  {
+    "id": "datetime",
+    "name": "Date and Time",
+    "required": true
+  },
+  {
+    "id": "system-info",
+    "name": "System Info",
+    "required": true
+  },
+  {
+    "id": "memory",
+    "name": "Memory",
+    "required": true
+  },
+  {
+    "id": "scratch-files",
+    "name": "Scratch Files",
+    "required": true
+  },
+  {
+    "id": "location-broker",
+    "name": "Location Broker",
+    "required": true
+  },
+  {
+    "id": "reminders-broker",
+    "name": "Reminders Broker",
+    "required": true
+  },
+  {
+    "id": "web-ui",
+    "name": "Web UI",
+    "required": true
+  },
+  {
+    "id": "mood",
+    "name": "Mood",
+    "required": true
+  },
+  {
+    "id": "application",
+    "name": "Application",
+    "required": false
+  },
+  {
+    "id": "news-broker",
+    "name": "News Broker",
+    "required": false
+  },
+  {
+    "id": "user-files",
+    "name": "User Files",
+    "required": false
+  },
+  {
+    "id": "weather-broker",
+    "name": "Weather Broker",
+    "required": false
+  },
+  {
+    "id": "web-search-broker",
+    "name": "Web Search Broker",
+    "required": false
+  },
+  {
+    "id": "appointments",
+    "name": "Appointments",
+    "required": false
+  },
+  {
+    "id": "daily-goals",
+    "name": "Daily Goals",
+    "required": false
+  }
+]

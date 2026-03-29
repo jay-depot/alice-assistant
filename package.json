@@ -5,30 +5,34 @@
   "license": "MIT",
   "author": "",
   "type": "module",
-  "main": "dist/index.js",
+  "main": "dist/lib.js",
   "scripts": {
-    "build": "tsc && cp src/web-interface/client/*.{html,css} dist/web-interface/client/",
+    "build": "tsc && npm run post-build",
+    "post-build": "copyfiles -u 1 src/**/*.js dist/ && copyfiles -u 1 src/**/*.html dist/ && copyfiles -u 1 src/**/*.css dist/ && copyfiles -u 1 src/**/*.json dist/",
     "start": "node dist/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
     "@mikro-orm/core": "^7.0.3",
     "@mikro-orm/sqlite": "^7.0.3",
-    "@sinclair/typebox": "^0.34.48",
+    "typebox": "^1.1.8",
     "express": "^5.2.1",
     "mikro-orm": "^7.0.3",
     "nodejs-whisper": "^0.2.9",
     "ollama": "^0.6.3",
     "onnxruntime-web": "^1.24.3",
-    "openwakeword-js": "^0.1.27"
+    "openwakeword-js": "^0.1.27",
+    "semver": "^7.7.4"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.5",
     "@eslint/js": "^10.0.1",
     "@types/express": "^5.0.6",
     "@types/node": "^25.5.0",
+    "@types/semver": "^7.7.1",
     "@typescript-eslint/eslint-plugin": "^8.57.1",
     "@typescript-eslint/parser": "^8.57.1",
+    "copyfiles": "^2.4.1",
     "eslint": "^10.0.3",
     "globals": "^17.4.0",
     "prettier": "^3.8.1",

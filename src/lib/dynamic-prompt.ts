@@ -1,7 +1,6 @@
 export type DynamicPromptConversationType = 'voice' | 'chat' | 'startup' | 'autonomy';
 export type DynamicPromptContext = {
   conversationType: DynamicPromptConversationType;
-  enabledTools: string[];
 };
 
 export type DynamicPrompt = {
@@ -29,6 +28,5 @@ export async function processDynamicPrompts(context: DynamicPromptContext, dynam
       }
       return a.weight - b.weight;
     }));
-
   return applicablePrompts.map(prompt => prompt.promptText as string);
 }

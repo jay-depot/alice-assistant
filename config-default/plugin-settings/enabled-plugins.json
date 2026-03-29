@@ -1,0 +1,22 @@
+{
+  "system": {
+    "datetime": true,
+    "system-info": true,
+    "memory": true,
+    "scratch-files": true,
+    "location-broker": true,
+    "reminders-broker": true,
+    "application": false,
+    "mood": true,
+    "news-broker": true,
+    "user-files": false,
+    "weather-broker": true,
+    "web-search-broker": true,
+    "appointments": false,
+    "daily-goals": true
+  },
+  "user": {
+    "enableUserPlugins": false,
+    "plugins": []
+  }
+}
