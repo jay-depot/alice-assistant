@@ -26,10 +26,16 @@ in `./config-default/example-personalities/`
 
 ## Work In Progress
 
-This project is not _quite_ functional yet. It currently connects to the LLM and correctly 
-loads its config files, then runs a basic Web UI to talk to your assistant that way until you interrupt it with ^C. There is also a functional plugin architecture with semantics for dynamically loading and type-checking plugin-scoped configuration, type-checked external API offer and request semantics between plugins, and dependency checks.
+This project is not _quite_ functional yet, though it's getting there quickly now. It 
+currently connects to the LLM and correctly loads its config files, then runs a basic 
+Web UI to talk to your assistant that way until you interrupt it with ^C. There is 
+also a functional plugin architecture with semantics for dynamically loading and 
+type-checking plugin-scoped configuration, type-checked external API offer and request 
+semantics between plugins, and dependency checks.
 
-The next milestone is improving the web UI so other plugins may add their own elements to it. Following that, will be a proof-of-concept wake-word -> dictation -> assistant request loop, and then filling in the missing functionality in all system plugins.
+The next milestone is improving the web UI so other plugins may add their own elements 
+to it. Following that, will be a proof-of-concept wake-word -> dictation -> assistant 
+request loop, and then filling in the missing functionality in all system plugins.
 
 ## Installation
 
