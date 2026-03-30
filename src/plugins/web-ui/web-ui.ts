@@ -15,7 +15,7 @@ declare module '../../lib/types/alice-plugin-interface.js' {
     'web-ui': {
       express: Express;
       // addCss: (path: string) => void; // This will be for plugins to add CSS files to be served by the web UI.
-      // addJsx: {path: string) => void; // This will be for plugins to add React components to be served by the web UI. This script should load all other components you need, and call the appropriate front-end hooks to add itself to the UI.
+      registerScript: (path: string) => void; // This will be for plugins to add React components to be served by the web UI. This script should load all other components you need, and call the appropriate front-end hooks to add itself to the UI.
     }
   }
 }
@@ -73,13 +73,13 @@ const webUiPlugin: AlicePlugin = {
       //   // CSS files the front-end should load. Those will need to make their way into
       //   // the HTML payload we send somehow, but we'll handle that later.
       // },
-      // addJsx: (jsxPath: string) => {
-      //   // Create an express route for this JSX file, and then add it to the list of 
-      //   // JSX files the front-end should load. For this, we can be a little lazier, 
-      //   // and make an endpoint that lists these, and have the front-end's bootstrap
-      //   // script load them dynamically. After all, the less we have to muck with the
-      //   // HTML payload, the better.`
-      // },
+      registerScript: (jsxPath: string) => {
+        // Create an express route for this JSX file, and then add it to the list of 
+        // JSX files the front-end should load. For this, we can be a little lazier, 
+        // and make an endpoint that lists these, and have the front-end's bootstrap
+        // script load them dynamically. After all, the less we have to muck with the
+        // HTML payload, the better.`
+      },
     });
 
     plugin.hooks.onAssistantAcceptsRequests(async () => {
