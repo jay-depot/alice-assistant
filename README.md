@@ -86,10 +86,6 @@ Future plans for how to interact with this assistant may go one of two ways:
   read-only, or only writes to the assistant's own scratch area, and those would be the only
   tools presented to the LLM when sending it an "autonomy prompt." The assistant would then
   have to start a conversation with the user to access its full tool suite.
-- All new tools should: 1. Default to being disabled, 2. Follow the principle of least authority,
-  and 3. Allow the end-user to specify the scope in which tools are allowed to operate on their
-  own system in the usual configuration file location, and the tool implementation must enforce
-  it, _in code_, not just by way of "careful prompting".
 - "I'd like to add the ability to connect to GPT/Claude/Gemini/DeepSeek!" On the unlikely chance
   this project ever gets enough attention for someone to say this, I'll respond in advance: Yes,
   I will accept pull requests extending this project with that functionality, however there are
