@@ -1,5 +1,5 @@
 import { Type } from 'typebox';
-import { AlicePlugin } from '../../lib/types/alice-plugin-interface.js';
+import { AlicePlugin } from '../../lib.js';
 import findUserFilesTool from './tools/find-user-files.js';
 import getDirectoryListingTool from './tools/get-directory-listing.js';
 import previewUserTextFileTool from './tools/preview-user-text-file.js';
@@ -16,7 +16,7 @@ const UserFilesPluginConfigSchema = Type.Object({
 });
 
 export type UserFilesPluginConfigSchema = Type.Static<typeof UserFilesPluginConfigSchema>;
-declare module '../../lib/types/alice-plugin-interface.js' {
+declare module '../../lib.js' {
   export interface PluginCapabilities {
     'user-files': {
       // Question: What happens if two plugins can handle the same file type?

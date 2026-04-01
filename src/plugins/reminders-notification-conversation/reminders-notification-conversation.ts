@@ -1,4 +1,4 @@
-import { AlicePlugin } from '../../lib/types/alice-plugin-interface.js';
+import { AlicePlugin } from '../../lib.js';
 
 const remindersNotificationConversationPlugin: AlicePlugin = {
   pluginMetadata: {

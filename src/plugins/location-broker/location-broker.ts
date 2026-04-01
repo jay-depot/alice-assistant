@@ -1,4 +1,4 @@
-import { AlicePlugin } from '../../lib/types/alice-plugin-interface.js';
+import { AlicePlugin } from '../../lib.js';
 
 export type LocationData = {
   coordinates?: {
@@ -10,7 +10,7 @@ export type LocationData = {
   countryName?: string;
 };
 
-declare module '../../lib/types/alice-plugin-interface.js' {
+declare module '../../lib.js' {
   export interface PluginCapabilities {
     'location-broker': {
       // This API is intentionally minimal for now, and will likely expand in the future. 

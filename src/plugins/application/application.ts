@@ -1,5 +1,5 @@
 import { Type } from 'typebox';
-import { AlicePlugin } from '../../lib/types/alice-plugin-interface.js';
+import { AlicePlugin } from '../../lib.js';
 import { openApplicationTool } from './tool.js';
 
 export const ApplicationPluginConfigSchema = Type.Object({

@@ -1,4 +1,4 @@
-import { AlicePlugin, AliceUiScriptRegistration } from '../../lib/types/alice-plugin-interface.js';
+import { AlicePlugin, AliceUiScriptRegistration, startConversation } from '../../lib.js';
 import express, { Express } from 'express';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -6,12 +6,12 @@ import { createHash } from 'crypto';
 import { fileURLToPath } from 'url';
 import { type Server } from 'http';
 import { UserConfig } from '../../lib/user-config.js';
-import { ChatSession, ChatSessionRound } from '../../plugins/memory/db-schemas/index.js';
-import { startConversation } from '../../lib/conversation.js';
+import { ChatSession, ChatSessionRound } from './db-schemas/index.js';
+
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 
-declare module '../../lib/types/alice-plugin-interface.js' {
+declare module '../../lib.js' {
   export interface PluginCapabilities {
     'web-ui': {
       express: Express;
@@ -107,6 +107,9 @@ const webUiPlugin: AlicePlugin = {
       express: app,
       registerScript,
     });
+    
+    const { registerDatabaseModels } = plugin.request('memory');
+    registerDatabaseModels([ChatSession, ChatSessionRound]);
 
     plugin.hooks.onAssistantAcceptsRequests(async () => {
       // TODO: Organize this crap into files.

@@ -1,5 +1,5 @@
 import { Type } from 'typebox';
-import { AlicePlugin } from '../../lib/types/alice-plugin-interface.js';
+import { AlicePlugin } from '../../lib.js';
 import appendScratchFileTool from './tools/append-scratch-file.js';
 import deleteScratchFileTool from './tools/delete-scratch-file.js';
 import listScratchFilesTool from './tools/list-scratch-files.js';

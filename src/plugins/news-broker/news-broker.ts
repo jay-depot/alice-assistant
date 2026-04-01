@@ -1,4 +1,4 @@
-import { AlicePlugin } from '../../lib/types/alice-plugin-interface.js';
+import { AlicePlugin } from '../../lib.js';
 
 type NewsItem = {
   headline: string;
@@ -8,7 +8,7 @@ type NewsItem = {
   publishedAt: Date;
 };
 
-declare module '../../lib/types/alice-plugin-interface.js' {
+declare module '../../lib.js' {
   export interface PluginCapabilities {
     'news-broker': {
       // This API is intentionally minimal for now, and will likely expand in the future. 

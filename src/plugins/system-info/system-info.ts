@@ -1,5 +1,5 @@
 import { Type } from 'typebox';
-import { AlicePlugin } from '../../lib/types/alice-plugin-interface.js';
+import { AlicePlugin } from '../../lib.js';
 import systemHealthCheckTool from './tools/system-health.js';
 
 const SystemInfoPluginConfigSchema = Type.Object({

@@ -1,12 +1,12 @@
 import { Static, Type } from 'typebox';
-import { AlicePlugin, AlicePluginInterface } from '../../lib/types/alice-plugin-interface.js';
+import { AlicePlugin, AlicePluginInterface } from '../../lib.js';
 import { MikroORM } from '@mikro-orm/sqlite';
 import * as path from 'path';
-import { ChatSession, ChatSessionRound, Keyword, Memory } from './db-schemas/index.js';
+import { Keyword, Memory } from './db-schemas/index.js';
 import { UserConfig } from '../../lib/user-config.js';
 import { SUMMARY_HEADER } from '../../lib.js';
 
-declare module '../../lib/types/alice-plugin-interface.js' {
+declare module '../../lib.js' {
   export interface PluginCapabilities {
     memory: {
       /**
@@ -144,18 +144,23 @@ const memoryPlugin: AlicePlugin = {
       includePersonalityChangeLlmHint: false,
     });
 
-    const entities = [ChatSession, ChatSessionRound, Keyword, Memory];
-    let databaseReady: (orm: MikroORM) => void;
+    const entities = [Keyword, Memory];
+    let isDatabaseReady = false;
+    let waitForDatabaseReady: (orm: MikroORM) => void;
     const databaseReadyPromise = new Promise<MikroORM>((resolve) => {
-        databaseReady = resolve;
+        waitForDatabaseReady = (orm: MikroORM) => {
+          isDatabaseReady = true;
+          resolve(orm);
+        };
     });
 
     // First we'd have to load our own ORM models, then call
     plugin.offer<'memory'>({ 
-      registerDatabaseModels: (entities) => {
-        // Add these entity definitions to the array we'll pass into MikroORM when we initialize it. 
-        // We may want to have some kind of validation here to make sure the entities are well-formed, 
-        // and to provide helpful error messages if not.
+      registerDatabaseModels: (newEntities) => {
+        if (isDatabaseReady) {
+          throw new Error('Cannot register database models after the database is ready. Please register all your models during plugin registration.');
+        }
+        entities.push(...newEntities);
       },
       onDatabaseReady: async <T>(callback: (orm: MikroORM) => Promise<T>): Promise<T> => {
         // If the database is already ready, call the callback immediately. Otherwise, add it to a queue to be called once the database is ready. 
@@ -304,7 +309,7 @@ const memoryPlugin: AlicePlugin = {
   
       await orm.schema.update();
 
-      databaseReady(orm);
+      waitForDatabaseReady(orm);
       console.log('Memory plugin database is ready to use.');
 
       plugin.hooks.onAssistantWillStopAcceptingRequests(async () => {

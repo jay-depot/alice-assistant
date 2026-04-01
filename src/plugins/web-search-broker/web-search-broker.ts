@@ -1,5 +1,5 @@
 import Type from 'typebox';
-import { AlicePlugin } from '../../lib/types/alice-plugin-interface.js';
+import { AlicePlugin } from '../../lib.js';
 
 type WebSearchResult = {
   title: string;
@@ -14,7 +14,7 @@ const WebSearchBrokerPluginSettings = Type.Object({
 
 type WebSearchBrokerPluginSettings = Type.Static<typeof WebSearchBrokerPluginSettings>;
 
-declare module '../../lib/types/alice-plugin-interface.js' {
+declare module '../../lib.js' {
   export interface PluginCapabilities {
     'web-search-broker': {
       /**

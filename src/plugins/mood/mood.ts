@@ -1,5 +1,5 @@
 import { Type } from 'typebox';
-import { AlicePlugin } from '../../lib/types/alice-plugin-interface.js';
+import { AlicePlugin } from '../../lib.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'url';
@@ -7,7 +7,7 @@ import { UserConfig } from '../../lib/user-config.js';
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 
-declare module '../../lib/types/alice-plugin-interface.js' {
+declare module '../../lib.js' {
   export interface PluginCapabilities {
     mood: {
       /** Returns the assistant's current mood and the reason for that mood, or an empty string if no mood is set. */
