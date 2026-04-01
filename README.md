@@ -33,8 +33,10 @@ also a functional plugin architecture with semantics for dynamically loading and
 type-checking plugin-scoped configuration, type-checked external API offer and request 
 semantics between plugins, and dependency checks.
 
-The next milestone is improving the web UI so other plugins may add their own elements 
-to it. Following that, will be a proof-of-concept wake-word -> dictation -> assistant 
+The Web UI is now React-based, and supports letting plugins register their own 
+components into it.
+
+The next milestone is a proof-of-concept wake-word -> dictation -> assistant 
 request loop, and then filling in the missing functionality in all system plugins.
 
 ## Installation
