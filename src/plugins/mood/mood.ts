@@ -114,6 +114,7 @@ const moodPlugin: AlicePlugin = {
         res.json({ mood: currentMood.mood });
       });
 
+      // Register the browser bundle built from `mood-web-ui.ts`.
       webUi.registerScript(path.join(currentDir, 'mood-web-ui.js'));
     }
 

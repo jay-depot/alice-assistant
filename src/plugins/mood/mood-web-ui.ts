@@ -1,15 +1,23 @@
-const React = globalThis.React;
+import type { AliceUIExtensionApi, PluginClientExport } from '../web-ui/client/types/index.js';
+
+type ReactModule = typeof import('react');
+
+type MoodApiResponse = {
+  mood?: string;
+};
+
+const React = (globalThis as typeof globalThis & { React?: ReactModule }).React;
 
 if (!React) {
   throw new Error('Mood web UI extension requires globalThis.React to be available.');
 }
 
-function normalizeMoodClass(mood) {
+function normalizeMoodClass(mood: string): string {
   const normalizedMood = String(mood || 'neutral').trim().toLowerCase().replace(/\s+/g, '-');
   return normalizedMood || 'neutral';
 }
 
-function useMood() {
+function useMood(): string {
   const [mood, setMood] = React.useState('neutral');
   const isPollingRef = React.useRef(false);
 
@@ -29,7 +37,7 @@ function useMood() {
         throw new Error(`Mood API error: ${response.status} ${response.statusText}`);
       }
 
-      const data = await response.json();
+      const data = (await response.json()) as MoodApiResponse;
       setMood(data.mood ?? 'neutral');
     } catch (error) {
       console.error('Failed to poll mood:', error);
@@ -39,7 +47,7 @@ function useMood() {
   }, []);
 
   React.useEffect(() => {
-    let intervalId = null;
+    let intervalId: number | null = null;
 
     const startPolling = () => {
       if (intervalId !== null) {
@@ -90,8 +98,10 @@ function MoodWidget() {
   });
 }
 
-export default {
-  onAliceUIReady(api) {
+const moodUiExtension: PluginClientExport = {
+  onAliceUIReady(api: AliceUIExtensionApi) {
     api.registerComponent('sidebar-top', MoodWidget);
   },
 };
+
+export default moodUiExtension;
