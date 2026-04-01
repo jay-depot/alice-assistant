@@ -39,6 +39,20 @@ export type AlicePluginMetadata = {
   dependencies?: AlicePluginDependency[]; 
 };
 
+export type UIRegion =
+  | 'sidebar-top'
+  | 'sidebar-bottom'
+  | 'chat-header'
+  | 'message-prefix'
+  | 'message-suffix'
+  | 'input-prefix'
+  | 'settings-panel';
+
+export type AliceUiScriptRegistration = {
+  id: string;
+  scriptUrl: string;
+};
+
 declare module './alice-plugin-interface.js' {
   export interface PluginCapabilities {}
 };

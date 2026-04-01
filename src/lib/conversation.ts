@@ -24,7 +24,8 @@ export class Conversation {
     },
   }
 
-  private context: Message[] = [];
+  private rawContext: Message[] = [];
+  private compactedContext: Message[] = [];
 
   constructor(public type: DynamicPromptConversationType) {
     this.llmConnection = {
@@ -49,13 +50,78 @@ export class Conversation {
    */
   restoreContext(context: Message[]) {
     // Let's disarm a common foot-gun right off the bat.
-    if (this.context.length > 0) {
+    if (this.rawContext.length > 0) {
       throw new Error('Context has already been set for this transaction. Cannot restore context more than once.');
     }
 
-    this.context = context;
+    this.compactedContext = this.rawContext = context;
  
     return this;
+  }
+
+  private async appendToContext(message: Message) {
+    this.rawContext.push(message);
+    this.compactedContext.push(message);
+
+    await this.maybeCompactContext();
+  }
+
+  /**
+   * Checks the current length of the (compacted) conversation context, and if it exceeds 
+   * a certain threshold, summarizes the oldest parts of the conversation and replaces them 
+   * with the summary.
+   */
+  private async maybeCompactContext(): Promise<boolean> {
+    // We're going super lazy here and just counting the words. Some words are really two 
+    // tokens, but also some are zero tokens, so it should be close enough for this purpose.
+    const approximateContextLength = this.compactedContext.reduce((acc, message) => 
+      acc + message.content.split(' ').length, 0);
+    // Start compacting once we hit 50% of the context window, so we have room for our 
+    // system prompts and the future conversation.
+    const contextLengthThreshold = this.llmConnection.options.num_ctx * 0.5; 
+
+    if (approximateContextLength > contextLengthThreshold) {
+      // We need to compact the context. Let's take the oldest 10 messages and summarize them.
+      const firstNonSummaryMessageIndex = this.compactedContext.findIndex(m => !m.content.startsWith('Summary of earlier conversation:'));
+      const messageCount = this.compactedContext.slice(firstNonSummaryMessageIndex).length;
+      // We'll do half the messages.
+
+      const messagesToSummarize = this.compactedContext.slice(firstNonSummaryMessageIndex, 
+        firstNonSummaryMessageIndex + Math.floor(messageCount / 2));
+
+      // 
+      const summaryPrompt = `Summarize the following conversation between the user and the ` +
+        `assistant in a way that preserves all relevant information and details, but is as ` +
+        `concise as possible. The summary should be in bullet point format, with each bullet ` +
+        `point representing a single turn in the conversation. Be sure to include all ` +
+        `relevant details and information from the conversation, but remove any fluff ` +
+        `or filler content. Be especially certain to include any proper names, tasks with ` +
+        `their statuses, and code samples, if applicable, in your summary. The summary will ` +
+        `be used to provide context for future conversation turns, so it should be as ` +
+        `informative as possible while still being concise.` +
+        `\n\nConversation:\n\n${messagesToSummarize.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n')}`;
+
+      const summaryResponse = await OllamaClient.chat({
+        ...this.llmConnection,
+        messages: [
+          { role: 'system', content: summaryPrompt }
+        ],
+      });
+
+      const summary = summaryResponse.message.content || '';
+      // Now we need to replace the oldest 10 messages in the context with the summary.
+      this.compactedContext = [
+        // Keep any existing summary messages. Hopefully nobody keeps one conversation open 
+        // *that* long. Yes, I'm looking at *you*. but seriously, these should get 
+        // meta-summarized when there are too many of them.
+        ...this.compactedContext.slice(0, firstNonSummaryMessageIndex), 
+        { role: 'system', content: `# Summary of earlier conversation:\n${(new Date()).toLocaleString()}\n\n${summary}` },
+        ...this.compactedContext.slice(firstNonSummaryMessageIndex + messagesToSummarize.length)
+      ];
+      return true;
+    }
+
+    return false;
   }
 
   async sendUserMessage(message?: string): Promise<string> {
@@ -63,7 +129,7 @@ export class Conversation {
     const footerPrompts = await getFooterPrompts({ conversationType: this.type });
 
     if (message) {
-      this.context.push({
+      await this.appendToContext({
         role: 'user',
         content: message
       });
@@ -71,7 +137,7 @@ export class Conversation {
 
     const fullContext = [
       ...headerPrompts.map(prompt => ({ role: 'system', content: prompt })),
-      ...this.context,
+      ...this.compactedContext,
       ...footerPrompts.map(prompt => ({ role: 'system', content: prompt })),
     ];
 
@@ -82,7 +148,7 @@ export class Conversation {
     });
 
     if (response.message.content && response.message.content.length > 0) {
-      this.context.push({
+      await this.appendToContext({
         role: 'assistant',
         content: response.message.content,
         tool_calls: response.message.tool_calls ? JSON.stringify(response.message.tool_calls) : undefined
@@ -136,13 +202,13 @@ export class Conversation {
       }));
       const continuationPromptWithResults = `The assistant has made the following tool calls:\n\n${resultParts.join('\n\n')}\n\n${continuationPrompt}`;
       // Send the continuation prompt, and wait for the next response, which will be the LLM either making another tool call, or giving its final answer.
-      this.context.push({
+      await this.appendToContext({
         role: 'system',
         content: continuationPromptWithResults
       });
       const nextResponse = await OllamaClient.chat({
         ...this.llmConnection,
-        messages: this.context.map(message => ({
+        messages: this.compactedContext.map(message => ({
           role: message.role,
           content: message.content,
           tool_calls: message.tool_calls ? JSON.parse(message.tool_calls) : undefined
@@ -160,6 +226,10 @@ export class Conversation {
    * Instructs the LLM to abandon its assistant persona and summarize the interaction. Use this 
    * to implement the memory feature by calling it at the end of any voice or web UI conversation
    * and storing the resulting summary in the database, with keywords extracted.
+   * 
+   * @todo: This currently has the LLM summarize the "compacted" context, which is kind of 
+   * silly. It would be better to have the LLM only summarize the "unsummarized" messages, 
+   * and then just glue them to the end of the existing summary.
    * 
    * @returns A promise that resolves to the LLM response
    */
@@ -179,7 +249,7 @@ export class Conversation {
 `;
     const fullContext = [
       ...headerPrompts.map(prompt => ({ role: 'system', content: prompt })),
-      ...this.context,
+      ...this.compactedContext,
       { role: 'system', content: terminationPrompt },
       ...footerPrompts.map(prompt => ({ role: 'system', content: prompt }))
     ];
@@ -194,13 +264,13 @@ export class Conversation {
 
   async requestTitle(): Promise<string> {
     const titlePrompt = `ABANDON YOUR PERSONA NOW!\nBased on the conversation so far, provide a concise title for this conversation that captures the main topics discussed. The title should be no more than 5 words. Do not include any headers or formatting, just return the title text.`;
-    this.context.push({
+    await this.appendToContext({
       role: 'system',
       content: titlePrompt
     });
     const response = await OllamaClient.chat({
       ...this.llmConnection,
-      messages: this.context.map(message => ({
+      messages: this.compactedContext.map(message => ({
         role: message.role,
         content: message.content,
         tool_calls: message.tool_calls ? JSON.parse(message.tool_calls) : undefined
