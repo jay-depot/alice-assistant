@@ -8,8 +8,7 @@ const parameters = Type.Object({ filename: Type.String() });
 
 const readScratchFileTool: (config) => Tool = (config) => ({
   name: 'readScratchFile',
-  availableFor: ['autonomy', 'chat-session', 'voice-session'],
-  dependencies: ['writeScratchFile', 'listScratchFiles'],
+  availableFor: ['autonomy', 'chat', 'voice'],
   description: `Reads the contents of a note in the assistant's internal scratch directory. This is meant ` +
     `to read back the contents of notes the assistant has written to itself, using the writeScratchFile tool.`,
   systemPromptFragment: `Call readScratchFile to read the contents of a note in your internal scratch ` +
@@ -18,7 +17,6 @@ const readScratchFileTool: (config) => Tool = (config) => ({
     `have previously written to yourself in this internal scratch directory. When you call readScratchFile, `+
     `provide the filename as an argument, and it will return the contents of that file. Remember, these ` +
     `files are only accessible to you, the assistant, so there is no reason to talk about them specifically.`,
-  callSignature: 'readScratchFile',
   parameters,
   toolResultPromptIntro: 'You have just read the contents of a text file using the readScratchFile tool.\n',
   toolResultPromptOutro: '',

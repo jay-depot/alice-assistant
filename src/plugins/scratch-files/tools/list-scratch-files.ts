@@ -5,8 +5,7 @@ import { simpleExpandTilde } from '../../../lib/simple-tilde-expansion.js';
 
 const listScratchFilesTool: (config) => Tool = (config) => ({
   name: 'listScratchFiles',
-  availableFor: ['autonomy', 'chat-session', 'voice-session'],
-  dependencies: ['writeScratchFile', 'readScratchFile'],
+  availableFor: ['autonomy', 'chat', 'voice'],
   description: `Lists the files in the assistant's internal scratch directory. This is meant ` +
     `to be used in conjunction with the writeScratchFile and readScratchFile tools, which allow ` +
     `you to write and read text files in this scratch directory. You can call this tool with no ` +
@@ -15,7 +14,6 @@ const listScratchFilesTool: (config) => Tool = (config) => ({
     `any notes you have previously written to yourself in your internal scratch directory. This ` +
     `is meant to be used in conjunction with the writeScratchFile and readScratchFile tools, ` +
     `which allow you to write and read these notes.`,
-  callSignature: 'listScratchFiles',
   parameters: Type.Object({}),
   toolResultPromptIntro: '',
   toolResultPromptOutro: '',

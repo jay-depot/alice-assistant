@@ -1,18 +1,14 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { Tool } from '../../../lib/tool-system.js';
-import { UserConfig } from '../../../lib/user-config.js';
 import { Static, Type } from 'typebox';
 import { simpleExpandTilde } from '../../../lib/simple-tilde-expansion.js';
 
 const parameters = Type.Object({ filename: Type.String(), contents: Type.String() });
 
-UserConfig.load();
-
 const writeScratchFileTool: (config) => Tool = (config) => ({
   name: 'writeScratchFile',
-  availableFor: ['autonomy', 'chat-session', 'voice-session'],
-  dependencies: ['readScratchFile', 'listScratchFiles'],
+  availableFor: ['autonomy', 'chat', 'voice'],
   description: 'Allows the assistant to write notes for itself in an internal scratch directory. This is meant to be used in conjunction with the ' +
     'readScratchFile tool, which can read back the contents of files the assistant has written. The files the assistant writes with this tool ' +
     'will not be directly accessible to user, and are meant to be a place for the assistant to write "notes to itself" for later.',
@@ -29,7 +25,6 @@ const writeScratchFileTool: (config) => Tool = (config) => ({
     `[${config.allowedFileTypes.join(', ')}] for the filename, and the ` +
     `contents of the file must not exceed ${config.maxFileSizeKB} ` +
     `KB in size. You should also ensure that the filename does not contain any path traversal characters.`,
-  callSignature: 'writeScratchFile',
   parameters,
   toolResultPromptIntro: 'You have just written a text file to your internal scratch directory using the writeScratchFile tool.\n',
   toolResultPromptOutro: '',

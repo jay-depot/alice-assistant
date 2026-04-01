@@ -8,7 +8,7 @@ export const scenarioHeaderPrompt: DynamicPrompt = {
   getPrompt: async (context): Promise<string | false> => {
     const systemPromptChunks: string[] = [];
     const scenario = context.conversationType;
-    const tools = getTools();
+    const tools = getTools(context.conversationType);
 
     systemPromptChunks.push(`# SCENARIO\n`);
 

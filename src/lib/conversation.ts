@@ -5,9 +5,11 @@ import { getTools } from './tools.js';
 import { DynamicPromptConversationType } from './dynamic-prompt.js';
 import { getHeaderPrompts } from './header-prompts.js';
 import { getFooterPrompts } from './footer-prompts.js';
+import { PluginHookInvocations } from './plugin-hooks.js';
 
+export const SUMMARY_HEADER = '# Summary of earlier conversation:\n';
 const MAX_TOOL_CALL_DEPTH = 5;
-type Message = {
+export type Message = {
   role: string;
   content: string;
   tool_calls?: string; // We're just going to JSON.stringify the tool calls and then deserialize them on the way back.
@@ -69,7 +71,8 @@ export class Conversation {
   /**
    * Checks the current length of the (compacted) conversation context, and if it exceeds 
    * a certain threshold, summarizes the oldest parts of the conversation and replaces them 
-   * with the summary.
+   * with the summary. Returns true if the context needed to be and was compacted, false 
+   * otherwise.
    */
   private async maybeCompactContext(): Promise<boolean> {
     // We're going super lazy here and just counting the words. Some words are really two 
@@ -81,7 +84,6 @@ export class Conversation {
     const contextLengthThreshold = this.llmConnection.options.num_ctx * 0.5; 
 
     if (approximateContextLength > contextLengthThreshold) {
-      // We need to compact the context. Let's take the oldest 10 messages and summarize them.
       const firstNonSummaryMessageIndex = this.compactedContext.findIndex(m => !m.content.startsWith('Summary of earlier conversation:'));
       const messageCount = this.compactedContext.slice(firstNonSummaryMessageIndex).length;
       // We'll do half the messages.
@@ -89,7 +91,8 @@ export class Conversation {
       const messagesToSummarize = this.compactedContext.slice(firstNonSummaryMessageIndex, 
         firstNonSummaryMessageIndex + Math.floor(messageCount / 2));
 
-      // 
+      // This is a pretty standard compaction prompt, it just specifically calls out proper 
+      // names tasks and code samples to make sure "assistant-y" things don't get lost.
       const summaryPrompt = `Summarize the following conversation between the user and the ` +
         `assistant in a way that preserves all relevant information and details, but is as ` +
         `concise as possible. The summary should be in bullet point format, with each bullet ` +
@@ -109,15 +112,28 @@ export class Conversation {
       });
 
       const summary = summaryResponse.message.content || '';
-      // Now we need to replace the oldest 10 messages in the context with the summary.
       this.compactedContext = [
-        // Keep any existing summary messages. Hopefully nobody keeps one conversation open 
-        // *that* long. Yes, I'm looking at *you*. but seriously, these should get 
-        // meta-summarized when there are too many of them.
+        // Keep any existing summary messages.
         ...this.compactedContext.slice(0, firstNonSummaryMessageIndex), 
-        { role: 'system', content: `# Summary of earlier conversation:\n${(new Date()).toLocaleString()}\n\n${summary}` },
+        { role: 'system', content: `${SUMMARY_HEADER} \n${(new Date()).toLocaleString()}\n\n${summary}` },
         ...this.compactedContext.slice(firstNonSummaryMessageIndex + messagesToSummarize.length)
       ];
+
+      // And now, we check if the compacted context is *still* too long. If it is, we're 
+      // going to fire off a hook invocation `onContextCompactionSummariesWillBeDeleted` 
+      // with the oldest half the summaries, so plugins (memory, by default) can capture 
+      // and store them.
+
+      const newApproximateContextLength = this.compactedContext.reduce((acc, message) => 
+        acc + message.content.split(' ').length, 0);
+
+      if (newApproximateContextLength > contextLengthThreshold) {
+        const summariesToDelete = this.compactedContext.filter(m => m.content.startsWith(SUMMARY_HEADER)).slice(0, Math.floor(messageCount / 4));
+        // Fire off the hook invocation with the oldest half the summaries.
+        await PluginHookInvocations.invokeOnContextCompactionSummariesWillBeDeleted(summariesToDelete);
+      }
+
+
       return true;
     }
 
@@ -144,7 +160,7 @@ export class Conversation {
     const response = await OllamaClient.chat({
       ...this.llmConnection,
       messages: fullContext,
-      tools: buildOllamaToolDescriptionObject()
+      tools: buildOllamaToolDescriptionObject(this.type)
     });
 
     if (response.message.content && response.message.content.length > 0) {
@@ -188,14 +204,21 @@ export class Conversation {
         const toolArgs = toolCall.function.arguments;
         console.log(JSON.stringify({ toolName, toolArgs }));
         // Double check the tool is actually enabled in the config, and that it actually exists.
-        const tools = getTools();
+        const tools = getTools(this.type);
         const tool = tools.find(t => t.name === toolName);
         if (!tool) {
           return `Tool ${toolName} is not recognized.`;
         }
         try {
-          const result = await tool.execute(toolArgs);
-          return `Result of calling tool ${toolName} with arguments ${JSON.stringify(toolArgs)}: ${result}`;
+          const callResult = await tool.execute(toolArgs)
+          const result = `${
+            tool.toolResultPromptIntro ? tool.toolResultPromptIntro + '\n': ''
+          }${
+            callResult
+          }${
+            tool.toolResultPromptOutro ? '\n' + tool.toolResultPromptOutro : ''
+          }`;
+          return `Result of calling tool ${toolName} with arguments ${JSON.stringify(toolArgs)}:\n${result}`;
         } catch (e) {
           return `Error calling tool ${toolName} with arguments ${JSON.stringify(toolArgs)}: ${e instanceof Error ? e.message : String(e)}`;
         }
@@ -213,7 +236,7 @@ export class Conversation {
           content: message.content,
           tool_calls: message.tool_calls ? JSON.parse(message.tool_calls) : undefined
         })),
-        tools: buildOllamaToolDescriptionObject()
+        tools: buildOllamaToolDescriptionObject(this.type)
       });
 
       return this.handleToolCalls(nextResponse, depth + 1);
@@ -275,7 +298,7 @@ export class Conversation {
         content: message.content,
         tool_calls: message.tool_calls ? JSON.parse(message.tool_calls) : undefined
       })),
-      tools: buildOllamaToolDescriptionObject()
+      tools: buildOllamaToolDescriptionObject(this.type)
     });
     return response.message.content.replaceAll(/(\n|\r)/g, ' ').replaceAll(/(\*|\#|\")/g, '') || '';
   }

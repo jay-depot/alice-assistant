@@ -128,7 +128,7 @@ const moodPlugin: AlicePlugin = {
 
     plugin.registerTool({
       name: 'setMood',
-      availableFor: ['chat-session', 'voice-session', 'autonomy'],
+      availableFor: ['chat', 'voice', 'autonomy', 'startup'],
       description: `Sets the assistant's mood. The mood is a string that describes the tone of the ` +
         `assistant's current responses. It is also used to inform the manner in which the assistant's ` +
         `responses are delivered to the user. The allowed moods you can set are: ${AllowedMoods.join(', ')}.`,
@@ -139,7 +139,6 @@ const moodPlugin: AlicePlugin = {
         `${AllowedMoods.join(', ')}.`,
       toolResultPromptIntro: '',
       toolResultPromptOutro: '',
-      callSignature: 'setMood',
       execute: async (args) => {
         const { mood, reason } = args as { mood: string; reason: string };
         currentMood.mood = mood;

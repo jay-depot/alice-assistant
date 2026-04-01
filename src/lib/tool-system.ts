@@ -1,9 +1,8 @@
 import { TSchema } from 'typebox';
 import { getTools } from './tools.js';
-import { UserConfig } from './user-config.js';
+import { DynamicPromptConversationType } from './dynamic-prompt.js';
 
 type ToolPromptFragmentFunction =  string | (() => string);
-type ToolAvailability = 'voice-session' | 'chat-session' | 'autonomy';
 
 type OllamaRequestToolsPropItem = {
   'type': 'function';
@@ -29,18 +28,12 @@ export type Tool = {
   //   messages. The only exception to this would be tools that directly modify a specific interface.
   //   Tools that should be voice-only would be those that modify voice delivery itself, like
   //   alternate voices.
-  availableFor: ToolAvailability[]; 
-  // This is an optional list of other tools that this tool depends on. If you enable a tool without
-  // its dependencies, the assistant will crash on startup and should give you pretty clear 
-  // instructions to get going again.
-  // TODO: It would be a cute and somewhat useful gimmick if we could read the instructions for fixing the assistant out loud when it crashes due to missing tool dependencies.
-  dependencies?: string[];
+  availableFor: DynamicPromptConversationType[]; 
+  // A short description of the tool, used in the system prompt (and one day, the UI) to help 
+  // the user understand what the tool does.
   description: string;
   // This is the fragment that will be added to the system prompt to describe the tool and how to use it.
   systemPromptFragment: ToolPromptFragmentFunction; 
-  // This is the exact string that the LLM should output when it wants to call the tool. It should be 
-  // unique enough that it won't be accidentally generated in normal conversation.
-  callSignature: string; 
   // The parameters for the tool, as a JSON schema. This project incorporates typebox, so you 
   // should use that to define the parameters and the tool's function signature together..
   parameters: TSchema,
@@ -58,8 +51,8 @@ export type Tool = {
   execute: (args: Record<string, unknown>) => Promise<string>; 
 }
 
-export function buildOllamaToolDescriptionObject(): OllamaRequestToolsPropItem[] {
-  const tools = getTools();
+export function buildOllamaToolDescriptionObject(conversationType: DynamicPromptConversationType): OllamaRequestToolsPropItem[] {
+  const tools = getTools(conversationType);
   return tools.map(tool=>({
     type: 'function',
     function: {

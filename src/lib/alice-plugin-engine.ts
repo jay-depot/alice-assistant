@@ -1,4 +1,4 @@
-import { Type } from 'typebox';
+import { Record, Type } from 'typebox';
 import Schema from 'typebox/schema'
 import { DynamicPrompt } from './dynamic-prompt.js';
 import { Tool } from './tool-system.js';
@@ -26,6 +26,18 @@ const loadingPromises: Record<string, {
   resolve: () => void, 
   reject: (error: any) => void,
 }> = {};
+
+const mkdirMemoized = (() => {
+  const dirPromisedRecord: Record<string, Promise<string>> = {};
+
+  return async (dir: string) => {
+    if (!dirPromisedRecord[dir]) {
+      dirPromisedRecord[dir] = mkdir(dir, { recursive: true });
+    }
+
+    await dirPromisedRecord[dir];
+  }
+})();
 
 function validatePluginConfig(config: unknown, schema: Type.TSchema, pluginId: string): void {
   const validationResult = Schema.Check(schema, config);
@@ -134,13 +146,13 @@ function createPluginInterface(pluginMetadata: AlicePluginMetadata): AlicePlugin
           const pluginSettingsDir = path.join(configDir, 'plugin-settings');
 
           if (!await exists(pluginSettingsDir)) {
-            await mkdir(pluginSettingsDir);
+            await mkdirMemoized(pluginSettingsDir);
           }
 
           // check for this plugin's config directory, create if doesn't exist
           const pluginConfigDir = path.join(pluginSettingsDir, pluginMetadata.id);
           if (!await exists(pluginConfigDir)) {
-            await mkdir(pluginConfigDir);
+            await mkdirMemoized(pluginConfigDir);
           }
 
           // check for this plugin's config file, create if doesn't exist with default values from schema

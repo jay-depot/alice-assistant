@@ -1,3 +1,4 @@
+import Type from 'typebox';
 import { AlicePlugin } from '../../lib/types/alice-plugin-interface.js';
 
 type WebSearchResult = {
@@ -6,6 +7,12 @@ type WebSearchResult = {
   url: string;
   source: string; // the name of the plugin that provided this search result
 };
+
+const WebSearchBrokerPluginSettings = Type.Object({
+  preferredSearchProvider: Type.Optional(Type.String()),
+});
+
+type WebSearchBrokerPluginSettings = Type.Static<typeof WebSearchBrokerPluginSettings>;
 
 declare module '../../lib/types/alice-plugin-interface.js' {
   export interface PluginCapabilities {
@@ -57,6 +64,8 @@ const webSearchBrokerPlugin: AlicePlugin = {
 
     const webSearchProviderCallbacks: Record<string, (query: string) => Promise<WebSearchResult[]>> = {};
 
+    const config = await plugin.config<WebSearchBrokerPluginSettings>(WebSearchBrokerPluginSettings, {});
+
     plugin.offer<'web-search-broker'>({
       registerWebSearchProvider: (name, callback) => {
         // Store the callback and call it whenever we want to get web search results from this provider.
@@ -76,7 +85,7 @@ const webSearchBrokerPlugin: AlicePlugin = {
         return results;
       },
       async getPreferredProviderId() {
-        return ''; //TODO
+        return config.getPluginConfig().preferredSearchProvider || '';
       }
     });
   }

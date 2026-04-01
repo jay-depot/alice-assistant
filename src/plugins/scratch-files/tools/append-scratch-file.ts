@@ -8,8 +8,7 @@ const parameters = Type.Object({ filename: Type.String(), contents: Type.String(
 
 const appendScratchFileTool: (config) => Tool = (config) => ({
   name: 'appendScratchFile',
-  availableFor: ['autonomy', 'chat-session', 'voice-session'],
-  dependencies: ['readScratchFile', 'listScratchFiles', 'writeScratchFile'],
+  availableFor: ['autonomy', 'chat', 'voice'],
   description: 'Allows the assistant to write notes for itself in an internal scratch directory. This is meant to be used in conjunction with the ' +
     'readScratchFile tool, which can read back the contents of files the assistant has written. The files the assistant writes with this tool ' +
     'will not be directly accessible to user, and are meant to be a place for the assistant to write "notes to itself" for later.',
@@ -25,7 +24,6 @@ const appendScratchFileTool: (config) => Tool = (config) => ({
     `You may only use the extensions ${config.allowedFileTypes.join(', ')} for the ` +
     `filename, and the contents of the file must not exceed ${config.maxFileSizeKB} ` +
     `KB in size. You should also ensure that the filename does not contain any path traversal characters.`,
-  callSignature: 'appendScratchFile',
   parameters,
   toolResultPromptIntro: 'You have just updated a text file in your internal scratch directory using the appendScratchFile tool.\n',
   toolResultPromptOutro: '',

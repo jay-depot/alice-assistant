@@ -6,7 +6,7 @@ export const toolsHeaderPrompt: DynamicPrompt = {
   weight: 10,
   getPrompt: async (context): Promise<string | false> => {
     // Then the TOOLS section, which will list the tools that the assistant has access to, and how to use them.
-    const tools = getTools();
+    const tools = getTools(context.conversationType);
     if (tools.length > 0) {
       const systemPromptChunks: string[] = [];
       systemPromptChunks.push(`# TOOLS\n\nYou have access to tools that can: retrieve local and remote data, perform actions on the user's system. RULES — follow these EXACTLY:\n`);

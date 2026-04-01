@@ -5,7 +5,7 @@ const parameters = Type.Object({ path: Type.String(), filter: Type.Optional(Type
 
 const getDirectoryListingTool: Tool = {
   name: 'getDirectoryListing',
-  availableFor: ['chat-session', 'voice-session', 'autonomy'],
+  availableFor: ['chat', 'voice', 'autonomy'],
   description: `
     Retrieves a list of files and folders in a specified directory on the user's computer. Has the guardrail that only allows the 
     listing of directories explicitly defined in the tool's config file.
@@ -16,7 +16,6 @@ const getDirectoryListingTool: Tool = {
     `be used to filter the results. For example, if the user says "Can you show me the files in my Documents folder?", you might ` +
     `call getDirectoryListing with the "path" argument set to "~/Documents". If the user says "I can't find my resume, do you know ` +
     `where it is?", you might call getDirectoryListing with the "path" argument set to "~/" and the "filter" argument set to "resume"`,
-  callSignature: 'getDirectoryListing',
   parameters,
   toolResultPromptIntro: 'You have just received the results of a call to the getDirectoryListing tool. The results are in JSON format and have the following structure:\n' +
     '{\n' +

@@ -38,8 +38,7 @@ function isAllowedExtension(filePath: string, allowedExtensions: string[]): bool
 
 const readUserTextFileTool: (config) => Tool = (config) => ({
   name: 'readUserTextFile',
-  availableFor: ['chat-session', 'voice-session'],
-  dependencies: [],
+  availableFor: ['chat', 'voice', 'autonomy'],
   description: `Reads the contents of a text file from the user's filesystem in chunks, with optional offset and size limits. ` +
     `Complements previewUserTextFile for full document access.`,
   systemPromptFragment: `Call readUserTextFile when the user asks you to read the full contents of a text file, summarize ` +
@@ -48,7 +47,6 @@ const readUserTextFileTool: (config) => Tool = (config) => ({
     `to specify the character encoding. For example, if the user says "summarize my notes from last week", you might call ` +
     `readUserTextFile with path set to the file path and maxBytes set to an appropriate size. The tool respects security ` +
     `constraints on which directories and file types you can access.`,
-  callSignature: 'readUserTextFile',
   parameters,
   toolResultPromptIntro: `You have just read the contents of a text file using the readUserTextFile tool. The file contents ` +
     `are provided below (may be truncated if larger than the requested byte limit). Use this information to answer the user's ` +

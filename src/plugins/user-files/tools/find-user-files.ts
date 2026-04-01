@@ -82,8 +82,7 @@ function searchDirectory(
 
 const findUserFilesTool: (config) => Tool = (config) => ({
   name: 'findUserFiles',
-  availableFor: ['chat-session', 'voice-session', 'autonomy'],
-  dependencies: [],
+  availableFor: ['chat', 'voice', 'autonomy'],
   description: `Recursively searches allowed directories for files matching a name pattern, with optional filters for ` +
     `file extensions, text content, and modification date.`,
   systemPromptFragment: `Call findUserFiles when the user asks you to find a file by name or pattern. You must provide ` +
@@ -93,7 +92,6 @@ const findUserFilesTool: (config) => Tool = (config) => ({
     `(default is 50). For example, if the user says "find my resume", you might call findUserFiles with ` +
     `namePattern set to "*resume*" and extensions set to [".pdf", ".docx"]. The search is limited to user-configured ` +
     `allowed directories for security.`,
-  callSignature: 'findUserFiles',
   parameters,
   toolResultPromptIntro: ``,
   toolResultPromptOutro: '',

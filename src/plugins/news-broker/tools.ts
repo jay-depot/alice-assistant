@@ -6,7 +6,7 @@ const parameters = Type.Object({ query: Type.String() });
 
 const getNewsHeadlines: Tool = {
   name: 'getNewsHeadlines',
-  availableFor: ['chat-session', 'voice-session', 'autonomy'],
+  availableFor: ['chat', 'voice', 'autonomy'],
   description: 'Retrieves the latest news headlines from a news API.',
   systemPromptFragment: `Call getNewsHeadlines ONLY for queries about news or current events, including local ` +
     `news, national news, and world news. getNewsHeadlines takes one mandatory parameter, which is named ` +
@@ -14,7 +14,6 @@ const getNewsHeadlines: Tool = {
     `('can you find me', 'I need', 'please'). Examples: 'What's going on in the world today?' → query: 'world', ` +
     `'What's the latest from the Middle East?' → query: 'middle east', ` +
     `'What's the local news? → query: [INSERT CURRENT LOCATION FROM CONTEXT ABOVE]`,
-  callSignature: 'getNewsHeadlines',
   parameters,
   toolResultPromptIntro: 
     'You have just received the results of a call to the getNewsHeadlines tool. ' +

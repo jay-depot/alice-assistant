@@ -4,6 +4,7 @@ import { MikroORM } from '@mikro-orm/sqlite';
 import * as path from 'path';
 import { ChatSession, ChatSessionRound, Keyword, Memory } from './db-schemas/index.js';
 import { UserConfig } from '../../lib/user-config.js';
+import { SUMMARY_HEADER } from '../../lib.js';
 
 declare module '../../lib/types/alice-plugin-interface.js' {
   export interface PluginCapabilities {
@@ -71,7 +72,7 @@ declare module '../../lib/types/alice-plugin-interface.js' {
        * @param keywords 
        * @returns 
        */
-      saveMemory: (content: string, keywords?: string[]) => Promise<void>;
+      saveMemory: (content: string) => Promise<void>;
     }
   }
 };
@@ -83,6 +84,43 @@ const MemoryPluginConfigSchema = Type.Object({
 });
 
 export type MemoryPluginConfigSchema = Type.Static<typeof MemoryPluginConfigSchema>;
+
+async function saveMemory(orm: MikroORM, content: string) {
+  const em = orm.em.fork();
+  // Start by extracting keywords:
+  const keywords = content.split(' ').filter(word => {
+    // Filter out common words, articles, pronouns, and other "filler" words that aren't useful as keywords. 
+    // This is a very naive implementation, and could be improved with a more sophisticated NLP approach, but it should work decently for now. 
+    const lowerWord = word.toLowerCase();
+    if (['the', 'a', 'an', 'some', 'any', 'and', 'or', 'but', 'if', 'then', 'I', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them'].includes(lowerWord)) {
+      return false;
+    }
+    // Filter out punctuation and other non-alphanumeric characters. 
+    if (/[^a-z0-9]/i.test(lowerWord)) {
+      return false;
+    }
+    return true;
+  });
+
+  const keywordEntities = [];
+  for (const keyword of keywords) {
+    let keywordEntity = await em.findOne(Keyword, { keyword });
+    if (!keywordEntity) {
+      keywordEntity = em.create(Keyword, { keyword });
+      em.persist(keywordEntity);
+    }
+    keywordEntities.push(keywordEntity);
+  }
+
+  const memory = em.create(Memory, { 
+    timestamp: new Date(),
+    content, 
+    keywords: keywordEntities 
+  });
+  em.persist(memory);
+
+  await em.flush();
+}
 
 const memoryPlugin: AlicePlugin = {
   // The Alice plugin system may call this to retrieve the plugin's metadata even 
@@ -126,8 +164,9 @@ const memoryPlugin: AlicePlugin = {
         const orm = await databaseReadyPromise;
         return callback(orm);
       },
-      saveMemory: async (content: string, keywords?: string[]) => {
-        // TBD: This is where we'd save a memory to the database, along with any associated keywords. 
+      saveMemory: async (content: string) => {
+        const orm = await databaseReadyPromise;
+        await saveMemory(orm, content);
       }
     });
     // then we'd go through the rest of the setup first. After all plugins are loaded, and any 
@@ -140,7 +179,7 @@ const memoryPlugin: AlicePlugin = {
 
     plugin.registerTool({
         name: 'recallMemory',
-        availableFor: ['chat-session', 'voice-session', 'autonomy'],
+        availableFor: ['chat', 'voice', 'autonomy'],
         description: 'Recalls a specific memory from the assistant\'s memory of previous interactions.',
         systemPromptFragment: `Call recallMemory when you need information from a past conversation. ` +
           `Do not use this tool for idle banter, or additional context unless you have been asked about ` +
@@ -151,7 +190,6 @@ const memoryPlugin: AlicePlugin = {
           `The parameter must be provided in the format "keyword:someKeyword", ` +
           `"keyword:comma,separated,keywords"  or "date:YYYY-MM-DD". DO NOT INCLUDE ARTICLES/QUANTIFIERS ` +
           `(a, the, an, some, any, ...), PRONOUNS, OR OTHER COMMON "FILLER WORDS" IN THE KEYWORDS.`,
-        callSignature: 'recallMemory(["keyword"|"date"]: string)',
         parameters,
         toolResultPromptIntro: `You have just received the results of a call to the recallMemory tool. The results are in JSON format and have the following structure:\n{\n  "memories": [\n    {\n      "timestamp": string,\n      "content": string\n    },\n    ...\n  ]\n}\nThe "memories" field is an array of memory objects. Each memory object has a "timestamp" field, which is a string representing the date and time, in the user's timezone, when that memory was stored, and a "content" field, which is a string summary of the recalled interaction. Use this information to answer the user's query, and remember that your response will be synthesized into speech, so keep it punchy and short.`,
         toolResultPromptOutro: () => 
@@ -209,6 +247,17 @@ const memoryPlugin: AlicePlugin = {
     );
 
     plugin.hooks.onUserConversationWillEnd(async (conversation) => {});
+    plugin.hooks.onContextCompactionSummariesWillBeDeleted(async (summaries) => {
+      const orm = await databaseReadyPromise;
+      for (const summary of summaries) {
+        // We do these serially because otherwise there might be a race condition 
+        // creating the keyword entries. Making that atomic might be nice, but I 
+        // don't think SQLite is *quite* that cool.
+
+        const contentWithoutHeader = summary.content.replace(SUMMARY_HEADER, '');
+        await saveMemory(orm, contentWithoutHeader);
+      }
+    });
 
     plugin.registerHeaderSystemPrompt({
       name: 'memoryHeader',

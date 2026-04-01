@@ -3,7 +3,7 @@ import { Tool } from '../../../lib/tool-system.js';
 
 const systemHealthCheckTool: (config) => Tool = (config) => ({
   name: 'systemHealthCheck',
-  availableFor: ['chat-session', 'voice-session', 'autonomy'],
+  availableFor: ['chat', 'voice', 'autonomy'],
   description: 'Performs a health check on the system and returns a report.',
   systemPromptFragment: `Call systemHealthCheck ONLY for questions about the status of the computer you are running on. ` +
     `This includes general questions about how you are doing, as you ARE the computer. systemHealthCheck takes no parameters.`,

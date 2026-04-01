@@ -4,8 +4,6 @@
 // import * as childProcess from "child_process";
 import { Static, Type } from "typebox";
 import { Tool } from "../../lib/tool-system.js";
-import { UserConfig } from "../../lib/user-config.js";
-import { config } from 'node:process';
 
 type AvailableApplicationDescription = {
   alias: string;
@@ -24,7 +22,7 @@ const parameters = Type.Object({ application: Type.Optional(Type.String()), para
 
 export const openApplicationTool: (config) => Tool = (config) => ({
   name: "openApplication",
-  availableFor: ['chat-session', 'voice-session'],
+  availableFor: ['chat', 'voice'],
   description: "Allows the assistant to open applications, files, folders and web pages on behalf of the user. This " +
     "tool tries to be safe by only allowing specific list of user-defined applications to be opened with a limited set of " +
     "parameters. The LLM does not know the specific programs being used to fulfill the user's requests, only aliases.",
