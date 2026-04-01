@@ -91,11 +91,12 @@ function useMood(): string {
 function MoodWidget() {
   const moodClass = useMood();
 
-  return React.createElement('div', {
-    id: 'mood-box',
-    className: moodClass,
-    title: moodClass,
-  });
+  return (<div
+    id="mood-box"
+    className={`mood-widget mood-widget--${moodClass}`}
+    title={`Current mood: ${moodClass}`}
+  />
+  );
 }
 
 const moodUiExtension: PluginClientExport = {
