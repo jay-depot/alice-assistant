@@ -37,7 +37,7 @@
   {
     "id": "mood",
     "name": "Mood",
-    "required": true
+    "required": false
   },
   {
     "id": "application",

@@ -1,7 +1,8 @@
-import { AlicePlugin } from '../../lib/types/alice-plugin-interface.js';
-import express,  { Express } from 'express';
+import { AlicePlugin, AliceUiScriptRegistration } from '../../lib/types/alice-plugin-interface.js';
+import express, { Express } from 'express';
 import * as fs from 'fs';
 import * as path from 'path';
+import { createHash } from 'crypto';
 import { fileURLToPath } from 'url';
 import { type Server } from 'http';
 import { UserConfig } from '../../lib/user-config.js';
@@ -15,7 +16,11 @@ declare module '../../lib/types/alice-plugin-interface.js' {
     'web-ui': {
       express: Express;
       // addCss: (path: string) => void; // This will be for plugins to add CSS files to be served by the web UI.
-      registerScript: (path: string) => void; // This will be for plugins to add React components to be served by the web UI. This script should load all other components you need, and call the appropriate front-end hooks to add itself to the UI.
+      /**
+       * Registers a script to be served and loaded by the web UI. The script should implement an `onAliceUIReady()` 
+       * function where it can register its components and routes.
+       */
+      registerScript: (path: string) => void; 
     }
   }
 }
@@ -29,7 +34,6 @@ const webUiPlugin: AlicePlugin = {
     version: 'LATEST',
     dependencies: [
       { id: 'memory', version: 'LATEST' },
-      { id: 'mood', version: 'LATEST' },
     ], // probably no plugins should depend on this one, since it's so core to the assistant's functionality. Should we enforce that somehow?
     required: true,
     system: true,
@@ -37,8 +41,7 @@ const webUiPlugin: AlicePlugin = {
 
   async registerPlugin(pluginInterface) {
     const plugin = await pluginInterface.registerPlugin(webUiPlugin.pluginMetadata); 
-    const { registerDatabaseModels, onDatabaseReady, saveMemory } = plugin.request('memory');
-    const { getMood } = plugin.request('mood');
+    const { onDatabaseReady } = plugin.request('memory');
 
     const PORT = UserConfig.getConfig().webInterface.port;
     const HOST = UserConfig.getConfig().webInterface.bindToAddress;
@@ -48,6 +51,40 @@ const webUiPlugin: AlicePlugin = {
     fs.mkdirSync(userWebInterfaceDir, { recursive: true });
 
     const app = express();
+    const registeredScripts: AliceUiScriptRegistration[] = [];
+    const registeredScriptPaths = new Set<string>();
+
+    const registerScript = (scriptPath: string): void => {
+      const resolvedPath = path.resolve(scriptPath);
+
+      if (!fs.existsSync(resolvedPath)) {
+        throw new Error(`web-ui plugin: registerScript could not find file: ${resolvedPath}`);
+      }
+
+      if (!fs.statSync(resolvedPath).isFile()) {
+        throw new Error(`web-ui plugin: registerScript expected a file path, got: ${resolvedPath}`);
+      }
+
+      if (registeredScriptPaths.has(resolvedPath)) {
+        return;
+      }
+
+      const scriptId = createHash('sha1').update(resolvedPath).digest('hex').slice(0, 12);
+      const safeFileName = path.basename(resolvedPath).replace(/[^a-zA-Z0-9._-]/g, '-');
+      const scriptUrl = `/plugin-scripts/${scriptId}-${safeFileName}`;
+
+      registeredScriptPaths.add(resolvedPath);
+      registeredScripts.push({ id: scriptId, scriptUrl });
+
+      app.get(scriptUrl, (_req, res) => {
+        res.setHeader('Cache-Control', 'no-store');
+        res.type('application/javascript');
+        res.sendFile(resolvedPath);
+      });
+
+      console.log(`Registered web UI client script ${resolvedPath} at ${scriptUrl}`);
+    };
+
     app.use(express.json());
 
     app.get('/user-style.css', (_req, res) => {
@@ -68,18 +105,7 @@ const webUiPlugin: AlicePlugin = {
 
     plugin.offer<'web-ui'>({
       express: app,
-      // addCss: (cssPath: string) => {
-      //   // Create an express route for this CSS file, and then add it to the list of 
-      //   // CSS files the front-end should load. Those will need to make their way into
-      //   // the HTML payload we send somehow, but we'll handle that later.
-      // },
-      registerScript: (jsxPath: string) => {
-        // Create an express route for this JSX file, and then add it to the list of 
-        // JSX files the front-end should load. For this, we can be a little lazier, 
-        // and make an endpoint that lists these, and have the front-end's bootstrap
-        // script load them dynamically. After all, the less we have to muck with the
-        // HTML payload, the better.`
-      },
+      registerScript,
     });
 
     plugin.hooks.onAssistantAcceptsRequests(async () => {
@@ -222,15 +248,13 @@ const webUiPlugin: AlicePlugin = {
         res.json({ reply: `This is a placeholder for deleting the chat session with id ${id}` });
       });
 
-      app.get('/api/mood', async (req, res) => {
-        // TODO: wire up to Alice assistant logic. 
-    
-        // This should return the assistant's current "mood", which is a global state that the 
-        // assistant can set through tools. The mood can be used to influence the assistant's 
-        // responses, and can be displayed in the UI to give the user a sense of the assistant's 
-        // current state of mind.
+      app.get('/api/extensions', async (_req, res) => {
         res.setHeader('Cache-Control', 'no-store');
-        res.json({ mood: (await getMood()).mood }); // Don't send the reason to the client.
+        res.json({ extensions: registeredScripts });
+      });
+
+      app.get(/^\/(?!api(?:\/|$)|plugin-scripts(?:\/|$)).*/, (_req, res) => {
+        res.sendFile(path.join(currentDir, 'client', 'index.html'));
       });
     
       const server: Server = app.listen(PORT, HOST, (err) => {

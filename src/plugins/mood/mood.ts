@@ -2,12 +2,16 @@ import { Type } from 'typebox';
 import { AlicePlugin } from '../../lib/types/alice-plugin-interface.js';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'url';
 import { UserConfig } from '../../lib/user-config.js';
+
+const currentDir = path.dirname(fileURLToPath(import.meta.url));
 
 declare module '../../lib/types/alice-plugin-interface.js' {
   export interface PluginCapabilities {
     mood: {
-      getMood: () => Promise<{ mood: string; reason: string }>; // returns the assistant's current mood and the reason for that mood, or an empty string if no mood is set.
+      /** Returns the assistant's current mood and the reason for that mood, or an empty string if no mood is set. */
+      getMood: () => Promise<{ mood: string; reason: string }>; 
     }
   }
 };
@@ -74,13 +78,14 @@ const moodPlugin: AlicePlugin = {
     name: 'Mood Plugin',
     description: 'Allows the assistant to set a "mood" that is included in the system prompt and used to influence the assistant\'s responses as well as other aspects of how the assistant is presented, including an expression sprite in the web UI.',
     version: 'LATEST',
-    dependencies: [],
+    dependencies: [{ id: 'web-ui', version: 'LATEST' }],
     required: false,
     system: true,
   },
 
   async registerPlugin(pluginInterface) {
     const plugin = await pluginInterface.registerPlugin(moodPlugin.pluginMetadata);
+    const webUi = plugin.request('web-ui');
     const currentMood: { mood: string; reason: string } = { mood: 'neutral', reason: 'Default on assistant startup' };
 
 
@@ -101,6 +106,15 @@ const moodPlugin: AlicePlugin = {
       const moodData = { mood, reason };
       fs.mkdirSync(toolConfigPath, { recursive: true });
       fs.writeFileSync(path.join(toolConfigPath, 'last-mood.json'), JSON.stringify(moodData), 'utf-8');
+    }
+
+    if (webUi) {
+      webUi.express.get('/api/mood', async (_req, res) => {
+        res.setHeader('Cache-Control', 'no-store');
+        res.json({ mood: currentMood.mood });
+      });
+
+      webUi.registerScript(path.join(currentDir, 'mood-web-ui.js'));
     }
 
     // TODO: Bring over mood save/load from original tool definition.

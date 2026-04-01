@@ -17,97 +17,87 @@ Migrate the vanilla-TS web UI client to React 18 + esbuild. Add a server-side `r
 
 ## Phase 1 — Project Setup (no code dependencies)
 
-1. Install `react`, `react-dom`, `react-router-dom` + their `@types/*` as deps
-2. Install `esbuild` as a dev dep
-3. Create `src/plugins/web-ui/client/tsconfig.client.json` extending root but with `"jsx": "react-jsx"`, `"lib": ["ES2022","DOM"]`, `"moduleResolution": "bundler"`, `"module": "ESNext"`
-4. Add npm scripts to `package.json`:
+1. [x] Install `react`, `react-dom`, `react-router-dom` + their `@types/*` as deps
+2. [x] Install `esbuild` as a dev dep
+3. [x] Create `src/plugins/web-ui/client/tsconfig.client.json` extending root but with `"jsx": "react-jsx"`, `"lib": ["ES2022","DOM"]`, `"moduleResolution": "bundler"`, `"module": "ESNext"`
+4. [x] Add npm scripts to `package.json`:
    - `build:server` — existing tsc + copyfiles logic
    - `build:client` — esbuild bundle command targeting `src/plugins/web-ui/client/index.tsx` → `dist/plugins/web-ui/client/alice-client.js`
    - `build` — runs both in sequence
-5. Update `index.html`: change `<script type="module" src="alice-client.js">` stays the same; add `<div id="root">` as the only body child inside `#app` (clear the old static markup, or adjust index.html appropriately after React is wired up)
+5. [x] Update `index.html`: change `<script type="module" src="alice-client.js">` stays the same; add `<div id="root">` as the only body child inside `#app` (clear the old static markup, or adjust appropriately while the React migration is in progress)
 
 ---
 
 ## Phase 2 — Type & API Layer (depends on Phase 1)
 
-Create `src/plugins/web-ui/client/types/index.ts`:
-- Port existing interfaces: `Message`, `Session`, `SessionSummary`, `MoodResponse`
-- Add new: `UIRegion` union type, `ExtensionRegistration`, `PluginClientExport`
+- [x] Create `src/plugins/web-ui/client/types/index.ts`:
+  - Port existing interfaces: `Message`, `Session`, `SessionSummary`, `MoodResponse`
+  - Add new: `UIRegion` union type, `ExtensionRegistration`, `PluginClientExport`
 
-Create `src/plugins/web-ui/client/api/`:
-- `client.ts` — `apiFetch<T>()` wrapper (port from alice-client.ts)
-- `sessions.ts` — `fetchSessions()`, `fetchSession()`, `createSession()`, `patchSession()`, `endSession()`
-- `mood.ts` — `fetchMood()`
-- `extensions.ts` — `fetchExtensions()` → GET /api/extensions
+- [x] Create `src/plugins/web-ui/client/api/`:
+  - `client.ts` — `apiFetch<T>()` wrapper (ported from `alice-client.ts`)
+  - `sessions.ts` — `fetchSessions()`, `fetchSession()`, `createSession()`, `patchSession()`, `endSession()`
+  - `mood.ts` — `fetchMood()`
+  - `extensions.ts` — `fetchExtensions()` → `GET /api/extensions` (returns `[]` until Phase 6 lands)
 
 ---
 
 ## Phase 3 — React Hooks (depends on Phase 2)
 
-Create `src/plugins/web-ui/client/hooks/`:
-- `useSessions.ts` — list + CRUD for sessions
-- `useSession.ts` — active session state, message sending, loading flag
-- `useMood.ts` — 3-second polling, stops when tab hidden (port logic from alice-client.ts)
-- `useExtensions.ts` — fetches GET /api/extensions at mount, and dynamically imports each `scriptUrl`. Each script will then have to implement onAliceUIReady() where it may register its components and routes. Updates the ExtensionContext registry with loaded extensions on the fly so regions can be re-rendered with new components. Blocker: Need to determine contract for how these extension scripts should look, and how they register their components + routes once loaded.
+- [x] Create `src/plugins/web-ui/client/hooks/`:
+  - `useSessions.ts` — list + CRUD for sessions
+  - `useSession.ts` — active session state, message sending, loading flag
+  - `useMood.ts` — 3-second polling, stops when tab hidden (ported from `alice-client.ts`)
+  - `useExtensions.ts` — fetches `GET /api/extensions` at mount, dynamically imports each `scriptUrl`, and exposes extension regions/routes through the context layer
 
 ---
 
 ## Phase 4 — React Components (depends on Phase 3)
 
-Create `src/plugins/web-ui/client/components/`:
-- `RegionSlot.tsx` — reads `ExtensionContext`, renders all components registered for a given region id
-- `MoodBox.tsx` — mood class on a div (port mood polling display, temporary until it's moved into the mood plugin itself)
-- `SessionItem.tsx` — single session in sidebar with relative timestamp
-- `SessionsList.tsx` — renders session items, handles selection
-- `Sidebar.tsx` — sidebar-header (logo, new-chat btn), RegionSlot('sidebar-top'), SessionsList, RegionSlot('sidebar-bottom'), plugin page nav links
-- `ChatHeader.tsx` — session title, end-session btn, RegionSlot('chat-header'), settings gear button (triggers settings panel)
-- `WelcomeScreen.tsx` — welcome logo + hint overlay
-- `MessageBubble.tsx` — user/assistant bubble with timestamp, escapeHtml, preserves newlines
-- `TypingIndicator.tsx` — animated dots
-- `MessagesArea.tsx` — scroll container, RegionSlot('message-prefix'), message list, TypingIndicator, RegionSlot('message-suffix'), auto-scroll behaviour
-- `InputArea.tsx` — RegionSlot('input-prefix'), textarea (auto-resize up to 150px), send button, Enter/Shift+Enter handling
-- `SettingsPanel.tsx` — slide-over or modal drawer, RegionSlot('settings-panel')
-- `ErrorToast.tsx` — port existing toast notification
-
+- [x] Create `src/plugins/web-ui/client/components/`:
+  - `RegionSlot.tsx` — reads `ExtensionContext`, renders all components registered for a given region id
+  - `MoodBox.tsx` — mood class on a div (temporary until that UI is moved into the `mood` plugin itself)
+  - `SessionItem.tsx` — single session in sidebar with relative timestamp
+  - `SessionsList.tsx` — renders session items and handles selection
+  - `Sidebar.tsx` — sidebar header, `RegionSlot('sidebar-top')`, sessions list, `RegionSlot('sidebar-bottom')`
+  - `ChatHeader.tsx` — session title, end-session button, `RegionSlot('chat-header')`, settings button
+  - `WelcomeScreen.tsx` — welcome logo + hint overlay
+  - `MessageBubble.tsx` — user/assistant bubble with timestamp and preserved newlines
+  - `TypingIndicator.tsx` — animated dots
+  - `MessagesArea.tsx` — scroll container, `RegionSlot('message-prefix')`, message list, typing indicator, `RegionSlot('message-suffix')`, auto-scroll behavior
+  - `InputArea.tsx` — `RegionSlot('input-prefix')`, textarea auto-resize, send button, `Enter`/`Shift+Enter` handling
+  - `SettingsPanel.tsx` — slide-over drawer with `RegionSlot('settings-panel')`
+  - `ErrorToast.tsx` — existing toast notification behavior, now as a component
 ---
 
 ## Phase 5 — Context & App Root (depends on Phase 4)
 
-Create `src/plugins/web-ui/client/context/ExtensionContext.tsx`:
-- `ExtensionRegistry` type: `Record<string, React.ComponentType[]>` (region id → components)
-- `ExtensionProvider` — uses `useExtensions()`, exposes registry + custom routes via context
-- `useExtensionRegistry()` helper hook
+- [x] Create `src/plugins/web-ui/client/context/ExtensionContext.tsx`:
+  - `ExtensionRegistry` type: `Record<string, React.ComponentType[]>` (region id → components)
+  - `ExtensionProvider` — uses `useExtensions()`, exposes registry + custom routes via context
+  - `useExtensionRegistry()` helper hook
 
-Create `src/plugins/web-ui/client/App.tsx`:
-- Wraps everything in `ExtensionProvider` + `BrowserRouter` (react-router-dom)
-- Route `/` — main chat layout (Sidebar + ChatHeader + MessagesArea + InputArea + SettingsPanel)
-- Additional routes from `ExtensionProvider.routes` registered dynamically
-- Session state housed here (or in a SessionContext if complexity warrants)
+- [x] Create `src/plugins/web-ui/client/App.tsx`:
+  - Wraps the UI in `BrowserRouter` (react-router-dom)
+  - Route `/` — main chat layout (Sidebar + ChatHeader + MessagesArea + InputArea + SettingsPanel)
+  - Additional routes from `ExtensionProvider.routes` are registered dynamically and exposed in the sidebar
+  - Session state remains housed in the React app shell
 
-Create `src/plugins/web-ui/client/index.tsx`:
-- `ReactDOM.createRoot(document.getElementById('root')!).render(<App />)`
+- [x] Create `src/plugins/web-ui/client/index.tsx`:
+  - `ReactDOM.createRoot(document.getElementById('root')!).render(<ExtensionProvider><App /></ExtensionProvider>)`
 
-Delete old `alice-client.ts` (after React version is complete)
+- [x] Delete old `alice-client.ts` once the React shell was fully in place
 
 ---
 
 ## Phase 6 — Server-Side Extension API (parallel with Phase 4/5)
 
-**`src/lib/types/alice-plugin-interface.ts`** — extend `PluginCapabilities['web-ui']`:
-```
-registerScript(absPath: string): void;
-```
-Also export `UIRegion` type from this file.
-
-**`src/plugins/web-ui/web-ui.ts`**:
-- Internal `registrations: ExtensionRegistration[]` array
-- `registerScript()` implementation:
-  - Validates `absPath` is an existing file
-  - Derives a stable URL path: `/plugin-scripts/{hash-or-sanitized-filename}`
-  - Registers an Express `GET` route to serve the file (before `app.listen`)
-- Add `GET /api/extensions` route returning `{ extensions: registrations }`
-- Include `registerScript` in `plugin.offer<'web-ui'>({ express: app, registerScript })`
-- `registerScript` must be callable **before** `onAssistantAcceptsRequests` fires (i.e. it queues registrations, routes are applied when the server starts)
+- [x] **`src/lib/types/alice-plugin-interface.ts`** exports shared web UI extension types, including `UIRegion`
+- [x] **`src/plugins/web-ui/web-ui.ts`** now provides `registerScript(absPath: string): void` through `PluginCapabilities['web-ui']`
+- [x] `registerScript()` validates the file, derives a stable `/plugin-scripts/{hash}-{filename}` URL, and serves it through Express
+- [x] `GET /api/extensions` returns `{ extensions: registrations }`
+- [x] `plugin.offer<'web-ui'>({ express: app, registerScript })` exposes the API to dependent plugins
+- [x] Added an SPA fallback route so plugin pages registered in the React router also work on direct navigation/refresh
 
 ---
 
@@ -120,17 +110,25 @@ Update `src/plugins/web-ui/client/index.html`:
 
 ---
 
+## Phase 8 — Mood Plugin Cleanup
+- [x] Move the `/api/mood` endpoint registration into the `mood` plugin
+- [x] Move the mood polling logic into the mood plugin's own client script (`src/plugins/mood/mood-web-ui.js`)
+- [x] Remove mood display from the default web UI and have the `mood` plugin register it into the `sidebar-top` region itself
+- [x] Remove the remaining direct dependency on the `mood` plugin from `web-ui`
+- [x] Reverse the dependency relationship so `mood` depends on `web-ui`
+- [x] Make `mood` optional for the assistant in `src/plugins/system-plugins.json`
+
 ## Relevant Files
 
 | File | Action |
 |---|---|
-| `src/plugins/web-ui/client/alice-client.ts` | DELETE after React port |
+| `src/plugins/web-ui/client/alice-client.ts` | DELETED (legacy vanilla client entry) |
 | `src/plugins/web-ui/client/index.html` | Simplify to just `<div id="root">` |
 | `src/plugins/web-ui/client/style.css` | Keep as-is (CSS custom properties + mood classes reused) |
 | `src/plugins/web-ui/web-ui.ts` | Add `registerScript`, `GET /api/extensions`, update `plugin.offer` |
 | `src/lib/types/alice-plugin-interface.ts` | Add `UIRegion`, extend `PluginCapabilities['web-ui']` |
 | `package.json` | Add React deps, esbuild, build scripts |
-| `tsconfig.json` | No changes needed |
+| `tsconfig.json` | Add JSX support for the client `.tsx` files |
 | `src/plugins/web-ui/client/tsconfig.client.json` | NEW — JSX + DOM lib |
 
 ---
@@ -140,21 +138,16 @@ Update `src/plugins/web-ui/client/index.html`:
 Server-side in their plugin:
 ```ts
 const { registerScript } = plugin.request('web-ui');
-registerScript(path.join(currentDir, 'client-bundle.js'), {
-  regions: ['sidebar-bottom'],
-  routes: [{ path: '/my-page', title: 'My Page' }]
-});
+registerScript(path.join(currentDir, 'client-bundle.js'));
 ```
 
-Their pre-built `client-bundle.js` default-exports:
+Their pre-built `client-bundle.js` can default-export static regions/routes and/or an `onAliceUIReady()` hook. For hook-based components, use the shared React instance exposed as `globalThis.React` by the host app:
 ```ts
 export default {
-  regions: {
-    'sidebar-bottom': MySidebarWidget,    // React.ComponentType
-  },
-  routes: [
-    { path: '/my-page', component: MyPage }
-  ]
+  onAliceUIReady(api) {
+    api.registerComponent('sidebar-bottom', MySidebarWidget);
+    api.registerRoute({ path: '/my-page', title: 'My Page', component: MyPage });
+  }
 }
 ```
 
