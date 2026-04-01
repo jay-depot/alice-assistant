@@ -88,31 +88,6 @@ npm run build       # full build (server + React client + plugin UIs)
 
 Output lands in `dist/` (excluded from source control).
 
-### ⚠️ Known Build Error — `tsconfig.json` missing `rootDir`
-
-TypeScript ≥ 5.9 requires an explicit `rootDir` when `outDir` is set and the project root differs from the source tree. The current `tsconfig.json` triggers:
-
-```
-error TS5011: The common source directory of 'tsconfig.json' is './src'.
-The 'rootDir' setting must be explicitly set to this or another path
-to adjust your output's file layout.
-```
-
-**Workaround / fix:** add `"rootDir": "./src"` to `compilerOptions` in `tsconfig.json`:
-
-```json
-{
-  "compilerOptions": {
-    "rootDir": "./src",
-    ...
-  }
-}
-```
-
-Until this is fixed, `npm run build` will fail at the `build:server` step. The `build:client` and `build:plugin-ui` steps use esbuild directly and are unaffected.
-
----
-
 ## Running the Application
 
 Requires a running [Ollama](https://ollama.com/) instance (default `http://127.0.0.1:11434`, model `qwen2:7b`).
@@ -171,12 +146,12 @@ After calling `api.registerPlugin(metadata)`, a plugin receives:
 | Method | Purpose |
 |--------|---------|
 | `registerTool(def)` | Add an LLM function-call tool |
-| `registerHeaderSystemPrompt(def)` | Inject text before tool definitions in the system prompt |
-| `registerFooterSystemPrompt(def)` | Inject text after tool definitions |
+| `registerHeaderSystemPrompt(def)` | Inject additional "system" messages into the conversation stream, before the conversation turns |
+| `registerFooterSystemPrompt(def)` | Inject additional "system" messages into the conversation stream, after the conversation turns |
 | `config<T>(schema, defaults)` | Load typed config from `~/.alice-assistant/plugin-settings/<id>/<id>.json` |
 | `offer(capabilities)` | Export an API object to dependent plugins |
 | `request(pluginId)` | Receive the API exported by a dependency |
-| `hooks` | Register lifecycle callbacks (see below) |
+| `hooks` | Register lifecycle and event callbacks (see below) |
 
 ### Lifecycle Hooks (`AlicePluginHooks`)
 
@@ -190,9 +165,20 @@ hooks.onToolWasCalled(async (tool, args, result) => { });
 hooks.onPluginsWillUnload(async () => { /* graceful shutdown */ });
 ```
 
+### Event Hooks (also `AlicePluginHooks`)
+
+```typescript
+hooks.onConversationTurn(async (conversation) => { /* every conversation turn, may not be invoked by core yet, but will be before version 1.0.0 */ });
+hooks.onUserConversationWillBegin(async (conversation, type) => { /* called before the first user turn of a new conversation will be processed. May not be invoked by core yet, but will be before version 1.0.0 */ }),
+hooks.onUserConversationWillEnd(async (conversation, type) => { /* called after the last user turn of a conversation has been processed, but before the conversation is closed and its context goes out of scope and is lost. May not be invoked by core yet, but will be before version 1.0.0 */ }),
+hooks.onToolWillBeCalled(async (tool, args) => {/* called before a tool is called, with the tool definition and the arguments the LLM plans to call it with. May not be invoked by core yet, but will be before version 1.0.0 */})
+hooks.onToolWasCalled(async (tool, args, result) => { /* called after a tool has been called, with the tool definition, the arguments, and the result. May not be invoked by core yet, but will be before version 1.0.0 */ }),
+hooks.onContextCompactionSummariesWillBeDeleted(async (summaries) => { /* called before old conversation summaries are deleted during context compaction, with the summaries that are about to be deleted. Currently invoked by core and used by the `memory` system plugin. */ }),
+```
+
 ### Plugin Dependencies
 
-Declare dependencies in `pluginMetadata.dependencies`. The engine ensures dependencies finish loading before calling the dependent plugin's `registerPlugin`. Use `api.request('dependency-plugin-id')` to access a dependency's offered API.
+Declare dependencies in `pluginMetadata.dependencies`. The engine holds the dependent plugin's initial `api.registerPlugin(pluginMetadata)` from returning until all dependencies are loaded. Use `api.request('dependency-plugin-id')` to access a dependency's offered API.
 
 ### Inter-plugin API (TypeScript Module Augmentation)
 
@@ -237,7 +223,7 @@ React client is bundled with esbuild as ESM; the web-ui plugin serves it as a st
 
 ### Database Extension
 
-The `memory` plugin exposes an API for registering MikroORM entities. Plugins declare a dependency on `memory` and receive a callback once the database is ready (`onDatabaseReady`). Entity class names should be prefixed with the plugin's name to avoid table collisions (e.g., `MoodEntry`, not just `Entry`).
+The `memory` plugin exposes an API for registering MikroORM entities. Plugins declare a dependency on `memory` and receive a callback once the database is ready (`onDatabaseReady`). Entity class names should be prefixed with the plugin's name to avoid table collisions (e.g., `MoodEntry`, not just `Entry`). Existing entity classes: `ChatSession`, `ChatSessionRound`, `Keyword`, `Memory`, are exempt from this naming convention.
 
 ---
 
@@ -291,11 +277,11 @@ registered by plugin baz. Disable one of these plugins to fix your assistant.
 - Config schemas are defined with `typebox` `Type.Object(...)` shapes
 - Defaults are provided alongside the schema in a plain JS object
 - Config files live at `~/.alice-assistant/plugin-settings/<plugin-id>/<plugin-id>.json`
-- Tool-level config lives at `~/.alice-assistant/tool-settings/<tool-name>/<tool-name>.json`
+- Deprecated tool-level config lives at `~/.alice-assistant/tool-settings/<tool-name>/<tool-name>.json` but should be migrated into plugin-level config where possible.
 
 ### Personality Files
 
-Located in `~/.alice-assistant/personality/` (scaffolded from `config-default/personality/`). Plain Markdown. Current files: `intro.md`, `quirks.md`, `user-wellbeing.md`. These are injected into the system prompt at startup.
+Located in `~/.alice-assistant/personality/` (scaffolded from `config-default/personality/`). Plain Markdown. Current files: `intro.md`, `quirks.md`, `user-wellbeing.md`. These are injected into the system prompt at startup. Any additional markdown files in that directory are also then injected in alphabetical order, with their file names "titleized" and used as the section headers. Example: `chill-but-useful.md` becomes `## Chill But Useful` in the "main" system prompt.
 
 ---
 
@@ -303,7 +289,6 @@ Located in `~/.alice-assistant/personality/` (scaffolded from `config-default/pe
 
 | Area | Issue / TODO |
 |------|-------------|
-| `tsconfig.json` | Missing `"rootDir": "./src"` — build fails with TS5011 on TypeScript ≥ 5.9 |
 | Testing | No test framework configured (`npm test` exits 1) |
 | Voice loop | STT and TTS wrappers exist but are not yet wired into a full wake-word → STT → chat → TTS → audio-output loop |
 | Application plugin | `application` plugin does not actually launch applications yet |
@@ -325,4 +310,3 @@ Located in `~/.alice-assistant/personality/` (scaffolded from `config-default/pe
 - **No** "heartbeats," webhooks, or autonomous agentic features
 - Limited autonomy planned via `autonomy-safe` tool flag (read-only / scratch-only tools shown during timed autonomous prompts)
 - Cloud LLM integrations (GPT, Claude, Gemini) must be **disabled by default** and the assistant must remain **local-model-first**
-- Do not add rules to this list :)
