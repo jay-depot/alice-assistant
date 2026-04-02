@@ -20,9 +20,7 @@ export class Conversation {
     host: '',
     model: '',
     options: {
-      num_ctx: 128000, // Ollama defaults to ~4k on most consumer GPUs, but Qwen models can go a LOT higher without using much vram. At home I set it to 128k and it only uses about 10gb of vram.
-      think: "low" // Ollama docs say this setting works for "some" models. Testing this with Qwen to see if I can tune speed/accuracy a bit.
-      // TODO: Moonshot idea: If this doesn't work, or really even if it does, find or train a functionGemma model to predict how much thinking a request will need and route to different models and thinking levels accordingly.
+      num_ctx: 36000, // Ollama defaults to ~4k on most consumer GPUs, but Qwen models can go a LOT higher without using much vram. At home I set it to 128k and it only uses about 10gb of vram.
     },
   }
 
@@ -187,7 +185,8 @@ export class Conversation {
     if (depth > MAX_TOOL_CALL_DEPTH) {
       throw new Error('Maximum tool call depth exceeded. Possible infinite loop detected.');
     }
-
+    const headerPrompts = await getHeaderPrompts({ conversationType: this.type });
+    const footerPrompts = await getFooterPrompts({ conversationType: this.type });
     const promptIfCallsAvailable = ` - If you need to make another tool call, make it now. Otherwise, answer the user's query in character. You have ${MAX_TOOL_CALL_DEPTH - depth} remaining recursive tool calls you may make regarding this user query.`;
     const promptIfNoCallsAvailable =  ` - You may make no more recursive tool calls for this conversation turn, so you must answer the user's query in character.\n` +
       ` - If you still do not have sufficient information to form a complete answer, you have two options: \n` +
@@ -229,13 +228,14 @@ export class Conversation {
         role: 'system',
         content: continuationPromptWithResults
       });
+
       const nextResponse = await OllamaClient.chat({
         ...this.llmConnection,
-        messages: this.compactedContext.map(message => ({
-          role: message.role,
-          content: message.content,
-          tool_calls: message.tool_calls ? JSON.parse(message.tool_calls) : undefined
-        })),
+        messages: [
+          ...headerPrompts.map(prompt => ({ role: 'system', content: prompt })),
+          ...this.compactedContext,
+          ...footerPrompts.map(prompt => ({ role: 'system', content: prompt })),
+        ],
         tools: buildOllamaToolDescriptionObject(this.type)
       });
 
@@ -300,7 +300,7 @@ export class Conversation {
       })),
       tools: buildOllamaToolDescriptionObject(this.type)
     });
-    return response.message.content.replaceAll(/(\n|\r)/g, ' ').replaceAll(/(\*|\#|\")/g, '') || '';
+    return response.message.content.replaceAll(/(\n|\r)/g, ' ').replaceAll(/(\*|#|")/g, '') || '';
   }
 }
 
