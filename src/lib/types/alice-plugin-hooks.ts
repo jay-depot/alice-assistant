@@ -8,7 +8,7 @@ export type AlicePluginHooks = {
    * 
    * Register a callback to be called when a "user conversation" is about to begin. 
    * Called before the conversation context is about to be sent to the LLM for the 
-   * first time.
+   * first time. This hook is NOT called for the initial "test" conversation at startup.
    *  
    * To ensure consistent behavior, this hook *should* only be registered during plugin 
    * registration, as a best practice, but late registration is allowed until the first 
@@ -24,6 +24,8 @@ export type AlicePluginHooks = {
    * Called under two conditions: 
    * 1. When the user clicks "end conversation" in the web UI
    * 2. When a voice conversation times out, and is about to be ended by the system.
+   * 
+   *  This hook is NOT called for the initial "test" conversation at startup.
    * 
    * To ensure consistent behavior, this hook *should* only be registered during plugin 
    * registration, as a best practice, but late registration is allowed until the first 
