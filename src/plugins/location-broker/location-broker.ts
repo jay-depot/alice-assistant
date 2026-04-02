@@ -37,7 +37,7 @@ const locationBrokerPlugin: AlicePlugin = {
   },
 
   async registerPlugin(pluginInterface) {
-    const plugin = await pluginInterface.registerPlugin(locationBrokerPlugin.pluginMetadata);
+    const plugin = await pluginInterface.registerPlugin();
     const locationProviderNames: string[] = [];
     let locationProvider: () => Promise<LocationData>;
     let locationProviderConflict = false;

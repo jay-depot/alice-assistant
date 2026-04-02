@@ -59,7 +59,7 @@ const weatherBrokerPlugin: AlicePlugin = {
   },
 
   async registerPlugin(pluginInterface) {
-    const plugin = await pluginInterface.registerPlugin(weatherBrokerPlugin.pluginMetadata);
+    const plugin = await pluginInterface.registerPlugin();
     const weatherProviderCallbacks: Record<string, (location: LocationData) => Promise<WeatherData>> = {};
     const { requestLocationData } = plugin.request('location-broker');
 

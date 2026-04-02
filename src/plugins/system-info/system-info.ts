@@ -30,7 +30,7 @@ const systemInfoPlugin: AlicePlugin = {
   },
 
   async registerPlugin(pluginInterface) {
-    const plugin = await pluginInterface.registerPlugin(systemInfoPlugin.pluginMetadata);
+    const plugin = await pluginInterface.registerPlugin();
 
     const config = await plugin.config(SystemInfoPluginConfigSchema, {
       mustMentionIfNetworkDown: true,

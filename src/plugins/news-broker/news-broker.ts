@@ -38,7 +38,7 @@ const newsBrokerPlugin: AlicePlugin = {
   },
 
   async registerPlugin(pluginInterface) {
-    const plugin = await pluginInterface.registerPlugin(newsBrokerPlugin.pluginMetadata);
+    const plugin = await pluginInterface.registerPlugin();
 
     const newsProviderCallbacks: Record<string, (query: string) => Promise<NewsItem[]>> = {};
 

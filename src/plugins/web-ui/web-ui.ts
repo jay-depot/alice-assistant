@@ -40,7 +40,7 @@ const webUiPlugin: AlicePlugin = {
   },
 
   async registerPlugin(pluginInterface) {
-    const plugin = await pluginInterface.registerPlugin(webUiPlugin.pluginMetadata); 
+    const plugin = await pluginInterface.registerPlugin(); 
     const { onDatabaseReady } = plugin.request('memory');
 
     const PORT = UserConfig.getConfig().webInterface.port;

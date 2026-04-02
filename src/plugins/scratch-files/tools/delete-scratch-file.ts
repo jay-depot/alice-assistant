@@ -3,10 +3,11 @@ import { Tool } from '../../../lib/tool-system.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import { simpleExpandTilde } from '../../../lib/simple-tilde-expansion.js';
+import { ScratchFilesPluginConfigSchema } from '../scratch-files.js';
 
 const parameters = Type.Object({ filename: Type.String() });
 
-const deleteScratchFileTool: (config) => Tool = (config) => ({
+const deleteScratchFileTool: (config: ScratchFilesPluginConfigSchema) => Tool = (config) => ({
   name: 'deleteScratchFile',
   availableFor: ['autonomy', 'chat', 'voice'],
   description: 'Deletes a text file from the internal scratch directory. This is meant to be used in conjunction with the ' +

@@ -3,10 +3,11 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { Static, Type } from 'typebox';
 import { simpleExpandTilde } from '../../../lib/simple-tilde-expansion.js';
+import { ScratchFilesPluginConfigSchema } from '../scratch-files.js';
 
 const parameters = Type.Object({ filename: Type.String() });
 
-const readScratchFileTool: (config) => Tool = (config) => ({
+const readScratchFileTool: (config: ScratchFilesPluginConfigSchema) => Tool = (config) => ({
   name: 'readScratchFile',
   availableFor: ['autonomy', 'chat', 'voice'],
   description: `Reads the contents of a note in the assistant's internal scratch directory. This is meant ` +

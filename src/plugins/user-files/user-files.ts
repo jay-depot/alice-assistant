@@ -70,7 +70,7 @@ const userFilesPlugin: AlicePlugin = {
   },
 
   async registerPlugin(pluginInterface) {
-    const plugin = await pluginInterface.registerPlugin(userFilesPlugin.pluginMetadata);
+    const plugin = await pluginInterface.registerPlugin();
     const config = await plugin.config(UserFilesPluginConfigSchema, {
       allowedFilePaths: [],
       allowedFileTypesReadOnly: [],

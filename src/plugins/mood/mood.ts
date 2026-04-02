@@ -84,7 +84,7 @@ const moodPlugin: AlicePlugin = {
   },
 
   async registerPlugin(pluginInterface) {
-    const plugin = await pluginInterface.registerPlugin(moodPlugin.pluginMetadata);
+    const plugin = await pluginInterface.registerPlugin();
     const webUi = plugin.request('web-ui');
     const currentMood: { mood: string; reason: string } = { mood: 'neutral', reason: 'Default on assistant startup' };
 

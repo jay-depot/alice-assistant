@@ -5,6 +5,8 @@ import deleteScratchFileTool from './tools/delete-scratch-file.js';
 import listScratchFilesTool from './tools/list-scratch-files.js';
 import readScratchFileTool from './tools/read-scratch-file.js';
 import writeScratchFileTool from './tools/write-scratch-file.js';
+import path from 'node:path';
+import { exists, readFile } from '../../lib/node/fs-promised.js';
 
 export const ScratchFilesPluginConfigSchema = Type.Object({
   scratchDirectory: Type.String({ default: '~/.alice/scratch' }),
@@ -20,19 +22,19 @@ const scratchFilesPlugin: AlicePlugin = {
     id: 'scratch-files',
     name: 'Scratch Files Plugin',
     description: 'Provides the assistant with the ability to create and manage scratch files. ' +
-      'These are temporary files that can be used for jotting down notes, saving information, or ' +
-      'any other purpose the assistant deems fit.',
+      'These are temporary files that it uses internally to save information between interactions. ' +
+      'The assistant can create, read, update, and delete these files as needed.',
     version: 'LATEST',
     dependencies: [],
     required: true,
     system: true,
   },
 
-  async registerPlugin(pluginInterface) {
-    const plugin = await pluginInterface.registerPlugin(scratchFilesPlugin.pluginMetadata);
+  async registerPlugin(api) {
+    const plugin = await api.registerPlugin();
 
     const config = await plugin.config(ScratchFilesPluginConfigSchema, {
-      scratchDirectory: '~/.alice/scratch',
+      scratchDirectory: '~/.alice-assistant/scratch',
       allowedFileTypes: ['txt', 'md', 'log'],
       maxFileSizeKB: 100,
       allowOverwrite: true,
@@ -43,6 +45,29 @@ const scratchFilesPlugin: AlicePlugin = {
     plugin.registerTool(listScratchFilesTool(config.getPluginConfig()));
     plugin.registerTool(readScratchFileTool(config.getPluginConfig()));
     plugin.registerTool(writeScratchFileTool(config.getPluginConfig()));
+
+    plugin.registerHeaderSystemPrompt({
+      name: 'scratch-files-header',
+      weight: 10000,
+      async getPrompt(context) {
+        if (!['autonomy', 'chat', 'voice'].includes(context.conversationType)) {
+          return false;
+        }
+
+        const indexFilePath = path.join(config.getPluginConfig().scratchDirectory, '.index');
+        let indexContent = '';
+
+        if (await exists(indexFilePath)) {
+          const rawIndex = JSON.parse(await readFile(indexFilePath, 'utf-8'));
+          indexContent = Object.entries(rawIndex)
+            .map(([filename, summary]) => `- **${filename}**: ${summary}`)
+            .join('\n');
+          return '# Scratch Files Index\n\n' + indexContent;
+        }
+
+        return false;
+      },
+    });
   }
 };
 

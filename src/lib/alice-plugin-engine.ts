@@ -48,8 +48,8 @@ function validatePluginConfig(config: unknown, schema: Type.TSchema, pluginId: s
 
 function createPluginInterface(pluginMetadata: AlicePluginMetadata): AlicePluginInterface {
   const api = {
-    registerPlugin: async (pluginDefinition: AlicePluginMetadata) => {
-      const dependencyIds = pluginDefinition.dependencies?.map(dep => dep.id) || [];      
+    registerPlugin: async () => {
+      const dependencyIds = pluginMetadata.dependencies?.map(dep => dep.id) || [];      
       const dependencyPromises = dependencyIds.map(depId => loadingPromises[depId].promise);
 
       await Promise.all(dependencyPromises);

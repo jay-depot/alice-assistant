@@ -60,7 +60,7 @@ const webSearchBrokerPlugin: AlicePlugin = {
     system: true,
   },
   async registerPlugin(pluginInterface) {
-    const plugin = await pluginInterface.registerPlugin(webSearchBrokerPlugin.pluginMetadata);
+    const plugin = await pluginInterface.registerPlugin();
 
     const webSearchProviderCallbacks: Record<string, (query: string) => Promise<WebSearchResult[]>> = {};
 

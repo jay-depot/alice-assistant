@@ -2,8 +2,9 @@ import { Tool } from '../../../lib/tool-system.js';
 import * as fs from 'fs';
 import { Type } from 'typebox';
 import { simpleExpandTilde } from '../../../lib/simple-tilde-expansion.js';
+import { ScratchFilesPluginConfigSchema } from '../scratch-files.js';
 
-const listScratchFilesTool: (config) => Tool = (config) => ({
+const listScratchFilesTool: (config: ScratchFilesPluginConfigSchema) => Tool = (config) => ({
   name: 'listScratchFiles',
   availableFor: ['autonomy', 'chat', 'voice'],
   description: `Lists the files in the assistant's internal scratch directory. This is meant ` +

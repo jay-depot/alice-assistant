@@ -15,7 +15,7 @@ const remindersNotificationLibnotifyPlugin: AlicePlugin = {
   },
 
   async registerPlugin(pluginInterface) {
-    const plugin = await pluginInterface.registerPlugin(remindersNotificationLibnotifyPlugin.pluginMetadata);
+    const plugin = await pluginInterface.registerPlugin();
     // Don't get distracted with implementing this until the plugin conversion is done.
     // But this is planned to be one of the better features of this thing, so it's happening soon.
   }

@@ -3,10 +3,11 @@ import * as path from 'path';
 import { Tool } from '../../../lib/tool-system.js';
 import { Static, Type } from 'typebox';
 import { simpleExpandTilde } from '../../../lib/simple-tilde-expansion.js';
+import { ScratchFilesPluginConfigSchema } from '../scratch-files.js';
 
 const parameters = Type.Object({ filename: Type.String(), contents: Type.String() });
 
-const appendScratchFileTool: (config) => Tool = (config) => ({
+const appendScratchFileTool: (config: ScratchFilesPluginConfigSchema) => Tool = (config) => ({
   name: 'appendScratchFile',
   availableFor: ['autonomy', 'chat', 'voice'],
   description: 'Allows the assistant to write notes for itself in an internal scratch directory. This is meant to be used in conjunction with the ' +

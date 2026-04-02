@@ -14,7 +14,7 @@ const StaticLocationPlugin: AlicePlugin = {
   },
 
   async registerPlugin(pluginInterface) {
-    const plugin = await pluginInterface.registerPlugin(StaticLocationPlugin.pluginMetadata);
+    const plugin = await pluginInterface.registerPlugin();
   }
 }
 

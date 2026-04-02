@@ -58,7 +58,7 @@ declare module './alice-plugin-interface.js' {
 };
 
 export type AlicePluginInterface = {
-  registerPlugin: (pluginDefinition: AlicePluginMetadata) => Promise<{
+  registerPlugin: () => Promise<{
     registerTool: (toolDefinition: Tool) => void;
 
     // Let's limit non-system plugins to only being able to give their system prompts

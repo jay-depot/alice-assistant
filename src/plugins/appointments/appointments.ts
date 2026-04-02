@@ -18,7 +18,7 @@ const appointmentsPlugin: AlicePlugin = {
   },
 
   async registerPlugin(pluginInterface) {
-    const plugin = await pluginInterface.registerPlugin(appointmentsPlugin.pluginMetadata);
+    const plugin = await pluginInterface.registerPlugin();
   }
 };
 

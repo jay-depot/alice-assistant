@@ -15,7 +15,7 @@ const remindersNotificationConversationPlugin: AlicePlugin = {
   },
   
   async registerPlugin(pluginInterface) {
-    const plugin = await pluginInterface.registerPlugin(remindersNotificationConversationPlugin.pluginMetadata);
+    const plugin = await pluginInterface.registerPlugin();
   }
 };
 

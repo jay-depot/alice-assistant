@@ -28,7 +28,7 @@ const applicationPlugin: AlicePlugin = {
   },
 
   async registerPlugin(pluginInterface) {
-    const plugin = await pluginInterface.registerPlugin(applicationPlugin.pluginMetadata);
+    const plugin = await pluginInterface.registerPlugin();
 
     const config = await plugin.config(ApplicationPluginConfigSchema, {
       availableApplications: []

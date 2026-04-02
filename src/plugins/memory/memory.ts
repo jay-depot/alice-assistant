@@ -137,7 +137,7 @@ const memoryPlugin: AlicePlugin = {
   },
 
   async registerPlugin(pluginInterface: AlicePluginInterface) {
-    const plugin = await pluginInterface.registerPlugin(memoryPlugin.pluginMetadata);
+    const plugin = await pluginInterface.registerPlugin();
 
     const config = await plugin.config(MemoryPluginConfigSchema, {
       includePersonalityChangeLlmHint: false,

@@ -33,7 +33,7 @@ const remindersBrokerPlugin: AlicePlugin = {
   },
 
   async registerPlugin(pluginInterface) {
-    const plugin = await pluginInterface.registerPlugin(remindersBrokerPlugin.pluginMetadata);
+    const plugin = await pluginInterface.registerPlugin();
 
     plugin.offer<'reminders-broker'>({
       registerReminderSourceProvider: (name, getRemindersCallback) => {

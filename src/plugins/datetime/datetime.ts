@@ -12,7 +12,7 @@ const datetimePlugin: AlicePlugin = {
   },
 
   async registerPlugin(pluginInterface: AlicePluginInterface) {
-    const plugin = await pluginInterface.registerPlugin(datetimePlugin.pluginMetadata);
+    const plugin = await pluginInterface.registerPlugin();
 
     plugin.registerFooterSystemPrompt({
       name: 'datetimeFooter',
