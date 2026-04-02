@@ -1,6 +1,7 @@
 import { Type } from 'typebox';
 import { AlicePlugin } from '../../lib.js';
 import systemHealthCheckTool from './tools/system-health.js';
+import { getSystemInfo } from './get-system-info.js';
 
 const SystemInfoPluginConfigSchema = Type.Object({
   mustMentionIfNetworkDown: Type.Boolean({
@@ -33,6 +34,37 @@ const systemInfoPlugin: AlicePlugin = {
 
     const config = await plugin.config(SystemInfoPluginConfigSchema, {
       mustMentionIfNetworkDown: true,
+    });
+
+    plugin.registerHeaderSystemPrompt({
+      name: 'systemInfoHeader',
+      weight: -1,
+      getPrompt: async (context) => {
+        const systemPromptChunks: string[] = [];
+        // Then some basic host PC system info: OS, CPU, GPU, RAM, Kernel, Desktop Environment, Distribution
+        systemPromptChunks.push('\n## YOUR HOST PC SYSTEM INFO\n');
+        const systemInfo = await getSystemInfo();
+        systemPromptChunks.push(` - OS: ${systemInfo.os}`);
+        systemPromptChunks.push(` - Distribution: ${systemInfo.distribution}`);
+        systemPromptChunks.push(` - Kernel: ${systemInfo.kernel}`);
+        systemPromptChunks.push(` - CPU: ${systemInfo.cpu}`);
+        systemPromptChunks.push(` - Physical Cores: ${systemInfo.physicalCores}`);
+        systemPromptChunks.push(` - Threads: ${systemInfo.threadCount}`);
+        systemPromptChunks.push(` - RAM: ${systemInfo.totalMemory} ${systemInfo.totalMemoryUnit}`);
+        systemPromptChunks.push(` - GPU: ${systemInfo.gpuModel || 'Unknown'}`);
+        systemPromptChunks.push(` - VRAM: ${systemInfo.vramSize || 'Unknown'} ${systemInfo.vramSizeUnit || ''}`);
+        systemPromptChunks.push(` - Desktop Environment: ${systemInfo.desktopEnvironment}`);
+        systemPromptChunks.push(` - Window Manager: ${systemInfo.windowManager}`);
+        systemPromptChunks.push(` - Graphical Server: ${systemInfo.graphicalServer}`);
+        systemPromptChunks.push(` - Display Size: ${systemInfo.displaySize}`);
+        systemPromptChunks.push(` - Shell: ${systemInfo.shell}`);
+        systemPromptChunks.push(` - Terminal: ${systemInfo.terminal}`);
+        systemPromptChunks.push(` - Hostname: ${systemInfo.hostname}`);
+        systemPromptChunks.push(` - Locale: ${systemInfo.locale}`);
+        systemPromptChunks.push(` - Timezone: ${systemInfo.timezone}`);
+
+        return systemPromptChunks.join('\n');
+      }
     });
 
     plugin.registerTool(systemHealthCheckTool(config.getPluginConfig()));

@@ -124,8 +124,7 @@ async function saveMemory(orm: MikroORM, content: string) {
 
 const memoryPlugin: AlicePlugin = {
   // The Alice plugin system may call this to retrieve the plugin's metadata even 
-  // if the plugin is disabled. Thus function should not rely on any external state, 
-  // and should just return a plain object with the metadata.
+  // if the plugin is disabled.
   pluginMetadata: {
     id: 'memory',
     name: 'Memory Plugin',
@@ -174,13 +173,6 @@ const memoryPlugin: AlicePlugin = {
         await saveMemory(orm, content);
       }
     });
-    // then we'd go through the rest of the setup first. After all plugins are loaded, and any 
-    // plugins that depend on us have had a chance to register their ORM models and their onDatabaseReady 
-    // callbacks, we'd initialize the ORM instance, and call all the stored onDatabaseReady callbacks 
-    // with the instance, so that any plugin that needs direct access to the assistant's sqlite database 
-    // can have it. (And in theory, potentially use different database backends without the plugins giving 
-    // a damn, but we'll see about that later.)
-    // After that, any calls to registerDatabaseModels or onDatabaseReady should throw.
 
     plugin.registerTool({
         name: 'recallMemory',
