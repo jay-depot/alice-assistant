@@ -10,7 +10,7 @@ export type AlicePluginHooks = {
    * Called before the conversation context is about to be sent to the LLM for the 
    * first time.
    *  
-   * To ensure consistent behavior, his hook *should* only be registered during plugin 
+   * To ensure consistent behavior, this hook *should* only be registered during plugin 
    * registration, as a best practice, but late registration is allowed until the first 
    * time it is invoked. Practically, this means callbacks for this hook must be registered 
    * before or during `onAssistantWillAcceptRequests`.
@@ -25,7 +25,7 @@ export type AlicePluginHooks = {
    * 1. When the user clicks "end conversation" in the web UI
    * 2. When a voice conversation times out, and is about to be ended by the system.
    * 
-   * To ensure consistent behavior, his hook *should* only be registered during plugin 
+   * To ensure consistent behavior, this hook *should* only be registered during plugin 
    * registration, as a best practice, but late registration is allowed until the first 
    * time it is invoked. Practically, this means callbacks for this hook must be registered 
    * before or during `onAssistantWillAcceptRequests`.
@@ -36,7 +36,7 @@ export type AlicePluginHooks = {
    * Registers a callback to be called when a conversation's context has grown too long, 
    * even after compaction, and the oldest compaction summaries are about to be discarded.
    * 
-   * To ensure consistent behavior, his hook *should* only be registered during plugin 
+   * To ensure consistent behavior, this hook *should* only be registered during plugin 
    * registration, as a best practice, but late registration is allowed until the first 
    * time it is invoked. Practically, this means callbacks for this hook must be registered 
    * before or during `onAssistantWillAcceptRequests`.
