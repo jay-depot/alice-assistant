@@ -1,9 +1,7 @@
-// import * as os from "os";
-// import * as fs from "fs";
-// import * as path from "path";
-// import * as childProcess from "child_process";
+import * as childProcess from "child_process";
 import { Static, Type } from "typebox";
 import { Tool } from "../../lib/tool-system.js";
+import { ApplicationPluginConfigSchema } from "./application.js";
 
 type AvailableApplicationDescription = {
   alias: string;
@@ -16,17 +14,24 @@ type AvailableApplication = {
   relevantTopics: string[];
   commandLine: string;
   arguments: string;
-}
+};
 
-const parameters = Type.Object({ application: Type.Optional(Type.String()), parameters: Type.Record(Type.String(), Type.String()) });
+const parameters = Type.Optional(
+  Type.Object({
+    application: Type.String(),
+    parameters: Type.Record(Type.String(), Type.String()),
+  }),
+);
 
-export const openApplicationTool: (config) => Tool = (config) => ({
+export const openApplicationTool: (
+  config: ApplicationPluginConfigSchema,
+) => Tool = (config) => ({
   name: "openApplication",
-  availableFor: ['chat', 'voice'],
-  description: "Allows the assistant to open applications, files, folders and web pages on behalf of the user. This " +
-    "tool tries to be safe by only allowing specific list of user-defined applications to be opened with a limited set of " +
-    "parameters. The LLM does not know the specific programs being used to fulfill the user's requests, only aliases.",
-  systemPromptFragment: `Call openApplication when the user asks you to open an application, a file, or a folder, ` +
+  availableFor: ["chat", "voice"],
+  description:
+    "Allows the assistant to open applications, files, folders and web pages on behalf of the user. Call with no parameters to discover the available applications.",
+  systemPromptFragment:
+    `Call openApplication when the user asks you to open an application, a file, or a folder, ` +
     `or when they ask you to show them something on the web. Call openApplication with no parameters to get a list ` +
     `of available applications and their relevant topics. You may then make a second call to openApplication with the ` +
     `"application" parameter, and any relevant parameters for that application, to open the desired content. For ` +
@@ -36,28 +41,59 @@ export const openApplicationTool: (config) => Tool = (config) => ({
     `with the "application" parameter set to "web_browser", and a "url" parameter set to the appropriate news website. `,
   callSignature: "openApplication",
   parameters,
-  toolResultPromptIntro: '',
-  toolResultPromptOutro: '',
+  toolResultPromptIntro: "",
+  toolResultPromptOutro: "",
   execute: async (args: Static<typeof parameters>) => {
-    // Here you would add the code to execute the appropriate command to open the application or file based on the arguments.
-    // For the sake of this example, let's just return a string indicating what would have been opened.
-    if (!args.application) {
-      // Return the list of available applications and their relevant topics. Lucky for us, this is already defined 
-      // in the config, so we can just return that.
-      // For safety, we'll filter out the command line from what the LLM sees though.
-      const availableApplications = config.availableApplications.map((app: AvailableApplicationDescription) => ({
-        alias: app.alias,
-        relevantTopics: app.relevantTopics,
-        arguments: app.arguments
-      }));
+    if (!args || !args.application) {
+      const availableApplications = config.availableApplications.map(
+        (app: AvailableApplicationDescription) => ({
+          alias: app.alias,
+          relevantTopics: app.relevantTopics,
+          arguments: app.arguments,
+        }),
+      );
       return JSON.stringify({ availableApplications });
     }
+
     const application = args.application;
-    const parameters = { ...args };
-    delete parameters.application;
-    // TODO: we do actually need to run the thing, eventually and not just gaslight the LLM with fake results.
-    // What's the best way to do that from node though?
-    
-    return `Opened ${application} with parameters ${JSON.stringify(parameters)}`;
-  }
+    const appParameters = { ...args };
+    delete appParameters.application;
+
+    const appConfig = config.availableApplications.find(
+      (app: AvailableApplication) => app.alias === application,
+    );
+    if (!appConfig) {
+      return `Error: Application "${application}" not found in available applications.`;
+    }
+
+    try {
+      let cmdArgs: string[] = [];
+      let bin = appConfig.commandLine
+      if (appConfig.commandLine.includes(' ')) {
+        const parts = appConfig.commandLine.split(' ');
+        bin = parts[0];
+        cmdArgs.push(...parts.slice(1));
+      }
+      if (appConfig.arguments && Object.keys(appParameters).length > 0) {
+        const argTemplate = appConfig.arguments;
+        let constructedArgs = argTemplate;
+        for (const [key, value] of Object.entries(appParameters)) {
+          constructedArgs = constructedArgs.replace(
+            new RegExp(`{{${key}}}`, "g"),
+            String(value),
+          );
+        }
+        cmdArgs = constructedArgs.split(" ");
+      }
+      childProcess
+        .spawn(bin, cmdArgs, {
+          detached: true,
+          stdio: "ignore",
+        })
+        .unref();
+      return `Opened ${application} successfully. Respond to the user now.`;
+    } catch (error) {
+      return `Error opening ${application}: ${error instanceof Error ? error.message : String(error)}`;
+    }
+  },
 });
