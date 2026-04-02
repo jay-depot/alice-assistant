@@ -5,7 +5,7 @@ const registeredHooks: {
   onUserConversationWillEnd: Array<(conversation: Conversation, type: DynamicPromptConversationType) => Promise<void>>;
   onToolWillBeCalled: Array<(tool: Readonly<Tool>, args: Readonly<Record<string, unknown>>) => Promise<void>>;
   onToolWasCalled: Array<(tool: Readonly<Tool>, args: Readonly<Record<string, unknown>>, result: string) => Promise<void>>;
-  onContextCompactionSummariesWillBeDeleted: Array<(summaries: Message[]) => void>;
+  onContextCompactionSummariesWillBeDeleted: Array<(summaries: Message[]) => Promise<void>>;
   onAllPluginsLoaded: Array<() => Promise<void>>;
   onAssistantWillAcceptRequests: Array<() => Promise<void>>;
   onAssistantAcceptsRequests: Array<() => Promise<void>>;
