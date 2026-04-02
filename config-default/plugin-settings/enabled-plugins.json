@@ -3,6 +3,7 @@
     "datetime": true,
     "system-info": true,
     "memory": true,
+    "web-ui": true,
     "scratch-files": true,
     "location-broker": true,
     "reminders-broker": true,
