@@ -3,8 +3,6 @@ import { AlicePluginHooks, Conversation, DynamicPromptConversationType, Message,
 const registeredHooks: {
   onUserConversationWillBegin: Array<(conversation: Conversation, type: DynamicPromptConversationType) => Promise<void>>;
   onUserConversationWillEnd: Array<(conversation: Conversation, type: DynamicPromptConversationType) => Promise<void>>;
-  onToolWillBeCalled: Array<(tool: Readonly<Tool>, args: Readonly<Record<string, unknown>>) => Promise<void>>;
-  onToolWasCalled: Array<(tool: Readonly<Tool>, args: Readonly<Record<string, unknown>>, result: string) => Promise<void>>;
   onContextCompactionSummariesWillBeDeleted: Array<(summaries: Message[]) => Promise<void>>;
   onAllPluginsLoaded: Array<() => Promise<void>>;
   onAssistantWillAcceptRequests: Array<() => Promise<void>>;
@@ -17,8 +15,6 @@ const registeredHooks: {
 } = {
   onUserConversationWillBegin: [],
   onUserConversationWillEnd: [],
-  onToolWillBeCalled: [],
-  onToolWasCalled: [],
   onContextCompactionSummariesWillBeDeleted: [],
   onAllPluginsLoaded: [],
   onAssistantWillAcceptRequests: [],
@@ -33,8 +29,6 @@ const registeredHooks: {
 const isRegistrationOpenForHook = {
   onUserConversationWillBegin: true,
   onUserConversationWillEnd: true,
-  onToolWillBeCalled: true,
-  onToolWasCalled: true,
   onContextCompactionSummariesWillBeDeleted: true,
   onSystemPluginsLoaded: true,
   onUserPluginsWillLoad: true,
@@ -48,86 +42,62 @@ const isRegistrationOpenForHook = {
   onSystemPluginsWillUnload: true,
 }
 
-export const PluginHooks:AlicePluginHooks = {
+export const PluginHooks:(pluginId: string) => AlicePluginHooks = (pluginId) => ({
   onUserConversationWillBegin: (callback: (conversation: Conversation, type: DynamicPromptConversationType) => Promise<void>) => {
     if (!isRegistrationOpenForHook.onUserConversationWillBegin) {
-      throw new Error('The onUserConversationWillBegin hook can only be registered during plugin registration. Please disable any plugins that are trying to register this hook to fix your assistant.');
+      throw new Error(`${pluginId} tried to register onUserConversationWillBegin too late.The onUserConversationWillBegin hook can only be registered before the first conversation begins. Please disable ${pluginId} to fix your assistant. If you are developing this plugin, check your hook timings.`);
     }
     registeredHooks.onUserConversationWillBegin.push(callback);
   },
   onUserConversationWillEnd: (callback: (conversation: Conversation, type: DynamicPromptConversationType) => Promise<void>) => {
     if (!isRegistrationOpenForHook.onUserConversationWillEnd) {
-      throw new Error('The onUserConversationWillEnd hook can only be registered during plugin registration. Please disable any plugins that are trying to register this hook to fix your assistant.');
+      throw new Error(`${pluginId} tried to register onUserConversationWillEnd too late. The onUserConversationWillEnd hook can only be registered before the first conversation ends. Please disable ${pluginId} to fix your assistant. If you are developing this plugin, check your hook timings.`);
     }
     registeredHooks.onUserConversationWillEnd.push(callback);
   },
-  onToolWillBeCalled: (callback: (tool: Readonly<Tool>, args: Readonly<Record<string, unknown>>) => Promise<void>) => {
-    if (!isRegistrationOpenForHook.onToolWillBeCalled) {
-      throw new Error('The onToolWillBeCalled hook can only be registered during plugin registration. Please disable any plugins that are trying to register this hook to fix your assistant.');
-    }
-    registeredHooks.onToolWillBeCalled.push(callback);
-  },
-  onToolWasCalled: (callback: (tool: Readonly<Tool>, args: Readonly<Record<string, unknown>>, result: string) => Promise<void>) => {
-    if (!isRegistrationOpenForHook.onToolWasCalled) {
-      throw new Error('The onToolWasCalled hook can only be registered during plugin registration. Please disable any plugins that are trying to register this hook to fix your assistant.');
-    }
-    registeredHooks.onToolWasCalled.push(callback);
-  },
   onContextCompactionSummariesWillBeDeleted: (callback: (summaries: Message[]) => Promise<void>) => {
     if (!isRegistrationOpenForHook.onContextCompactionSummariesWillBeDeleted) {
-      throw new Error('The onContextCompactionSummariesWillBeDeleted hook can only be registered during plugin registration. Please disable any plugins that are trying to register this hook to fix your assistant.');
+      throw new Error(`${pluginId} tried to register onContextCompactionSummariesWillBeDeleted too late. The onContextCompactionSummariesWillBeDeleted hook can only be registered before the first context compaction purge occurs. Please disable ${pluginId} to fix your assistant. If you are developing this plugin, check your hook timings.`);
     }
     registeredHooks.onContextCompactionSummariesWillBeDeleted.push(callback);
   },
   onAllPluginsLoaded: (callback: () => Promise<void>) => {
     if (!isRegistrationOpenForHook.onAllPluginsLoaded) {
-      throw new Error('The onAllPluginsLoaded hook can only be registered during plugin registration. Please disable any plugins that are trying to register this hook to fix your assistant.');
+      throw new Error(`${pluginId} tried to register onAllPluginsLoaded too late. The onAllPluginsLoaded hook can only be registered during plugin registration. Please disable ${pluginId} to fix your assistant. If you are developing this plugin, check your hook timings.`);
     }
     registeredHooks.onAllPluginsLoaded.push(callback);
   },
   onAssistantWillAcceptRequests: (callback: () => Promise<void>) => {
     if (!isRegistrationOpenForHook.onAssistantWillAcceptRequests) {
-      throw new Error('The onAssistantWillAcceptRequests hook can only be registered during plugin registration. Please disable any plugins that are trying to register this hook to fix your assistant.');
+      throw new Error(`${pluginId} tried to register onAssistantWillAcceptRequests too late. The onAssistantWillAcceptRequests hook can only be registered during plugin registration or an onAllPluginsLoaded callback. Please disable ${pluginId} to fix your assistant. If you are developing this plugin, check your hook timings.`);
     }
     registeredHooks.onAssistantWillAcceptRequests.push(callback);
   },
   onAssistantAcceptsRequests: (callback: () => Promise<void>) => {
     if (!isRegistrationOpenForHook.onAssistantAcceptsRequests) {
-      throw new Error('The onAssistantAcceptsRequests hook can only be registered during plugin registration. Please disable any plugins that are trying to register this hook to fix your assistant.');
+      throw new Error(`${pluginId} tried to register onAssistantAcceptsRequests too late. The onAssistantAcceptsRequests hook can only be registered during plugin registration, an onAllPluginsLoaded callback, or an onAssistantWillAcceptRequests callback. Please disable ${pluginId} to fix your assistant. If you are developing this plugin, check your hook timings.`);
     }
     registeredHooks.onAssistantAcceptsRequests.push(callback);
   },
   onAssistantWillStopAcceptingRequests: (callback: () => Promise<void>) => {
     if (!isRegistrationOpenForHook.onAssistantWillStopAcceptingRequests) {
-      throw new Error('The onAssistantWillStopAcceptingRequests hook can only be registered during plugin registration. Please disable any plugins that are trying to register this hook to fix your assistant.');
+      throw new Error(`${pluginId} tried to register onAssistantWillStopAcceptingRequests too late. The onAssistantWillStopAcceptingRequests hook can only be registered during plugin registration, an onAllPluginsLoaded callback, an onAssistantWillAcceptRequests callback, or an onAssistantAcceptsRequests callback. Please disable ${pluginId} to fix your assistant. If you are developing this plugin, check your hook timings.`);
     }
     registeredHooks.onAssistantWillStopAcceptingRequests.push(callback);
   },
   onAssistantStoppedAcceptingRequests: (callback: () => Promise<void>) => {
     if (!isRegistrationOpenForHook.onAssistantStoppedAcceptingRequests) {
-      throw new Error('The onAssistantStoppedAcceptingRequests hook can only be registered during plugin registration. Please disable any plugins that are trying to register this hook to fix your assistant.');
+      throw new Error(`${pluginId} tried to register onAssistantStoppedAcceptingRequests too late. The onAssistantStoppedAcceptingRequests hook can only be registered during plugin registration, an onAllPluginsLoaded callback, an onAssistantWillAcceptRequests callback, an onAssistantAcceptsRequests callback, or an onAssistantWillStopAcceptingRequests callback. Please disable ${pluginId} to fix your assistant. If you are developing this plugin, check your hook timings.`);
     }
     registeredHooks.onAssistantStoppedAcceptingRequests.push(callback);
   },
   onPluginsWillUnload: (callback: () => Promise<void>) => {
     if (!isRegistrationOpenForHook.onPluginsWillUnload) {
-      throw new Error('The onPluginsWillUnload hook can only be registered during plugin registration. Please disable any plugins that are trying to register this hook to fix your assistant.');
+      throw new Error(`${pluginId} tried to register onPluginsWillUnload too late. The onPluginsWillUnload hook can only be registered before or during onAssistantStoppedAcceptingRequests. Please disable ${pluginId} to fix your assistant. If you are developing this plugin, check your hook timings.`);
     }
     registeredHooks.onPluginsWillUnload.push(callback);
-  },
-  onUserPluginsUnloaded: (callback: () => Promise<void>) => {
-    if (!isRegistrationOpenForHook.onUserPluginsUnloaded) {
-      throw new Error('The onUserPluginsUnloaded hook can only be registered during plugin registration. Please disable any plugins that are trying to register this hook to fix your assistant.');
-    }
-    registeredHooks.onUserPluginsUnloaded.push(callback);
-  },
-  onSystemPluginsWillUnload: (callback: () => Promise<void>) => {
-    if (!isRegistrationOpenForHook.onSystemPluginsWillUnload) {
-      throw new Error('The onSystemPluginsWillUnload hook can only be registered during plugin registration. Please disable any plugins that are trying to register this hook to fix your assistant.');
-    }
-    registeredHooks.onSystemPluginsWillUnload.push(callback);
-  },
-};
+  }
+});
 
 export const PluginHookInvocations = {
   invokeOnUserConversationWillBegin: async (conversation: Conversation, type: DynamicPromptConversationType) => {
@@ -138,16 +108,6 @@ export const PluginHookInvocations = {
   invokeOnUserConversationWillEnd: async (conversation: Conversation, type: DynamicPromptConversationType) => {
     for (const callback of registeredHooks.onUserConversationWillEnd) {
       await callback(conversation, type);
-    }
-  },
-  invokeOnToolWillBeCalled: async (tool: Readonly<Tool>, args: Readonly<Record<string, unknown>>) => {
-    for (const callback of registeredHooks.onToolWillBeCalled) {
-      await callback(tool, args);
-    }
-  },
-  invokeOnToolWasCalled: async (tool: Readonly<Tool>, args: Readonly<Record<string, unknown>>, result: string) => {
-    for (const callback of registeredHooks.onToolWasCalled) {
-      await callback(tool, args, result);
     }
   },
   invokeOnContextCompactionSummariesWillBeDeleted: async (summaries: Message[]) => {
@@ -190,17 +150,5 @@ export const PluginHookInvocations = {
     for (const callback of registeredHooks.onPluginsWillUnload) {
       await callback();
     }
-  },
-  invokeOnUserPluginsUnloaded: async () => {
-    isRegistrationOpenForHook.onUserPluginsUnloaded = false;
-    for (const callback of registeredHooks.onUserPluginsUnloaded) {
-      await callback();
-    }
-  },
-  invokeOnSystemPluginsWillUnload: async () => {
-    isRegistrationOpenForHook.onSystemPluginsWillUnload = false;
-    for (const callback of registeredHooks.onSystemPluginsWillUnload) {
-      await callback();
-    }
-  },
-}
+  }
+};

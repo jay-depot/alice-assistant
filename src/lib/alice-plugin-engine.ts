@@ -118,7 +118,7 @@ function createPluginInterface(pluginMetadata: AlicePluginMetadata): AlicePlugin
           addFooterPrompt(promptDefinition);
         },
 
-        hooks: PluginHooks,
+        hooks: PluginHooks(pluginMetadata.id),
 
         offer<T extends keyof PluginCapabilities>(capabilities: PluginCapabilities[T]): void {
           if (pluginCapabilities[pluginMetadata.id]) {
