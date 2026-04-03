@@ -76,18 +76,7 @@ Future plans for how to interact with this assistant may go one of two ways:
   implementation is clean
 - If you use an AI to generate it, you still have to be able to explain it in your own, human
   written, words
-- I will not accept pull requests adding "heartbeats," "webhooks," or other autonomous agentic
-  features. Agentic AI is a little more advanced, and I'd like to keep this project friendly to
-  relative newcomers who just want to play with a quirky assistant. That said, feel free to fork
-  and add those things to your version of this if you want. I'll accept other fixes unrelated to
-  those topics from your fork, regardless.
-- I am planning to add some _limited_ autonomy to the assistant, in the form of a timed prompt
-  that gives the assistant a limited range of "read-only" tools. Enough for reminders to be
-  delivered, and maybe email, message, and user wellbeing notifications. The approach I'm
-  planning here is to add a flag to each tool to mark if it is "autonomy safe," which means it is
-  read-only, or only writes to the assistant's own scratch area, and those would be the only
-  tools presented to the LLM when sending it an "autonomy prompt." The assistant would then
-  have to start a conversation with the user to access its full tool suite.
+- Before the conversion to plug-in architecture, I stated that I would no longer accept pull requests adding agentic features. This is no longer the case, however like alternative LLM providers, they must be fully disabled by default.
 - "I'd like to add the ability to connect to GPT/Claude/Gemini/DeepSeek!" On the unlikely chance
   this project ever gets enough attention for someone to say this, I'll respond in advance: Yes,
   I will accept pull requests extending this project with that functionality, however there are
