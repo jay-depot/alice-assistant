@@ -522,10 +522,10 @@ html, body { height: 100%; background: var(--bg-base); color: var(--text-primary
   margin: 0.5em 0;
 }
 
-.message__bubble li:first-child {
+.message__bubble li *:first-child {
   margin-top: 0;
 }
-.message__bubble li:last-child {
+.message__bubble li *:last-child {
   margin-bottom: 0;
 }
 
