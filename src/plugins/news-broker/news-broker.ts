@@ -75,7 +75,14 @@ const newsBrokerPlugin: AlicePlugin = {
       name: 'getNews',
       parameters: NewsToolParametersSchema,
       availableFor: ['chat', 'voice', 'autonomy'],
-      description: 'Gets news data related to a specific query from any plugin that offers it through the news broker plugin. The query can be as broad or specific as you like, but should be focused on a particular topic or event. The tool will return an object containing news data from all registered news providers that have relevant data for the query, keyed by provider name.',
+      description: 'Gets news data related to a specific query from any plugin that offers it ' +
+        'through the news broker plugin. The query can be as broad or specific as you like, ' +
+        'but should be focused on a particular topic or event. The tool will return an object ' +
+        'containing news data from all registered news providers that have relevant data for ' +
+        'the query, keyed by provider name. DO NOT INCLUDE "FILLER" SUCH AS "NEWS," "LATEST," ' +
+        '"HEADLINES," ETC. IN THE QUERY. DO NOT INCLUDE THE CURRENT DATE OR TIME IN THE ' +
+        'QUERY. ONLY INCLUDE A DATE IN THE QUERY IF THE USER HAS SPECIFICALLY ASKED ABOUT ' +
+        'NEWS FROM A DATE IN THE PAST.',
       systemPromptFragment: '',
       toolResultPromptIntro: '',
       toolResultPromptOutro: '',
