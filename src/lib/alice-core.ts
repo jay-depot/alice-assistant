@@ -4,36 +4,35 @@ import { loadPlugins } from './alice-plugin-loader.js';
 import { PluginHookInvocations } from './plugin-hooks.js';
 
 export const AliceCore = {
-  dummyLoop: async () => {
-    // This is a dummy loop to keep the assistant running until I 
-    // add the actual voice loop.
-    console.log('Entering main loop. Press Ctrl+C to exit.');
-    let shuttingDown = false;
-    const cleanupSignalHandlers = () => {
-      process.off('SIGINT', shutdown);
-      process.off('SIGTERM', shutdown);
-    };
+  waitForShutdownSignal: () => {
+    return new Promise<void>((resolve) => {
+      // This is a dummy loop to keep the assistant running until I 
+      // add the actual voice loop.
+      console.log('Entering main loop. Press Ctrl+C to exit.');
+      let shuttingDown = false;
+      const cleanupSignalHandlers = () => {
+        process.off('SIGINT', shutdown);
+        process.off('SIGTERM', shutdown);
+      };
+  
+      const shutdown = async (signal: NodeJS.Signals) => {
+        if (shuttingDown) {
+          return;
+        }
+        shuttingDown = true;
+        console.log(`\nReceived ${signal}, shutting down gracefully...`);
+        cleanupSignalHandlers();
+        await PluginHookInvocations.invokeOnAssistantWillStopAcceptingRequests();
+        await PluginHookInvocations.invokeOnAssistantStoppedAcceptingRequests();
+        await PluginHookInvocations.invokeOnPluginsWillUnload();
+        console.log('All plugins have been notified of shutdown. Exiting now.');
+        resolve();
+      };
+      
+      process.on('SIGINT', shutdown);
+      process.on('SIGTERM', shutdown);
 
-    const shutdown = async (signal: NodeJS.Signals) => {
-      if (shuttingDown) {
-        return;
-      }
-      shuttingDown = true;
-      console.log(`\nReceived ${signal}, shutting down gracefully...`);
-      cleanupSignalHandlers();
-      await PluginHookInvocations.invokeOnAssistantWillStopAcceptingRequests();
-      await PluginHookInvocations.invokeOnAssistantStoppedAcceptingRequests();
-      await PluginHookInvocations.invokeOnPluginsWillUnload();
-      console.log('All plugins have been notified of shutdown. Exiting now.');
-      process.exit(0);
-    };
-    
-    process.on('SIGINT', shutdown);
-    process.on('SIGTERM', shutdown);
-
-    while (!shuttingDown) {
-      await new Promise(resolve => setTimeout(resolve, 500));
-    }
+    });
   },
 
   start: async () => {
@@ -60,6 +59,6 @@ export const AliceCore = {
 
     await PluginHookInvocations.invokeOnAssistantAcceptsRequests();
 
-    await AliceCore.dummyLoop();
+    await AliceCore.waitForShutdownSignal();
   }
 }
