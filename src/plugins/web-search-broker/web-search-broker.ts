@@ -5,14 +5,13 @@ type WebSearchResult = {
   title: string;
   snippet: string;
   url: string;
-  source: string; // the name of the plugin that provided this search result
 };
 
-const WebSearchBrokerPluginSettings = Type.Object({
+const WebSearchBrokerPluginConfigSchema = Type.Object({
   preferredSearchProvider: Type.Optional(Type.String()),
 });
 
-type WebSearchBrokerPluginSettings = Type.Static<typeof WebSearchBrokerPluginSettings>;
+type WebSearchBrokerPluginConfigSchema = Type.Static<typeof WebSearchBrokerPluginConfigSchema>;
 
 declare module '../../lib.js' {
   export interface PluginCapabilities {
@@ -64,7 +63,7 @@ const webSearchBrokerPlugin: AlicePlugin = {
 
     const webSearchProviderCallbacks: Record<string, (query: string) => Promise<WebSearchResult[]>> = {};
 
-    const config = await plugin.config<WebSearchBrokerPluginSettings>(WebSearchBrokerPluginSettings, {});
+    const config = await plugin.config<WebSearchBrokerPluginConfigSchema>(WebSearchBrokerPluginConfigSchema, {});
 
     plugin.offer<'web-search-broker'>({
       registerWebSearchProvider: (name, callback) => {

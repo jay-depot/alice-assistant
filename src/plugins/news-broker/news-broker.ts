@@ -1,3 +1,4 @@
+import Type from 'typebox';
 import { AlicePlugin } from '../../lib.js';
 
 type NewsItem = {
@@ -5,8 +6,14 @@ type NewsItem = {
   preview?: string;
   url: string;
   source: string;
-  publishedAt: Date;
+  age: string;
 };
+
+
+const NewsToolParametersSchema = Type.Object({
+  query: Type.String({ description: 'The news topic to search for. This can be as broad or specific as you like, but should be focused on a particular topic or event.' }),
+});
+export type NewsToolParametersSchema = Type.Static<typeof NewsToolParametersSchema>;
 
 declare module '../../lib.js' {
   export interface PluginCapabilities {
@@ -42,13 +49,8 @@ const newsBrokerPlugin: AlicePlugin = {
 
     const newsProviderCallbacks: Record<string, (query: string) => Promise<NewsItem[]>> = {};
 
-    plugin.offer<'news-broker'>({
-      registerNewsProvider: (name, callback) => {
-        // Store the callback and call it whenever we want to get news from this provider.
-        newsProviderCallbacks[name] = callback;
-      },
-      requestNewsData: async (query) => {
-        // Call all registered news providers' callbacks with the query and return the results in an object 
+    const requestNewsData = async (query: string): Promise<Record<string, NewsItem[]>> => {
+              // Call all registered news providers' callbacks with the query and return the results in an object 
         // keyed by provider name, or return an empty object if no providers are registered.
         if (Object.keys(newsProviderCallbacks).length === 0) {
           return {};
@@ -59,8 +61,33 @@ const newsBrokerPlugin: AlicePlugin = {
           results[name] = await callback(query);
         }));
         return results;
+    }
+
+    plugin.offer<'news-broker'>({
+      registerNewsProvider: (name, callback) => {
+        // Store the callback and call it whenever we want to get news from this provider.
+        newsProviderCallbacks[name] = callback;
       },
+      requestNewsData,
     });
+
+    plugin.registerTool({
+      name: 'getNews',
+      parameters: NewsToolParametersSchema,
+      availableFor: ['chat', 'voice', 'autonomy'],
+      description: 'Gets news data related to a specific query from any plugin that offers it through the news broker plugin. The query can be as broad or specific as you like, but should be focused on a particular topic or event. The tool will return an object containing news data from all registered news providers that have relevant data for the query, keyed by provider name.',
+      systemPromptFragment: '',
+      toolResultPromptIntro: '',
+      toolResultPromptOutro: '',
+      execute: async (parameters: NewsToolParametersSchema) => {
+        const newsData = await requestNewsData(parameters.query);
+        const formattedResults = Object.entries(newsData).map(([provider, items]) => {
+          const formattedItems = items.map(item => `- ${item.headline} (${item.source}, ${item.age} ago)\n${item.preview ? `  ${item.preview}\n` : ''}  URL: ${item.url}\n`).join('\n');
+          return `News from ${provider}:\n${formattedItems}`;
+        }).join('\n\n');
+        return formattedResults || 'No news data available for this query.';
+      }
+    })
   }
 };
 

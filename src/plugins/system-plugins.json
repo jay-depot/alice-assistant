@@ -73,5 +73,25 @@
     "id": "daily-goals",
     "name": "Daily Goals",
     "required": false
+  },
+  {
+    "id": "brave-search-api",
+    "name": "Brave Search API",
+    "required": false
+  },
+  {
+    "id": "brave-web-search",
+    "name": "Brave Web Search",
+    "required": false
+  },
+  {
+    "id": "brave-search-news",
+    "name": "Brave Search News",
+    "required": false
+  },
+  {
+    "id": "static-location",
+    "name": "Static Location",
+    "required": false
   }
 ]
