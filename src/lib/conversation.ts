@@ -63,13 +63,14 @@ export class Conversation {
    * @param context The conversation context to restore for this transaction. This should be an array of messages, where each message has a "role" (either "user" or "assistant") and "content" (the text content of the message).
    * @returns the same llmTransaction object for easy chained calling
    */
-  restoreContext(context: Message[]) {
+  restoreContext(context: Message[], compactedContext?: Message[]): Conversation {
     // Let's disarm a common foot-gun right off the bat.
     if (this.rawContext.length > 0) {
       throw new Error('Context has already been set for this transaction. Cannot restore context more than once.');
     }
 
-    this.compactedContext = this.rawContext = context;
+    this.compactedContext = compactedContext || context;
+    this.rawContext = context;
  
     return this;
   }
