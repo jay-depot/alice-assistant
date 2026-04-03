@@ -7,6 +7,8 @@ import readScratchFileTool from './tools/read-scratch-file.js';
 import writeScratchFileTool from './tools/write-scratch-file.js';
 import path from 'node:path';
 import { exists, readFile } from '../../lib/node/fs-promised.js';
+import { reindexScratchFiles } from './scratch-files-index.js';
+import { simpleExpandTilde } from '../../lib/simple-tilde-expansion.js';
 
 export const ScratchFilesPluginConfigSchema = Type.Object({
   scratchDirectory: Type.String({ default: '~/.alice/scratch' }),
@@ -45,6 +47,20 @@ const scratchFilesPlugin: AlicePlugin = {
     plugin.registerTool(listScratchFilesTool(config.getPluginConfig()));
     plugin.registerTool(readScratchFileTool(config.getPluginConfig()));
     plugin.registerTool(writeScratchFileTool(config.getPluginConfig()));
+
+    plugin.hooks.onAllPluginsLoaded(async () => {
+      const scratchDir = simpleExpandTilde(config.getPluginConfig().scratchDirectory);
+      const indexFilePath = path.join(scratchDir, '.index');
+
+      if (await exists(indexFilePath)) {
+        console.log('Scratch files index already exists, skipping indexing.');
+        return;
+      }
+
+      console.log('Indexing scratch files...');
+      await reindexScratchFiles(config.getPluginConfig());
+      console.log('Scratch files indexing complete.');
+    });
 
     plugin.registerHeaderSystemPrompt({
       name: 'scratch-files-header',

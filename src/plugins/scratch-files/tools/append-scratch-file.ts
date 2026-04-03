@@ -4,6 +4,7 @@ import { Tool } from '../../../lib/tool-system.js';
 import { Static, Type } from 'typebox';
 import { simpleExpandTilde } from '../../../lib/simple-tilde-expansion.js';
 import { ScratchFilesPluginConfigSchema } from '../scratch-files.js';
+import { freshenScratchFilesIndex } from '../scratch-files-index.js';
 
 const parameters = Type.Object({ filename: Type.String(), contents: Type.String() });
 
@@ -71,6 +72,8 @@ const appendScratchFileTool: (config: ScratchFilesPluginConfigSchema) => Tool = 
     } else {
       fs.writeFileSync(filePath, contents);
     }
+
+    await freshenScratchFilesIndex(config);
 
     return `Updated file ${filename}. ${contents.length} characters appended.\nErrors: none.`;
   }

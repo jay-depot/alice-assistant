@@ -15,7 +15,29 @@ export type Message = {
   tool_calls?: string; // We're just going to JSON.stringify the tool calls and then deserialize them on the way back.
 };
 
+function getLLMConnection() {
+  return {
+    host: UserConfig.getConfig().ollama.host,
+    model: UserConfig.getConfig().ollama.model,
+    options: {
+      num_ctx: 36000, // Ollama defaults to ~4k on most consumer GPUs, but Qwen models can go a LOT higher without using much vram. At home I set it to 128k and it only uses about 10gb of vram.
+      ...UserConfig.getConfig().ollama.options, // allow the user to override settings like context window size, thinking time, temperature, etc. in the config, while being able to provide "sensible" defaults.
+    },
+  }
+}
 export class Conversation {
+  static async sendDirectRequest(messages: Message[]): Promise<string> {
+    const response = await OllamaClient.chat({
+      ...getLLMConnection(),
+      messages: messages.map(message => ({
+        role: message.role,
+        content: message.content,
+        tool_calls: message.tool_calls ? JSON.parse(message.tool_calls) : undefined
+      })),
+    });
+    return response.message.content || '';
+  }
+
   private llmConnection = {
     host: '',
     model: '',
@@ -29,14 +51,7 @@ export class Conversation {
 
   constructor(public type: DynamicPromptConversationType) {
     this.llmConnection = {
-      ...this.llmConnection,
-      host: UserConfig.getConfig().ollama.host,
-      model: UserConfig.getConfig().ollama.model,
-      options: {
-        ...this.llmConnection.options,
-        // allow the user to override settings like context window size, thinking time, temperature, etc. in the config, while being able to provide "sensible" defaults.
-        ...UserConfig.getConfig().ollama.options,
-      }
+      ...getLLMConnection(),
     }
   }
 

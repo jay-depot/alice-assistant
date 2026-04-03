@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { simpleExpandTilde } from '../../../lib/simple-tilde-expansion.js';
 import { ScratchFilesPluginConfigSchema } from '../scratch-files.js';
+import { freshenScratchFilesIndex } from '../scratch-files-index.js';
 
 const parameters = Type.Object({ filename: Type.String() });
 
@@ -40,6 +41,9 @@ const deleteScratchFileTool: (config: ScratchFilesPluginConfigSchema) => Tool = 
     }
 
     fs.unlinkSync(filePath);
+
+    await freshenScratchFilesIndex(config);
+
     return `Deleted file ${filename}.`;
   }
 });
