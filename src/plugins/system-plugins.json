@@ -75,6 +75,11 @@
     "required": false
   },
   {
+    "id": "moltbook",
+    "name": "Moltbook",
+    "required": false
+  },
+  {
     "id": "brave-search-api",
     "name": "Brave Search API",
     "required": false

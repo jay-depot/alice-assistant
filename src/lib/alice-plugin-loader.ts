@@ -29,7 +29,8 @@ const defaultEnabledPlugins: EnabledPluginsConfig = {
     "weather-broker": true,
     "web-search-broker": true,
     "appointments": false,
-    "daily-goals": true
+    "daily-goals": true,
+    "moltbook": false
   },
   "user": {
     "enableUserPlugins": false,

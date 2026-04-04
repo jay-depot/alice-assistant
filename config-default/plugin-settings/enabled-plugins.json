@@ -15,6 +15,7 @@
     "web-search-broker": true,
     "appointments": false,
     "daily-goals": true,
+    "moltbook": false,
     "brave-search-api": false,
     "brave-web-search": false,
     "brave-search-news": false
