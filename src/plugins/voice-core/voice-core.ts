@@ -44,9 +44,51 @@ declare module '../../lib.js' {
         recordCallback: () => Promise<Buffer>, 
         restartDetectionCallback: () => void
       ) => (audio: Buffer, metadata: AudioMetadata) => void;
+
+      /**
+       * Registers a wake word detection function that the voice core plugin can call to determine if a 
+       * given audio buffer contains the wake word. The detector function should return true if the 
+       * wake word is detected in the audio, and false otherwise. The voice core plugin will call this 
+       * function with audio buffers containing microphone input audio, along with metadata describing 
+       * the audio format (sample rate, channels, bit depth, etc.). The voice core plugin will handle 
+       * resampling and format conversion as necessary, so your detector function can assume that the 
+       * audio format matches the metadata provided.
+       * 
+       * This function may be called *very* frequently (roughly every 250ms), so it should be optimized 
+       * for performance to avoid causing audio (and potentially system) lag.
+       */
       registerWakeWordDetection: (detector: (audio: Buffer, metadata: AudioMetadata) => boolean) => void;
+
+      /**
+       * Registers a speech-to-text function that the voice core plugin can call to convert audio 
+       * buffers into text. The STT function should return a promise that resolves to the recognized 
+       * text. The voice core plugin will call this function with audio buffers containing microphone 
+       * input audio, along with metadata describing the audio format (sample rate, channels, bit depth, etc.). 
+       * The voice core plugin will handle resampling and format conversion as necessary, so your STT function 
+       * can assume that the audio format matches the metadata provided.
+       */
       registerSpeechToText: (stt: (audio: Buffer, metadata: AudioMetadata) => Promise<string>) => void;
+
+      /**
+       * Registers a text-to-speech function that the voice core plugin can call to convert text 
+       * responses into audio buffers that can be played back to the user. The TTS function should 
+       * return a promise that resolves to an object containing the audio buffer and its metadata 
+       * (sample rate, channels, bit depth, etc.). The voice core plugin will call this function 
+       * whenever it needs to generate speech audio from text, such as when responding to user queries 
+       * or providing feedback.
+       * 
+       * The audio metadata passed into your callback is the "ideal" format for the generated audio, but 
+       * you can return audio in a different format if needed and the voice core plugin will handle 
+       * resampling and format conversion as necessary, as long as the metadata you return is accurate 
+       * for the audio buffer you return.
+       */
       registerTextToSpeech: (tts: (text: string, metadata: AudioMetadata) => Promise<{audio: Buffer, metadata: AudioMetadata}>) => void;
+
+      /**
+       * Registers an audio sink function that the voice core plugin can call to send audio data that 
+       * should be played back to the user. This will include TTS output, as well as any notification 
+       * sounds that will be added over time.
+       */
       registerAudioSink: (sink: (audio: Buffer, metadata: AudioMetadata) => void) => void;
     }
   }

@@ -11,6 +11,8 @@ const VoiceAudioSourceSoxPluginConfigSchema = Type.Object({
   conversationRecordMs: Type.Number({ minimum: 250 }),
 });
 
+type VoiceAudioSourceSoxPluginConfig = Type.Static<typeof VoiceAudioSourceSoxPluginConfigSchema>;
+
 const voiceAudioSourceSoxPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'voice-audio-source-sox',
@@ -26,14 +28,16 @@ const voiceAudioSourceSoxPlugin: AlicePlugin = {
     const voiceCore = plugin.request('voice-core');
 
     const { default: NodeSox } = await import('node-sox');
-    const { getPluginConfig } = await plugin.config(VoiceAudioSourceSoxPluginConfigSchema, {
-      device: undefined,
-      sampleRate: 16000,
-      channels: 1,
-      bitDepth: 16,
-      detectionChunkMs: 250,
-      conversationRecordMs: 10000,
-    });
+    const { getPluginConfig } = await plugin.config<VoiceAudioSourceSoxPluginConfig>(
+      VoiceAudioSourceSoxPluginConfigSchema, {
+        device: undefined,
+        sampleRate: 16000,
+        channels: 1,
+        bitDepth: 16,
+        detectionChunkMs: 250,
+        conversationRecordMs: 10000,
+      }
+    );
     const config = getPluginConfig();
     const audioMetadata = {
       sampleRate: config.sampleRate,
