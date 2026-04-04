@@ -17,7 +17,7 @@ export function SessionsList({ sessions, currentSessionId, onSelectSession }: Se
           <SessionItem
             key={String(session.id)}
             session={session}
-            isActive={session.id === currentSessionId}
+            isActive={String(session.id) === String(currentSessionId)}
             onClick={onSelectSession}
           />
         ))
