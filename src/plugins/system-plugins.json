@@ -90,6 +90,11 @@
     "required": false
   },
   {
+    "id":"currents-news",
+    "name":"Currents News",
+    "required": false
+  },
+  {
     "id": "static-location",
     "name": "Static Location",
     "required": false
