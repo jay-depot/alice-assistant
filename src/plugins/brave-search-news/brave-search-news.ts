@@ -1,6 +1,5 @@
 import { SafeSearchLevel } from 'brave-search/dist/types.js';
 import { AlicePlugin } from '../../lib/types/alice-plugin-interface.js';
-import { url } from 'node:inspector';
 
 const braveSearchNewsPlugin: AlicePlugin = {
   pluginMetadata: {

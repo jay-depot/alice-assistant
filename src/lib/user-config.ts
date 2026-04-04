@@ -9,7 +9,6 @@ import * as os from 'os';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 // TODO: Validate loaded files against these schemas.
-import { SystemConfigBasic } from './types/system-config-basic.js'; 
 import { SystemConfigFull } from './types/system-config-full.js';
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));

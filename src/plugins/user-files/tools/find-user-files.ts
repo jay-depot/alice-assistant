@@ -1,6 +1,5 @@
 import { Static, Type } from 'typebox';
 import { Tool } from '../../../lib/tool-system.js';
-import { UserConfig } from '../../../lib/user-config.js';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -74,6 +73,7 @@ function searchDirectory(
         });
       }
     }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (err) {
     // Silently skip directories we can't read
     return;

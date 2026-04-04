@@ -36,7 +36,6 @@ const appendScratchFileTool: (config: ScratchFilesPluginConfigSchema) => Tool = 
     }
     const allowedFileTypes = config.allowedFileTypes;
     const maxFileSizeKB = config.maxFileSizeKB;
-    const allowOverwrite = config.allowOverwrite;
 
     const filename = args.filename;
     const contents = args.contents;

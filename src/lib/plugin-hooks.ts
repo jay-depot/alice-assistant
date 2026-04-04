@@ -1,4 +1,4 @@
-import { AlicePluginHooks, Conversation, DynamicPromptConversationType, Message, Tool } from '../lib.js';
+import { AlicePluginHooks, Conversation, DynamicPromptConversationType, Message } from '../lib.js';
 
 const registeredHooks: {
   onUserConversationWillBegin: Array<(conversation: Conversation, type: DynamicPromptConversationType) => Promise<void>>;

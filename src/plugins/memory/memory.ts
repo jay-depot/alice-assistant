@@ -1,10 +1,9 @@
 import { Static, Type } from 'typebox';
-import { AlicePlugin, AlicePluginInterface } from '../../lib.js';
-import { MikroORM } from '@mikro-orm/sqlite';
+import { AlicePlugin, AlicePluginInterface, SUMMARY_HEADER } from '../../lib.js';
+import { AnyEntity, EntityClass, MikroORM } from '@mikro-orm/sqlite';
 import * as path from 'path';
 import { Keyword, Memory } from './db-schemas/index.js';
 import { UserConfig } from '../../lib/user-config.js';
-import { SUMMARY_HEADER } from '../../lib.js';
 
 declare module '../../lib.js' {
   export interface PluginCapabilities {
@@ -25,7 +24,7 @@ declare module '../../lib.js' {
        *                 Prefix all table names with your plugin's id.
        * @returns 
        */
-      registerDatabaseModels: (entities: any[]) => void; // TODO: Figure out the type for this. We want it to be something that forces the plugin developer to return MikroORM entity definitions.
+      registerDatabaseModels: (entities: EntityClass<AnyEntity>[]) => void; // TODO: Figure out the type for this. We want it to be something that forces the plugin developer to return MikroORM entity definitions.
 
       /**
        * Registers a function to be called once the database is initialized and ready to use.
@@ -143,7 +142,7 @@ const memoryPlugin: AlicePlugin = {
       includePersonalityChangeLlmHint: false,
     });
 
-    const entities = [Keyword, Memory];
+    const entities: EntityClass<AnyEntity>[] = [Keyword, Memory];
     let isDatabaseReady = false;
     let waitForDatabaseReady: (orm: MikroORM) => void;
     const databaseReadyPromise = new Promise<MikroORM>((resolve) => {

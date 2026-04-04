@@ -50,8 +50,6 @@ export async function reindexScratchFiles(config: ScratchFilesPluginConfigSchema
   const indexFilePath = path.join(scratchDirectory, '.index');
   const index: Record<string, string> = {};
 
-  console.log({ config });
-
   if (await exists(scratchDirectory)) {
     const files = await readdir(scratchDirectory);
     for (const file of files) {

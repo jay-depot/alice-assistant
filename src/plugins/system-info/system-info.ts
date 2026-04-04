@@ -39,7 +39,7 @@ const systemInfoPlugin: AlicePlugin = {
     plugin.registerHeaderSystemPrompt({
       name: 'systemInfoHeader',
       weight: -1,
-      getPrompt: async (context) => {
+      getPrompt: async () => {
         const systemPromptChunks: string[] = [];
         // Then some basic host PC system info: OS, CPU, GPU, RAM, Kernel, Desktop Environment, Distribution
         systemPromptChunks.push('\n## YOUR HOST PC SYSTEM INFO\n');

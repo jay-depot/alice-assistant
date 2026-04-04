@@ -1,6 +1,5 @@
 import { Conversation, Message } from '../conversation.js';
 import { DynamicPromptConversationType } from '../dynamic-prompt.js';
-import { Tool } from '../tool-system.js';
 
 export type AlicePluginHooks = {
   /**

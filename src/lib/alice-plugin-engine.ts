@@ -24,7 +24,7 @@ const pluginCapabilities = {} as PluginCapabilities;
 const loadingPromises: Record<string, { 
   promise: Promise<void>, 
   resolve: () => void, 
-  reject: (error: any) => void,
+  reject: (error: unknown) => void,
 }> = {};
 
 const mkdirMemoized = (() => {
@@ -233,7 +233,7 @@ export const AlicePluginEngine = {
         console.error(`Error registering plugin ${plugin.pluginMetadata.id}:`, error);
         loadingPromises[plugin.pluginMetadata.id].reject(error);
 
-        throw new Error(`Failed to register plugin ${plugin.pluginMetadata.id}. See previous logs for details.`);
+        throw new Error(`Failed to register plugin ${plugin.pluginMetadata.id}.`, { cause: error });
       }
       
       loadingPromises[plugin.pluginMetadata.id].resolve();

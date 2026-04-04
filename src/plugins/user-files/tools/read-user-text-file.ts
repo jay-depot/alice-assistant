@@ -1,6 +1,5 @@
 import { Static, Type } from 'typebox';
 import { Tool } from '../../../lib/tool-system.js';
-import { UserConfig } from '../../../lib/user-config.js';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -65,7 +64,6 @@ const readUserTextFileTool: (config) => Tool = (config) => ({
     const filePath = args.path;
     const offset = args.offset || 0;
     const maxBytes = Math.min(args.maxBytes || 65536, 1048576); // Cap at 1MB
-    const encoding = args.encoding || 'utf-8';
 
     // Security checks
     if (!isAllowedPath(filePath, allowedRoots)) {
@@ -112,7 +110,7 @@ const readUserTextFileTool: (config) => Tool = (config) => ({
       const fileContent = fs.readFileSync(absolutePath);
 
       // Apply offset and maxBytes truncation
-      const truncated = fileContent.slice(offset, offset + maxBytes);
+      const truncated = fileContent.subarray(offset, offset + maxBytes);
       const wasComplete = truncated.length === fileContent.length - offset;
 
       return JSON.stringify({

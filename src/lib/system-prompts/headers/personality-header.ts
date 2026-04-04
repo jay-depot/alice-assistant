@@ -4,7 +4,7 @@ import { DynamicPrompt } from '../../dynamic-prompt.js';
 export const personalityHeaderPrompt: DynamicPrompt = {
   name: 'personalityHeader',
   weight: -9999,
-  getPrompt: async (context) => {
+  getPrompt: async () => {
     return await buildPersonalityPrompt();
   }
 };

@@ -11,7 +11,7 @@ import { reindexScratchFiles } from './scratch-files-index.js';
 import { simpleExpandTilde } from '../../lib/simple-tilde-expansion.js';
 
 export const ScratchFilesPluginConfigSchema = Type.Object({
-  scratchDirectory: Type.String({ default: '~/.alice/scratch' }),
+  scratchDirectory: Type.String({ default: '~/.alice-assistant/scratch' }),
   allowedFileTypes: Type.Array(Type.String(), { default: ['txt', 'md'] }),
   maxFileSizeKB: Type.Number({ default: 100 }),
   allowOverwrite: Type.Boolean({ default: true }),
@@ -71,7 +71,7 @@ const scratchFilesPlugin: AlicePlugin = {
         }
 
         const indexFilePath = path.join(config.getPluginConfig().scratchDirectory, '.index');
-        let indexContent = '';
+        let indexContent : string;
 
         if (await exists(indexFilePath)) {
           const rawIndex = JSON.parse(await readFile(indexFilePath, 'utf-8'));
