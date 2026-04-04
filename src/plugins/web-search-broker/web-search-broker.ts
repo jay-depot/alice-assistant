@@ -40,6 +40,12 @@ declare module '../../lib.js' {
   }
 }
 
+const WebSearchToolInputSchema = Type.Object({
+  query: Type.String({ description: 'The search query to perform.' }),
+});
+
+type WebSearchToolInputSchema = Type.Static<typeof WebSearchToolInputSchema>;
+
 const webSearchBrokerPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'web-search-broker',
@@ -64,27 +70,52 @@ const webSearchBrokerPlugin: AlicePlugin = {
     const webSearchProviderCallbacks: Record<string, (query: string) => Promise<WebSearchResult[]>> = {};
 
     const config = await plugin.config<WebSearchBrokerPluginConfigSchema>(WebSearchBrokerPluginConfigSchema, {});
+    
+    const requestWebSearchData = async (query: string) => {
+      // Call all registered web search providers' callbacks with the query and return the results in an object 
+      // keyed by provider name, or return an empty object if no providers are registered.
+      if (Object.keys(webSearchProviderCallbacks).length === 0) {
+        return {};
+      }
+
+      const results: Record<string, WebSearchResult[]> = {};
+      await Promise.all(Object.entries(webSearchProviderCallbacks).map(async ([name, callback]) => {
+        results[name] = await callback(query);
+      }));
+      return results;
+    };
+
+    const getPreferredProviderId = async () => {
+      return config.getPluginConfig().preferredSearchProvider || '';
+    }
 
     plugin.offer<'web-search-broker'>({
       registerWebSearchProvider: (name, callback) => {
         // Store the callback and call it whenever we want to get web search results from this provider.
         webSearchProviderCallbacks[name] = callback;
       },
-      requestWebSearchData: async (query) => {
-        // Call all registered web search providers' callbacks with the query and return the results in an object 
-        // keyed by provider name, or return an empty object if no providers are registered.
-        if (Object.keys(webSearchProviderCallbacks).length === 0) {
-          return {};
-        }
+      requestWebSearchData,
+      getPreferredProviderId,
+    });
 
-        const results: Record<string, WebSearchResult[]> = {};
-        await Promise.all(Object.entries(webSearchProviderCallbacks).map(async ([name, callback]) => {
-          results[name] = await callback(query);
-        }));
-        return results;
-      },
-      async getPreferredProviderId() {
-        return config.getPluginConfig().preferredSearchProvider || '';
+    plugin.registerTool({
+      name: 'webSearch',
+      description: 'Use webSearch to perform a web search on behalf of the user, or if you absolutely cannot answer the user\'s question using your own knowledge. The tool will return results from one or more search providers.',
+      availableFor: ['chat', 'voice', 'autonomy'],
+      systemPromptFragment: '',
+      toolResultPromptIntro: '',
+      toolResultPromptOutro: '',
+      parameters: WebSearchToolInputSchema,
+      execute: async (parameters: WebSearchToolInputSchema) => {
+        const results = await requestWebSearchData(parameters.query);
+        const resultsStringPars = [] as string[];
+        for (const [provider, providerResults] of Object.entries(results)) {
+          const providerResultsString = `## Results from ${provider}\n` + providerResults.map((result, index) => {
+            return `Result ${index + 1}:\nTitle: ${result.title}\nSnippet: ${result.snippet}\nURL: ${result.url}`;
+          }).join('\n');
+          resultsStringPars.push(providerResultsString);
+        }
+        return resultsStringPars.join('\n\n');
       }
     });
   }
