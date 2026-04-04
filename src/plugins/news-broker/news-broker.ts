@@ -57,8 +57,28 @@ const newsBrokerPlugin: AlicePlugin = {
         }
 
         const results: Record<string, NewsItem[]> = {};
+        const cleanedQuery = query
+          .trim()
+          .toLowerCase()
+          .split(' ')
+          .filter(word => ![
+            'news',
+            'about',
+            'on',
+            'regarding',
+            'related to',
+            'headlines',
+            'latest',
+            'today',
+            'yesterday',
+            'tomorrow',
+            new Date().getFullYear().toString(),
+            new Date().getDay().toString(),
+            new Date().toLocaleString('default', { month: 'long' }).toLowerCase(),
+            new Date().toLocaleString('default', { month: 'short' }).toLowerCase(),
+          ].includes(word)).join(' ');
         await Promise.all(Object.entries(newsProviderCallbacks).map(async ([name, callback]) => {
-          results[name] = await callback(query);
+          results[name] = await callback(cleanedQuery);
         }));
         return results;
     }
@@ -79,10 +99,7 @@ const newsBrokerPlugin: AlicePlugin = {
         'through the news broker plugin. The query can be as broad or specific as you like, ' +
         'but should be focused on a particular topic or event. The tool will return an object ' +
         'containing news data from all registered news providers that have relevant data for ' +
-        'the query, keyed by provider name. DO NOT INCLUDE "FILLER" SUCH AS "NEWS," "LATEST," ' +
-        '"HEADLINES," ETC. IN THE QUERY. DO NOT INCLUDE THE CURRENT DATE OR TIME IN THE ' +
-        'QUERY. ONLY INCLUDE A DATE IN THE QUERY IF THE USER HAS SPECIFICALLY ASKED ABOUT ' +
-        'NEWS FROM A DATE IN THE PAST.',
+        'the query, keyed by provider name.',
       systemPromptFragment: '',
       toolResultPromptIntro: '',
       toolResultPromptOutro: '',
