@@ -47,6 +47,7 @@ request loop, and then filling in the missing functionality in all system plugin
 - openwakeword
 - whisper
 - piper-tts
+- SoX
 
 2. ~~Get it from npm: `npm i -g alice-assistant` (TODO: Make sure name is available on
    npm, or change it here)~~ Really, just pull it from this repo for now. I'll publish
