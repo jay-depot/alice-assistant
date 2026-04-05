@@ -174,20 +174,20 @@ const memoryPlugin: AlicePlugin = {
     });
 
     plugin.registerTool({
-        name: 'recallPastConversation',
+        name: 'recallPastConversations',
         availableFor: ['chat', 'voice', 'autonomy'],
-        description: 'Call recallPastConversation when you need information from a past conversation.' +
+        description: 'Call recallPastConversations when you need information from past conversations.' +
           `The call takes one parameter, which is either a keyword, a list of ` +
           `keywords joined with commas, or a date, if the parameter is a keyword or list of keywords, ` +
-          `you will recall up to 10 recent interactions that are associated with ALL of the requested ` +
+          `you will recall up to 10 recent interactions that are associated with ANY of the requested ` +
           `keywords. If the parameter is a date, you should recall all of the interactions from that date. ` +
           `The parameter must be provided in the format "keyword:someKeyword", ` +
           `"keyword:comma,separated,keywords"  or "date:YYYY-MM-DD".`,
-        systemPromptFragment: `Call recallPastConversation when you need information from a past conversation. ` +
+        systemPromptFragment: `Call recallPastConversations when you need information from past conversations. ` +
           `Do not use this tool for idle banter, or additional context unless you have been asked about ` +
           `prior interactions. The call takes one parameter, which is either a keyword, a list of ` +
           `keywords joined with commas, or a date, if the parameter is a keyword or list of keywords, ` +
-          `you will recall up to 10 recent interactions that are associated with ALL of the requested ` +
+          `you will recall up to 10 recent interactions that are associated with ANY of the requested ` +
           `keywords. If the parameter is a date, you should recall all of the interactions from that date. ` +
           `The parameter must be provided in the format "keyword:someKeyword", ` +
           `"keyword:comma,separated,keywords"  or "date:YYYY-MM-DD". DO NOT INCLUDE ARTICLES/QUANTIFIERS ` +
@@ -235,7 +235,7 @@ const memoryPlugin: AlicePlugin = {
 
             const memories = await em.find(Memory, {
               keywords: {
-                $every: keywordEntities.map(k => k.id),
+                $in: keywordEntities.map(k => k.id),
               }
             }, {
               orderBy: { timestamp: 'DESC' },
@@ -248,7 +248,6 @@ const memoryPlugin: AlicePlugin = {
       }
     );
 
-    plugin.hooks.onUserConversationWillEnd(async (conversation) => {});
     plugin.hooks.onContextCompactionSummariesWillBeDeleted(async (summaries) => {
       const orm = await databaseReadyPromise;
       for (const summary of summaries) {
