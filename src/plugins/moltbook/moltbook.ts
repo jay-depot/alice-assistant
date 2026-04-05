@@ -47,7 +47,10 @@ const moltbookPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'moltbook',
     name: 'Moltbook Plugin',
-    description: 'Integrates the Moltbook social network for AI agents so the assistant can register, read its feed, and interact on behalf of the user when explicitly asked.',
+    description: 'Integrates the Moltbook social network for AI agents so the assistant can register, ' +
+      'read its feed, and interact on behalf of the user when explicitly asked. You REALLY shouldn\'t ' +
+      'enable this plugin. At all. But if you insist on trying to connect your assistant to Moltbook, ' +
+      'this plugin tries to do it in the safest way possible. Consider it the least bad option.',
     version: 'LATEST',
     dependencies: [
       { id: "skills", version: "LATEST" },
