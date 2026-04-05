@@ -1,6 +1,6 @@
 import { Type } from 'typebox';
 import { AlicePlugin } from '../../lib.js';
-import systemHealthCheckTool from './tools/system-health.js';
+// import systemHealthCheckTool from './tools/system-health.js';
 import { getSystemInfo } from './get-system-info.js';
 
 const SystemInfoPluginConfigSchema = Type.Object({
@@ -67,7 +67,7 @@ const systemInfoPlugin: AlicePlugin = {
       }
     });
 
-    plugin.registerTool(systemHealthCheckTool(config.getPluginConfig()));
+    // plugin.registerTool(systemHealthCheckTool(config.getPluginConfig()));
   }
 };
 

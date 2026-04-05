@@ -138,7 +138,7 @@ export class Conversation {
       acc + message.content.split(' ').length, 0);
     // Start compacting once we hit 50% of the context window, so we have room for our 
     // system prompts and the future conversation.
-    const contextLengthThreshold = this.llmConnection.options.num_ctx * 0.5; 
+    const contextLengthThreshold = ((this.llmConnection.options.num_ctx ?? 16000) * 0.5); 
 
     if (approximateContextLength > contextLengthThreshold) {
       const firstNonSummaryMessageIndex = this.compactedContext.findIndex(m => !m.content.startsWith(SUMMARY_HEADER));
@@ -209,6 +209,10 @@ export class Conversation {
       ...this.compactedContext,
       ...footerPrompts.map(prompt => ({ role: 'system', content: prompt })),
     ];
+
+    if (process.env.ALICE_DEBUG) {
+      console.log('DEBUG: Full context being sent to LLM:', JSON.stringify(fullContext, null, 2));
+    }
 
     const response = await retry(async () => {
       const res = await OllamaClient.chat({

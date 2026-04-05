@@ -1,4 +1,5 @@
 import { AlicePlugin, AlicePluginInterface } from '../../lib.js';
+import { format } from 'date-fns';
 
 const datetimePlugin: AlicePlugin = {
   pluginMetadata: {
@@ -20,8 +21,8 @@ const datetimePlugin: AlicePlugin = {
       getPrompt: async () => {
         const systemPromptChunks: string[] = [];
         systemPromptChunks.push(`## CURRENT DATE AND TIME\n`);
-        systemPromptChunks.push(`The current date and time are: ${new Date().toLocaleString()}`);
-        systemPromptChunks.push(`The current day of the week is: ${new Date().toLocaleString('en-US', { weekday: 'long' })}`);
+        systemPromptChunks.push(`The current date and time are: ${format(new Date(), 'PPP pp')}`);
+        systemPromptChunks.push(`The current day of the week is: ${format(new Date(), 'EEEE')}`);
         return systemPromptChunks.join('\n');
       }
     });
