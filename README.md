@@ -41,7 +41,7 @@ There is now also a very basic skill recall system.
 In the meantime, I've been working on the voice loop in another branch. It's slow work. Audio 
 in Node *sucks.* Any tips or contributions there would be *greatly* appreciated.
 
-Future plans for how to interact with this assistant may go one of two ways:
+Future plans for how to interact with this assistant may go one of a few ways:
 
 1. A user-scoped systemd service that runs in the background listening for wake words, and
    accepting web-based chat sessions if the user opens one in their browser
