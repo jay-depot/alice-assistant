@@ -51,7 +51,6 @@ export class Conversation {
     }), {
       max: 3,
       timeout: TIMEOUT,
-      report: console.warn,
     });
     return response.message.content || '';
   }
@@ -135,7 +134,6 @@ export class Conversation {
       }), {
         max: 3,
         timeout: TIMEOUT,
-        report: console.warn,
       });
 
       const summary = summaryResponse.message.content || '';
@@ -191,7 +189,6 @@ export class Conversation {
     }), {
       max: 3,
       timeout: TIMEOUT,
-      report: console.warn,
     });
 
     if (response.message.content && response.message.content.length > 0) {
@@ -273,7 +270,6 @@ export class Conversation {
       }), {
         max: 3,
         timeout: TIMEOUT,
-        report: console.warn,
       });
 
       return this.handleToolCalls(nextResponse, depth + 1);
@@ -319,8 +315,7 @@ export class Conversation {
       tools: buildOllamaToolDescriptionObject(this.type)
     }), {
       max: 3,
-      timeout: TIMEOUT,
-      report: console.warn,
+      timeout: TIMEOUT
     });
     return response.message.content.replaceAll(/(\n|\r)/g, ' ').replaceAll(/(\*|#|")/g, '') || '';
   }
