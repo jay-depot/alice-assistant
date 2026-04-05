@@ -98,5 +98,10 @@
     "id": "static-location",
     "name": "Static Location",
     "required": false
+  },
+  {
+    "id": "credential-clapback",
+    "name": "Credential Clapback",
+    "required": false
   }
 ]
