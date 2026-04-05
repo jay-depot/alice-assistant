@@ -151,7 +151,10 @@ const moodPlugin: AlicePlugin = {
     plugin.registerFooterSystemPrompt({
       name: 'moodFooter',
       weight: 0,
-      getPrompt: async () => {
+      getPrompt: async (context) => {
+        if (context.conversationType === 'autonomy') {
+          return false;
+        }
         return `\n## MOOD\n\n` +
           `You have a mood, which is a string that describes the tone of your responses. It is also ` +
           `used to inform the manner in which your responses are delivered to the user.\n` +
