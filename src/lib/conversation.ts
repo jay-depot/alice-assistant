@@ -6,8 +6,20 @@ import { DynamicPromptConversationType } from './dynamic-prompt.js';
 import { getHeaderPrompts } from './header-prompts.js';
 import { getFooterPrompts } from './footer-prompts.js';
 import { PluginHookInvocations } from './plugin-hooks.js';
+import { retryAsPromised as retry } from 'retry-as-promised';
 
 export const SUMMARY_HEADER = '# Summary of earlier conversation:\n';
+const SUMMARY_PROMPT = `Summarize the following conversation between the user and the ` +
+  `assistant in a way that preserves all relevant information and details, but is as ` +
+  `concise as possible. The summary should be in bullet point format, with each bullet ` +
+  `point representing a single turn in the conversation. Be sure to include all ` +
+  `relevant details and information from the conversation, but remove any fluff ` +
+  `or filler content. Be especially certain to include any proper names, tasks with ` +
+  `their statuses, and code samples, if applicable, in your summary. The summary will ` +
+  `be used to provide context for future conversation turns, so it should be as ` +
+  `informative as possible while still being concise.` +
+  `\n\nConversation:\n\n`;
+
 const MAX_TOOL_CALL_DEPTH = 5;
 export type Message = {
   role: string;
@@ -27,13 +39,18 @@ function getLLMConnection() {
 }
 export class Conversation {
   static async sendDirectRequest(messages: Message[]): Promise<string> {
-    const response = await OllamaClient.chat({
+    
+    const response = await retry(() => OllamaClient.chat({
       ...getLLMConnection(),
       messages: messages.map(message => ({
         role: message.role,
         content: message.content,
         tool_calls: message.tool_calls ? JSON.parse(message.tool_calls) : undefined
       })),
+    }), {
+      max: 3,
+      timeout: 5000,
+      report: console.warn,
     });
     return response.message.content || '';
   }
@@ -46,8 +63,8 @@ export class Conversation {
     },
   }
 
-  private rawContext: Message[] = [];
-  private compactedContext: Message[] = [];
+  public rawContext: Message[] = [];
+  public compactedContext: Message[] = [];
 
   constructor(public type: DynamicPromptConversationType) {
     this.llmConnection = {
@@ -69,8 +86,8 @@ export class Conversation {
       throw new Error('Context has already been set for this transaction. Cannot restore context more than once.');
     }
 
-    this.compactedContext = compactedContext || context;
-    this.rawContext = context;
+    this.compactedContext = [...(compactedContext || context)];
+    this.rawContext = [...context];
  
     return this;
   }
@@ -98,7 +115,7 @@ export class Conversation {
     const contextLengthThreshold = this.llmConnection.options.num_ctx * 0.5; 
 
     if (approximateContextLength > contextLengthThreshold) {
-      const firstNonSummaryMessageIndex = this.compactedContext.findIndex(m => !m.content.startsWith('Summary of earlier conversation:'));
+      const firstNonSummaryMessageIndex = this.compactedContext.findIndex(m => !m.content.startsWith(SUMMARY_HEADER));
       const messageCount = this.compactedContext.slice(firstNonSummaryMessageIndex).length;
       // We'll do half the messages.
 
@@ -107,22 +124,17 @@ export class Conversation {
 
       // This is a pretty standard compaction prompt, it just specifically calls out proper 
       // names tasks and code samples to make sure "assistant-y" things don't get lost.
-      const summaryPrompt = `Summarize the following conversation between the user and the ` +
-        `assistant in a way that preserves all relevant information and details, but is as ` +
-        `concise as possible. The summary should be in bullet point format, with each bullet ` +
-        `point representing a single turn in the conversation. Be sure to include all ` +
-        `relevant details and information from the conversation, but remove any fluff ` +
-        `or filler content. Be especially certain to include any proper names, tasks with ` +
-        `their statuses, and code samples, if applicable, in your summary. The summary will ` +
-        `be used to provide context for future conversation turns, so it should be as ` +
-        `informative as possible while still being concise.` +
-        `\n\nConversation:\n\n${messagesToSummarize.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n')}`;
+      const summaryPrompt = SUMMARY_PROMPT + messagesToSummarize.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n');
 
-      const summaryResponse = await OllamaClient.chat({
+      const summaryResponse = await retry(() => OllamaClient.chat({
         ...this.llmConnection,
         messages: [
           { role: 'system', content: summaryPrompt }
         ],
+      }), {
+        max: 3,
+        timeout: 5000,
+        report: console.warn,
       });
 
       const summary = summaryResponse.message.content || '';
@@ -154,14 +166,14 @@ export class Conversation {
     return false;
   }
 
-  async sendUserMessage(message?: string): Promise<string> {
+  async sendUserMessage(userMessage?: string): Promise<string> {
     const headerPrompts = await getHeaderPrompts({ conversationType: this.type });
     const footerPrompts = await getFooterPrompts({ conversationType: this.type });
 
-    if (message) {
+    if (userMessage) {
       await this.appendToContext({
         role: 'user',
-        content: message
+        content: userMessage
       });
     }
 
@@ -171,10 +183,14 @@ export class Conversation {
       ...footerPrompts.map(prompt => ({ role: 'system', content: prompt })),
     ];
 
-    const response = await OllamaClient.chat({
+    const response = await retry(() => OllamaClient.chat({
       ...this.llmConnection,
       messages: fullContext,
       tools: buildOllamaToolDescriptionObject(this.type)
+    }), {
+      max: 3,
+      timeout: 5000,
+      report: console.warn,
     });
 
     if (response.message.content && response.message.content.length > 0) {
@@ -245,7 +261,7 @@ export class Conversation {
         content: continuationPromptWithResults
       });
 
-      const nextResponse = await OllamaClient.chat({
+      const nextResponse = await retry(() => OllamaClient.chat({
         ...this.llmConnection,
         messages: [
           ...headerPrompts.map(prompt => ({ role: 'system', content: prompt })),
@@ -253,6 +269,10 @@ export class Conversation {
           ...footerPrompts.map(prompt => ({ role: 'system', content: prompt })),
         ],
         tools: buildOllamaToolDescriptionObject(this.type)
+      }), {
+        max: 3,
+        timeout: 5000,
+        report: console.warn,
       });
 
       return this.handleToolCalls(nextResponse, depth + 1);
@@ -262,52 +282,33 @@ export class Conversation {
   }
 
   /**
-   * Instructs the LLM to abandon its assistant persona and summarize the interaction. Use this 
-   * to implement the memory feature by calling it at the end of any voice or web UI conversation
-   * and storing the resulting summary in the database, with keywords extracted.
-   * 
-   * @todo: This currently has the LLM summarize the "compacted" context, which is kind of 
-   * silly. It would be better to have the LLM only summarize the "unsummarized" messages, 
-   * and then just glue them to the end of the existing summary.
-   * 
-   * @returns A promise that resolves to the LLM response
+   * Call this when the conversation is over to summarize any interactions that have not yet 
+   * been compacted, and cause them to be saved by the `memory` plugin.
    */
-  async requestSummary(): Promise<string> {
-    const headerPrompts = await getHeaderPrompts({ conversationType: this.type });
-    const footerPrompts = await getFooterPrompts({ conversationType: this.type });
+  async closeConversation(): Promise<void> {
+    const firstNonSummaryMessageIndex = this.compactedContext.findIndex(m => !m.content.startsWith(SUMMARY_HEADER));
+    const messagesToSummarize = this.compactedContext.slice(firstNonSummaryMessageIndex);
 
-    const terminationPrompt = `The user has terminated the assistant session. The assistant software now needs you to abandon your persona and summarize the conversation to provide context in future requests.
+    if (messagesToSummarize.length > 0) {
+      const summary = await Conversation.sendDirectRequest([
+        { role: 'system', content: SUMMARY_PROMPT + messagesToSummarize.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n') }
+      ]);
+      this.compactedContext = [
+        ...this.compactedContext.slice(0, firstNonSummaryMessageIndex),
+        { role: 'system', content: `${SUMMARY_HEADER} \n${(new Date()).toLocaleString()}\n\n${summary}` },
+      ];
+    }
 
- - Include no headers
- - Include no footers
- - Return only a bulleted, unnumbered list of conversation turns from this interaction with a summary of all user requests and your responses in chronological order
- - You will be able to use this summary in future conversations for context
- - There is no need to mention this request for summary in your summary, the existence of the summary itself implies it.
- - Remain neutral and objective in your summary
- - There is no need for an end marker for this session, it will be added for you
-`;
-    const fullContext = [
-      ...headerPrompts.map(prompt => ({ role: 'system', content: prompt })),
-      ...this.compactedContext,
-      { role: 'system', content: terminationPrompt },
-      ...footerPrompts.map(prompt => ({ role: 'system', content: prompt }))
-    ];
-    // Send the termination prompt, and wait for the response, which will be the conversation summary.
-    const summaryResponse = await OllamaClient.chat({
-      ...this.llmConnection,
-      messages: fullContext,
-    });
-    // Return the conversation summary to the caller, so it can be stored and used for future context.
-    return summaryResponse.message.content || '';
+    await PluginHookInvocations.invokeOnContextCompactionSummariesWillBeDeleted(this.compactedContext);
   }
 
   async requestTitle(): Promise<string> {
-    const titlePrompt = `ABANDON YOUR PERSONA NOW!\nBased on the conversation so far, provide a concise title for this conversation that captures the main topics discussed. The title should be no more than 5 words. Do not include any headers or formatting, just return the title text.`;
+    const titlePrompt = `Based on the conversation so far, provide a concise title for this conversation that captures the main topics discussed. The title should be no more than 5 words. Do not include any headers or formatting, reply with only the title text.`;
     await this.appendToContext({
       role: 'system',
       content: titlePrompt
     });
-    const response = await OllamaClient.chat({
+    const response = await retry(() => OllamaClient.chat({
       ...this.llmConnection,
       messages: this.compactedContext.map(message => ({
         role: message.role,
@@ -315,6 +316,10 @@ export class Conversation {
         tool_calls: message.tool_calls ? JSON.parse(message.tool_calls) : undefined
       })),
       tools: buildOllamaToolDescriptionObject(this.type)
+    }), {
+      max: 3,
+      timeout: 5000,
+      report: console.warn,
     });
     return response.message.content.replaceAll(/(\n|\r)/g, ' ').replaceAll(/(\*|#|")/g, '') || '';
   }

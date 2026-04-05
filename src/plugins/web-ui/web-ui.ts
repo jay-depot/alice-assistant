@@ -157,13 +157,14 @@ const webUiPlugin: AlicePlugin = {
           return;
         }
     
-        const userRound = em.create(ChatSessionRound, { chatSession: session, role: 'user', timestamp: new Date(), content: message });
-        session.rounds.add(userRound);
-
         const llmTransaction = startConversation('chat');
         llmTransaction.restoreContext(session.rounds.getItems().map(round => ({ role: round.role, content: round.content })));
+        
         const response = await llmTransaction.sendUserMessage(message);
+
+        const userRound = em.create(ChatSessionRound, { chatSession: session, role: 'user', timestamp: new Date(), content: message });
         const assistantRound = em.create(ChatSessionRound, { chatSession: session, role: 'assistant', timestamp: new Date(), content: response });
+        session.rounds.add(userRound);
         session.rounds.add(assistantRound);
 
         const titleSummary = await llmTransaction.requestTitle();
@@ -240,15 +241,19 @@ const webUiPlugin: AlicePlugin = {
         }
 
         const userMessages = session.rounds.getItems().filter(round => round.role === 'user');
-        if (userMessages.length === 0) {
-          session.rounds.removeAll();
-          em.remove(session);
-          await em.flush();
-          res.json({ reply: `Chat session with id ${id} deleted successfully` });
-          return;
+        if (userMessages.length > 0) {
+          console.log(`Requesting conversation summary for chat session ${id} before deletion...`);
+          const conversation = startConversation('chat');
+          conversation.restoreContext(session.rounds.getItems().map(round => ({ role: round.role, content: round.content })));
+          await conversation.closeConversation();
         }
 
-        res.json({ reply: `This is a placeholder for deleting the chat session with id ${id}` });
+        session.rounds.removeAll();
+        em.remove(session);
+        await em.flush();
+        res.json({ reply: `Chat session with id ${id} deleted successfully` });
+        console.log(`Chat session ${id} deleted successfully.`);
+        return;
       });
 
       app.get('/api/extensions', async (_req, res) => {
