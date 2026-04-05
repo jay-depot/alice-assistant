@@ -68,9 +68,19 @@ Future plans for how to interact with this assistant may go one of a few ways:
 
 ## Usage
 
-For now, clone this repo, `npm install`, `npm run build`, and then `npm start` to start the assistant. The first time you start it, it will create your config directory in `~/.alice-assistant/` and populate it with the default config files and then probably error out because of missing settings. Follow the instructions in the error messages, which will tell you what settings are required, but I can't provide you, and it should start up properly after that.
+For now, clone this repo, `npm install`, `npm run build`, and then `npm start` to start the 
+assistant. The first time you start it, it will create your config directory in 
+`~/.alice-assistant/` and populate it with the default config files and then probably error 
+out because of missing settings. Follow the instructions in the error messages, which will 
+tell you what settings you need to configure. I've tried to make the error messages as 
+helpful as possible, but if you run into any that arent, feel free to open an issue and 
+I'll try to clarify them.
 
-It will do a quick LLM connection test, and print the model's response to the terminal, then open a web UI as http://localhost:47153/ where you can chat with the assistant. If you have the news-broker and one of the news source plugins enabled, you can try it out by asking something like: "What's the latest news on [some topic]?" Tool calls are all logged to the terminal for now, so you can confirm they work by checking there.
+It will do a quick LLM connection test, and print the model's response to the terminal, 
+then open a web UI as http://localhost:47153/ where you can chat with the assistant. If 
+you have the news-broker and one of the news source plugins enabled, you can try it out by 
+asking something like: "What's the latest news on [some topic]?" Tool calls are all logged 
+to the terminal for now, so you can confirm they work by checking there.
 
 ## Contributing
 
@@ -78,7 +88,10 @@ It will do a quick LLM connection test, and print the model's response to the te
   implementation is clean
 - If you use an AI to generate it, you still have to be able to explain it in your own, human
   written, words
-- Before the conversion to plug-in architecture, I stated that I would no longer accept pull requests adding agentic features. This is no longer the case, however like alternative LLM providers, they must be fully disabled by default.
+- Before the conversion to plug-in architecture, I stated that I would not accept pull requests 
+  adding agentic features. This is no longer the case, however like alternative LLM providers, 
+  they must be fully disabled by default and the relevant plugin's descriptions must clearly 
+  state the fact that autonomous features are included.
 - "I'd like to add the ability to connect to GPT/Claude/Gemini/DeepSeek!" On the unlikely chance
   this project ever gets enough attention for someone to say this, I'll respond in advance: Yes,
   I will accept pull requests extending this project with that functionality, however there are
@@ -86,6 +99,6 @@ It will do a quick LLM connection test, and print the model's response to the te
   "local-model-first," so any cloud model usage needs to be implemented as a fallback for when
   ollama fails, a feature enabled by explicit user request for a specific interaction/conversation,
   or a more permanent "fallback" option for those who want to use this on a machine that can't
-  handle Ollama and understand the trade-off.
+  handle local models and understand the trade-off.
 - Beyond the above, the only other rule is this: Please do not open pull requests that will make
   me have to add new rules to this list.
