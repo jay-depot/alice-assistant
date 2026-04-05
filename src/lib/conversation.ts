@@ -259,7 +259,7 @@ export class Conversation {
       `   2) If you are missing a specific piece of information that would be critical to forming a complete answer, ask the user in character ` +
       `if you can continue looking. If they agree, you may use the new quota of 5 recursive tool calls for the next round of conversation to continue.`;
 
-    const continuationPrompt = depth > 0 ? promptIfCallsAvailable: promptIfNoCallsAvailable;
+    const continuationPrompt = depth <= MAX_TOOL_CALL_DEPTH ? promptIfCallsAvailable: promptIfNoCallsAvailable;
 
     const toolCalls = response.message.tool_calls;
     if (toolCalls && toolCalls.length > 0) {
@@ -297,6 +297,14 @@ export class Conversation {
         content: continuationPromptWithResults
       });
 
+      if (process.env.ALICE_DEBUG) {
+        console.log('DEBUG: Full context being sent to LLM for tool call continuation:', JSON.stringify([
+          ...headerPrompts.map(prompt => ({ role: 'system', content: prompt })),
+          ...this.compactedContext,
+          ...footerPrompts.map(prompt => ({ role: 'system', content: prompt })),
+        ], null, 2));
+      }
+
       const nextResponse = await retry(async () => {
         const res = await OllamaClient.chat({
         ...this.llmConnection,
@@ -305,7 +313,7 @@ export class Conversation {
             ...this.compactedContext,
             ...footerPrompts.map(prompt => ({ role: 'system', content: prompt })),
           ],
-          tools: buildOllamaToolDescriptionObject(this.type)
+          tools: depth <= MAX_TOOL_CALL_DEPTH ? buildOllamaToolDescriptionObject(this.type) : undefined
         });
 
         checkLLMResponseForDegeneracy(res.message.content || '');
@@ -343,7 +351,7 @@ export class Conversation {
   }
 
   async requestTitle(): Promise<string> {
-    const titlePrompt = `Based on the conversation so far, provide a concise title for this conversation that captures the main topics discussed. The title should be no more than 5 words. Do not include any headers or formatting, reply with only the title text.`;
+    const titlePrompt = `Based on the conversation so far, provide a concise title for this conversation that captures the main topics discussed. Do not include any headers or formatting, reply with only the title text of 6 words or less.`;
     await this.appendToContext({
       role: 'system',
       content: titlePrompt
