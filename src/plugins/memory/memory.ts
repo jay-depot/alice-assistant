@@ -174,26 +174,20 @@ const memoryPlugin: AlicePlugin = {
     });
 
     plugin.registerTool({
-        name: 'recallPastConversation',
+        name: 'recallPastConversations',
         availableFor: ['chat', 'voice', 'autonomy'],
-        description: 'Call recallPastConversation when you need information from a past conversation.' +
-          `The call takes one parameter, which is either a keyword, a list of ` +
-          `keywords joined with commas, or a date, if the parameter is a keyword or list of keywords, ` +
-          `you will recall up to 10 recent interactions that are associated with ALL of the requested ` +
-          `keywords. If the parameter is a date, you should recall all of the interactions from that date. ` +
-          `The parameter must be provided in the format "keyword:someKeyword", ` +
-          `"keyword:comma,separated,keywords"  or "date:YYYY-MM-DD".`,
-        systemPromptFragment: `Call recallPastConversation when you need information from a past conversation. ` +
+        description: `Call recallPastConversations when you need information from past conversations. ` +
           `Do not use this tool for idle banter, or additional context unless you have been asked about ` +
           `prior interactions. The call takes one parameter, which is either a keyword, a list of ` +
           `keywords joined with commas, or a date, if the parameter is a keyword or list of keywords, ` +
-          `you will recall up to 10 recent interactions that are associated with ALL of the requested ` +
+          `you will recall up to 10 recent interactions that are associated with ANY of the requested ` +
           `keywords. If the parameter is a date, you should recall all of the interactions from that date. ` +
           `The parameter must be provided in the format "keyword:someKeyword", ` +
           `"keyword:comma,separated,keywords"  or "date:YYYY-MM-DD". DO NOT INCLUDE ARTICLES/QUANTIFIERS ` +
           `(a, the, an, some, any, ...), PRONOUNS, OR OTHER COMMON "FILLER WORDS" IN THE KEYWORDS.`,
+        systemPromptFragment: '',
         parameters,
-        toolResultPromptIntro: `You have just received the results of a call to the recallPastConversation tool. The results are in JSON format and have the following structure:\n{\n  "memories": [\n    {\n      "timestamp": string,\n      "content": string\n    },\n    ...\n  ]\n}\nThe "memories" field is an array of memory objects. Each memory object has a "timestamp" field, which is a string representing the date and time, in the user's timezone, when that memory was stored, and a "content" field, which is a string summary of the recalled interaction. Use this information to answer the user's query, and remember that your response will be synthesized into speech, so keep it punchy and short.`,
+        toolResultPromptIntro: `You have just received the results of a call to the recallPastConversation tool. The results are in JSON format, below.`,
         toolResultPromptOutro: () => 
           // If the user is frequently changing their assistant's personality files, they may want to enable this.
           config.getPluginConfig().includePersonalityChangeLlmHint
@@ -235,7 +229,7 @@ const memoryPlugin: AlicePlugin = {
 
             const memories = await em.find(Memory, {
               keywords: {
-                $every: keywordEntities.map(k => k.id),
+                $in: keywordEntities.map(k => k.id),
               }
             }, {
               orderBy: { timestamp: 'DESC' },
@@ -248,7 +242,6 @@ const memoryPlugin: AlicePlugin = {
       }
     );
 
-    plugin.hooks.onUserConversationWillEnd(async (conversation) => {});
     plugin.hooks.onContextCompactionSummariesWillBeDeleted(async (summaries) => {
       const orm = await databaseReadyPromise;
       for (const summary of summaries) {
