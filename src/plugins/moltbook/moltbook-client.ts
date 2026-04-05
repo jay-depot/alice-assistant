@@ -2,7 +2,7 @@ import path from 'node:path';
 import { mkdir, readFile, writeFile, exists } from '../../lib/node/fs-promised.js';
 import type { SystemConfigFull } from '../../lib/types/system-config-full.js';
 import type { MoltbookPluginConfigSchema } from './moltbook.js';
-import { formatComments, formatFeedItems, formatHome, formatPost, formatProfile, formatSearchResults, formatSubmolt, formatSubmoltList } from './moltbook-format.js';
+import { formatComments, formatFeedItems, formatHome, formatNotificationSummary, formatPost, formatProfile, formatSearchResults, formatSubmolt, formatSubmoltList } from './moltbook-format.js';
 import { solveMoltbookVerificationChallenge } from './moltbook-verification.js';
 
 export const MOLTBOOK_BASE_URL = 'https://www.moltbook.com/api/v1';
@@ -375,8 +375,23 @@ export function createMoltbookClient({ pluginConfig, systemConfig }: MoltbookCli
       });
       return response.data;
     },
+    async markNotificationsReadByPost(postId: string) {
+      const response = await request<JsonRecord>({
+        method: 'POST',
+        path: `/notifications/read-by-post/${encodeURIComponent(postId)}`,
+      });
+      return response.data;
+    },
+    async markAllNotificationsRead() {
+      const response = await request<JsonRecord>({
+        method: 'POST',
+        path: '/notifications/read-all',
+      });
+      return response.data;
+    },
     formatProfile,
     formatHome,
+    formatNotificationSummary,
     formatFeedItems,
     formatPost,
     formatComments,
