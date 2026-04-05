@@ -6,6 +6,7 @@ import { DynamicPromptConversationType } from './dynamic-prompt.js';
 import { getHeaderPrompts } from './header-prompts.js';
 import { getFooterPrompts } from './footer-prompts.js';
 import { PluginHookInvocations } from './plugin-hooks.js';
+import { retryAsPromised as retry } from 'retry-as-promised';
 
 export const SUMMARY_HEADER = '# Summary of earlier conversation:\n';
 const MAX_TOOL_CALL_DEPTH = 5;
@@ -27,13 +28,18 @@ function getLLMConnection() {
 }
 export class Conversation {
   static async sendDirectRequest(messages: Message[]): Promise<string> {
-    const response = await OllamaClient.chat({
+    
+    const response = await retry(() => OllamaClient.chat({
       ...getLLMConnection(),
       messages: messages.map(message => ({
         role: message.role,
         content: message.content,
         tool_calls: message.tool_calls ? JSON.parse(message.tool_calls) : undefined
       })),
+    }), {
+      max: 3,
+      timeout: 5000,
+      report: console.warn,
     });
     return response.message.content || '';
   }
@@ -118,11 +124,15 @@ export class Conversation {
         `informative as possible while still being concise.` +
         `\n\nConversation:\n\n${messagesToSummarize.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n')}`;
 
-      const summaryResponse = await OllamaClient.chat({
+      const summaryResponse = await retry(() => OllamaClient.chat({
         ...this.llmConnection,
         messages: [
           { role: 'system', content: summaryPrompt }
         ],
+      }), {
+        max: 3,
+        timeout: 5000,
+        report: console.warn,
       });
 
       const summary = summaryResponse.message.content || '';
@@ -171,10 +181,14 @@ export class Conversation {
       ...footerPrompts.map(prompt => ({ role: 'system', content: prompt })),
     ];
 
-    const response = await OllamaClient.chat({
+    const response = await retry(() => OllamaClient.chat({
       ...this.llmConnection,
       messages: fullContext,
       tools: buildOllamaToolDescriptionObject(this.type)
+    }), {
+      max: 3,
+      timeout: 5000,
+      report: console.warn,
     });
 
     if (response.message.content && response.message.content.length > 0) {
@@ -245,7 +259,7 @@ export class Conversation {
         content: continuationPromptWithResults
       });
 
-      const nextResponse = await OllamaClient.chat({
+      const nextResponse = await retry(() => OllamaClient.chat({
         ...this.llmConnection,
         messages: [
           ...headerPrompts.map(prompt => ({ role: 'system', content: prompt })),
@@ -253,6 +267,10 @@ export class Conversation {
           ...footerPrompts.map(prompt => ({ role: 'system', content: prompt })),
         ],
         tools: buildOllamaToolDescriptionObject(this.type)
+      }), {
+        max: 3,
+        timeout: 5000,
+        report: console.warn,
       });
 
       return this.handleToolCalls(nextResponse, depth + 1);
@@ -293,9 +311,13 @@ export class Conversation {
       ...footerPrompts.map(prompt => ({ role: 'system', content: prompt }))
     ];
     // Send the termination prompt, and wait for the response, which will be the conversation summary.
-    const summaryResponse = await OllamaClient.chat({
+    const summaryResponse = await retry(() => OllamaClient.chat({
       ...this.llmConnection,
       messages: fullContext,
+    }), {
+      max: 3,
+      timeout: 5000,
+      report: console.warn,
     });
     // Return the conversation summary to the caller, so it can be stored and used for future context.
     return summaryResponse.message.content || '';
@@ -307,7 +329,7 @@ export class Conversation {
       role: 'system',
       content: titlePrompt
     });
-    const response = await OllamaClient.chat({
+    const response = await retry(() => OllamaClient.chat({
       ...this.llmConnection,
       messages: this.compactedContext.map(message => ({
         role: message.role,
@@ -315,6 +337,10 @@ export class Conversation {
         tool_calls: message.tool_calls ? JSON.parse(message.tool_calls) : undefined
       })),
       tools: buildOllamaToolDescriptionObject(this.type)
+    }), {
+      max: 3,
+      timeout: 5000,
+      report: console.warn,
     });
     return response.message.content.replaceAll(/(\n|\r)/g, ' ').replaceAll(/(\*|#|")/g, '') || '';
   }
