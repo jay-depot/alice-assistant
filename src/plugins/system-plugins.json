@@ -40,6 +40,11 @@
     "required": true
   },
   {
+    "id": "user-skills",
+    "name": "User Skills",
+    "required": false
+  },
+  {
     "id": "mood",
     "name": "Mood",
     "required": false
