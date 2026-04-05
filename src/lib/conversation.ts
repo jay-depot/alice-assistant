@@ -1,4 +1,4 @@
-import OllamaClient, { ChatResponse } from 'ollama';
+import OllamaClient, { ChatResponse, ToolCall } from 'ollama';
 import { UserConfig } from './user-config.js';
 import { buildOllamaToolDescriptionObject } from './tool-system.js';
 import { getTools } from './tools.js';
@@ -21,11 +21,11 @@ const SUMMARY_PROMPT = `Summarize the following conversation between the user an
   `\n\nConversation:\n\n`;
 const TIMEOUT = undefined;
 
-const MAX_TOOL_CALL_DEPTH = 5;
+const MAX_TOOL_CALL_DEPTH = 10;
 export type Message = {
   role: string;
   content: string;
-  tool_calls?: string; // We're just going to JSON.stringify the tool calls and then deserialize them on the way back.
+  tool_calls?: ToolCall[];
 };
 
 function checkLLMResponseForDegeneracy(response: string) {
@@ -69,7 +69,7 @@ export class Conversation {
         messages: messages.map(message => ({
           role: message.role,
           content: message.content,
-          tool_calls: message.tool_calls ? JSON.parse(message.tool_calls) : undefined
+          tool_calls: message.tool_calls
         })),
       });
       checkLLMResponseForDegeneracy(res.message.content || '');
@@ -227,15 +227,14 @@ export class Conversation {
       timeout: TIMEOUT,
     });
 
-    if (response.message.content && response.message.content.length > 0) {
-      await this.appendToContext({
-        role: 'assistant',
-        content: response.message.content,
-        tool_calls: response.message.tool_calls ? JSON.stringify(response.message.tool_calls) : undefined
-      });
-    }
+    const toolCalls = response.message.tool_calls;
+    await this.appendToContext({
+      role: 'assistant',
+      content: response.message.content,
+      tool_calls: toolCalls,
+    });
 
-    if (response.message.tool_calls && response.message.tool_calls.length > 0) {
+    if (toolCalls && toolCalls.length > 0) {
       return this.handleToolCalls(response);
     }
 
@@ -362,7 +361,7 @@ export class Conversation {
         messages: this.compactedContext.map(message => ({
           role: message.role,
           content: message.content,
-          tool_calls: message.tool_calls ? JSON.parse(message.tool_calls) : undefined
+          tool_calls: message.tool_calls
         })),
         tools: buildOllamaToolDescriptionObject(this.type)
       });
