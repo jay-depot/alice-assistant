@@ -19,6 +19,7 @@ const SUMMARY_PROMPT = `Summarize the following conversation between the user an
   `be used to provide context for future conversation turns, so it should be as ` +
   `informative as possible while still being concise.` +
   `\n\nConversation:\n\n`;
+const TIMEOUT = 30000;
 
 const MAX_TOOL_CALL_DEPTH = 5;
 export type Message = {
@@ -49,7 +50,7 @@ export class Conversation {
       })),
     }), {
       max: 3,
-      timeout: 5000,
+      timeout: TIMEOUT,
       report: console.warn,
     });
     return response.message.content || '';
@@ -133,7 +134,7 @@ export class Conversation {
         ],
       }), {
         max: 3,
-        timeout: 5000,
+        timeout: TIMEOUT,
         report: console.warn,
       });
 
@@ -189,7 +190,7 @@ export class Conversation {
       tools: buildOllamaToolDescriptionObject(this.type)
     }), {
       max: 3,
-      timeout: 5000,
+      timeout: TIMEOUT,
       report: console.warn,
     });
 
@@ -271,7 +272,7 @@ export class Conversation {
         tools: buildOllamaToolDescriptionObject(this.type)
       }), {
         max: 3,
-        timeout: 5000,
+        timeout: TIMEOUT,
         report: console.warn,
       });
 
@@ -318,7 +319,7 @@ export class Conversation {
       tools: buildOllamaToolDescriptionObject(this.type)
     }), {
       max: 3,
-      timeout: 5000,
+      timeout: TIMEOUT,
       report: console.warn,
     });
     return response.message.content.replaceAll(/(\n|\r)/g, ' ').replaceAll(/(\*|#|")/g, '') || '';
