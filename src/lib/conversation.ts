@@ -9,6 +9,17 @@ import { PluginHookInvocations } from './plugin-hooks.js';
 import { retryAsPromised as retry } from 'retry-as-promised';
 
 export const SUMMARY_HEADER = '# Summary of earlier conversation:\n';
+const SUMMARY_PROMPT = `Summarize the following conversation between the user and the ` +
+  `assistant in a way that preserves all relevant information and details, but is as ` +
+  `concise as possible. The summary should be in bullet point format, with each bullet ` +
+  `point representing a single turn in the conversation. Be sure to include all ` +
+  `relevant details and information from the conversation, but remove any fluff ` +
+  `or filler content. Be especially certain to include any proper names, tasks with ` +
+  `their statuses, and code samples, if applicable, in your summary. The summary will ` +
+  `be used to provide context for future conversation turns, so it should be as ` +
+  `informative as possible while still being concise.` +
+  `\n\nConversation:\n\n`;
+
 const MAX_TOOL_CALL_DEPTH = 5;
 export type Message = {
   role: string;
@@ -113,16 +124,7 @@ export class Conversation {
 
       // This is a pretty standard compaction prompt, it just specifically calls out proper 
       // names tasks and code samples to make sure "assistant-y" things don't get lost.
-      const summaryPrompt = `Summarize the following conversation between the user and the ` +
-        `assistant in a way that preserves all relevant information and details, but is as ` +
-        `concise as possible. The summary should be in bullet point format, with each bullet ` +
-        `point representing a single turn in the conversation. Be sure to include all ` +
-        `relevant details and information from the conversation, but remove any fluff ` +
-        `or filler content. Be especially certain to include any proper names, tasks with ` +
-        `their statuses, and code samples, if applicable, in your summary. The summary will ` +
-        `be used to provide context for future conversation turns, so it should be as ` +
-        `informative as possible while still being concise.` +
-        `\n\nConversation:\n\n${messagesToSummarize.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n')}`;
+      const summaryPrompt = SUMMARY_PROMPT + messagesToSummarize.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n');
 
       const summaryResponse = await retry(() => OllamaClient.chat({
         ...this.llmConnection,
@@ -280,51 +282,28 @@ export class Conversation {
   }
 
   /**
-   * Instructs the LLM to abandon its assistant persona and summarize the interaction. Use this 
-   * to implement the memory feature by calling it at the end of any voice or web UI conversation
-   * and storing the resulting summary in the database, with keywords extracted.
-   * 
-   * @todo: This currently has the LLM summarize the "compacted" context, which is kind of 
-   * silly. It would be better to have the LLM only summarize the "unsummarized" messages, 
-   * and then just glue them to the end of the existing summary.
-   * 
-   * @returns A promise that resolves to the LLM response
+   * Call this when the conversation is over to summarize any interactions that have not yet 
+   * been compacted, and cause them to be saved by the `memory` plugin.
    */
-  async requestSummary(): Promise<string> {
-    const headerPrompts = await getHeaderPrompts({ conversationType: this.type });
-    const footerPrompts = await getFooterPrompts({ conversationType: this.type });
+  async closeConversation(): Promise<void> {
+    const firstNonSummaryMessageIndex = this.compactedContext.findIndex(m => !m.content.startsWith(SUMMARY_HEADER));
+    const messagesToSummarize = this.compactedContext.slice(firstNonSummaryMessageIndex);
 
-    const terminationPrompt = `The user has terminated the assistant session. The assistant software now needs you to abandon your persona and summarize the conversation to provide context in future requests.
+    if (messagesToSummarize.length > 0) {
+      const summary = await Conversation.sendDirectRequest([
+        { role: 'system', content: SUMMARY_PROMPT + messagesToSummarize.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n') }
+      ]);
+      this.compactedContext = [
+        ...this.compactedContext.slice(0, firstNonSummaryMessageIndex),
+        { role: 'system', content: `${SUMMARY_HEADER} \n${(new Date()).toLocaleString()}\n\n${summary}` },
+      ];
+    }
 
- - Include no headers
- - Include no footers
- - Return only a bulleted, unnumbered list of conversation turns from this interaction with a summary of all user requests and your responses in chronological order
- - You will be able to use this summary in future conversations for context
- - There is no need to mention this request for summary in your summary, the existence of the summary itself implies it.
- - Remain neutral and objective in your summary
- - There is no need for an end marker for this session, it will be added for you
-`;
-    const fullContext = [
-      ...headerPrompts.map(prompt => ({ role: 'system', content: prompt })),
-      ...this.compactedContext,
-      { role: 'system', content: terminationPrompt },
-      ...footerPrompts.map(prompt => ({ role: 'system', content: prompt }))
-    ];
-    // Send the termination prompt, and wait for the response, which will be the conversation summary.
-    const summaryResponse = await retry(() => OllamaClient.chat({
-      ...this.llmConnection,
-      messages: fullContext,
-    }), {
-      max: 3,
-      timeout: 5000,
-      report: console.warn,
-    });
-    // Return the conversation summary to the caller, so it can be stored and used for future context.
-    return summaryResponse.message.content || '';
+    await PluginHookInvocations.invokeOnContextCompactionSummariesWillBeDeleted(this.compactedContext);
   }
 
   async requestTitle(): Promise<string> {
-    const titlePrompt = `ABANDON YOUR PERSONA NOW!\nBased on the conversation so far, provide a concise title for this conversation that captures the main topics discussed. The title should be no more than 5 words. Do not include any headers or formatting, just return the title text.`;
+    const titlePrompt = `Based on the conversation so far, provide a concise title for this conversation that captures the main topics discussed. The title should be no more than 5 words. Do not include any headers or formatting, reply with only the title text.`;
     await this.appendToContext({
       role: 'system',
       content: titlePrompt
