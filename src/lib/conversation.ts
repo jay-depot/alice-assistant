@@ -28,6 +28,28 @@ export type Message = {
   tool_calls?: string; // We're just going to JSON.stringify the tool calls and then deserialize them on the way back.
 };
 
+function checkLLMResponseForDegeneracy(response: string) {
+  // We want to fail on the following, and force a retry:
+  // - Long chains of the same repeating pattern.
+  // - Broken tool calls.
+  if (/(\b\w+\b)(?:\s+\1\b){20,}/.test(response)) {
+    console.warn('LLM response appears to be degenerate (repeating pattern detected). Response:', response);
+    throw new Error('LLM response appears to be degenerate (repeating the same pattern over and over).');
+  }
+  if (response.includes('"function_calls":') && !response.includes('"function_calls": []') && !response.includes('"function_calls":[')) {
+    console.warn('LLM response appears to be degenerate (broken tool call formatting). Response:', response);
+    throw new Error('LLM response appears to be degenerate (broken tool call formatting).');
+  }
+  // Ollama tool calls specifically like to fail by dumping the tool name, a couple random unicode 
+  // characters, and then the tool arguments all as one big blob of text in the content field, 
+  // without properly populating the tool_calls field.
+  // The pattern is something like this: TOOLNAME [GARBAGE_CHARACTERS] {JSON-STRINGIFIED-ARGUMENTS}
+  if (/([A-Za-z0-9_]+)\s*[\u0000-\u001F\u007F-\uFFFF]+({.*})/.test(response)) {
+    console.warn('LLM response appears to be degenerate (tool call appears to be dumped in content field with garbage characters). Response:', response);
+    throw new Error('LLM response appears to be degenerate (tool call appears to be dumped in content field with garbage characters).');
+  }
+}
+
 function getLLMConnection() {
   return {
     host: UserConfig.getConfig().ollama.host,
@@ -41,14 +63,18 @@ function getLLMConnection() {
 export class Conversation {
   static async sendDirectRequest(messages: Message[]): Promise<string> {
     
-    const response = await retry(() => OllamaClient.chat({
-      ...getLLMConnection(),
-      messages: messages.map(message => ({
-        role: message.role,
-        content: message.content,
-        tool_calls: message.tool_calls ? JSON.parse(message.tool_calls) : undefined
-      })),
-    }), {
+    const response = await retry(async () => {
+      const res = await OllamaClient.chat({
+        ...getLLMConnection(),
+        messages: messages.map(message => ({
+          role: message.role,
+          content: message.content,
+          tool_calls: message.tool_calls ? JSON.parse(message.tool_calls) : undefined
+        })),
+      });
+      checkLLMResponseForDegeneracy(res.message.content || '');
+      return res;
+    }, {
       max: 3,
       timeout: TIMEOUT,
     });
@@ -124,12 +150,16 @@ export class Conversation {
 
       const summaryPrompt = SUMMARY_PROMPT + messagesToSummarize.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n');
 
-      const summaryResponse = await retry(() => OllamaClient.chat({
-        ...this.llmConnection,
-        messages: [
-          { role: 'system', content: summaryPrompt }
-        ],
-      }), {
+      const summaryResponse = await retry(async () => {
+        const res = await OllamaClient.chat({
+          ...this.llmConnection,
+          messages: [
+            { role: 'system', content: summaryPrompt }
+          ],
+        });
+        checkLLMResponseForDegeneracy(res.message.content || '');
+        return res;
+      }, {
         max: 3,
         timeout: TIMEOUT,
       });
@@ -180,11 +210,15 @@ export class Conversation {
       ...footerPrompts.map(prompt => ({ role: 'system', content: prompt })),
     ];
 
-    const response = await retry(() => OllamaClient.chat({
-      ...this.llmConnection,
-      messages: fullContext,
-      tools: buildOllamaToolDescriptionObject(this.type)
-    }), {
+    const response = await retry(async () => {
+      const res = await OllamaClient.chat({
+        ...this.llmConnection,
+        messages: fullContext,
+        tools: buildOllamaToolDescriptionObject(this.type)
+      });
+      checkLLMResponseForDegeneracy(res.message.content || '');
+      return res;
+    }, {
       max: 3,
       timeout: TIMEOUT,
     });
@@ -259,15 +293,20 @@ export class Conversation {
         content: continuationPromptWithResults
       });
 
-      const nextResponse = await retry(() => OllamaClient.chat({
+      const nextResponse = await retry(async () => {
+        const res = await OllamaClient.chat({
         ...this.llmConnection,
-        messages: [
-          ...headerPrompts.map(prompt => ({ role: 'system', content: prompt })),
-          ...this.compactedContext,
-          ...footerPrompts.map(prompt => ({ role: 'system', content: prompt })),
-        ],
-        tools: buildOllamaToolDescriptionObject(this.type)
-      }), {
+          messages: [
+            ...headerPrompts.map(prompt => ({ role: 'system', content: prompt })),
+            ...this.compactedContext,
+            ...footerPrompts.map(prompt => ({ role: 'system', content: prompt })),
+          ],
+          tools: buildOllamaToolDescriptionObject(this.type)
+        });
+
+        checkLLMResponseForDegeneracy(res.message.content || '');
+        return res;
+      }, {
         max: 3,
         timeout: TIMEOUT,
       });
@@ -305,15 +344,20 @@ export class Conversation {
       role: 'system',
       content: titlePrompt
     });
-    const response = await retry(() => OllamaClient.chat({
-      ...this.llmConnection,
-      messages: this.compactedContext.map(message => ({
-        role: message.role,
-        content: message.content,
-        tool_calls: message.tool_calls ? JSON.parse(message.tool_calls) : undefined
-      })),
-      tools: buildOllamaToolDescriptionObject(this.type)
-    }), {
+    const response = await retry(async () => {
+      const res = await OllamaClient.chat({
+        ...this.llmConnection,
+        messages: this.compactedContext.map(message => ({
+          role: message.role,
+          content: message.content,
+          tool_calls: message.tool_calls ? JSON.parse(message.tool_calls) : undefined
+        })),
+        tools: buildOllamaToolDescriptionObject(this.type)
+      });
+
+      checkLLMResponseForDegeneracy(res.message.content || '');
+      return res;
+    }, {
       max: 3,
       timeout: TIMEOUT
     });

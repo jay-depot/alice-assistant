@@ -30,6 +30,11 @@
     "required": true
   },
   {
+    "id": "skills",
+    "name": "Skills",
+    "required": true
+  },
+  {
     "id": "web-ui",
     "name": "Web UI",
     "required": true

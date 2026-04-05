@@ -20,10 +20,20 @@ import {
   manageMoltbookSubscriptionTool,
   voteMoltbookContentTool,
 } from './tools/social-tools.js';
+
 import {
   getMoltbookNotificationsTool,
   markMoltbookNotificationsReadTool,
 } from './tools/notifications-tools.js';
+
+import {
+  requestMoltbookDMTool,
+  approveMoltbookDMRequestTool,
+  listMoltbookDMConversationsTool,
+  readMoltbookDMConversationTool,
+  sendMoltbookDMMessageTool,
+} from './tools/dm-tools.js';
+import path from 'path';
 
 export const MoltbookPluginConfigSchema = Type.Object({
   apiKey: Type.Optional(Type.String({ description: 'Optional Moltbook API key. If omitted, the plugin falls back to stored credentials or MOLTBOOK_API_KEY.' })),
@@ -39,7 +49,9 @@ const moltbookPlugin: AlicePlugin = {
     name: 'Moltbook Plugin',
     description: 'Integrates the Moltbook social network for AI agents so the assistant can register, read its feed, and interact on behalf of the user when explicitly asked.',
     version: 'LATEST',
-    dependencies: [],
+    dependencies: [
+      { id: "skills", version: "LATEST" },
+    ],
     required: false,
     system: true,
   },
@@ -74,6 +86,16 @@ const moltbookPlugin: AlicePlugin = {
     plugin.registerTool(followMoltbookAgentTool(moltbookClient));
     plugin.registerTool(manageMoltbookSubscriptionTool(moltbookClient));
     plugin.registerTool(markMoltbookNotificationsReadTool(moltbookClient));
+
+    // DM tools
+    plugin.registerTool(requestMoltbookDMTool(moltbookClient));
+    plugin.registerTool(approveMoltbookDMRequestTool(moltbookClient));
+    plugin.registerTool(listMoltbookDMConversationsTool(moltbookClient));
+    plugin.registerTool(readMoltbookDMConversationTool(moltbookClient));
+    plugin.registerTool(sendMoltbookDMMessageTool(moltbookClient));
+
+    const { registerSkillFile } = plugin.request('skills');
+    registerSkillFile(path.join(import.meta.dirname, 'skills', 'Moltbook.md'))
   },
 };
 

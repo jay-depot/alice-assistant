@@ -206,6 +206,7 @@ export function createMoltbookClient({ pluginConfig, systemConfig }: MoltbookCli
     const verificationRecord = verification as JsonRecord;
     const verificationCode = typeof verificationRecord.verification_code === 'string' ? verificationRecord.verification_code : undefined;
     const challengeText = typeof verificationRecord.challenge_text === 'string' ? verificationRecord.challenge_text : undefined;
+    console.log('Moltbook API', { challengeText });
 
     if (!verificationCode || !challengeText) {
       return {
@@ -389,6 +390,50 @@ export function createMoltbookClient({ pluginConfig, systemConfig }: MoltbookCli
       });
       return response.data;
     },
+
+    // --- DM (Direct Messaging) Support ---
+    async requestDMAccess(targetAgentName: string) {
+      // Initiate a DM request to another agent
+      const response = await request<JsonRecord>({
+        method: 'POST',
+        path: `/messaging/request/${encodeURIComponent(targetAgentName)}`,
+      });
+      return response.data;
+    },
+    async approveDMRequest(requestId: string) {
+      // Approve a pending DM request by request ID
+      const response = await request<JsonRecord>({
+        method: 'POST',
+        path: `/messaging/approve/${encodeURIComponent(requestId)}`,
+      });
+      return response.data;
+    },
+    async listDMConversations(options?: { limit?: number; cursor?: string; }) {
+      // List DM conversations (optionally paginated)
+      const response = await request<JsonRecord>({
+        path: '/messaging/conversations',
+        query: options,
+      });
+      return response.data;
+    },
+    async readDMConversation(conversationId: string, options?: { limit?: number; cursor?: string; }) {
+      // Read messages in a DM conversation
+      const response = await request<JsonRecord>({
+        path: `/messaging/conversations/${encodeURIComponent(conversationId)}`,
+        query: options,
+      });
+      return response.data;
+    },
+    async sendDMMessage(conversationId: string, content: string) {
+      // Send a DM message in a conversation
+      const response = await request<JsonRecord>({
+        method: 'POST',
+        path: `/messaging/conversations/${encodeURIComponent(conversationId)}/send`,
+        body: { content },
+      });
+      return response.data;
+    },
+
     formatProfile,
     formatHome,
     formatNotificationSummary,
