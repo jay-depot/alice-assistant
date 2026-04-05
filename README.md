@@ -77,8 +77,8 @@ helpful as possible, but if you run into any that arent, feel free to open an is
 I'll try to clarify them.
 
 It will do a quick LLM connection test, and print the model's response to the terminal, 
-then open a web UI as http://localhost:47153/ where you can chat with the assistant. If 
-you have the news-broker and one of the news source plugins enabled, you can try it out by 
+then it will open a web UI as http://localhost:47153/ where you can chat with the assistant. 
+If you have the news-broker and one of the news source plugins enabled, you can try it out by 
 asking something like: "What's the latest news on [some topic]?" Tool calls are all logged 
 to the terminal for now, so you can confirm they work by checking there.
 
