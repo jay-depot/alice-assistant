@@ -157,13 +157,14 @@ const webUiPlugin: AlicePlugin = {
           return;
         }
     
-        const userRound = em.create(ChatSessionRound, { chatSession: session, role: 'user', timestamp: new Date(), content: message });
-        session.rounds.add(userRound);
-
         const llmTransaction = startConversation('chat');
         llmTransaction.restoreContext(session.rounds.getItems().map(round => ({ role: round.role, content: round.content })));
+        
         const response = await llmTransaction.sendUserMessage(message);
+
+        const userRound = em.create(ChatSessionRound, { chatSession: session, role: 'user', timestamp: new Date(), content: message });
         const assistantRound = em.create(ChatSessionRound, { chatSession: session, role: 'assistant', timestamp: new Date(), content: response });
+        session.rounds.add(userRound);
         session.rounds.add(assistantRound);
 
         const titleSummary = await llmTransaction.requestTitle();

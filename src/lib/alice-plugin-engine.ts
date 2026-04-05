@@ -175,7 +175,10 @@ function createPluginInterface(pluginMetadata: AlicePluginMetadata): AlicePlugin
             },
 
             getSystemConfig() {
-              return UserConfig.getConfig() as SystemConfigFull;
+              return {
+                ...UserConfig.getConfig(),
+                configDirectory: UserConfig.getConfigPath(),
+              } as SystemConfigFull;
             },
           }
         }

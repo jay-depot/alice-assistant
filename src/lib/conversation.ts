@@ -46,8 +46,8 @@ export class Conversation {
     },
   }
 
-  private rawContext: Message[] = [];
-  private compactedContext: Message[] = [];
+  public rawContext: Message[] = [];
+  public compactedContext: Message[] = [];
 
   constructor(public type: DynamicPromptConversationType) {
     this.llmConnection = {
@@ -69,8 +69,8 @@ export class Conversation {
       throw new Error('Context has already been set for this transaction. Cannot restore context more than once.');
     }
 
-    this.compactedContext = compactedContext || context;
-    this.rawContext = context;
+    this.compactedContext = [...(compactedContext || context)];
+    this.rawContext = [...context];
  
     return this;
   }
@@ -98,7 +98,7 @@ export class Conversation {
     const contextLengthThreshold = this.llmConnection.options.num_ctx * 0.5; 
 
     if (approximateContextLength > contextLengthThreshold) {
-      const firstNonSummaryMessageIndex = this.compactedContext.findIndex(m => !m.content.startsWith('Summary of earlier conversation:'));
+      const firstNonSummaryMessageIndex = this.compactedContext.findIndex(m => !m.content.startsWith(SUMMARY_HEADER));
       const messageCount = this.compactedContext.slice(firstNonSummaryMessageIndex).length;
       // We'll do half the messages.
 
@@ -154,14 +154,14 @@ export class Conversation {
     return false;
   }
 
-  async sendUserMessage(message?: string): Promise<string> {
+  async sendUserMessage(userMessage?: string): Promise<string> {
     const headerPrompts = await getHeaderPrompts({ conversationType: this.type });
     const footerPrompts = await getFooterPrompts({ conversationType: this.type });
 
-    if (message) {
+    if (userMessage) {
       await this.appendToContext({
         role: 'user',
-        content: message
+        content: userMessage
       });
     }
 
