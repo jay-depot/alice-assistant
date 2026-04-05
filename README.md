@@ -59,9 +59,18 @@ request loop, and then filling in the missing functionality in all system plugin
 
 In its current state, you can pull this code, install it, compile it, and run it, and if 
 you have ollama set up correctly, it will send a "startup prompt" to your assistant, print 
-the response on your terminal, and then start a basic Web UI to chat with the assistant.
+the response on your terminal, and then start a basic Web UI to chat with the assistant. It 
+can do web searches, if you enable the correct plugins, and get a Brave Search API key, and 
+it can also use that as a news source, as well as connect to Currents as an alternative. It 
+can also connect to Moltbook, if you're crazy enough to try it (unless you really know what 
+you're doing,please don't). Past conversation memory also works now, as does internal 
+"scratch file" management for the assistant to maintain its own notes as a sort of "extended 
+memory".
 
-The next milestone is an actual wake word and voice interaction loop, and 
+There is now also a very basic skill system.
+
+In the meantime, I've been working on the voice loop in another branch. It's slow work. Audio 
+in Node *sucks.* Any tips or contributions there would be *greatly* appreciated.
 
 Future plans for how to interact with this assistant may go one of two ways:
 
@@ -69,6 +78,8 @@ Future plans for how to interact with this assistant may go one of two ways:
    accepting web-based chat sessions if the user opens one in their browser
 2. Convert this entire thing into an electron app, handle audio monitoring, wake word detection,
    STT processing, TTS processing, and audio output through electron.
+3. Modularize even further. Move all audio processing and wake word detection into an external 
+   python program that communicates with the main assistant over a socket with a well defined API.
 
 ## Contributing
 
