@@ -26,24 +26,35 @@ in `./config-default/example-personalities/`
 
 ## Work In Progress
 
-This project is not _quite_ functional yet, though it's getting there quickly now. It 
-currently connects to the LLM and correctly loads its config files, then runs a basic 
-Web UI to talk to your assistant that way until you interrupt it with ^C. There is 
-also a functional plugin architecture with semantics for dynamically loading and 
-type-checking plugin-scoped configuration, type-checked external API offer and request 
-semantics between plugins, and dependency checks.
+In its current state, you can pull this code, install it, compile it, and run it, and if 
+you have ollama set up correctly, it will send a "startup prompt" to your assistant, print 
+the response on your terminal, and then start a basic Web UI to chat with the assistant. It 
+can do web searches, if you enable the correct plugins, and get a Brave Search API key, and 
+it can also use that as a news source, as well as connect to Currents as an alternative. It 
+can also connect to Moltbook, if you're crazy enough to try it (unless you really know what 
+you're doing,please don't). Past conversation memory also works now, as does internal 
+"scratch file" management for the assistant to maintain its own notes as a sort of "extended 
+memory".
 
-The Web UI is now React-based, and supports letting plugins register their own 
-components into it.
+There is now also a very basic skill recall system.
 
-The next milestone is a proof-of-concept wake-word -> dictation -> assistant 
-request loop, and then filling in the missing functionality in all system plugins.
+In the meantime, I've been working on the voice loop in another branch. It's slow work. Audio 
+in Node *sucks.* Any tips or contributions there would be *greatly* appreciated.
+
+Future plans for how to interact with this assistant may go one of two ways:
+
+1. A user-scoped systemd service that runs in the background listening for wake words, and
+   accepting web-based chat sessions if the user opens one in their browser
+2. Convert this entire thing into an electron app, handle audio monitoring, wake word detection,
+   STT processing, TTS processing, and audio output through electron.
+3. Modularize even further. Move all audio processing and wake word detection into an external 
+   python program that communicates with the main assistant over a socket with a well defined API.
 
 ## Installation
 
 1. Install Dependencies
 
-- ollama
+- ollama (See MODELS.md for details on which models work well with Alice Assistant, and which don't)
 - openwakeword
 - whisper
 - piper-tts
@@ -57,29 +68,9 @@ request loop, and then filling in the missing functionality in all system plugin
 
 ## Usage
 
-In its current state, you can pull this code, install it, compile it, and run it, and if 
-you have ollama set up correctly, it will send a "startup prompt" to your assistant, print 
-the response on your terminal, and then start a basic Web UI to chat with the assistant. It 
-can do web searches, if you enable the correct plugins, and get a Brave Search API key, and 
-it can also use that as a news source, as well as connect to Currents as an alternative. It 
-can also connect to Moltbook, if you're crazy enough to try it (unless you really know what 
-you're doing,please don't). Past conversation memory also works now, as does internal 
-"scratch file" management for the assistant to maintain its own notes as a sort of "extended 
-memory".
+For now, clone this repo, `npm install`, `npm run build`, and then `npm start` to start the assistant. The first time you start it, it will create your config directory in `~/.alice-assistant/` and populate it with the default config files and then probably error out because of missing settings. Follow the instructions in the error messages, which will tell you what settings are required, but I can't provide you, and it should start up properly after that.
 
-There is now also a very basic skill system.
-
-In the meantime, I've been working on the voice loop in another branch. It's slow work. Audio 
-in Node *sucks.* Any tips or contributions there would be *greatly* appreciated.
-
-Future plans for how to interact with this assistant may go one of two ways:
-
-1. A user-scoped systemd service that runs in the background listening for wake words, and
-   accepting web-based chat sessions if the user opens one in their browser
-2. Convert this entire thing into an electron app, handle audio monitoring, wake word detection,
-   STT processing, TTS processing, and audio output through electron.
-3. Modularize even further. Move all audio processing and wake word detection into an external 
-   python program that communicates with the main assistant over a socket with a well defined API.
+It will do a quick LLM connection test, and print the model's response to the terminal, then open a web UI as http://localhost:47153/ where you can chat with the assistant. If you have the news-broker and one of the news source plugins enabled, you can try it out by asking something like: "What's the latest news on [some topic]?" Tool calls are all logged to the terminal for now, so you can confirm they work by checking there.
 
 ## Contributing
 
