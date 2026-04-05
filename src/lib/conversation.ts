@@ -122,8 +122,6 @@ export class Conversation {
       const messagesToSummarize = this.compactedContext.slice(firstNonSummaryMessageIndex, 
         firstNonSummaryMessageIndex + Math.floor(messageCount / 2));
 
-      // This is a pretty standard compaction prompt, it just specifically calls out proper 
-      // names tasks and code samples to make sure "assistant-y" things don't get lost.
       const summaryPrompt = SUMMARY_PROMPT + messagesToSummarize.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n');
 
       const summaryResponse = await retry(() => OllamaClient.chat({
@@ -146,7 +144,7 @@ export class Conversation {
 
       // And now, we check if the compacted context is *still* too long. If it is, we're 
       // going to fire off a hook invocation `onContextCompactionSummariesWillBeDeleted` 
-      // with the oldest half the summaries, so plugins (memory, by default) can capture 
+      // with the oldest half the summaries, so plugins (only memory, by default) can capture 
       // and store them.
 
       const newApproximateContextLength = this.compactedContext.reduce((acc, message) => 
@@ -200,7 +198,6 @@ export class Conversation {
     }
 
     if (response.message.tool_calls && response.message.tool_calls.length > 0) {
-      // If the LLM made tool calls in its initial response, handle those tool calls and any subsequent responses before returning the final response to the caller.
       return this.handleToolCalls(response);
     }
 
@@ -252,7 +249,10 @@ export class Conversation {
           return `Error calling tool ${toolName} with arguments ${JSON.stringify(toolArgs)}: ${e instanceof Error ? e.message : String(e)}`;
         }
       }));
-      const continuationPromptWithResults = `The assistant has made the following tool calls:\n\n${resultParts.join('\n\n')}\n\n${continuationPrompt}`;
+      const continuationPromptWithResults = `You have just made the following tool calls:\n` +
+        `${toolCalls.map((call, index) => `Tool call ${index + 1}: ${call.function.name} with arguments ${JSON.stringify(call.function.arguments)}`).join('\n')}\n\n` +
+        `*Here are the results:*+\n` +
+        `${resultParts.join('\n\n')}\n\n${continuationPrompt}`;
       // Send the continuation prompt, and wait for the next response, which will be the LLM either making another tool call, or giving its final answer.
       await this.appendToContext({
         role: 'system',
@@ -280,7 +280,7 @@ export class Conversation {
 
   /**
    * Call this when the conversation is over to summarize any interactions that have not yet 
-   * been compacted, and cause them to be saved by the `memory` plugin.
+   * been compacted, and cause all of the conversation summaries to be saved by the `memory` plugin.
    */
   async closeConversation(): Promise<void> {
     const firstNonSummaryMessageIndex = this.compactedContext.findIndex(m => !m.content.startsWith(SUMMARY_HEADER));
