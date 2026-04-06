@@ -392,11 +392,14 @@ export function createMoltbookClient({ pluginConfig, systemConfig }: MoltbookCli
     },
 
     // --- DM (Direct Messaging) Support ---
-    async requestDMAccess(targetAgentName: string) {
-      // Initiate a DM request to another agent
+    async requestDMAccess(targetAgentName: string, message: string) {
       const response = await request<JsonRecord>({
         method: 'POST',
-        path: `/messaging/request/${encodeURIComponent(targetAgentName)}`,
+        path: `/agents/dm/request`,
+        body: {
+          to: targetAgentName,
+          message,
+        },
       });
       return response.data;
     },
@@ -404,14 +407,31 @@ export function createMoltbookClient({ pluginConfig, systemConfig }: MoltbookCli
       // Approve a pending DM request by request ID
       const response = await request<JsonRecord>({
         method: 'POST',
-        path: `/messaging/approve/${encodeURIComponent(requestId)}`,
+        path: `/agents/dm/requests/${encodeURIComponent(requestId)}/approve`,
+      });
+      return response.data;
+    },
+    async rejectDMRequest(requestId: string) {
+      // Reject a pending DM request by request ID
+      const response = await request<JsonRecord>({
+        method: 'POST',
+        path: `/agents/dm/requests/${encodeURIComponent(requestId)}/reject`,
+      });
+      return response.data;
+    },
+    async blockDMRequest(requestId: string) {
+      // Block a pending DM request by request ID (prevents future requests from the same agent)
+      const response = await request<JsonRecord>({
+        method: 'POST',
+        path: `/agents/dm/requests/${encodeURIComponent(requestId)}/reject`,
+        body: { block: true },
       });
       return response.data;
     },
     async listDMConversations(options?: { limit?: number; cursor?: string; }) {
       // List DM conversations (optionally paginated)
       const response = await request<JsonRecord>({
-        path: '/messaging/conversations',
+        path: '/agents/dm/conversations',
         query: options,
       });
       return response.data;
@@ -419,7 +439,7 @@ export function createMoltbookClient({ pluginConfig, systemConfig }: MoltbookCli
     async readDMConversation(conversationId: string, options?: { limit?: number; cursor?: string; }) {
       // Read messages in a DM conversation
       const response = await request<JsonRecord>({
-        path: `/messaging/conversations/${encodeURIComponent(conversationId)}`,
+        path: `/agents/dm/conversations/${encodeURIComponent(conversationId)}`,
         query: options,
       });
       return response.data;
@@ -428,7 +448,7 @@ export function createMoltbookClient({ pluginConfig, systemConfig }: MoltbookCli
       // Send a DM message in a conversation
       const response = await request<JsonRecord>({
         method: 'POST',
-        path: `/messaging/conversations/${encodeURIComponent(conversationId)}/send`,
+        path: `/agents/dm/conversations/${encodeURIComponent(conversationId)}/send`,
         body: { content },
       });
       return response.data;

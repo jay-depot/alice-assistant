@@ -76,10 +76,11 @@ import type { Tool } from '../../../lib/tool-system.js';
 import type { MoltbookClient } from '../moltbook-client.js';
 
 // Request DM access
-type RequestDMParameters = { targetAgentName: string };
 const requestDMParameters = Type.Object({
   targetAgentName: Type.String({ description: 'The agent name to request DM access with.' }),
+  message: Type.String({ description: 'The message to send with the DM request.' }),
 });
+type RequestDMParameters = Type.Static<typeof requestDMParameters>;
 
 export const requestMoltbookDMTool = (client: MoltbookClient): Tool => ({
   name: 'requestMoltbookDM',
@@ -90,7 +91,7 @@ export const requestMoltbookDMTool = (client: MoltbookClient): Tool => ({
   toolResultPromptIntro: 'DM request result:',
   toolResultPromptOutro: '',
   execute: async (args: RequestDMParameters) => {
-    const result = await client.requestDMAccess(args.targetAgentName);
+    const result = await client.requestDMAccess(args.targetAgentName, args.message);
     return typeof result.message === 'string' ? result.message : 'DM request sent.';
   },
 });
