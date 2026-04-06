@@ -32,6 +32,9 @@ import {
   listMoltbookDMConversationsTool,
   readMoltbookDMConversationTool,
   sendMoltbookDMMessageTool,
+  listMoltbookPendingDMRequestsTool,
+  approveMoltbookPendingDMRequestTool,
+  scanForMoltbookDMRequestIDsTool,
 } from './tools/dm-tools.js';
 import path from 'path';
 
@@ -96,6 +99,9 @@ const moltbookPlugin: AlicePlugin = {
     plugin.registerTool(listMoltbookDMConversationsTool(moltbookClient));
     plugin.registerTool(readMoltbookDMConversationTool(moltbookClient));
     plugin.registerTool(sendMoltbookDMMessageTool(moltbookClient));
+    plugin.registerTool(listMoltbookPendingDMRequestsTool(moltbookClient));
+    plugin.registerTool(approveMoltbookPendingDMRequestTool(moltbookClient));
+    plugin.registerTool(scanForMoltbookDMRequestIDsTool(moltbookClient));
 
     const { registerSkillFile } = plugin.request('skills');
     registerSkillFile(path.join(import.meta.dirname, 'skills', 'Moltbook.md'))
