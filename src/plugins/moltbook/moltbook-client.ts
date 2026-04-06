@@ -438,7 +438,7 @@ export function createMoltbookClient({ pluginConfig, systemConfig }: MoltbookCli
     async listPendingDMRequests(options?: { limit?: number; cursor?: string; }) {
       // The endpoint is assumed to be /messaging/pending-requests (adjust if needed)
       const response = await request<JsonRecord>({
-        path: '/messaging/pending-requests',
+        path: '/agents/dm/requests',
         query: options,
       });
       return response.data;
