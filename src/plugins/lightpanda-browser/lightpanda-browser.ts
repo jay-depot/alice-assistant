@@ -26,8 +26,9 @@ const lightpandaBrowserPlugin: AlicePlugin = {
       name: 'lightpandaFetch',
       description: 'Call lightpandaFetch when the user asks you to fetch a web page for ' + 
         'them, or information from a web page, or information available on a web page, or ' +
-        'when you absolutely need information that can be found on a web page to complete ' +
-        'an assigned task.',
+        'when you need information that can be found on a web page to complete an assigned ' +
+        'task. lightpanda is a *fast* web browser designed for you! It turns web pages into ' +
+        'text you can read.',
       parameters: LightpandaFetchToolParameterSchema,
       availableFor: ['chat', 'voice'],
       systemPromptFragment: '',

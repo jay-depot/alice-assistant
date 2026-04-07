@@ -287,7 +287,8 @@ const memoryPlugin: AlicePlugin = {
     });
 
     plugin.hooks.onAllPluginsLoaded(async () => {
-      console.log('All plugins loaded, initializing memory plugin database...');
+      console.log('All plugins loaded, initializing memory plugin database with the following entities:');
+      console.log(entities.map(e => `  - ${e.name}`).join('\n'));
       const orm = await MikroORM.init({
         // TODO: UserConfig is going to be deprecated as soon as a plugin-clean alternative 
         // is designed.

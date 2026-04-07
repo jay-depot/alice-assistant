@@ -111,7 +111,10 @@ const SkillsPlugin: AlicePlugin = {
           return false;
         }
       
-        const skillPrompt = [`You have the following skills available:\n`];
+        const skillPrompt = [
+          `Recall any appropriate skills proactively whenever you judge them relevant to the current task or topic.`,
+          `You have the following skills available:\n`
+        ];
         skillsRegistry.forEach(skill => {
           skillPrompt.push(`- **${skill.id}:** recall ${skill.id} when ${skill.recallWhen}`);
         });
