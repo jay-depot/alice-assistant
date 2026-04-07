@@ -30,6 +30,11 @@
     "required": true
   },
   {
+    "id": "web-ui",
+    "name": "Web UI",
+    "required": true
+  },
+  {
     "id": "skills",
     "name": "Skills",
     "required": false
@@ -38,11 +43,6 @@
     "id": "proficiencies",
     "name": "Proficiencies",
     "required": false
-  },
-  {
-    "id": "web-ui",
-    "name": "Web UI",
-    "required": true
   },
   {
     "id": "user-skills",
