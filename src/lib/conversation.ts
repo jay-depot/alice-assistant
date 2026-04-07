@@ -61,6 +61,13 @@ function getLLMConnection() {
   }
 }
 export class Conversation {
+  /**
+   * Send any context to the LLM. No headers or footers from the usual "ALICE" system are added.
+   * 
+   * Use this for one-off requests, like summarizing text, but also can be used by plugins that 
+   * might want to create their own conversation-like object to manage an LLM context for a 
+   * different purpose.
+   */
   static async sendDirectRequest(messages: Message[]): Promise<string> {
     
     const response = await retry(async () => {
@@ -274,13 +281,17 @@ export class Conversation {
         }
         try {
           const callResult = await tool.execute(toolArgs)
+          const toolResultIntro = typeof tool.toolResultPromptIntro === 'function' ? tool.toolResultPromptIntro(this.type) : tool.toolResultPromptIntro;
+          const toolResultOutro = typeof tool.toolResultPromptOutro === 'function' ? tool.toolResultPromptOutro(this.type) : tool.toolResultPromptOutro;
+
           const result = `${
-            tool.toolResultPromptIntro ? tool.toolResultPromptIntro + '\n': ''
+            toolResultIntro ? toolResultIntro + '\n': ''
           }${
             callResult
           }${
-            tool.toolResultPromptOutro ? '\n' + tool.toolResultPromptOutro : ''
+            toolResultOutro ? '\n' + toolResultOutro : ''
           }`;
+
           return `Result of calling tool ${toolName} with arguments ${JSON.stringify(toolArgs)}:\n${result}`;
         } catch (e) {
           return `Error calling tool ${toolName} with arguments ${JSON.stringify(toolArgs)}: ${e instanceof Error ? e.message : String(e)}`;
@@ -290,7 +301,7 @@ export class Conversation {
         `${toolCalls.map((call, index) => `Tool call ${index + 1}: ${call.function.name} with arguments ${JSON.stringify(call.function.arguments)}`).join('\n')}\n\n` +
         `*Here are the results:*+\n` +
         `${resultParts.join('\n\n')}\n\n${continuationPrompt}`;
-      // Send the continuation prompt, and wait for the next response, which will be the LLM either making another tool call, or giving its final answer.
+
       await this.appendToContext({
         role: 'system',
         content: continuationPromptWithResults

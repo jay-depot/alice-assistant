@@ -6,6 +6,8 @@
     "web-ui": true,
     "scratch-files": true,
     "location-broker": true,
+    "skills": false,
+    "proficiencies": false,
     "reminders-broker": true,
     "application": false,
     "mood": true,

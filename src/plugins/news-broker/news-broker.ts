@@ -102,7 +102,7 @@ const newsBrokerPlugin: AlicePlugin = {
         'the query, keyed by provider name.',
       systemPromptFragment: '',
       toolResultPromptIntro: '',
-      toolResultPromptOutro: '',
+      toolResultPromptOutro: (type) => type === 'chat' ? 'Include links to sources.' : '',
       execute: async (parameters: NewsToolParametersSchema) => {
         const newsData = await requestNewsData(parameters.query);
         const formattedResults = Object.entries(newsData).map(([provider, items]) => {
