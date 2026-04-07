@@ -35,6 +35,11 @@
     "required": false
   },
   {
+    "id": "proficiencies",
+    "name": "Proficiencies",
+    "required": false
+  },
+  {
     "id": "web-ui",
     "name": "Web UI",
     "required": true

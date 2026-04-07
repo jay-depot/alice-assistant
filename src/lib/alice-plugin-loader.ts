@@ -20,6 +20,8 @@ const defaultEnabledPlugins: EnabledPluginsConfig = {
     "memory": true,
     "scratch-files": true,
     "location-broker": true,
+    "skills": false,
+    "proficiencies": false,
     "mood": true,
     "web-ui": true,
     "reminders-broker": true,
