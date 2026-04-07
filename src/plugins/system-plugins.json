@@ -32,7 +32,7 @@
   {
     "id": "skills",
     "name": "Skills",
-    "required": true
+    "required": false
   },
   {
     "id": "web-ui",
@@ -117,6 +117,11 @@
   {
     "id": "credential-clapback",
     "name": "Credential Clapback",
+    "required": false
+  },
+  {
+    "id": "lightpanda-browser",
+    "name": "Lightpanda Browser",
     "required": false
   }
 ]

@@ -30,10 +30,11 @@ const SkillsPlugin: AlicePlugin = {
       'invoke in response to user requests. Skills are text or markdown snippets with ' +
       'additional information intended to help the assistant carry out specific tasks. ' +
       'This plugin itself does not provide any skills, but serves as a registry and ' +
-      'interface for other plugins to add their skills to.',
+      'interface for other plugins to add their skills to. This plugin usually only ' +
+      'works well with a fairly large context window.',
     version: 'LATEST',
     dependencies: [],
-    required: true,
+    required: false,
     system: true,
   },
 
