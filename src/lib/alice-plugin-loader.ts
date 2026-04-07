@@ -20,6 +20,7 @@ const defaultEnabledPlugins: EnabledPluginsConfig = {
     "memory": true,
     "scratch-files": true,
     "location-broker": true,
+    "notifications-console": true,
     "skills": false,
     "proficiencies": false,
     "mood": true,
@@ -50,7 +51,17 @@ export async function loadPlugins() {
   const aliceDir = UserConfig.getConfigPath();
   const userPluginConfigPath = path.join(aliceDir, 'plugin-settings', 'enabled-plugins.json');
   const userPluginConfigExists = await exists(userPluginConfigPath);
-  const userEnabledPlugins: EnabledPluginsConfig = userPluginConfigExists ? JSON.parse(await readFile(userPluginConfigPath, 'utf-8')) : defaultEnabledPlugins;
+  const rawEnabledPlugins = userPluginConfigExists ? JSON.parse(await readFile(userPluginConfigPath, 'utf-8')) as Partial<EnabledPluginsConfig> : defaultEnabledPlugins;
+  const userEnabledPlugins: EnabledPluginsConfig = {
+    system: {
+      ...defaultEnabledPlugins.system,
+      ...rawEnabledPlugins.system,
+    },
+    user: {
+      enableUserPlugins: rawEnabledPlugins.user?.enableUserPlugins ?? defaultEnabledPlugins.user.enableUserPlugins,
+      plugins: rawEnabledPlugins.user?.plugins ?? defaultEnabledPlugins.user.plugins,
+    }
+  };
   const systemPluginsPath = path.join(import.meta.dirname, '..', 'plugins');
   const userPluginsPath = path.join(aliceDir, 'user-plugins');
 

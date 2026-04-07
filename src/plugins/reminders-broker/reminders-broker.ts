@@ -66,6 +66,74 @@ const remindersBrokerPlugin: AlicePlugin = {
     const { registerDatabaseModels, onDatabaseReady } = plugin.request('memory')!;
     const { sendNotification } = plugin.request('notifications-broker')!;
     const awaitForOrm = onDatabaseReady(async (orm) => orm);
+    let pollingInterval: ReturnType<typeof setInterval> | null = null;
+    let activePollingCycle: Promise<void> | null = null;
+    let isShuttingDown = false;
+    const inFlightNotificationPromises = new Set<Promise<void>>();
+
+    const pollDueReminders = async (reason: 'startup' | 'interval' | 'shutdown-final') => {
+      const orm = await awaitForOrm;
+      const em = orm.em.fork();
+      const dueReminders = await em.find(RemindersSchedule, {
+        scheduledFor: { $lte: new Date() },
+      }, {
+        orderBy: { scheduledFor: 'ASC', id: 'ASC' },
+      });
+
+      if (dueReminders.length === 0) {
+        if (process.env.ALICE_DEBUG) {
+          console.log(`Reminders Broker: No due reminders found during ${reason} cycle.`);
+        }
+        return;
+      }
+
+      console.log(`Reminders Broker: Processing ${dueReminders.length} due reminder(s) during ${reason} cycle.`);
+
+      for (const reminder of dueReminders) {
+        const notificationPromise = sendNotification({
+          title: `Reminder from ${reminder.source}`,
+          message: reminder.reminderMessage,
+          source: reminder.source,
+        });
+
+        inFlightNotificationPromises.add(notificationPromise);
+
+        try {
+          await notificationPromise;
+          await em.remove(reminder).flush();
+        } catch (error) {
+          console.error(`Reminders Broker: Failed to deliver reminder ${reminder.id}.`, error);
+        } finally {
+          inFlightNotificationPromises.delete(notificationPromise);
+        }
+      }
+    };
+
+    const runPollingCycle = (reason: 'startup' | 'interval' | 'shutdown-final') => {
+      if (reason !== 'shutdown-final' && isShuttingDown) {
+        return Promise.resolve();
+      }
+
+      if (activePollingCycle) {
+        if (process.env.ALICE_DEBUG) {
+          console.log(`Reminders Broker: Skipping overlapping ${reason} cycle.`);
+        }
+        return activePollingCycle;
+      }
+
+      const cyclePromise = pollDueReminders(reason)
+        .catch((error) => {
+          console.error(`Reminders Broker: ${reason} cycle failed.`, error);
+        })
+        .finally(() => {
+          if (activePollingCycle === cyclePromise) {
+            activePollingCycle = null;
+          }
+        });
+
+      activePollingCycle = cyclePromise;
+      return cyclePromise;
+    };
 
     registerDatabaseModels([RemindersSchedule]);
 
@@ -124,15 +192,38 @@ const remindersBrokerPlugin: AlicePlugin = {
     });
 
     plugin.hooks.onAssistantAcceptsRequests(async () => {
-      // Start up a 1 minute interval to check the database for any reminders that are due 
-      // to be delivered, and if so, send them to notifications-broker to be sent to some 
-      // notification sinks (hopefully) and then the user.
+      if (pollingInterval) {
+        return;
+      }
+
+      console.log('Reminders Broker: Starting due-reminder polling loop.');
+      pollingInterval = setInterval(() => {
+        void runPollingCycle('interval');
+      }, 60 * 1000);
+
+      void runPollingCycle('startup');
     });
 
     plugin.hooks.onAssistantWillStopAcceptingRequests(async () => {
-      // Stop our loop so we don't end up losing notifications during shutdown. Then check 
-      // for any pending loop resolution promises and resolve them, so we don't lose any 
-      // reminders,
+      isShuttingDown = true;
+
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+        pollingInterval = null;
+      }
+
+      console.log('Reminders Broker: Stopping due-reminder polling loop.');
+
+      if (activePollingCycle) {
+        await activePollingCycle;
+      }
+
+      if (inFlightNotificationPromises.size > 0) {
+        console.log(`Reminders Broker: Waiting for ${inFlightNotificationPromises.size} in-flight reminder notification(s).`);
+        await Promise.allSettled([...inFlightNotificationPromises]);
+      }
+
+      await runPollingCycle('shutdown-final');
     });
   }
 };

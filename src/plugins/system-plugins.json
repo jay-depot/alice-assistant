@@ -30,6 +30,11 @@
     "required": true
   },
   {
+    "id": "notifications-console",
+    "name": "Notifications Console",
+    "required": false
+  },
+  {
     "id": "reminders-broker",
     "name": "Reminders Broker",
     "required": true

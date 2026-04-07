@@ -6,6 +6,7 @@
     "web-ui": true,
     "scratch-files": true,
     "location-broker": true,
+    "notifications-console": true,
     "skills": false,
     "proficiencies": false,
     "reminders-broker": true,
