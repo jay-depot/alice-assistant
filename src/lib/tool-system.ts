@@ -2,7 +2,7 @@ import { TSchema } from 'typebox';
 import { getTools } from './tools.js';
 import { DynamicPromptConversationType } from './dynamic-prompt.js';
 
-type ToolPromptFragmentFunction =  string | (() => string);
+type ToolPromptFragmentFunction =  string | ((type: DynamicPromptConversationType) => string);
 
 type OllamaRequestToolsPropItem = {
   'type': 'function';

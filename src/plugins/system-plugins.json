@@ -32,7 +32,7 @@
   {
     "id": "skills",
     "name": "Skills",
-    "required": true
+    "required": false
   },
   {
     "id": "web-ui",
