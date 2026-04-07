@@ -25,6 +25,11 @@
     "required": true
   },
   {
+    "id": "notifications-broker",
+    "name": "Notifications Broker",
+    "required": true
+  },
+  {
     "id": "reminders-broker",
     "name": "Reminders Broker",
     "required": true
