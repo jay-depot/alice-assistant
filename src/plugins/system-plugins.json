@@ -128,5 +128,10 @@
     "id": "lightpanda-browser",
     "name": "Lightpanda Browser",
     "required": false
+  },
+  {
+    "id": "web-simple-fetch",
+    "name": "Simple Web Fetch",
+    "required": false
   }
 ]
