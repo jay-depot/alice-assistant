@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createSession, endSession, fetchSession, patchSession } from '../api/sessions.js';
 import type { Message } from '../types/index.js';
 
@@ -75,6 +75,7 @@ export function useSession({ onError, refreshSessions }: UseSessionOptions = {})
 
     const optimisticMessage: Message = {
       role: 'user',
+      messageKind: 'chat',
       content: message,
       timestamp: new Date().toISOString(),
     };
@@ -144,6 +145,40 @@ export function useSession({ onError, refreshSessions }: UseSessionOptions = {})
 
     return 'Type a message... (Enter to send, Shift+Enter for newline)';
   }, [currentSessionId, isLoading]);
+
+  useEffect(() => {
+    if (currentSessionId === null || isLoading) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      void (async () => {
+        try {
+          const session = await fetchSession(currentSessionId);
+          const currentLastMessage = messages[messages.length - 1];
+          const incomingLastMessage = session.messages[session.messages.length - 1];
+          const hasNewMessages = session.messages.length !== messages.length
+            || session.title !== sessionTitle
+            || incomingLastMessage?.timestamp !== currentLastMessage?.timestamp
+            || incomingLastMessage?.content !== currentLastMessage?.content;
+
+          if (!hasNewMessages) {
+            return;
+          }
+
+          setMessages(session.messages);
+          setSessionTitle(session.title);
+          await refreshSessions?.();
+        } catch (error) {
+          console.error('Failed to poll active conversation for updates:', error);
+        }
+      })();
+    }, 3000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [currentSessionId, isLoading, messages, refreshSessions, sessionTitle]);
 
   return {
     currentSessionId,

@@ -18,11 +18,11 @@
   --accent-dim:    rgba(17, 136, 17, 0.15);
 
   --text-primary:  #dddaea;
-  --text-secondary:#9590b0;
-  --text-muted:    #5a5870;
+  --text-secondary:#9095b0;
+  --text-muted:    #585a70;
 
-  --border:        #23233a;
-  --border-input:  #2e2e4a;
+  --border:        #233a23;
+  --border-input:  #2e4a2e;
 
   --sidebar-w: 260px;
   --header-h:  52px;
@@ -496,6 +496,14 @@ html, body { height: 100%; background: var(--bg-base); color: var(--text-primary
   align-items: flex-start;
 }
 
+.message__label {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 4px 4px;
+}
+
 .message__bubble {
   padding: 10px 14px;
   border-radius: var(--radius-bubble);
@@ -529,6 +537,18 @@ html, body { height: 100%; background: var(--bg-base); color: var(--text-primary
   margin-bottom: 0;
 }
 
+.message__bubble a {
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.message__bubble a:hover {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+
+
 .message--user .message__bubble {
   background: var(--bg-bubble-user);
   color: var(--text-primary);
@@ -540,6 +560,12 @@ html, body { height: 100%; background: var(--bg-base); color: var(--text-primary
   color: var(--text-primary);
   border-bottom-left-radius: var(--radius-bubble-tail);
   border: 1px solid var(--border);
+}
+
+.message--notification .message__bubble {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+  background: color-mix(in srgb, var(--bg-bubble-bot) 85%, var(--accent) 15%);
 }
 
 .message__meta {

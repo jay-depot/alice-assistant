@@ -18,6 +18,16 @@ export function useSessions(onError?: (message: string) => void) {
     void refreshSessions();
   }, [refreshSessions]);
 
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      void refreshSessions();
+    }, 10000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [refreshSessions]);
+
   return {
     sessions,
     setSessions,

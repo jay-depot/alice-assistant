@@ -35,6 +35,26 @@
     "required": false
   },
   {
+    "id": "notifications-libnotify",
+    "name": "Notifications Libnotify",
+    "required": false
+  },
+  {
+    "id": "notifications-chat-segue",
+    "name": "Notifications Chat Segue",
+    "required": false
+  },
+  {
+    "id": "notifications-chat-interruption",
+    "name": "Notifications Chat Interruption",
+    "required": false
+  },
+  {
+    "id": "notifications-chat-initiate",
+    "name": "Notifications Chat Initiate",
+    "required": false
+  },
+  {
     "id": "reminders-broker",
     "name": "Reminders Broker",
     "required": true

@@ -253,9 +253,6 @@ export class Conversation {
     // appropriate "tool response" prompt back to the LLM, then wait for the next response. If it's 
     // not a tool call, just return the response content.
 
-    if (depth > MAX_TOOL_CALL_DEPTH) {
-      throw new Error('Maximum tool call depth exceeded. Possible infinite loop detected.');
-    }
     const headerPrompts = await getHeaderPrompts({ conversationType: this.type });
     const footerPrompts = await getFooterPrompts({ conversationType: this.type });
     const promptIfCallsAvailable = ` - If you need to make another tool call, make it now. Otherwise, answer the user's query in character. You have ${MAX_TOOL_CALL_DEPTH - depth} remaining recursive tool calls you may make regarding this user query.`;
@@ -266,9 +263,13 @@ export class Conversation {
       `if you can continue looking. If they agree, you may use the new quota of 5 recursive tool calls for the next round of conversation to continue.`;
 
     const continuationPrompt = depth <= MAX_TOOL_CALL_DEPTH ? promptIfCallsAvailable: promptIfNoCallsAvailable;
-
     const toolCalls = response.message.tool_calls;
+
     if (toolCalls && toolCalls.length > 0) {
+      if (depth > MAX_TOOL_CALL_DEPTH) {
+        throw new Error('Maximum tool call depth exceeded. Possible infinite loop detected.');
+      }
+
       const resultParts = await Promise.all(toolCalls.map(async (toolCall) => {
         const toolName = toolCall.function.name;
         const toolArgs = toolCall.function.arguments;
@@ -323,7 +324,7 @@ export class Conversation {
             ...this.compactedContext,
             ...footerPrompts.map(prompt => ({ role: 'system', content: prompt })),
           ],
-          tools: depth <= MAX_TOOL_CALL_DEPTH ? buildOllamaToolDescriptionObject(this.type) : undefined
+          tools: depth < MAX_TOOL_CALL_DEPTH ? buildOllamaToolDescriptionObject(this.type) : undefined
         });
 
         checkLLMResponseForDegeneracy(res.message.content || '');

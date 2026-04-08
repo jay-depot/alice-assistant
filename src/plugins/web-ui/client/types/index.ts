@@ -1,9 +1,11 @@
 import type { ComponentType } from 'react';
 
 export type MessageRole = 'user' | 'assistant';
+export type MessageKind = 'chat' | 'notification';
 
 export interface Message {
   role: MessageRole;
+  messageKind: MessageKind;
   content: string;
   timestamp: string;
 }
@@ -12,6 +14,7 @@ export interface Session {
   id: number | string;
   title: string;
   createdAt: string;
+  updatedAt: string;
   messages: Message[];
 }
 
