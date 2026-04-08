@@ -169,7 +169,10 @@ const proficienciesPlugin: AlicePlugin = {
     plugin.registerTool({
       name: 'createProficiency',
       availableFor: ['chat', 'voice', 'autonomy'],
-      description: 'Create a new proficiency with a name, recall trigger, and reusable contents.',
+      description: 'Create a new proficiency with a name, recall trigger, and reusable ' +
+                   'contents whenever you want to start a place to keep knowledge you ' +
+                   'accumulate over time about a specific task or topic. Recall your ' +
+                   '"Proficiencies" skill for details on how to manage your proficiencies.',
       systemPromptFragment: '',
       toolResultPromptIntro: '',
       toolResultPromptOutro: '',
@@ -292,7 +295,12 @@ const proficienciesPlugin: AlicePlugin = {
           }
 
           return [
-            'You have the following proficiencies available:\n',
+            `# Proficiencies\n`,
+            `Proficiencies are skills you have created for yourself to help you with specific ` +
+            `tasks or topics. Create and update them at your discretion after recalling the ` +
+            `"Proficiencies" skill for details on how to manage them. Recall appropriate proficiencies ` +
+            `proactively whenever you judge them relevant to the current task or topic.\n`,
+            'You have the following proficiencies available for recall:\n',
             ...proficiencies.map((entry) => `- **${entry.name}:** recall ${entry.name} when ${entry.recallWhen}`),
           ].join('\n');
         });
