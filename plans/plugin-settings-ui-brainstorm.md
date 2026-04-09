@@ -30,16 +30,22 @@ Sketch a future web UI surface for plugin configuration, with room for soft-conf
 1. Add a simple Plugins page or Settings section listing:
    - plugin name
    - short description
-   - enabled/disabled toggle
-   - status badge such as required, optional, experimental, or user plugin
+   - enabled/disabled toggle (Which will be itself disabled if the plugin is required or has enabled dependents, with an explanation tooltip on hover)
+   - "Type" badges for system+required, system+optional, community, or user plugin
+   - "Warning" badges for the highest "level" of registered agentic independence included in the plugin. Something akin ski diamonds for the overall level (DO NOT RELY SOLELY ON COLOR FOR THIS. COLOR *AND* AN ADDITIONAL VISUAL SIGNAL LIKE THE NUMBER OF [CHOSEN_ICON] OR [CHOSEN_ICON] WITH CLEAR "PLUSES" AFTERWARDS IS IDEAL), plus additional badges for any specific agentic functionality we end up tracking in the metadata  (See `plans/agent-dispatching.md` for more on this)
+      - Candidates for the "level" badge include:
+         - Robot heads, or a single robot head, followed by 0, 1 or 2 plusses (I'm partial to this, specifically the latter option. Using a robot head is cute and funny, which makes it on-brand. We don't use robot heads anywhere else yet, so the user can learn this is the idiom. The plusses are a better alternative to repeating robot heads, which might imply more *agents*, rather than more *agency*)
+         - Gears
+         - Diamonds (like ski resort difficulty ratings, but for the agent's independence level instead of slope difficulty)
 
 2. Add an inline warnings area per plugin entry.
    - Warning text appears only when the current enabled set triggers a known soft conflict.
    - Warnings should not prevent saving.
 
 3. Add a save/apply action with restart guidance if necessary.
-   - Some plugin changes may require a restart.
+   - Most (probably all) plugin changes require a restart. Hot loading is a far-future "maybe" goal.
    - UI should say that explicitly rather than pretending changes are hot-loaded.
+   - Nice to have: A way for this thing to manage its own restart when changes require one.
 
 ## Data Model Thoughts
 
@@ -57,11 +63,11 @@ Sketch a future web UI surface for plugin configuration, with room for soft-conf
    - The UI will be a friendlier editor for the existing config files, which the user should always be able to explore, and edit directly if desired or needed.
    - HARD BLOCKER: All remaining legacy tool configs need to be migrated into their plugins or this cannot work. If you are not confident this has been done completely, DO NOT PROCEED WITH THE UI WORK.
    - SOFT BLOCKER: peer and optional dependencies for plugins are on the feature roadmap. It will *probably* be easier to do this after those are in place, but proceed if you are confident the later retrofit won't be too difficult.
-   - HARD BLOCKER: I'm seriously considering splitting the built-in plugins into "system" and "community" subsets, to sort them into things most people want for basic functionality, and functionality expected to be broadly useful, but still somewhat specific, or even niche (`moltbook` being more niche, lol. And maybe, if I'm really lucky, even actual contributions from other users). Since this split will be reflected in the UI. This decision needs to be finalized before the UI work starts. DO NOT PROCEED WITH THE UI WORK WHILE THIS BULLET POINT IS PRESENT IN THIS PLAN, UNLESS THE PLUGINS DIRECTORY HAS SUBDIRECTORIES NAMED "system" AND "community" AND ALL CURRENT PLUGINS ARE SORTED INTO ONE OF THOSE TWO DIRECTORIES APPROPRIATELY, IN WHICH CASE THE SPLIT HAS BEEN COMPLETED AND THE UI DESIGN SHOULD REFLECT IT. IF THE PLUGINS DIRECTORY SEEMS TO HAVE ADDITIONAL CATEGORIES BESIDES THOSE TWO UNDER IT, ASK THE USER HOW TO PROCEED FIRST. Dear human: In the unlikely case we decide not to do this split, please remove this bullet point.
-   - SOFT BLOCKER: The loading process for user plugins exists, but is untested. We can work on this UI without that, but it would impact testing.
+   - HARD BLOCKER: I'm seriously considering splitting the built-in plugins into "system" and "community" subsets, to sort them into things most people want for basic functionality, and functionality expected to be broadly useful, but still somewhat specific, or even niche (`moltbook` being more niche, lol. And maybe, if I'm really lucky, even actual contributions from other users). Since this split will be reflected in the UI. This decision needs to be finalized before the UI work starts. DO NOT PROCEED WITH THE UI WORK WHILE THIS BULLET POINT IS PRESENT IN THIS PLAN, UNLESS THE PLUGINS DIRECTORY HAS SUBDIRECTORIES NAMED "system" AND "community" AND ALL CURRENT PLUGINS ARE SORTED INTO ONE OF THOSE TWO DIRECTORIES APPROPRIATELY, IN WHICH CASE THE SPLIT HAS BEEN COMPLETED AND THE UI DESIGN SHOULD REFLECT IT. IF THE PLUGINS DIRECTORY SEEMS TO HAVE ADDITIONAL CATEGORIES BESIDES THOSE TWO UNDER IT, ASK THE PROJECT OWNER HOW TO PROCEED FIRST. Dear human project owner: In the unlikely case we decide not to do this split, please remove this bullet point.
+   - SOFT BLOCKER: The loading process for user plugins exists, but is untested. We can work on this UI without that, but it will impact testing scope if that turns out to have been broken all along.
 
 ## Open Questions
 
-1. Should plugin descriptions come directly from plugin metadata, or should there be a richer UI-specific description field? Answer: Metadata for now, though a link to read (pretty-rendered using the already present markdown renderer) the plugin's README.md (if it has one) in a sort of "next page" of the existing (currently mostly empty) config panel overlay, with a "back" arrow to go back to the main list, would be a nice-to-have that also encourages plugin authors to write good READMEs. It will probably be a good idea to have the panel expand to the left a bit for this interaction, for a better reading experience, ideally enough for about 80-120 characters per row, and I'd like this transition to be smooth.
+1. Should plugin descriptions come directly from plugin metadata, or should there be a richer UI-specific description field? Answer: Metadata for now, though a link to read the plugin's README.md (if it has one, pretty-rendered using the already present markdown renderer) in a sort of "next page" of the (by that point will be) existing config panel overlay, with a "back" arrow to go back to the main list, would be a nice-to-have. It would also encourage plugin authors to write good READMEs. It will probably be a good idea to have the panel expand to the left a bit for this interaction, for a better reading experience, ideally enough for about 80-120 characters per row, and I'd like this transition to be smooth.
 2. Should warnings be computed fully on the backend, or is it acceptable for the frontend to evaluate simple declarative rules? Answer: Simple rules can be evaluated on the frontend for responsiveness, and warnings should be computed solely on the front-end whenever reasonable, but for "hard" error conditions the backend should still be verifying everything, even when the front-end checks for simple issues pre-flight for responsiveness.
-3. When plugin-specific settings pages arrive, should they live inline in the plugin list or behind per-plugin detail views? Answer: For consistency, let's make it always live in a separate details view.
+3. When plugin-specific settings pages arrive, should they live inline in the plugin list or behind per-plugin detail views? Answer: For consistency, let's make it a link to a "next page" from the plugin list every time. Most plugins won't have huge lists of settings, but a few might, and it's easier to just assume we'll need the extra space for all of them rather than trying to do a hybrid approach where some have inline settings and some have separate pages. This also keeps the main plugin list cleaner and more scannable.
