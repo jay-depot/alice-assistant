@@ -6,6 +6,7 @@ const MAX_CHUNK_SIZE = 160000;
 
 const SimpleFetchToolParametersSchema = Type.Object({
   url: Type.String({ description: 'The URL to fetch data from.' }),
+  accept: Type.Optional(Type.String({ description: 'The contents you wish to pass into the Accept header of the request. Defaults to */*.', default: '*/*' })),
   startReadingFrom: Type.Optional(Type.Number({ minimum: 0,description: 'The character index to start reading from for the fetched content. This is useful for fetching large web pages in chunks to avoid overflowing the context window. Set this parameter OR startReadingFromKeyword, but not both.' })),
   startReadingFromKeyword: Type.Optional(Type.Object({
     keyword: Type.String({ description: 'A unique keyword to search for in the fetched content to determine the character index to start reading from. This is useful for fetching large web pages in chunks when you cannot determine the appropriate startReadingFrom index ahead of time but can identify a keyword in the content to start from.' }),
@@ -19,7 +20,8 @@ type SimpleFetchToolParameters = Type.Static<typeof SimpleFetchToolParametersSch
 const SimplePostToolParametersSchema = Type.Object({
   url: Type.String({ description: 'The URL to send the POST request to.' }),
   body: Type.String({ description: 'The body of the POST request.' }),
-  contentType: Type.Optional(Type.String({ description: 'The content type of the POST request body. Defaults to application/json.' })),
+  contentType: Type.Optional(Type.String({ description: 'The content type of the POST request body. Defaults to application/json.', default: 'application/json' })),
+  accept: Type.Optional(Type.String({ description: 'The contents you wish to pass into the Accept header of the POST request. Defaults to application/json.', default: 'application/json' })),
   paginationKey: Type.Optional(Type.String({ description: 'A unique key to identify this POST request for pagination purposes. This is used in conjunction with the startReadingFrom and limit parameters to page through large responses without sending the same POST request multiple times.' })),
   startReadingFrom: Type.Optional(Type.Number({ minimum: 0,description: 'The character index to start reading from for the fetched content. This is useful for fetching large responses in chunks to avoid overflowing the context window. Set this parameter OR startReadingFromKeyword, but not both.' })),
   startReadingFromKeyword: Type.Optional(Type.Object({
@@ -32,7 +34,7 @@ const SimplePostToolParametersSchema = Type.Object({
 type SimplePostToolParameters = Type.Static<typeof SimplePostToolParametersSchema>;
 
 const fetchCache = new Map<string, { url: string; data: string, timestamp: Date }>();
-const postResponseCache = new Map<string, { url: string; body: string; data: string, timestamp: Date }>();
+const postResponseCache = new Map<string, { url: string; body: string; data: string, accept: string, contentType: string, timestamp: Date }>();
 
 const webSimpleFetchPlugin: AlicePlugin = {
   pluginMetadata: {
@@ -67,20 +69,25 @@ const webSimpleFetchPlugin: AlicePlugin = {
       execute: async function (args: SimpleFetchToolParameters): Promise<string> {
         // This has one small problem. It overflows the context window if you pull a typical web page.
         // So this needs some kind of "cursor" functionality.
-        const { url } = args as SimpleFetchToolParameters;
+        const { url, accept } = args as SimpleFetchToolParameters;
+        const cacheKey = `${url}::${accept ?? '*/*'}`;
 
         const data = await (async () => {
-          const cached = fetchCache.get(url);
+          const cached = fetchCache.get(cacheKey);
           if (cached && (new Date().getTime() - cached.timestamp.getTime()) < 5 * MINUTES) {
             return cached.data;
           }
           
-          const response = await fetch(url);
+          const response = await fetch(url, {
+            headers: {
+              'Accept': accept ?? '*/*'
+            }
+          });
           if (!response.ok) {
             throw new Error(`HTTP error! Status: ${response.status}`);
           }
           const data = await response.text();
-          fetchCache.set(url, { url, data, timestamp: new Date() });
+          fetchCache.set(cacheKey, { url, data, timestamp: new Date() });
           return data;
         })();
         
@@ -128,7 +135,7 @@ const webSimpleFetchPlugin: AlicePlugin = {
       toolResultPromptIntro: '',
       toolResultPromptOutro: '',
       execute: async function (args: SimplePostToolParameters): Promise<string> {
-        const { url, body, paginationKey, contentType } = args as SimplePostToolParameters;
+        const { url, body, paginationKey, contentType, accept } = args as SimplePostToolParameters;
 
         const data = await (async () => {
           const cached = paginationKey ? postResponseCache.get(paginationKey) : undefined;
@@ -138,7 +145,10 @@ const webSimpleFetchPlugin: AlicePlugin = {
           
           const response = await fetch(url, {
             method: 'POST',
-            headers: { 'Content-Type': contentType ?? 'application/json' },
+            headers: { 
+              'Content-Type': contentType ?? 'application/json',
+              'Accept': accept ?? '*/*'
+            },
             body: JSON.stringify(body),
           });
           if (!response.ok) {
@@ -146,7 +156,7 @@ const webSimpleFetchPlugin: AlicePlugin = {
           }
           const data = await response.text();
           if (paginationKey) {
-            postResponseCache.set(paginationKey, { url, body, data, timestamp: new Date() });
+            postResponseCache.set(paginationKey, { url, body, data, timestamp: new Date(), accept, contentType });
           }
           return data;
         })();

@@ -201,7 +201,7 @@ export class Conversation {
   }
 
   async sendUserMessage(userMessage?: string): Promise<string> {
-    const headerPrompts = await getHeaderPrompts({ conversationType: this.type });
+    const headerPrompts = await getHeaderPrompts({ conversationType: this.type, toolCallsAllowed: true });
     const footerPrompts = await getFooterPrompts({ conversationType: this.type });
 
     if (userMessage) {
@@ -252,23 +252,56 @@ export class Conversation {
     // Check if the response content is a tool call. If it is, execute the tool call and send the 
     // appropriate "tool response" prompt back to the LLM, then wait for the next response. If it's 
     // not a tool call, just return the response content.
-
-    if (depth > MAX_TOOL_CALL_DEPTH) {
-      throw new Error('Maximum tool call depth exceeded. Possible infinite loop detected.');
-    }
-    const headerPrompts = await getHeaderPrompts({ conversationType: this.type });
+    const callsStillAllowed = depth < MAX_TOOL_CALL_DEPTH;
     const footerPrompts = await getFooterPrompts({ conversationType: this.type });
     const promptIfCallsAvailable = ` - If you need to make another tool call, make it now. Otherwise, answer the user's query in character. You have ${MAX_TOOL_CALL_DEPTH - depth} remaining recursive tool calls you may make regarding this user query.`;
     const promptIfNoCallsAvailable =  ` - You may make no more recursive tool calls for this conversation turn, so you must answer the user's query in character.\n` +
-      ` - If you still do not have sufficient information to form a complete answer, you have two options: \n` +
-      `   1) Do your best with the information you have, or \n` +
-      `   2) If you are missing a specific piece of information that would be critical to forming a complete answer, ask the user in character ` +
-      `if you can continue looking. If they agree, you may use the new quota of 5 recursive tool calls for the next round of conversation to continue.`;
-
-    const continuationPrompt = depth <= MAX_TOOL_CALL_DEPTH ? promptIfCallsAvailable: promptIfNoCallsAvailable;
-
+    ` - If you still do not have sufficient information to form a complete answer, you have two options: \n` +
+    `   1) Do your best with the information you have, or \n` +
+    `   2) If you are missing a specific piece of information that would be critical to forming a complete answer, ask the user in character ` +
+    `if you can continue looking. If they agree, you may use the new quota of 5 recursive tool calls for the next round of conversation to continue.`;
+    
+    const continuationPrompt = callsStillAllowed ? promptIfCallsAvailable : promptIfNoCallsAvailable;
     const toolCalls = response.message.tool_calls;
+    
+    const headerPrompts = await getHeaderPrompts({ conversationType: this.type, toolCallsAllowed: callsStillAllowed });
     if (toolCalls && toolCalls.length > 0) {
+      if (!callsStillAllowed) {
+        await this.appendToContext({
+          role: 'system',
+          content: 'The model attempted to make additional tool calls after the tool-call limit was reached. Answer the user in character using the information already available. Do not make any more tool calls for this conversation turn.'
+        });
+
+        const fallbackResponse = await retry(async () => {
+          const res = await OllamaClient.chat({
+            ...this.llmConnection,
+            messages: [
+              ...headerPrompts.map(prompt => ({ role: 'system', content: prompt })),
+              ...this.compactedContext,
+              ...footerPrompts.map(prompt => ({ role: 'system', content: prompt })),
+            ],
+          });
+
+          checkLLMResponseForDegeneracy(res.message.content || '');
+          return res;
+        }, {
+          max: 3,
+          timeout: TIMEOUT,
+        });
+
+        await this.appendToContext({
+          role: 'assistant',
+          content: fallbackResponse.message.content,
+          tool_calls: fallbackResponse.message.tool_calls,
+        });
+
+        return fallbackResponse.message.content || '';
+      }
+
+      if (depth > MAX_TOOL_CALL_DEPTH) {
+        throw new Error('Maximum tool call depth exceeded. Possible infinite loop detected.');
+      }
+
       const resultParts = await Promise.all(toolCalls.map(async (toolCall) => {
         const toolName = toolCall.function.name;
         const toolArgs = toolCall.function.arguments;
@@ -319,11 +352,12 @@ export class Conversation {
         const res = await OllamaClient.chat({
         ...this.llmConnection,
           messages: [
-            ...headerPrompts.map(prompt => ({ role: 'system', content: prompt })),
+            ...headerPrompts
+              .map(prompt => ({ role: 'system', content: prompt })),
             ...this.compactedContext,
             ...footerPrompts.map(prompt => ({ role: 'system', content: prompt })),
           ],
-          tools: depth <= MAX_TOOL_CALL_DEPTH ? buildOllamaToolDescriptionObject(this.type) : undefined
+          tools: callsStillAllowed ? buildOllamaToolDescriptionObject(this.type) : undefined
         });
 
         checkLLMResponseForDegeneracy(res.message.content || '');

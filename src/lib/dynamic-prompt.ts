@@ -1,6 +1,7 @@
 export type DynamicPromptConversationType = 'voice' | 'chat' | 'startup' | 'autonomy';
 export type DynamicPromptContext = {
   conversationType: DynamicPromptConversationType;
+  toolCallsAllowed?: boolean;
 };
 
 export type DynamicPrompt = {

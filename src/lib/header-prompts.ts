@@ -6,7 +6,7 @@ import { toolsHeaderPrompt } from './system-prompts/headers/tools-header.js';
 const headerPrompts: DynamicPrompt[] = [personalityHeaderPrompt, scenarioHeaderPrompt, toolsHeaderPrompt];
 
 export async function getHeaderPrompts(context: DynamicPromptContext): Promise<string[]> {
-  return processDynamicPrompts(context, headerPrompts);
+  return processDynamicPrompts(context, headerPrompts.filter(prompt => context.toolCallsAllowed !== false || prompt.name !== 'toolsHeader'));
 }
 
 export function addHeaderPrompt(prompt: DynamicPrompt) {
