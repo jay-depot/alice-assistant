@@ -20,19 +20,26 @@ const defaultEnabledPlugins: EnabledPluginsConfig = {
     "memory": true,
     "scratch-files": true,
     "location-broker": true,
+    "notifications-console": true,
+    "notifications-libnotify": false,
+    "notifications-chat-segue": false,
+    "notifications-chat-interruption": false,
+    "notifications-chat-initiate": false,
+    "reminders-broker": true,
+    "web-ui": true,
+    "web-search-broker": true,
+    "weather-broker": true,
+    "daily-goals": true,
     "skills": false,
     "proficiencies": false,
     "mood": true,
-    "web-ui": true,
-    "reminders-broker": true,
     "application": false,
     "news-broker": true,
     "user-files": false,
-    "weather-broker": true,
-    "web-search-broker": true,
     "appointments": false,
-    "daily-goals": true,
-    "moltbook": false
+    "moltbook": false,
+    "lightpanda-browser": false,
+    "web-simple-fetch": false,
   },
   "user": {
     "enableUserPlugins": false,
@@ -50,7 +57,17 @@ export async function loadPlugins() {
   const aliceDir = UserConfig.getConfigPath();
   const userPluginConfigPath = path.join(aliceDir, 'plugin-settings', 'enabled-plugins.json');
   const userPluginConfigExists = await exists(userPluginConfigPath);
-  const userEnabledPlugins: EnabledPluginsConfig = userPluginConfigExists ? JSON.parse(await readFile(userPluginConfigPath, 'utf-8')) : defaultEnabledPlugins;
+  const rawEnabledPlugins = userPluginConfigExists ? JSON.parse(await readFile(userPluginConfigPath, 'utf-8')) as Partial<EnabledPluginsConfig> : defaultEnabledPlugins;
+  const userEnabledPlugins: EnabledPluginsConfig = {
+    system: {
+      ...defaultEnabledPlugins.system,
+      ...rawEnabledPlugins.system,
+    },
+    user: {
+      enableUserPlugins: rawEnabledPlugins.user?.enableUserPlugins ?? defaultEnabledPlugins.user.enableUserPlugins,
+      plugins: rawEnabledPlugins.user?.plugins ?? defaultEnabledPlugins.user.plugins,
+    }
+  };
   const systemPluginsPath = path.join(import.meta.dirname, '..', 'plugins');
   const userPluginsPath = path.join(aliceDir, 'user-plugins');
 

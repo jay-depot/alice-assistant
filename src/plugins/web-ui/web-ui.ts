@@ -20,7 +20,9 @@ declare module '../../lib.js' {
        * Registers a script to be served and loaded by the web UI. The script should implement an `onAliceUIReady()` 
        * function where it can register its components and routes.
        */
-      registerScript: (path: string) => void; 
+      registerScript: (path: string) => void;
+      queueAssistantMessage: (message: { content: string; title?: string; messageKind?: 'chat' | 'notification'; openNewChatIfNone?: boolean; alwaysOpenNewChat?: boolean }) => Promise<number | null>;
+      queueAssistantInterruption: (interruption: { content: string }) => Promise<number | null>;
     }
   }
 }
@@ -53,6 +55,107 @@ const webUiPlugin: AlicePlugin = {
     const app = express();
     const registeredScripts: AliceUiScriptRegistration[] = [];
     const registeredScriptPaths = new Set<string>();
+    const sessionOperationQueues = new Map<number, Promise<void>>();
+
+    const createAssistantOnlyChatSession = async (message: { content: string; title?: string; messageKind?: 'chat' | 'notification' }): Promise<number> => {
+      const orm = await onDatabaseReady(async (databaseOrm) => databaseOrm);
+      const em = orm.em.fork();
+      const createdAt = new Date();
+      const conversationRecord = em.create(ChatSession, {
+        title: message.title || 'New Conversation',
+        rounds: [],
+        createdAt,
+        updatedAt: createdAt,
+      });
+      const assistantRound = em.create(ChatSessionRound, {
+        chatSession: conversationRecord,
+        role: 'assistant',
+        messageKind: message.messageKind || 'chat',
+        timestamp: createdAt,
+        content: message.content,
+      });
+
+      conversationRecord.rounds.add(assistantRound);
+      conversationRecord.updatedAt = assistantRound.timestamp;
+      await em.flush();
+
+      return conversationRecord.id;
+    };
+
+    const runSessionOperation = async <T>(sessionId: number, operation: () => Promise<T>): Promise<T> => {
+      const previousOperation = sessionOperationQueues.get(sessionId) ?? Promise.resolve();
+      let releaseQueue: () => void;
+      const queueSlot = new Promise<void>((resolve) => {
+        releaseQueue = resolve;
+      });
+
+      const queuedOperation = previousOperation
+        .catch(() => undefined)
+        .then(() => queueSlot);
+
+      sessionOperationQueues.set(sessionId, queuedOperation);
+
+      await previousOperation.catch(() => undefined);
+
+      try {
+        return await operation();
+      } finally {
+        releaseQueue!();
+        if (sessionOperationQueues.get(sessionId) === queuedOperation) {
+          sessionOperationQueues.delete(sessionId);
+        }
+      }
+    };
+
+    const queueAssistantMessage = async (message: { content: string; title?: string; messageKind?: 'chat' | 'notification'; openNewChatIfNone?: boolean; alwaysOpenNewChat?: boolean }): Promise<number | null> => {
+      if (message.alwaysOpenNewChat) {
+        return createAssistantOnlyChatSession(message);
+      }
+
+      const orm = await onDatabaseReady(async (databaseOrm) => databaseOrm);
+      const sessionLookupEm = orm.em.fork();
+      const mostRecentSession = await sessionLookupEm.findOne(ChatSession, {}, {
+        orderBy: { updatedAt: 'DESC', id: 'DESC' },
+      });
+
+      if (!mostRecentSession) {
+        if (!message.openNewChatIfNone) {
+          return null;
+        }
+
+        return createAssistantOnlyChatSession(message);
+      }
+
+      await runSessionOperation(mostRecentSession.id, async () => {
+        const em = orm.em.fork();
+        const session = await em.findOne(ChatSession, { id: mostRecentSession.id }, { populate: ['rounds'] });
+        if (!session) {
+          throw new Error(`Chat session ${mostRecentSession.id} disappeared before interruption delivery.`);
+        }
+
+        const assistantRound = em.create(ChatSessionRound, {
+          chatSession: session,
+          role: 'assistant',
+          messageKind: message.messageKind || 'chat',
+          timestamp: new Date(),
+          content: message.content,
+        });
+
+        session.rounds.add(assistantRound);
+        session.updatedAt = assistantRound.timestamp;
+        await em.flush();
+      });
+
+      return mostRecentSession.id;
+    };
+
+    const queueAssistantInterruption = async (interruption: { content: string }): Promise<number | null> => {
+      return queueAssistantMessage({
+        content: interruption.content,
+        messageKind: 'notification',
+        openNewChatIfNone: false,
+      });
+    };
 
     const registerScript = (scriptPath: string): void => {
       const resolvedPath = path.resolve(scriptPath);
@@ -106,6 +209,8 @@ const webUiPlugin: AlicePlugin = {
     plugin.offer<'web-ui'>({
       express: app,
       registerScript,
+      queueAssistantMessage,
+      queueAssistantInterruption,
     });
     
     const { registerDatabaseModels } = plugin.request('memory');
@@ -127,6 +232,7 @@ const webUiPlugin: AlicePlugin = {
         const conversation = startConversation('chat');
         const response = await conversation.sendUserMessage();
         const assistantRound = em.create(ChatSessionRound, { chatSession: conversationRecord, role: 'assistant', timestamp: new Date(), content: response });
+        assistantRound.messageKind = 'chat';
         conversationRecord.rounds.add(assistantRound);
     
         await em.flush();
@@ -135,8 +241,9 @@ const webUiPlugin: AlicePlugin = {
           id: conversationRecord.id,
           title: conversationRecord.title,
           createdAt: conversationRecord.createdAt,
+          updatedAt: conversationRecord.updatedAt,
           messages: [
-            { role: assistantRound.role, content: assistantRound.content, timestamp: assistantRound.timestamp }
+            { role: assistantRound.role, messageKind: assistantRound.messageKind, content: assistantRound.content, timestamp: assistantRound.timestamp }
           ]
         }});
       });
@@ -157,29 +264,40 @@ const webUiPlugin: AlicePlugin = {
           return;
         }
     
-        const llmTransaction = startConversation('chat');
-        llmTransaction.restoreContext(session.rounds.getItems().map(round => ({ role: round.role, content: round.content })));
-        
-        const response = await llmTransaction.sendUserMessage(message);
+        const updatedSession = await runSessionOperation(session.id, async () => {
+          const em = orm.em.fork();
+          const queuedSession = await em.findOne(ChatSession, { id: session.id }, { populate: ['rounds'] });
+          if (!queuedSession) {
+            throw new Error(`Chat session ${session.id} not found while processing message.`);
+          }
 
-        const userRound = em.create(ChatSessionRound, { chatSession: session, role: 'user', timestamp: new Date(), content: message });
-        const assistantRound = em.create(ChatSessionRound, { chatSession: session, role: 'assistant', timestamp: new Date(), content: response });
-        session.rounds.add(userRound);
-        session.rounds.add(assistantRound);
+          const llmTransaction = startConversation('chat');
+          llmTransaction.restoreContext(queuedSession.rounds.getItems().map(round => ({ role: round.role, content: round.content })));
 
-        const titleSummary = await llmTransaction.requestTitle();
-        session.title = titleSummary.length > 0 ? titleSummary : 'New Conversation';
-        session.updatedAt = new Date();
+          const response = await llmTransaction.sendUserMessage(message);
 
-        await em.flush();
+          const userRound = em.create(ChatSessionRound, { chatSession: queuedSession, role: 'user', messageKind: 'chat', timestamp: new Date(), content: message });
+          const assistantRound = em.create(ChatSessionRound, { chatSession: queuedSession, role: 'assistant', messageKind: 'chat', timestamp: new Date(), content: response });
+          queuedSession.rounds.add(userRound);
+          queuedSession.rounds.add(assistantRound);
+
+          const titleSummary = await llmTransaction.requestTitle();
+          queuedSession.title = titleSummary.length > 0 ? titleSummary : 'New Conversation';
+          queuedSession.updatedAt = assistantRound.timestamp;
+
+          await em.flush();
+
+          return queuedSession;
+        });
 
         res.json({ session: {
           id,
-          title: session.title,
-          createdAt: session.createdAt,
-          messages: session.rounds.getItems()
+          title: updatedSession.title,
+          createdAt: updatedSession.createdAt,
+          updatedAt: updatedSession.updatedAt,
+          messages: updatedSession.rounds.getItems()
             .filter(round => round.role !== 'system')
-            .map(round => ({ role: round.role, content: round.content, timestamp: round.timestamp }))
+            .map(round => ({ role: round.role, messageKind: round.messageKind, content: round.content, timestamp: round.timestamp }))
         }});
       });
 
@@ -220,8 +338,9 @@ const webUiPlugin: AlicePlugin = {
           id,
           title: session.title,
           createdAt: session.createdAt,
+          updatedAt: session.updatedAt,
           assistantMood: 'happy', // This will pull from the global "mood" state the assistant can set through tools. It's common across all assistant conversations.
-          messages: session.rounds.getItems().filter(round => round.role !== 'system').map(round => ({ role: round.role, content: round.content, timestamp: round.timestamp }))
+          messages: session.rounds.getItems().filter(round => round.role !== 'system').map(round => ({ role: round.role, messageKind: round.messageKind, content: round.content, timestamp: round.timestamp }))
         }});
       });
 

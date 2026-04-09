@@ -306,6 +306,19 @@ const proficienciesPlugin: AlicePlugin = {
         });
       },
     });
+    
+    plugin.registerFooterSystemPrompt({
+      name: 'proficiencies',
+      weight: 11000,
+      getPrompt: async (context) => {
+        if (context.conversationType === 'startup') {
+          return false;
+        }
+
+        return `Don't forget to update any applicable proficiencies if you've just discovered ` +
+          `any new information relevant to them.`;
+      },
+    });
   }
 };
 

@@ -7,7 +7,7 @@ const ChatSessionRoundSchema = defineEntity({
     id: p.integer().primary(),
     chatSession: () => p.manyToOne(ChatSession).fieldName('rounds'),
     role: p.enum(['user', 'assistant', 'system']),
-    messageKind: p.enum(['chat', 'notification']).nullable().default('chat'),
+    messageKind: p.enum(['chat', 'notification']).default('chat'),
     content: p.string(),
     timestamp: p.datetime(),
   }
