@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'url';
 import { UserConfig } from '../../../lib/user-config.js';
+import { getMoodFace } from './mood-faces.js';
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 
@@ -110,10 +111,14 @@ const moodPlugin: AlicePlugin = {
     if (webUi) {
       webUi.express.get('/api/mood', async (_req, res) => {
         res.setHeader('Cache-Control', 'no-store');
-        res.json({ mood: currentMood.mood });
+        res.json({ 
+          mood: currentMood.mood,
+          face: getMoodFace(currentMood.mood),
+        });
       });
 
       // Register the browser bundle built from `mood-web-ui.ts`.
+      webUi.registerStylesheet(path.join(currentDir, 'mood-web-ui.css'));
       webUi.registerScript(path.join(currentDir, 'mood-web-ui.js'));
     }
 

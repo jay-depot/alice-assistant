@@ -17,7 +17,7 @@ declare module '../../../lib.js' {
   export interface PluginCapabilities {
     'web-ui': {
       express: Express;
-      // addCss: (path: string) => void; // This will be for plugins to add CSS files to be served by the web UI.
+      registerStylesheet: (path: string) => void;
       /**
        * Registers a script to be served and loaded by the web UI. The script should implement an `onAliceUIReady()` 
        * function where it can register its components and routes.
@@ -56,8 +56,12 @@ const webUiPlugin: AlicePlugin = {
     fs.mkdirSync(userWebInterfaceDir, { recursive: true });
 
     const app = express();
-    const registeredScripts: AliceUiScriptRegistration[] = [];
+    type RegisteredUiExtension = AliceUiScriptRegistration & { groupKey: string };
+
+    const registeredScripts: RegisteredUiExtension[] = [];
     const registeredScriptPaths = new Set<string>();
+    const registeredStylesheetPaths = new Set<string>();
+    const stylesheetUrlsByGroup = new Map<string, string[]>();
     const sessionOperationQueues = new Map<number, Promise<void>>();
     const cachedChatConversations = new Map<number, Conversation>();
 
@@ -280,6 +284,7 @@ const webUiPlugin: AlicePlugin = {
 
     const registerScript = (scriptPath: string): void => {
       const resolvedPath = path.resolve(scriptPath);
+      const groupKey = path.dirname(resolvedPath);
 
       if (!fs.existsSync(resolvedPath)) {
         throw new Error(`web-ui plugin: registerScript could not find file: ${resolvedPath}`);
@@ -298,7 +303,12 @@ const webUiPlugin: AlicePlugin = {
       const scriptUrl = `/plugin-scripts/${scriptId}-${safeFileName}`;
 
       registeredScriptPaths.add(resolvedPath);
-      registeredScripts.push({ id: scriptId, scriptUrl });
+      registeredScripts.push({
+        id: scriptId,
+        scriptUrl,
+        styleUrls: [...(stylesheetUrlsByGroup.get(groupKey) ?? [])],
+        groupKey,
+      });
 
       app.get(scriptUrl, (_req, res) => {
         res.setHeader('Cache-Control', 'no-store');
@@ -307,6 +317,47 @@ const webUiPlugin: AlicePlugin = {
       });
 
       console.log(`Registered web UI client script ${resolvedPath} at ${scriptUrl}`);
+    };
+
+    const registerStylesheet = (stylesheetPath: string): void => {
+      const resolvedPath = path.resolve(stylesheetPath);
+      const groupKey = path.dirname(resolvedPath);
+
+      if (!fs.existsSync(resolvedPath)) {
+        throw new Error(`web-ui plugin: registerStylesheet could not find file: ${resolvedPath}`);
+      }
+
+      if (!fs.statSync(resolvedPath).isFile()) {
+        throw new Error(`web-ui plugin: registerStylesheet expected a file path, got: ${resolvedPath}`);
+      }
+
+      if (registeredStylesheetPaths.has(resolvedPath)) {
+        return;
+      }
+
+      const stylesheetId = createHash('sha1').update(resolvedPath).digest('hex').slice(0, 12);
+      const safeFileName = path.basename(resolvedPath).replace(/[^a-zA-Z0-9._-]/g, '-');
+      const styleUrl = `/plugin-styles/${stylesheetId}-${safeFileName}`;
+
+      registeredStylesheetPaths.add(resolvedPath);
+      stylesheetUrlsByGroup.set(groupKey, [
+        ...(stylesheetUrlsByGroup.get(groupKey) ?? []),
+        styleUrl,
+      ]);
+
+      registeredScripts.forEach((registration) => {
+        if (registration.groupKey === groupKey && !registration.styleUrls.includes(styleUrl)) {
+          registration.styleUrls.push(styleUrl);
+        }
+      });
+
+      app.get(styleUrl, (_req, res) => {
+        res.setHeader('Cache-Control', 'no-store');
+        res.type('text/css');
+        res.sendFile(resolvedPath);
+      });
+
+      console.log(`Registered web UI stylesheet ${resolvedPath} at ${styleUrl}`);
     };
 
     app.use(express.json());
@@ -329,6 +380,7 @@ const webUiPlugin: AlicePlugin = {
 
     plugin.offer<'web-ui'>({
       express: app,
+      registerStylesheet,
       registerScript,
       resolveTargetChatSession,
       queueAssistantMessageToSession,
@@ -505,10 +557,10 @@ const webUiPlugin: AlicePlugin = {
 
       app.get('/api/extensions', async (_req, res) => {
         res.setHeader('Cache-Control', 'no-store');
-        res.json({ extensions: registeredScripts });
+        res.json({ extensions: registeredScripts.map(({ groupKey: _groupKey, ...registration }) => registration) });
       });
 
-      app.get(/^\/(?!api(?:\/|$)|plugin-scripts(?:\/|$)).*/, (_req, res) => {
+      app.get(/^\/(?!api(?:\/|$)|plugin-scripts(?:\/|$)|plugin-styles(?:\/|$)).*/, (_req, res) => {
         res.sendFile(path.join(currentDir, 'client', 'index.html'));
       });
     

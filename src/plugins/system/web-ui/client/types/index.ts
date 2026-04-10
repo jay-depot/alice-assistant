@@ -44,6 +44,7 @@ export interface ExtensionRouteDefinition {
 export interface ExtensionRegistration {
   id?: string;
   scriptUrl: string;
+  styleUrls: string[];
   regions?: UIRegion[];
   routes?: ExtensionRouteDefinition[];
 }

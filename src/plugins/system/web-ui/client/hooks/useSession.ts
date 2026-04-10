@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createSession, endSession, fetchSession, patchSession } from '../api/sessions.js';
-import type { Message } from '../types/index.js';
+import type { Message, Session } from '../types/index.js';
+import { getMessageKey } from '../utils.js';
 
 interface UseSessionOptions {
   onError?: (message: string) => void;
@@ -9,67 +10,97 @@ interface UseSessionOptions {
 
 const DEFAULT_TITLE = 'A.L.I.C.E.';
 
+function getLastReadMessageKey(messages: Message[]): string | null {
+  let hasTrailingAssistantMessage = false;
+
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (message.role === 'assistant') {
+      hasTrailingAssistantMessage = true;
+      continue;
+    }
+
+    if (message.role === 'user' && hasTrailingAssistantMessage) {
+      return getMessageKey(message);
+    }
+  }
+
+  return null;
+}
+
 export function useSession({ onError, refreshSessions }: UseSessionOptions = {}) {
   const [currentSessionId, setCurrentSessionId] = useState<number | string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [sessionTitle, setSessionTitle] = useState(DEFAULT_TITLE);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isTyping, setIsTyping] = useState(false);
+  const [isSessionBusy, setIsSessionBusy] = useState(false);
+  const [isProcessingMessage, setIsProcessingMessage] = useState(false);
+  const [isEndingSession, setIsEndingSession] = useState(false);
+  const [pendingMessageKey, setPendingMessageKey] = useState<string | null>(null);
+  const [lastReadMessageKey, setLastReadMessageKey] = useState<string | null>(null);
 
   const reportError = useCallback((message: string, error: unknown) => {
     console.error(message, error);
     onError?.(message);
   }, [onError]);
 
+  const applySessionState = useCallback((session: Session) => {
+    setCurrentSessionId(session.id);
+    setMessages(session.messages);
+    setSessionTitle(session.title);
+    setLastReadMessageKey(getLastReadMessageKey(session.messages));
+  }, []);
+
+  const reloadSession = useCallback(async (id: number | string) => {
+    const session = await fetchSession(id);
+    applySessionState(session);
+  }, [applySessionState]);
+
   const loadSession = useCallback(async (id: number | string) => {
-    if (isLoading) {
+    if (isSessionBusy || isProcessingMessage || isEndingSession) {
       return;
     }
 
-    setIsLoading(true);
+    setIsSessionBusy(true);
 
     try {
-      const session = await fetchSession(id);
-      setCurrentSessionId(session.id);
-      setMessages(session.messages);
-      setSessionTitle(session.title);
+      await reloadSession(id);
     } catch (error) {
       reportError('Failed to load conversation.', error);
     } finally {
-      setIsLoading(false);
+      setIsSessionBusy(false);
     }
-  }, [isLoading, reportError]);
+  }, [isEndingSession, isProcessingMessage, isSessionBusy, reloadSession, reportError]);
 
   const handleNewChat = useCallback(async () => {
-    if (isLoading) {
+    if (isSessionBusy || isProcessingMessage || isEndingSession) {
       return;
     }
 
     setCurrentSessionId(null);
     setMessages([]);
     setSessionTitle('Starting...');
-    setIsLoading(true);
-    setIsTyping(true);
+    setPendingMessageKey(null);
+    setLastReadMessageKey(null);
+    setIsSessionBusy(true);
 
     try {
       const session = await createSession();
-      setCurrentSessionId(session.id);
-      setMessages(session.messages);
-      setSessionTitle(session.title);
+      applySessionState(session);
       await refreshSessions?.();
     } catch (error) {
       setMessages([]);
       setSessionTitle(DEFAULT_TITLE);
+      setPendingMessageKey(null);
+      setLastReadMessageKey(null);
       reportError('Failed to start new conversation.', error);
     } finally {
-      setIsTyping(false);
-      setIsLoading(false);
+      setIsSessionBusy(false);
     }
-  }, [isLoading, refreshSessions, reportError]);
+  }, [applySessionState, isEndingSession, isProcessingMessage, isSessionBusy, refreshSessions, reportError]);
 
   const sendMessage = useCallback(async (content: string) => {
     const message = content.trim();
-    if (!message || isLoading || currentSessionId === null) {
+    if (!message || isSessionBusy || isProcessingMessage || isEndingSession || currentSessionId === null) {
       return;
     }
 
@@ -79,27 +110,31 @@ export function useSession({ onError, refreshSessions }: UseSessionOptions = {})
       content: message,
       timestamp: new Date().toISOString(),
     };
+    const optimisticMessageKey = getMessageKey(optimisticMessage);
 
     setMessages((currentMessages) => [...currentMessages, optimisticMessage]);
-    setIsLoading(true);
-    setIsTyping(true);
+    setPendingMessageKey(optimisticMessageKey);
+    setIsProcessingMessage(true);
 
     try {
       const session = await patchSession(currentSessionId, message);
-      setMessages(session.messages);
-      setSessionTitle(session.title);
+      applySessionState(session);
       await refreshSessions?.();
     } catch (error) {
       reportError('Failed to send message. Please try again.', error);
-      await loadSession(currentSessionId);
+      try {
+        await reloadSession(currentSessionId);
+      } catch (reloadError) {
+        reportError('Failed to reload conversation.', reloadError);
+      }
     } finally {
-      setIsTyping(false);
-      setIsLoading(false);
+      setPendingMessageKey(null);
+      setIsProcessingMessage(false);
     }
-  }, [currentSessionId, isLoading, loadSession, refreshSessions, reportError]);
+  }, [applySessionState, currentSessionId, isEndingSession, isProcessingMessage, isSessionBusy, refreshSessions, reloadSession, reportError]);
 
   const deleteSession = useCallback(async () => {
-    if (currentSessionId === null || isLoading) {
+    if (currentSessionId === null || isSessionBusy || isProcessingMessage || isEndingSession) {
       return;
     }
 
@@ -111,31 +146,33 @@ export function useSession({ onError, refreshSessions }: UseSessionOptions = {})
       return;
     }
 
-    setIsLoading(true);
+    setIsEndingSession(true);
 
     try {
       await endSession(currentSessionId);
       setCurrentSessionId(null);
       setMessages([]);
       setSessionTitle(DEFAULT_TITLE);
+      setPendingMessageKey(null);
+      setLastReadMessageKey(null);
       await refreshSessions?.();
     } catch (error) {
       reportError('Failed to end session.', error);
     } finally {
-      setIsLoading(false);
-      setIsTyping(false);
+      setIsEndingSession(false);
     }
-  }, [currentSessionId, isLoading, refreshSessions, reportError]);
+  }, [currentSessionId, isEndingSession, isProcessingMessage, isSessionBusy, refreshSessions, reportError]);
 
   const resetToWelcome = useCallback(() => {
     setCurrentSessionId(null);
     setMessages([]);
     setSessionTitle(DEFAULT_TITLE);
-    setIsTyping(false);
+    setPendingMessageKey(null);
+    setLastReadMessageKey(null);
   }, []);
 
   const inputPlaceholder = useMemo(() => {
-    if (isLoading && currentSessionId === null) {
+    if (isSessionBusy && currentSessionId === null) {
       return 'Starting new conversation...';
     }
 
@@ -144,10 +181,10 @@ export function useSession({ onError, refreshSessions }: UseSessionOptions = {})
     }
 
     return 'Type a message... (Enter to send, Shift+Enter for newline)';
-  }, [currentSessionId, isLoading]);
+  }, [currentSessionId, isSessionBusy]);
 
   useEffect(() => {
-    if (currentSessionId === null || isLoading) {
+    if (currentSessionId === null || isSessionBusy || isProcessingMessage || isEndingSession) {
       return;
     }
 
@@ -166,8 +203,7 @@ export function useSession({ onError, refreshSessions }: UseSessionOptions = {})
             return;
           }
 
-          setMessages(session.messages);
-          setSessionTitle(session.title);
+          applySessionState(session);
           await refreshSessions?.();
         } catch (error) {
           console.error('Failed to poll active conversation for updates:', error);
@@ -178,17 +214,22 @@ export function useSession({ onError, refreshSessions }: UseSessionOptions = {})
     return () => {
       window.clearInterval(intervalId);
     };
-  }, [currentSessionId, isLoading, messages, refreshSessions, sessionTitle]);
+  }, [applySessionState, currentSessionId, isEndingSession, isProcessingMessage, isSessionBusy, messages, refreshSessions, sessionTitle]);
 
   return {
     currentSessionId,
     messages,
     sessionTitle,
-    isLoading,
-    isTyping,
-    showWelcome: currentSessionId === null && messages.length === 0 && !isLoading,
-    canDeleteSession: currentSessionId !== null && !isLoading,
-    canSendMessage: currentSessionId !== null && !isLoading,
+    isSessionBusy,
+    isProcessingMessage,
+    isEndingSession,
+    pendingMessageKey,
+    lastReadMessageKey,
+    showWelcome: currentSessionId === null && messages.length === 0 && !isSessionBusy,
+    showDeleteSession: currentSessionId !== null,
+    canDeleteSession: currentSessionId !== null && !isSessionBusy && !isProcessingMessage && !isEndingSession,
+    canSubmitMessage: currentSessionId !== null && !isSessionBusy && !isProcessingMessage && !isEndingSession,
+    isInputDisabled: currentSessionId === null || isSessionBusy || isEndingSession,
     inputPlaceholder,
     loadSession,
     handleNewChat,

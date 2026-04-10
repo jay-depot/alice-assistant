@@ -1,27 +1,55 @@
-import { useEffect, useRef } from 'react';
+import { useLayoutEffect, useMemo, useRef } from 'react';
 import { MessageBubble } from './MessageBubble.js';
+import { ProcessingStatus } from './ProcessingStatus.js';
 import { RegionSlot } from './RegionSlot.js';
-import { TypingIndicator } from './TypingIndicator.js';
 import { WelcomeScreen } from './WelcomeScreen.js';
 import type { Message } from '../types/index.js';
+import { getMessageKey, isDisplayableMessage } from '../utils.js';
 
 interface MessagesAreaProps {
   messages: Message[];
   showWelcome: boolean;
-  isTyping: boolean;
+  isProcessing: boolean;
+  isEndingSession: boolean;
+  pendingMessageKey: string | null;
+  lastReadMessageKey: string | null;
 }
 
-export function MessagesArea({ messages, showWelcome, isTyping }: MessagesAreaProps) {
+export function MessagesArea({
+  messages,
+  showWelcome,
+  isProcessing,
+  isEndingSession,
+  pendingMessageKey,
+  lastReadMessageKey,
+}: MessagesAreaProps) {
   const messagesRef = useRef<HTMLDivElement | null>(null);
+  const visibleMessages = useMemo(
+    () => messages.filter(isDisplayableMessage),
+    [messages],
+  );
+  const lastVisibleMessageKey = visibleMessages.length > 0
+    ? getMessageKey(visibleMessages[visibleMessages.length - 1])
+    : null;
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const container = messagesRef.current;
     if (!container) {
       return;
     }
 
     container.scrollTop = container.scrollHeight;
-  }, [messages, isTyping, showWelcome]);
+
+    let frameId = window.requestAnimationFrame(() => {
+      frameId = window.requestAnimationFrame(() => {
+        container.scrollTop = container.scrollHeight;
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [isEndingSession, isProcessing, lastVisibleMessageKey, showWelcome, visibleMessages.length]);
 
   return (
     <div id="messages-area" ref={messagesRef}>
@@ -30,12 +58,23 @@ export function MessagesArea({ messages, showWelcome, isTyping }: MessagesAreaPr
       {showWelcome ? (
         <WelcomeScreen />
       ) : (
-        messages.map((message, index) => (
-          <MessageBubble key={`${message.timestamp}-${index}`} message={message} />
+        visibleMessages.map((message, index) => (
+          <MessageBubble
+            key={`${message.timestamp}-${index}`}
+            message={message}
+            receiptStatus={message.role === 'user'
+              ? getMessageKey(message) === lastReadMessageKey
+                ? 'read'
+                : getMessageKey(message) === pendingMessageKey
+                  ? 'sent'
+                  : null
+              : null}
+          />
         ))
       )}
 
-      {isTyping ? <TypingIndicator /> : null}
+      {isProcessing ? <ProcessingStatus /> : null}
+      {isEndingSession ? <ProcessingStatus label="Archiving conversation..." /> : null}
 
       <RegionSlot region="message-suffix" />
     </div>

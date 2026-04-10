@@ -40,6 +40,27 @@ export function formatTime(isoString: string): string {
   });
 }
 
+export function getMessageKey({ role, messageKind, timestamp, content }: {
+  role: string;
+  messageKind: string;
+  timestamp: string;
+  content: string;
+}): string {
+  return `${role}:${messageKind}:${timestamp}:${content}`;
+}
+
+export function isDisplayableMessage({ role, messageKind, content }: {
+  role: string;
+  messageKind: string;
+  content: string;
+}): boolean {
+  if (role === 'assistant' && messageKind === 'chat') {
+    return content.trim().length > 0;
+  }
+
+  return true;
+}
+
 export function normalizeMoodClass(mood: string): string {
   const normalizedMood = mood.trim().toLowerCase().replace(/\s+/g, '-');
   return normalizedMood || 'neutral';

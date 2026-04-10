@@ -4,6 +4,12 @@ type ReactModule = typeof import('react');
 
 type MoodApiResponse = {
   mood?: string;
+  face?: string;
+};
+
+type MoodWidgetState = {
+  mood: string;
+  face: string;
 };
 
 const React = (globalThis as typeof globalThis & { React?: ReactModule }).React;
@@ -17,8 +23,11 @@ function normalizeMoodClass(mood: string): string {
   return normalizedMood || 'neutral';
 }
 
-function useMood(): string {
-  const [mood, setMood] = React.useState('neutral');
+function useMood(): MoodWidgetState {
+  const [state, setState] = React.useState<MoodWidgetState>({
+    mood: 'neutral',
+    face: '(-_-)'
+  });
   const isPollingRef = React.useRef(false);
 
   const pollMood = React.useCallback(async () => {
@@ -38,7 +47,10 @@ function useMood(): string {
       }
 
       const data = (await response.json()) as MoodApiResponse;
-      setMood(data.mood ?? 'neutral');
+      setState({
+        mood: data.mood ?? 'neutral',
+        face: data.face ?? '(-_-)'
+      });
     } catch (error) {
       console.error('Failed to poll mood:', error);
     } finally {
@@ -85,17 +97,22 @@ function useMood(): string {
     };
   }, [pollMood]);
 
-  return normalizeMoodClass(mood);
+  return {
+    mood: normalizeMoodClass(state.mood),
+    face: state.face,
+  };
 }
 
 function MoodWidget() {
-  const moodClass = useMood();
+  const { mood, face } = useMood();
 
   return (<div
     id="mood-box"
-    className={`mood-widget mood-widget--${moodClass}`}
-    title={`Current mood: ${moodClass}`}
-  />
+    className={`mood-widget mood-widget--${mood}`}
+    title={`Current mood: ${mood} ${face}`}
+  >
+    {face}
+  </div>
   );
 }
 

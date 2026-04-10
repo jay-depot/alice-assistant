@@ -48,6 +48,7 @@ export type UIRegion =
 export type AliceUiScriptRegistration = {
   id: string;
   scriptUrl: string;
+  styleUrls: string[];
 };
 
 declare module './alice-plugin-interface.js' {

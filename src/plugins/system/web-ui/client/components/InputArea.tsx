@@ -5,11 +5,19 @@ interface InputAreaProps {
   value: string;
   onChange: (nextValue: string) => void;
   onSubmit: () => void;
-  disabled: boolean;
+  inputDisabled: boolean;
+  submitDisabled: boolean;
   placeholder: string;
 }
 
-export function InputArea({ value, onChange, onSubmit, disabled, placeholder }: InputAreaProps) {
+export function InputArea({
+  value,
+  onChange,
+  onSubmit,
+  inputDisabled,
+  submitDisabled,
+  placeholder,
+}: InputAreaProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
@@ -31,17 +39,19 @@ export function InputArea({ value, onChange, onSubmit, disabled, placeholder }: 
           id="message-input"
           placeholder={placeholder}
           rows={1}
-          disabled={disabled}
+          disabled={inputDisabled}
           value={value}
           onChange={(event) => onChange(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === 'Enter' && !event.shiftKey) {
               event.preventDefault();
-              onSubmit();
+              if (!submitDisabled) {
+                onSubmit();
+              }
             }
           }}
         ></textarea>
-        <button id="send-btn" disabled={disabled} title="Send message (Enter)" onClick={onSubmit}>
+        <button id="send-btn" disabled={submitDisabled} title="Send message (Enter)" onClick={onSubmit}>
           &#9650;
         </button>
       </footer>

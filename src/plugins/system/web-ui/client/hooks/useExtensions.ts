@@ -52,8 +52,28 @@ export function useExtensions() {
         },
       };
 
+      const ensureStylesheet = (styleUrl: string) => {
+        const existingLink = Array.from(
+          document.head.querySelectorAll<HTMLLinkElement>('link[data-alice-plugin-style-url]'),
+        ).find((link) => link.dataset.alicePluginStyleUrl === styleUrl);
+
+        if (existingLink) {
+          return;
+        }
+
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = styleUrl;
+        link.dataset.alicePluginStyleUrl = styleUrl;
+        document.head.appendChild(link);
+      };
+
       for (const extension of extensionList) {
         try {
+          for (const styleUrl of extension.styleUrls ?? []) {
+            ensureStylesheet(styleUrl);
+          }
+
           const module = await import(/* @vite-ignore */ extension.scriptUrl);
           const exportedExtension = (module.default ?? module) as PluginClientExport;
 

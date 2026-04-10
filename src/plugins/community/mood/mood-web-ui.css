@@ -1,0 +1,102 @@
+#mood-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 56px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--border) 78%, var(--accent) 22%);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--bg-sidebar) 84%, var(--accent-dim) 16%);
+  font-family: var(--font-mono);
+  font-size: 24px;
+  line-height: 1;
+  white-space: pre;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 5%, transparent);
+  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
+  height: 128px;
+  width: 128px;
+  margin: 0 auto;
+}
+
+#mood-box:hover {
+  transform: translateY(-1px);
+}
+
+.mood-widget--happy,
+.mood-widget--cheerful,
+.mood-widget--chipper,
+.mood-widget--gleeful,
+.mood-widget--giddy,
+.mood-widget--grateful,
+.mood-widget--excited,
+.mood-widget--playful,
+.mood-widget--proud {
+  border-color: color-mix(in srgb, #f0c74a 55%, var(--border) 45%);
+  background: color-mix(in srgb, #f0c74a 14%, var(--bg-sidebar) 86%);
+  color: #f8d66d;
+}
+
+.mood-widget--surprised,
+.mood-widget--impressed {
+  border-color: color-mix(in srgb, #5ed9c1 55%, var(--border) 45%);
+  background: color-mix(in srgb, #5ed9c1 14%, var(--bg-sidebar) 86%);
+  color: #8ef0d4;
+}
+
+.mood-widget--curious,
+.mood-widget--inspired {
+  border-color: color-mix(in srgb, #6abf69 55%, var(--border) 45%);
+  background: color-mix(in srgb, #6abf69 14%, var(--bg-sidebar) 86%);
+  color: #9de594;
+}
+
+.mood-widget--sardonic,
+.mood-widget--sassy,
+.mood-widget--satisfied,
+.mood-widget--servile,
+.mood-widget--unimpressed {
+  border-color: color-mix(in srgb, #d95ed9 55%, var(--border) 45%);
+  background: color-mix(in srgb, #d95ed9 14%, var(--bg-sidebar) 86%);
+  color: #e5a8e5;
+}
+
+.mood-widget--disappointed,
+.mood-widget--disgusted,
+.mood-widget--sad,
+.mood-widget--gloomy,
+.mood-widget--melancholy,
+.mood-widget--lonely,
+.mood-widget--tired {
+  border-color: color-mix(in srgb, #5d7ea8 48%, var(--border) 52%);
+  background: color-mix(in srgb, #5d7ea8 15%, var(--bg-sidebar) 85%);
+  color: #9ab7dc;
+}
+
+.mood-widget--angry,
+.mood-widget--frustrated,
+.mood-widget--grumpy,
+.mood-widget--self-righteous,
+.mood-widget--imperious {
+  border-color: color-mix(in srgb, #d26a5c 52%, var(--border) 48%);
+  background: color-mix(in srgb, #d26a5c 13%, var(--bg-sidebar) 87%);
+  color: #ef9487;
+}
+
+.mood-widget--nervous,
+.mood-widget--confused,
+.mood-widget--stressed,
+.mood-widget--scared {
+  border-color: color-mix(in srgb, #9d7ed9 45%, var(--border) 55%);
+  background: color-mix(in srgb, #9d7ed9 13%, var(--bg-sidebar) 87%);
+  color: #c1a8ef;
+}
+
+.mood-widget--neutral,
+.mood-widget--focused,
+.mood-widget--serious,
+.mood-widget--indifferent,
+.mood-widget--content,
+.mood-widget--relaxed {
+  border-color: color-mix(in srgb, var(--accent) 24%, var(--border) 76%);
+  background: color-mix(in srgb, var(--accent-dim) 18%, var(--bg-sidebar) 82%);
+}

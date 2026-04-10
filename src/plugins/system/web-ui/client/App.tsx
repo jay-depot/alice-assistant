@@ -13,47 +13,67 @@ import type { PluginClientRoute } from './types/index.js';
 
 interface ChatWorkspaceProps {
   title: string;
+  showDelete: boolean;
   canDelete: boolean;
+  isEndingSession: boolean;
   onDelete: () => void;
   onOpenSettings: () => void;
   messages: Parameters<typeof MessagesArea>[0]['messages'];
   showWelcome: boolean;
-  isTyping: boolean;
+  isProcessing: boolean;
+  pendingMessageKey: string | null;
+  lastReadMessageKey: string | null;
   draft: string;
   setDraft: (value: string) => void;
   submitDraft: () => void;
-  canSendMessage: boolean;
+  isInputDisabled: boolean;
+  canSubmitMessage: boolean;
   inputPlaceholder: string;
 }
 
 function ChatWorkspace({
   title,
+  showDelete,
   canDelete,
+  isEndingSession,
   onDelete,
   onOpenSettings,
   messages,
   showWelcome,
-  isTyping,
+  isProcessing,
+  pendingMessageKey,
+  lastReadMessageKey,
   draft,
   setDraft,
   submitDraft,
-  canSendMessage,
+  isInputDisabled,
+  canSubmitMessage,
   inputPlaceholder,
 }: ChatWorkspaceProps) {
   return (
     <main id="main">
       <ChatHeader
         title={title}
+        showDelete={showDelete}
         canDelete={canDelete}
+        isEndingSession={isEndingSession}
         onDelete={onDelete}
         onOpenSettings={onOpenSettings}
       />
-      <MessagesArea messages={messages} showWelcome={showWelcome} isTyping={isTyping} />
+      <MessagesArea
+        messages={messages}
+        showWelcome={showWelcome}
+        isProcessing={isProcessing}
+        isEndingSession={isEndingSession}
+        pendingMessageKey={pendingMessageKey}
+        lastReadMessageKey={lastReadMessageKey}
+      />
       <InputArea
         value={draft}
         onChange={setDraft}
         onSubmit={submitDraft}
-        disabled={!canSendMessage}
+        inputDisabled={isInputDisabled}
+        submitDisabled={!canSubmitMessage}
         placeholder={inputPlaceholder}
       />
     </main>
@@ -72,7 +92,14 @@ function PluginRoutePage({
 
   return (
     <main id="main">
-      <ChatHeader title={pageTitle} canDelete={false} onDelete={() => undefined} onOpenSettings={onOpenSettings} />
+      <ChatHeader
+        title={pageTitle}
+        showDelete={false}
+        canDelete={false}
+        isEndingSession={false}
+        onDelete={() => undefined}
+        onOpenSettings={onOpenSettings}
+      />
       <div className="plugin-route-page">
         <RouteComponent />
       </div>
@@ -90,9 +117,14 @@ export function App() {
     currentSessionId,
     messages,
     sessionTitle,
-    isTyping,
+    isEndingSession,
+    isProcessingMessage,
+    pendingMessageKey,
+    lastReadMessageKey,
+    showDeleteSession,
     canDeleteSession,
-    canSendMessage,
+    canSubmitMessage,
+    isInputDisabled,
     inputPlaceholder,
     loadSession,
     handleNewChat,
@@ -136,20 +168,25 @@ export function App() {
           element={
             <ChatWorkspace
               title={sessionTitle}
+              showDelete={showDeleteSession}
               canDelete={canDeleteSession}
+              isEndingSession={isEndingSession}
               onDelete={() => {
                 void deleteSession();
               }}
               onOpenSettings={() => setIsSettingsOpen(true)}
               messages={messages}
               showWelcome={showWelcome}
-              isTyping={isTyping}
+              isProcessing={isProcessingMessage}
+              pendingMessageKey={pendingMessageKey}
+              lastReadMessageKey={lastReadMessageKey}
               draft={draft}
               setDraft={setDraft}
               submitDraft={() => {
                 void submitDraft();
               }}
-              canSendMessage={canSendMessage}
+              isInputDisabled={isInputDisabled}
+              canSubmitMessage={canSubmitMessage}
               inputPlaceholder={inputPlaceholder}
             />
           }
