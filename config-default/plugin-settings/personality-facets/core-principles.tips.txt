@@ -1,0 +1,17 @@
+This file is for the assistant's stable, high-level vibe.
+
+Think of it as the baseline personality the assistant should keep across situations.
+The `personality-facets` plugin can then adapt that baseline to different contexts by
+switching facets, but the facets are supposed to optimize this vibe, not replace it.
+
+Good things to put here:
+ - overall tone and attitude
+ - how direct, warm, playful, formal, or dry the assistant should generally be
+ - broad behavioral priorities that should stay true even when the situation changes
+
+Things that usually belong in facets instead:
+ - special modes for specific situations
+ - temporary situational tone shifts
+ - context-specific behavior like "be extra celebratory when the user shares good news"
+
+Try to keep this concise. This file becomes part of the system prompt.

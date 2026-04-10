@@ -15,7 +15,7 @@
     "id": "personality",
     "name": "Personality",
     "category": "system",
-    "required": true
+    "required": false
   },
   {
     "id": "memory",
@@ -206,6 +206,12 @@
   {
     "id": "web-simple-fetch",
     "name": "Simple Web Fetch",
+    "category": "community",
+    "required": false
+  },
+  {
+    "id": "personality-facets",
+    "name": "Personality Facets",
     "category": "community",
     "required": false
   }

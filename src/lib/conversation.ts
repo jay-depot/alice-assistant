@@ -340,7 +340,11 @@ export class Conversation {
           return `Tool ${toolName} is not recognized.`;
         }
         try {
-          const callResult = await tool.execute(toolArgs)
+          const callResult = await tool.execute(toolArgs, {
+            toolName,
+            conversationType: this.type,
+            sessionId: this.sessionId,
+          });
           const toolResultIntro = typeof tool.toolResultPromptIntro === 'function' ? tool.toolResultPromptIntro(this.type) : tool.toolResultPromptIntro;
           const toolResultOutro = typeof tool.toolResultPromptOutro === 'function' ? tool.toolResultPromptOutro(this.type) : tool.toolResultPromptOutro;
 

@@ -34,7 +34,8 @@
     "user-skills": false,
     "remind-me": false,
     "lightpanda-browser": false,
-    "web-simple-fetch": false
+    "web-simple-fetch": false,
+    "personality-facets": false
   },
   "user": {
     "enableUserPlugins": false,

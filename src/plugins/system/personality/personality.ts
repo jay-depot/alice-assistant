@@ -2,7 +2,11 @@ import path from 'node:path';
 import { readdir, readFile } from 'node:fs/promises';
 import { AlicePlugin } from '../../../lib.js';
 import { getConversationTypeDefinition } from '../../../lib/conversation-types.js';
-import { PersonalityRenderContext, registerPersonalityProvider } from '../../../lib/personality-system.js';
+import {
+  getActivePersonalityProviderOverrideOwner,
+  PersonalityRenderContext,
+  registerFallbackPersonalityProvider,
+} from '../../../lib/personality-system.js';
 import { UserConfig } from '../../../lib/user-config.js';
 
 type PersonalitySections = Record<string, string>;
@@ -60,13 +64,13 @@ const personalityPlugin: AlicePlugin = {
     description: 'Provides the assistant personality prompt by reading the configured personality markdown files and rendering them into the system prompt.',
     version: 'LATEST',
     dependencies: [],
-    required: true,
+    required: false,
   },
 
   async registerPlugin(pluginInterface) {
     const plugin = await pluginInterface.registerPlugin();
 
-    registerPersonalityProvider('personality', {
+    registerFallbackPersonalityProvider('personality', {
       renderPrompt: renderPersonalityPrompt,
     });
 
@@ -74,6 +78,10 @@ const personalityPlugin: AlicePlugin = {
       name: 'personality',
       weight: -9999,
       getPrompt: async (context) => {
+        if (getActivePersonalityProviderOverrideOwner()) {
+          return false;
+        }
+
         const conversationTypeDefinition = getConversationTypeDefinition(context.conversationType);
         if (conversationTypeDefinition?.includePersonality === false) {
           return false;

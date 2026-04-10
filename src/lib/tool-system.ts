@@ -15,6 +15,12 @@ type OllamaRequestToolsPropItem = {
   };
 };
 
+export type ToolExecutionContext = {
+  toolName: string;
+  conversationType: DynamicPromptConversationType;
+  sessionId?: number;
+};
+
 export type Tool = {
   name: string;
   // The contexts in which the LLM will have access to the tool.
@@ -49,7 +55,7 @@ export type Tool = {
   // This is the function that will be called when the LLM outputs the call signature. It will 
   // receive the arguments as a JSON object, and should return the result of the tool call as a 
   // JSON object.
-  execute: (args: Record<string, unknown>) => Promise<string>; 
+  execute: (args: Record<string, unknown>, context: ToolExecutionContext) => Promise<string>; 
 }
 
 export function buildOllamaToolDescriptionObject(conversationType: DynamicPromptConversationType): OllamaRequestToolsPropItem[] {
