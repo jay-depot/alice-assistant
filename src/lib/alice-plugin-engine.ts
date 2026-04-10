@@ -60,6 +60,10 @@ type EnginePluginInterface = AlicePluginInterface & {
 function createPluginInterface(pluginMetadata: AlicePluginMetadata): EnginePluginInterface {
   let registrationClosed = false;
 
+  function isBuiltInPlugin(): boolean {
+    return !!pluginMetadata.builtInCategory;
+  }
+
   function assertRegistrationOpen(featureName: string): void {
     if (registrationClosed) {
       throw new Error(`Plugin ${pluginMetadata.id} attempted to register ${featureName} after its registration callback had already finished. Disable ${pluginMetadata.id} to fix your assistant. If you are developing this plugin, register ${featureName} during the plugin registration callback instead.`);
@@ -92,12 +96,12 @@ function createPluginInterface(pluginMetadata: AlicePluginMetadata): EnginePlugi
         registerHeaderSystemPrompt: (promptDefinition: DynamicPrompt) => {
           assertRegistrationOpen(`header system prompt ${promptDefinition.name}`);
 
-          if (!pluginMetadata.system) {
+          if (!isBuiltInPlugin()) {
             const minWeight = 0;
             const maxWeight = 9999;
             if (promptDefinition.weight < minWeight || promptDefinition.weight > maxWeight) {
               throw new Error(`Plugin ${pluginMetadata.id} attempted to register a header system prompt with ` +
-                `invalid weight ${promptDefinition.weight}. Non-system plugins may only register header system ` +
+                `invalid weight ${promptDefinition.weight}. Non-built-in plugins may only register header system ` +
                 `prompts with weights between 0 and 9999. Disable ${pluginMetadata.id} to fix your assistant, ` +
                 `or change the weight of this prompt if you are developing this plugin.`);
             }
@@ -119,12 +123,12 @@ function createPluginInterface(pluginMetadata: AlicePluginMetadata): EnginePlugi
         registerFooterSystemPrompt: (promptDefinition: DynamicPrompt) => {
           assertRegistrationOpen(`footer system prompt ${promptDefinition.name}`);
 
-          if (!pluginMetadata.system) {
+          if (!isBuiltInPlugin()) {
             const minWeight = 0;
             const maxWeight = 9999;
             if (promptDefinition.weight < minWeight || promptDefinition.weight > maxWeight) {
               throw new Error(`Plugin ${pluginMetadata.id} attempted to register a footer system prompt with ` +
-                `invalid weight ${promptDefinition.weight}. Non-system plugins may only register footer system ` +
+                `invalid weight ${promptDefinition.weight}. Non-built-in plugins may only register footer system ` +
                 `prompts with weights between 0 and 9999. Disable ${pluginMetadata.id} to fix your assistant, ` +
                 `or change the weight of this prompt if you are developing this plugin.`);
             }

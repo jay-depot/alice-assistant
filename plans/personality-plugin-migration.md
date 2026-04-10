@@ -38,10 +38,10 @@ Migrate personality prompt generation out of core and into a required system plu
 - `src/lib/conversation-types.ts`: preserve and validate `includePersonality` as the conversation-level opt-in or opt-out switch.
 - `src/lib/types/alice-plugin-interface.ts`: reference for prompt registration patterns; extend only if a generic provider registration surface belongs there.
 - `src/plugins/system-plugins.json`: add the new required system plugin.
-- `src/plugins/skills/skills.ts`: reference pattern for plugin-owned prompt generation from user-managed markdown content.
-- `src/plugins/scratch-files/scratch-files.ts`: reference pattern for filesystem-backed prompt content in a plugin.
-- `src/plugins/mood/mood.ts`: reference pattern for conditional prompt generation and plugin registration lifecycle.
-- `src/plugins/memory/memory.ts`: verify whether the `includePersonalityChangeLlmHint` wording still makes sense after the migration.
+- `src/plugins/system/skills/skills.ts`: reference pattern for plugin-owned prompt generation from user-managed markdown content.
+- `src/plugins/system/scratch-files/scratch-files.ts`: reference pattern for filesystem-backed prompt content in a plugin.
+- `src/plugins/community/mood/mood.ts`: reference pattern for conditional prompt generation and plugin registration lifecycle.
+- `src/plugins/system/memory/memory.ts`: verify whether the `includePersonalityChangeLlmHint` wording still makes sense after the migration.
 - `config-default/personality`: keep as the scaffolded default user content source for the first migration.
 
 ## Verification

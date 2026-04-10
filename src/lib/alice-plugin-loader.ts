@@ -4,6 +4,14 @@ import { exists, readFile, readdir } from './node/fs-promised.js';
 import { UserConfig } from './user-config.js';
 import { AlicePluginEngine } from './alice-plugin-engine.js';
 import { satisfies } from 'semver';
+import type { BuiltInPluginCategory } from './types/alice-plugin-interface.js';
+
+type BuiltInPluginDefinition = {
+  id: string;
+  name: string;
+  category: BuiltInPluginCategory;
+  required: boolean;
+};
 
 type EnabledPluginsConfig = {
   system: Record<string, boolean>;
@@ -21,9 +29,10 @@ const defaultEnabledPlugins: EnabledPluginsConfig = {
     "memory": true,
     "scratch-files": true,
     "location-broker": true,
+    "notifications-broker": true,
     "notifications-console": true,
     "notifications-libnotify": false,
-    "notifications-chat-segue": false,
+    "notifications-chat-segue": true,
     "notifications-chat-interruption": false,
     "notifications-chat-initiate": false,
     "reminders-broker": true,
@@ -39,6 +48,14 @@ const defaultEnabledPlugins: EnabledPluginsConfig = {
     "user-files": false,
     "appointments": false,
     "moltbook": false,
+    "remind-me": false,
+    "brave-search-api": false,
+    "brave-web-search": false,
+    "brave-search-news": false,
+    "currents-news": false,
+    "static-location": false,
+    "credential-clapback": false,
+    "user-skills": false,
     "lightpanda-browser": false,
     "web-simple-fetch": false,
   },
@@ -46,6 +63,25 @@ const defaultEnabledPlugins: EnabledPluginsConfig = {
     "enableUserPlugins": false,
     "plugins": {}
   }
+}
+
+async function resolveBuiltInPluginPath(
+  builtInPluginsPath: string,
+  plugin: BuiltInPluginDefinition,
+): Promise<string> {
+  const categorizedPath = path.join(builtInPluginsPath, plugin.category, plugin.id, `${plugin.id}.js`);
+  if (await exists(categorizedPath)) {
+    return categorizedPath;
+  }
+
+  const legacyFlatPath = path.join(builtInPluginsPath, plugin.id, `${plugin.id}.js`);
+  if (await exists(legacyFlatPath)) {
+    return legacyFlatPath;
+  }
+
+  throw new Error(
+    `Built-in plugin ${plugin.name} (${plugin.id}) is enabled in system-plugins.json but its module file could not be found in either ${plugin.category}/${plugin.id}/${plugin.id}.js or ${plugin.id}/${plugin.id}.js.`,
+  );
 }
 
 export async function loadPlugins() {
@@ -69,29 +105,29 @@ export async function loadPlugins() {
       plugins: rawEnabledPlugins.user?.plugins ?? defaultEnabledPlugins.user.plugins,
     }
   };
-  const systemPluginsPath = path.join(import.meta.dirname, '..', 'plugins');
+  const builtInPluginsPath = path.join(import.meta.dirname, '..', 'plugins');
   const userPluginsPath = path.join(aliceDir, 'user-plugins');
 
   const packageJson = JSON.parse(await readFile(path.join(import.meta.dirname, '..', '..', 'package.json'), 'utf-8'));
   const aliceVersion = packageJson.version;
 
-  const systemPlugins: { id: string, name: string, required: boolean }[] = JSON.parse(await readFile(path.join(systemPluginsPath, 'system-plugins.json'), 'utf-8'));
+  const builtInPlugins: BuiltInPluginDefinition[] = JSON.parse(await readFile(path.join(builtInPluginsPath, 'system-plugins.json'), 'utf-8'));
 
-  const enabledSystemPlugins = systemPlugins.map(plugin => {
+  const enabledBuiltInPlugins = builtInPlugins.map(plugin => {
     if (plugin.required && !userEnabledPlugins.system[plugin.id]) {
-      throw new Error(`System plugin ${plugin.name} (${plugin.id}) is required but not enabled. Please enable it in your enabled-plugins.json to continue.`);
+      throw new Error(`Built-in plugin ${plugin.name} (${plugin.id}) is required but not enabled. Please enable it in your enabled-plugins.json to continue.`);
     }
     if (userEnabledPlugins.system[plugin.id]) {
       return plugin;
     }
     return null;
-  }).filter(plugin => plugin !== null) as { id: string, name: string, required: boolean }[];
+  }).filter(plugin => plugin !== null) as BuiltInPluginDefinition[];
 
   const enabledUserPlugins = userEnabledPlugins.user.enableUserPlugins ? Object.keys(userEnabledPlugins.user.plugins).filter(pluginId => userEnabledPlugins.user.plugins[pluginId]) : [];
-  const allEnabledPluginIds = [...enabledSystemPlugins.map(p => p.id), ...enabledUserPlugins];
+  const allEnabledPluginIds = [...enabledBuiltInPlugins.map(p => p.id), ...enabledUserPlugins];
 
   // Check for unknown plugins in the enabled list.
-  const unknownSystemPlugins = Object.keys(userEnabledPlugins.system).filter(pluginId => !systemPlugins.find(p => p.id === pluginId));
+  const unknownSystemPlugins = Object.keys(userEnabledPlugins.system).filter(pluginId => !builtInPlugins.find(p => p.id === pluginId));
 
   if (unknownSystemPlugins.length > 0) {
     throw new Error(`Unknown system plugins found in enabled-plugins.json: ${unknownSystemPlugins.join(', ')}. Please remove these entries to continue.`);
@@ -113,48 +149,61 @@ export async function loadPlugins() {
   const unknownUserPlugins = enabledUserPlugins.filter(pluginId => !existingUserPlugins.find(p => p && p.id === pluginId));
 
   if (unknownUserPlugins.length > 0) {
-    throw new Error(`Unknown user plugins found in enabled-plugins.json: ${unknownUserPlugins.join(', ')}. To fix your assistant immediately, please remove these entries from your enabled-plugins.json. If you think these plugins should be enabled, check your spelling first, then verify  the plugins is a real system plugin listed in system-plugins.json or a real user plugin with a [plugin-id] directory containing [plugin-id].js in your user-plugins directory.`);
+    throw new Error(`Unknown user plugins found in enabled-plugins.json: ${unknownUserPlugins.join(', ')}. To fix your assistant immediately, please remove these entries from your enabled-plugins.json. If you think these plugins should be enabled, check your spelling first, then verify the plugin is a real built-in plugin listed in system-plugins.json or a real user plugin with a [plugin-id] directory containing [plugin-id].js in your user-plugins directory.`);
   }
 
   // Finally, we have to check dependency versions, and see if there are any dependency cycles, which 
   // means we're actually loading the `[plugin-id]/[plugin-id].js for each plugin, and then examine the 
   // exported metadata before we can actually insert them into the engine.
   const enabledPlugins = await Promise.all(allEnabledPluginIds.map(async pluginId => {
-    const systemPlugin = !!enabledSystemPlugins.find(p => p.id === pluginId);
-    const pluginPath = systemPlugin ?
-      path.join(systemPluginsPath, pluginId, `${pluginId}.js`) : 
-      path.join(userPluginsPath, pluginId, `${pluginId}.js`);
+    const builtInPlugin = enabledBuiltInPlugins.find(p => p.id === pluginId);
+    const pluginPath = builtInPlugin
+      ? await resolveBuiltInPluginPath(builtInPluginsPath, builtInPlugin)
+      : path.join(userPluginsPath, pluginId, `${pluginId}.js`);
     const pluginModule = (await import(pluginPath)).default as AlicePlugin;
+
+    if (builtInPlugin) {
+      pluginModule.pluginMetadata.builtInCategory = builtInPlugin.category;
+      pluginModule.pluginMetadata.required = builtInPlugin.required;
+    }
+
     return pluginModule;
   }));
 
   enabledPlugins.forEach(plugin => {
-    // Check for user plugins claiming to be system plugins or required plugins. This keeps out 
+    // Check for user plugins claiming built-in-only flags. This keeps out 
     // one specific kind of low-effort malware.
-    const isUsingPrivilegedFlags = plugin.pluginMetadata.system || plugin.pluginMetadata.required;
-    if (isUsingPrivilegedFlags && !systemPlugins.find(p => p.id === plugin.pluginMetadata.id)) {
-      throw new Error(`Plugin ${plugin.pluginMetadata.id} is claiming to be a system or required ` +
+    const isBuiltInPlugin = !!builtInPlugins.find(p => p.id === plugin.pluginMetadata.id);
+    const isUsingPrivilegedFlags = plugin.pluginMetadata.required || plugin.pluginMetadata.builtInCategory;
+    if (isUsingPrivilegedFlags && !builtInPlugins.find(p => p.id === plugin.pluginMetadata.id)) {
+      throw new Error(`Plugin ${plugin.pluginMetadata.id} is claiming to be a built-in or required ` +
         `plugin and is not one. Assistant startup has been halted in case this is an attempt to ` +
         `do something nasty. To fix your assistant immediately, disable this plugin by ` +
-        `removing it from your enabled-plugins.json. If you are developing this plugin, You need to ` +
-        `remove the "system" and "required" flags from your plugin metadata and never add them again.`);
+        `removing it from your enabled-plugins.json. If you are developing this plugin, you need to ` +
+        `remove the built-in-only flags from your plugin metadata and never add them again.`);
     }
+
+    if (!isBuiltInPlugin && plugin.pluginMetadata.version === 'LATEST') {
+      throw new Error(`Plugin ${plugin.pluginMetadata.id} is using the reserved version string LATEST. Only built-in shipped plugins may do this. Disable ${plugin.pluginMetadata.id} to fix your assistant, or replace LATEST with a real semver version if you are developing this plugin.`);
+    }
+
     plugin.pluginMetadata.dependencies?.forEach(dependency => {
       const found = enabledPlugins.find(p => p.pluginMetadata.id === dependency.id);
       if (!found) {
         throw new Error(`Plugin ${plugin.pluginMetadata.id} is missing dependency: ${dependency.id}. Please add and enable ${dependency.id}, or disable ${plugin.pluginMetadata.id} to continue.`);
       }
 
-      // Handle system plugins, which all have the special version string "LATEST" which is 
-      // supposed to match whatever our npm package version is. They're also the only 
-      // plugins allowed to use this special version string.
-      if (plugin.pluginMetadata.system) {
+      // Handle built-in shipped plugins, which all have the special version string "LATEST"
+      // that is supposed to match whatever our npm package version is.
+      if (isBuiltInPlugin) {
         if (found.pluginMetadata.version === 'LATEST') {
           found.pluginMetadata.version = aliceVersion;
         }
         if (dependency.version === 'LATEST') {
           dependency.version = aliceVersion;
         }
+      } else if (dependency.version === 'LATEST') {
+        throw new Error(`Plugin ${plugin.pluginMetadata.id} depends on ${dependency.id} using the reserved version string LATEST. Only built-in shipped plugins may use LATEST dependency ranges. Disable ${plugin.pluginMetadata.id} to fix your assistant, or replace LATEST with a real semver range if you are developing this plugin.`);
       }
 
       if (!satisfies(found.pluginMetadata.version, dependency.version)) {

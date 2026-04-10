@@ -2,171 +2,211 @@
   {
     "id": "datetime",
     "name": "Date and Time",
+    "category": "system",
     "required": true
   },
   {
     "id": "system-info",
     "name": "System Info",
+    "category": "system",
     "required": true
   },
   {
     "id": "personality",
     "name": "Personality",
+    "category": "system",
     "required": true
   },
   {
     "id": "memory",
     "name": "Memory",
+    "category": "system",
     "required": true
   },
   {
     "id": "scratch-files",
     "name": "Scratch Files",
+    "category": "system",
     "required": true
   },
   {
     "id": "location-broker",
     "name": "Location Broker",
+    "category": "system",
     "required": true
   },
   {
     "id": "notifications-broker",
     "name": "Notifications Broker",
+    "category": "system",
     "required": true
   },
   {
     "id": "notifications-console",
     "name": "Notifications Console",
+    "category": "system",
     "required": false
   },
   {
     "id": "notifications-libnotify",
     "name": "Notifications Libnotify",
+    "category": "community",
     "required": false
   },
   {
     "id": "notifications-chat-segue",
     "name": "Notifications Chat Segue",
+    "category": "system",
     "required": false
   },
   {
     "id": "notifications-chat-interruption",
     "name": "Notifications Chat Interruption",
+    "category": "community",
     "required": false
   },
   {
     "id": "notifications-chat-initiate",
     "name": "Notifications Chat Initiate",
+    "category": "community",
     "required": false
   },
   {
     "id": "reminders-broker",
     "name": "Reminders Broker",
+    "category": "system",
     "required": true
   },
   {
     "id": "web-ui",
     "name": "Web UI",
+    "category": "system",
     "required": true
   },
   {
     "id": "skills",
     "name": "Skills",
+    "category": "system",
     "required": false
   },
   {
     "id": "proficiencies",
     "name": "Proficiencies",
+    "category": "system",
     "required": false
   },
   {
     "id": "user-skills",
     "name": "User Skills",
+    "category": "system",
     "required": false
   },
   {
     "id": "mood",
     "name": "Mood",
+    "category": "community",
     "required": false
   },
   {
     "id": "application",
     "name": "Application",
+    "category": "system",
     "required": false
   },
   {
     "id": "news-broker",
     "name": "News Broker",
+    "category": "system",
     "required": false
   },
   {
     "id": "user-files",
     "name": "User Files",
+    "category": "system",
     "required": false
   },
   {
     "id": "weather-broker",
     "name": "Weather Broker",
+    "category": "system",
     "required": false
   },
   {
     "id": "web-search-broker",
     "name": "Web Search Broker",
+    "category": "system",
     "required": false
   },
   {
     "id": "appointments",
     "name": "Appointments",
+    "category": "community",
     "required": false
   },
   {
     "id": "daily-goals",
     "name": "Daily Goals",
+    "category": "community",
     "required": false
   },
   {
     "id": "moltbook",
     "name": "Moltbook",
+    "category": "community",
     "required": false
   },
   {
     "id": "brave-search-api",
     "name": "Brave Search API",
+    "category": "community",
     "required": false
   },
   {
     "id": "brave-web-search",
     "name": "Brave Web Search",
+    "category": "community",
     "required": false
   },
   {
     "id": "brave-search-news",
     "name": "Brave Search News",
+    "category": "community",
     "required": false
   },
   {
-    "id":"currents-news",
-    "name":"Currents News",
+    "id": "currents-news",
+    "name": "Currents News",
+    "category": "community",
     "required": false
   },
   {
     "id": "static-location",
     "name": "Static Location",
+    "category": "system",
     "required": false
   },
   {
     "id": "credential-clapback",
     "name": "Credential Clapback",
+    "category": "community",
     "required": false
   },
   {
     "id": "lightpanda-browser",
     "name": "Lightpanda Browser",
+    "category": "community",
+    "required": false
+  },
+  {
+    "id": "remind-me",
+    "name": "Remind Me",
+    "category": "system",
     "required": false
   },
   {
     "id": "web-simple-fetch",
     "name": "Simple Web Fetch",
+    "category": "community",
     "required": false
   }
 ]

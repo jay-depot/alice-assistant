@@ -13,27 +13,23 @@ type AlicePluginDependency = {
   version: string;
 };
 
+export type BuiltInPluginCategory = 'system' | 'community';
+
 export type AlicePluginMetadata = {
   // the plugin's unique identifier. Package name, usually.
   id: string;
   // The plugin's human-friendly name, used in the UI and error messages. Does not have to be unique, but it should be.
   name: string;
-  // semver enforced. System plugins, AND ONLY SYSTEM PLUGINS, can use the magic version 
-  // string "LATEST" to always match the assistant's version.
+  // semver enforced. Built-in shipped plugins may use the magic version string "LATEST"
+  // to always match the assistant's version. External user plugins may not.
   version: string; 
   description: string;
-  // Whether this plugin is a "system" plugin. Really this just means it's loaded early, 
-  // and can be marked 'required'.
-  // Realistically, we should find a way to make this field not exist in the type definitions for 
-  // external plugins.
-  system?: boolean; 
-  // Whether this system plugin is required for the assistant to function. If a required plugin 
-  // fails to load, the assistant should not start. Non-system plugins cannot be required. Any 
-  // non-system plugin that is marked as required will be assumed to be someone trying "funny 
-  // business" (i.e. an attempt to push malware) and will raise a fatal error on startup.
-  // The `required` field should somehow not be offered in the type definitions that external 
-  // plugins see, either. TBD how to pull that off.
+  // Assigned authoritatively from the built-in registry during loading. External user plugins
+  // may not mark themselves required.
   required?: boolean;
+  // Assigned authoritatively from the built-in registry during loading. This is the actual
+  // category used by core when deciding whether a shipped plugin is built-in.
+  builtInCategory?: BuiltInPluginCategory;
   // The plugin system will ensure that these plugins are loaded before this one. If any 
   // dependencies are missing or fail to load, the assistant will not start, and will output 
   // an error message explaining how to get going again.
@@ -63,10 +59,10 @@ export type AlicePluginInterface = {
   registerPlugin: () => Promise<{
     registerTool: (toolDefinition: Tool) => void;
 
-    // Let's limit non-system plugins to only being able to give their system prompts
+    // Let's limit non-built-in plugins to only being able to give their system prompts
     // a positive weight, for now.
     registerHeaderSystemPrompt: (promptDefinition: DynamicPrompt) => void;
-    // And for footer weights, nothing higher than 9999 unless you're a system plugin.
+    // And for footer weights, nothing higher than 9999 unless you're a built-in plugin.
     registerFooterSystemPrompt: (promptDefinition: DynamicPrompt) => void;
 
     registerConversationType: (conversationTypeDefinition: ConversationTypeDefinition) => void;
@@ -102,7 +98,7 @@ export type AlicePluginInterface = {
     /**
      * Request the offered API of a plugin on which this plugin has declared a dependency. The 
      * plugin system will throw an error if this function is called for a plugin that is not 
-     * declared as a dependency, even if that plugin is a required system plugin.
+    * declared as a dependency, even if that plugin is a required built-in plugin.
      * 
      * @param pluginName The name of the plugin whose offered API you want to use.
      * @returns The offered API of the requested plugin, or undefined if the plugin does not offer any API.

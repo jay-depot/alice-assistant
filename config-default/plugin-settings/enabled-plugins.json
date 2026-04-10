@@ -7,9 +7,10 @@
     "web-ui": true,
     "scratch-files": true,
     "location-broker": true,
+    "notifications-broker": true,
     "notifications-console": true,
     "notifications-libnotify": false,
-    "notifications-chat-segue": false,
+    "notifications-chat-segue": true,
     "notifications-chat-interruption": false,
     "notifications-chat-initiate": false,
     "skills": false,
@@ -26,7 +27,14 @@
     "moltbook": false,
     "brave-search-api": false,
     "brave-web-search": false,
-    "brave-search-news": false
+    "brave-search-news": false,
+    "currents-news": false,
+    "static-location": false,
+    "credential-clapback": false,
+    "user-skills": false,
+    "remind-me": false,
+    "lightpanda-browser": false,
+    "web-simple-fetch": false
   },
   "user": {
     "enableUserPlugins": false,

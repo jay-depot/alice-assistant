@@ -15,7 +15,7 @@ Turn the first-pass `notifications-chat-segue` implementation into a tested, usa
 2. Tighten the segue prompt wording after one or two live chat runs.
    - Observe whether the assistant mentions pending notifications naturally in chat.
    - Check for failure modes such as repeating the same notification too often, dumping the full list verbatim, or ignoring pending items entirely.
-   - Adjust the header prompt in `src/plugins/notifications-chat-segue/notifications-chat-segue.ts` so it nudges delivery without sounding robotic or repetitive.
+   - Adjust the header prompt in `src/plugins/system/notifications-chat-segue/notifications-chat-segue.ts` so it nudges delivery without sounding robotic or repetitive.
    - Keep the prompt scoped to chat only.
 
 3. Add an explicit pending-notifications read path if the user asks what is waiting.
