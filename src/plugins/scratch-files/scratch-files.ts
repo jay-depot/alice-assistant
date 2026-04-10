@@ -9,6 +9,7 @@ import path from 'node:path';
 import { exists, readFile } from '../../lib/node/fs-promised.js';
 import { reindexScratchFiles } from './scratch-files-index.js';
 import { simpleExpandTilde } from '../../lib/simple-tilde-expansion.js';
+import { getConversationTypeDefinition } from '../../lib/conversation-types.js';
 
 export const ScratchFilesPluginConfigSchema = Type.Object({
   scratchDirectory: Type.String({ default: '~/.alice-assistant/scratch' }),
@@ -66,7 +67,8 @@ const scratchFilesPlugin: AlicePlugin = {
       name: 'scratch-files-header',
       weight: 10000,
       async getPrompt(context) {
-        if (!['autonomy', 'chat', 'voice'].includes(context.conversationType)) {
+        const conversationTypeDefinition = getConversationTypeDefinition(context.conversationType);
+        if (!conversationTypeDefinition || conversationTypeDefinition.baseType === 'startup') {
           return false;
         }
 

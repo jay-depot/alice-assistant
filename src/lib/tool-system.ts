@@ -1,8 +1,9 @@
 import { TSchema } from 'typebox';
 import { getTools } from './tools.js';
 import { DynamicPromptConversationType } from './dynamic-prompt.js';
+import { ConversationTypeId } from './conversation-types.js';
 
-type ToolPromptFragmentFunction =  string | ((type: DynamicPromptConversationType) => string);
+type ToolPromptFragmentFunction = string | ((type: DynamicPromptConversationType) => string);
 
 type OllamaRequestToolsPropItem = {
   'type': 'function';
@@ -28,7 +29,7 @@ export type Tool = {
   //   messages. The only exception to this would be tools that directly modify a specific interface.
   //   Tools that should be voice-only would be those that modify voice delivery itself, like
   //   alternate voices.
-  availableFor: DynamicPromptConversationType[]; 
+  availableFor: ConversationTypeId[];
   // A short description of the tool, used in the system prompt (and one day, the UI) to help 
   // the user understand what the tool does.
   description: string;

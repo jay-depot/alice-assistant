@@ -1,6 +1,9 @@
-export type DynamicPromptConversationType = 'voice' | 'chat' | 'startup' | 'autonomy';
+import { ConversationTypeId } from './conversation-types.js';
+
+export type DynamicPromptConversationType = ConversationTypeId;
 export type DynamicPromptContext = {
   conversationType: DynamicPromptConversationType;
+  sessionId?: number;
   toolCallsAllowed?: boolean;
 };
 

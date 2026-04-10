@@ -17,6 +17,7 @@ const defaultEnabledPlugins: EnabledPluginsConfig = {
   "system": {
     "datetime": true,
     "system-info": true,
+    "personality": true,
     "memory": true,
     "scratch-files": true,
     "location-broker": true,

@@ -1,15 +1,17 @@
-import { AlicePlugin, AliceUiScriptRegistration, startConversation } from '../../lib.js';
+import { AlicePlugin, AliceUiScriptRegistration, Conversation, Message, startConversation } from '../../lib.js';
 import express, { Express } from 'express';
 import * as fs from 'fs';
 import * as path from 'path';
 import { createHash } from 'crypto';
 import { fileURLToPath } from 'url';
 import { type Server } from 'http';
+import type { MikroORM } from '@mikro-orm/sqlite';
 import { UserConfig } from '../../lib/user-config.js';
 import { ChatSession, ChatSessionRound } from './db-schemas/index.js';
 
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
+type EntityManager = MikroORM['em'];
 
 declare module '../../lib.js' {
   export interface PluginCapabilities {
@@ -21,6 +23,8 @@ declare module '../../lib.js' {
        * function where it can register its components and routes.
        */
       registerScript: (path: string) => void;
+      resolveTargetChatSession: (options: { title?: string; openNewChatIfNone?: boolean; alwaysOpenNewChat?: boolean }) => Promise<number | null>;
+      queueAssistantMessageToSession: (sessionId: number, message: { content: string; messageKind?: 'chat' | 'notification' }) => Promise<void>;
       queueAssistantMessage: (message: { content: string; title?: string; messageKind?: 'chat' | 'notification'; openNewChatIfNone?: boolean; alwaysOpenNewChat?: boolean }) => Promise<number | null>;
       queueAssistantInterruption: (interruption: { content: string }) => Promise<number | null>;
     }
@@ -56,30 +60,171 @@ const webUiPlugin: AlicePlugin = {
     const registeredScripts: AliceUiScriptRegistration[] = [];
     const registeredScriptPaths = new Set<string>();
     const sessionOperationQueues = new Map<number, Promise<void>>();
+    const cachedChatConversations = new Map<number, Conversation>();
 
-    const createAssistantOnlyChatSession = async (message: { content: string; title?: string; messageKind?: 'chat' | 'notification' }): Promise<number> => {
+    const restoreConversationMessages = (rounds: ChatSessionRound[]): Message[] => {
+      return rounds.map((round) => ({ role: round.role, content: round.content }));
+    };
+
+    const evictCachedConversation = (sessionId: number): void => {
+      cachedChatConversations.delete(sessionId);
+    };
+
+    const getOrCreateCachedConversation = (session: ChatSession): Conversation => {
+      const cachedConversation = cachedChatConversations.get(session.id);
+      if (cachedConversation) {
+        return cachedConversation;
+      }
+
+      const conversation = startConversation('chat', { sessionId: session.id });
+      conversation.restoreContext(restoreConversationMessages(session.rounds.getItems()));
+      cachedChatConversations.set(session.id, conversation);
+      return conversation;
+    };
+
+    const persistUnsynchronizedMessages = async (
+      em: EntityManager,
+      session: ChatSession,
+      conversation: Conversation,
+      assistantMessageKind: 'chat' | 'notification' = 'chat',
+    ): Promise<void> => {
+      const unsynchronizedMessages = conversation.getUnsynchronizedMessages();
+      const persistableMessages = unsynchronizedMessages.filter((message) => message.role !== 'system');
+
+      if (persistableMessages.length === 0) {
+        if (unsynchronizedMessages.length > 0) {
+          conversation.markUnsynchronizedMessagesSynchronized();
+        }
+        return;
+      }
+
+      persistableMessages.forEach((message) => {
+        const round = em.create(ChatSessionRound, {
+          chatSession: session,
+          role: message.role as 'user' | 'assistant',
+          messageKind: message.role === 'assistant' ? assistantMessageKind : 'chat',
+          timestamp: new Date(),
+          content: message.content,
+        });
+
+        session.rounds.add(round);
+        session.updatedAt = round.timestamp;
+      });
+
+      await em.flush();
+      conversation.markUnsynchronizedMessagesSynchronized();
+    };
+
+    const flushCachedConversation = async (
+      sessionId: number,
+      assistantMessageKind: 'chat' | 'notification' = 'chat',
+    ): Promise<boolean> => {
+      const conversation = cachedChatConversations.get(sessionId);
+      if (!conversation) {
+        return false;
+      }
+
+      const orm = await onDatabaseReady(async (databaseOrm) => databaseOrm);
+      const em = orm.em.fork();
+      const session = await em.findOne(ChatSession, { id: sessionId }, { populate: ['rounds'] });
+      if (!session) {
+        evictCachedConversation(sessionId);
+        return false;
+      }
+
+      await persistUnsynchronizedMessages(em, session, conversation, assistantMessageKind);
+      return true;
+    };
+
+    const closeAndEvictCachedConversation = async (sessionId: number): Promise<void> => {
+      const conversation = cachedChatConversations.get(sessionId);
+      if (!conversation) {
+        return;
+      }
+
+      await flushCachedConversation(sessionId);
+      await conversation.closeConversation();
+      evictCachedConversation(sessionId);
+    };
+
+    const flushAndEvictAllCachedConversations = async (): Promise<void> => {
+      const cachedSessionIds = [...cachedChatConversations.keys()];
+      for (const sessionId of cachedSessionIds) {
+        await flushCachedConversation(sessionId);
+        evictCachedConversation(sessionId);
+      }
+    };
+
+    const createEmptyChatSession = async (title?: string): Promise<number> => {
       const orm = await onDatabaseReady(async (databaseOrm) => databaseOrm);
       const em = orm.em.fork();
       const createdAt = new Date();
       const conversationRecord = em.create(ChatSession, {
-        title: message.title || 'New Conversation',
+        title: title || 'New Conversation',
         rounds: [],
         createdAt,
         updatedAt: createdAt,
       });
-      const assistantRound = em.create(ChatSessionRound, {
-        chatSession: conversationRecord,
-        role: 'assistant',
-        messageKind: message.messageKind || 'chat',
-        timestamp: createdAt,
-        content: message.content,
-      });
-
-      conversationRecord.rounds.add(assistantRound);
-      conversationRecord.updatedAt = assistantRound.timestamp;
       await em.flush();
 
+      const conversation = startConversation('chat', { sessionId: conversationRecord.id });
+      cachedChatConversations.set(conversationRecord.id, conversation);
+
       return conversationRecord.id;
+    };
+
+    const queueAssistantMessageToSession = async (
+      sessionId: number,
+      message: { content: string; messageKind?: 'chat' | 'notification' },
+    ): Promise<void> => {
+      await runSessionOperation(sessionId, async () => {
+        const orm = await onDatabaseReady(async (databaseOrm) => databaseOrm);
+        const em = orm.em.fork();
+        const session = await em.findOne(ChatSession, { id: sessionId }, { populate: ['rounds'] });
+        if (!session) {
+          throw new Error(`Chat session ${sessionId} disappeared before assistant message delivery.`);
+        }
+
+        const conversation = getOrCreateCachedConversation(session);
+        await conversation.appendExternalMessage({ role: 'assistant', content: message.content });
+        await persistUnsynchronizedMessages(em, session, conversation, message.messageKind || 'chat');
+      });
+    };
+
+    const resolveTargetChatSession = async (options: {
+      title?: string;
+      openNewChatIfNone?: boolean;
+      alwaysOpenNewChat?: boolean;
+    }): Promise<number | null> => {
+      if (options.alwaysOpenNewChat) {
+        return createEmptyChatSession(options.title);
+      }
+
+      const orm = await onDatabaseReady(async (databaseOrm) => databaseOrm);
+      const sessionLookupEm = orm.em.fork();
+      const mostRecentSession = await sessionLookupEm.findOne(ChatSession, {}, {
+        orderBy: { updatedAt: 'DESC', id: 'DESC' },
+      });
+
+      if (!mostRecentSession) {
+        if (!options.openNewChatIfNone) {
+          return null;
+        }
+
+        return createEmptyChatSession(options.title);
+      }
+
+      return mostRecentSession.id;
+    };
+
+    const createAssistantOnlyChatSession = async (message: { content: string; title?: string; messageKind?: 'chat' | 'notification' }): Promise<number> => {
+      const sessionId = await createEmptyChatSession(message.title);
+      await queueAssistantMessageToSession(sessionId, {
+        content: message.content,
+        messageKind: message.messageKind || 'chat',
+      });
+
+      return sessionId;
     };
 
     const runSessionOperation = async <T>(sessionId: number, operation: () => Promise<T>): Promise<T> => {
@@ -108,45 +253,22 @@ const webUiPlugin: AlicePlugin = {
     };
 
     const queueAssistantMessage = async (message: { content: string; title?: string; messageKind?: 'chat' | 'notification'; openNewChatIfNone?: boolean; alwaysOpenNewChat?: boolean }): Promise<number | null> => {
-      if (message.alwaysOpenNewChat) {
-        return createAssistantOnlyChatSession(message);
-      }
-
-      const orm = await onDatabaseReady(async (databaseOrm) => databaseOrm);
-      const sessionLookupEm = orm.em.fork();
-      const mostRecentSession = await sessionLookupEm.findOne(ChatSession, {}, {
-        orderBy: { updatedAt: 'DESC', id: 'DESC' },
+      const sessionId = await resolveTargetChatSession({
+        title: message.title,
+        openNewChatIfNone: message.openNewChatIfNone,
+        alwaysOpenNewChat: message.alwaysOpenNewChat,
       });
 
-      if (!mostRecentSession) {
-        if (!message.openNewChatIfNone) {
-          return null;
-        }
-
-        return createAssistantOnlyChatSession(message);
+      if (sessionId === null) {
+        return null;
       }
 
-      await runSessionOperation(mostRecentSession.id, async () => {
-        const em = orm.em.fork();
-        const session = await em.findOne(ChatSession, { id: mostRecentSession.id }, { populate: ['rounds'] });
-        if (!session) {
-          throw new Error(`Chat session ${mostRecentSession.id} disappeared before interruption delivery.`);
-        }
-
-        const assistantRound = em.create(ChatSessionRound, {
-          chatSession: session,
-          role: 'assistant',
-          messageKind: message.messageKind || 'chat',
-          timestamp: new Date(),
-          content: message.content,
-        });
-
-        session.rounds.add(assistantRound);
-        session.updatedAt = assistantRound.timestamp;
-        await em.flush();
+      await queueAssistantMessageToSession(sessionId, {
+        content: message.content,
+        messageKind: message.messageKind || 'chat',
       });
 
-      return mostRecentSession.id;
+      return sessionId;
     };
 
     const queueAssistantInterruption = async (interruption: { content: string }): Promise<number | null> => {
@@ -209,6 +331,8 @@ const webUiPlugin: AlicePlugin = {
     plugin.offer<'web-ui'>({
       express: app,
       registerScript,
+      resolveTargetChatSession,
+      queueAssistantMessageToSession,
       queueAssistantMessage,
       queueAssistantInterruption,
     });
@@ -228,23 +352,23 @@ const webUiPlugin: AlicePlugin = {
         // and returns the answer to it.
     
         const em = orm.em.fork();
-        const conversationRecord = em.create(ChatSession, { title: 'New Conversation', rounds: [], createdAt: new Date(), updatedAt: new Date() });
-        const conversation = startConversation('chat');
-        const response = await conversation.sendUserMessage();
-        const assistantRound = em.create(ChatSessionRound, { chatSession: conversationRecord, role: 'assistant', timestamp: new Date(), content: response });
-        assistantRound.messageKind = 'chat';
-        conversationRecord.rounds.add(assistantRound);
-    
+        const now = new Date();
+        const conversationRecord = em.create(ChatSession, { title: 'New Conversation', rounds: [], createdAt: now, updatedAt: now });
         await em.flush();
+
+        const conversation = startConversation('chat', { sessionId: conversationRecord.id });
+        cachedChatConversations.set(conversationRecord.id, conversation);
+        const response = await conversation.sendUserMessage();
+        await persistUnsynchronizedMessages(em, conversationRecord, conversation, 'chat');
     
         res.json({ session: {
           id: conversationRecord.id,
           title: conversationRecord.title,
           createdAt: conversationRecord.createdAt,
           updatedAt: conversationRecord.updatedAt,
-          messages: [
-            { role: assistantRound.role, messageKind: assistantRound.messageKind, content: assistantRound.content, timestamp: assistantRound.timestamp }
-          ]
+          messages: conversationRecord.rounds.getItems()
+            .filter(round => round.role !== 'system')
+            .map(round => ({ role: round.role, messageKind: round.messageKind, content: round.content, timestamp: round.timestamp }))
         }});
       });
     
@@ -271,19 +395,13 @@ const webUiPlugin: AlicePlugin = {
             throw new Error(`Chat session ${session.id} not found while processing message.`);
           }
 
-          const llmTransaction = startConversation('chat');
-          llmTransaction.restoreContext(queuedSession.rounds.getItems().map(round => ({ role: round.role, content: round.content })));
+          const llmTransaction = getOrCreateCachedConversation(queuedSession);
 
           const response = await llmTransaction.sendUserMessage(message);
-
-          const userRound = em.create(ChatSessionRound, { chatSession: queuedSession, role: 'user', messageKind: 'chat', timestamp: new Date(), content: message });
-          const assistantRound = em.create(ChatSessionRound, { chatSession: queuedSession, role: 'assistant', messageKind: 'chat', timestamp: new Date(), content: response });
-          queuedSession.rounds.add(userRound);
-          queuedSession.rounds.add(assistantRound);
+          await persistUnsynchronizedMessages(em, queuedSession, llmTransaction, 'chat');
 
           const titleSummary = await llmTransaction.requestTitle();
           queuedSession.title = titleSummary.length > 0 ? titleSummary : 'New Conversation';
-          queuedSession.updatedAt = assistantRound.timestamp;
 
           await em.flush();
 
@@ -352,24 +470,35 @@ const webUiPlugin: AlicePlugin = {
         // session from the database.
 
         // Step 1. Check if there are any user messages in the chat. If not, we''' just delete it.
+        const parsedId = parseInt(id);
         const em = orm.em.fork();
-        const session = await em.findOne(ChatSession, { id: parseInt(id) }, { populate: ['rounds'] });
+        const session = await em.findOne(ChatSession, { id: parsedId }, { populate: ['rounds'] });
         if (!session) {
           res.status(404).json({ error: 'Chat session not found' });
           return;
         }
 
-        const userMessages = session.rounds.getItems().filter(round => round.role === 'user');
-        if (userMessages.length > 0) {
-          console.log(`Requesting conversation summary for chat session ${id} before deletion...`);
-          const conversation = startConversation('chat');
-          conversation.restoreContext(session.rounds.getItems().map(round => ({ role: round.role, content: round.content })));
-          await conversation.closeConversation();
-        }
+        await runSessionOperation(parsedId, async () => {
+          const em = orm.em.fork();
+          const queuedSession = await em.findOne(ChatSession, { id: parsedId }, { populate: ['rounds'] });
+          if (!queuedSession) {
+            throw new Error(`Chat session ${parsedId} not found while deleting session.`);
+          }
 
-        session.rounds.removeAll();
-        em.remove(session);
-        await em.flush();
+          const userMessages = queuedSession.rounds.getItems().filter(round => round.role === 'user');
+          if (userMessages.length > 0) {
+            console.log(`Requesting conversation summary for chat session ${id} before deletion...`);
+            getOrCreateCachedConversation(queuedSession);
+            await closeAndEvictCachedConversation(parsedId);
+          } else {
+            evictCachedConversation(parsedId);
+          }
+
+          queuedSession.rounds.removeAll();
+          em.remove(queuedSession);
+          await em.flush();
+        });
+
         res.json({ reply: `Chat session with id ${id} deleted successfully` });
         console.log(`Chat session ${id} deleted successfully.`);
         return;
@@ -394,6 +523,7 @@ const webUiPlugin: AlicePlugin = {
       
       plugin.hooks.onAssistantWillStopAcceptingRequests(async () => {
         console.log('Assistant will stop accepting requests. Shutting down web UI server...');
+        await flushAndEvictAllCachedConversations();
         server.close(async (serverErr?: Error) => {
           if (serverErr) {
             console.error('Error shutting down web UI server:', serverErr);

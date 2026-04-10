@@ -10,6 +10,11 @@
     "required": true
   },
   {
+    "id": "personality",
+    "name": "Personality",
+    "required": true
+  },
+  {
     "id": "memory",
     "name": "Memory",
     "required": true

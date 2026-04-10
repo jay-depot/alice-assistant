@@ -7,6 +7,7 @@ import { getHeaderPrompts } from './header-prompts.js';
 import { getFooterPrompts } from './footer-prompts.js';
 import { PluginHookInvocations } from './plugin-hooks.js';
 import { retryAsPromised as retry } from 'retry-as-promised';
+import { hasConversationType } from './conversation-types.js';
 
 export const SUMMARY_HEADER = '# Summary of earlier conversation:\n';
 const SUMMARY_PROMPT = `Summarize the following conversation between the user and the ` +
@@ -26,6 +27,10 @@ export type Message = {
   role: string;
   content: string;
   tool_calls?: ToolCall[];
+};
+
+export type StartConversationOptions = {
+  sessionId?: number;
 };
 
 function checkLLMResponseForDegeneracy(response: string) {
@@ -98,8 +103,9 @@ export class Conversation {
 
   public rawContext: Message[] = [];
   public compactedContext: Message[] = [];
+  private synchronizedRawMessageCount = 0;
 
-  constructor(public type: DynamicPromptConversationType) {
+  constructor(public type: DynamicPromptConversationType, public sessionId?: number) {
     this.llmConnection = {
       ...getLLMConnection(),
     }
@@ -121,8 +127,21 @@ export class Conversation {
 
     this.compactedContext = [...(compactedContext || context)];
     this.rawContext = [...context];
+    this.synchronizedRawMessageCount = this.rawContext.length;
  
     return this;
+  }
+
+  getUnsynchronizedMessages(): Message[] {
+    return this.rawContext.slice(this.synchronizedRawMessageCount);
+  }
+
+  markUnsynchronizedMessagesSynchronized(): void {
+    this.synchronizedRawMessageCount = this.rawContext.length;
+  }
+
+  async appendExternalMessage(message: Message): Promise<void> {
+    await this.appendToContext(message);
   }
 
   private async appendToContext(message: Message) {
@@ -201,8 +220,12 @@ export class Conversation {
   }
 
   async sendUserMessage(userMessage?: string): Promise<string> {
-    const headerPrompts = await getHeaderPrompts({ conversationType: this.type, toolCallsAllowed: true });
-    const footerPrompts = await getFooterPrompts({ conversationType: this.type });
+    const headerPrompts = await getHeaderPrompts({
+      conversationType: this.type,
+      sessionId: this.sessionId,
+      toolCallsAllowed: true,
+    });
+    const footerPrompts = await getFooterPrompts({ conversationType: this.type, sessionId: this.sessionId });
 
     if (userMessage) {
       await this.appendToContext({
@@ -253,7 +276,7 @@ export class Conversation {
     // appropriate "tool response" prompt back to the LLM, then wait for the next response. If it's 
     // not a tool call, just return the response content.
     const callsStillAllowed = depth < MAX_TOOL_CALL_DEPTH;
-    const footerPrompts = await getFooterPrompts({ conversationType: this.type });
+    const footerPrompts = await getFooterPrompts({ conversationType: this.type, sessionId: this.sessionId });
     const promptIfCallsAvailable = ` - If you need to make another tool call, make it now. Otherwise, answer the user's query in character. You have ${MAX_TOOL_CALL_DEPTH - depth} remaining recursive tool calls you may make regarding this user query.`;
     const promptIfNoCallsAvailable =  ` - You may make no more recursive tool calls for this conversation turn, so you must answer the user's query in character.\n` +
     ` - If you still do not have sufficient information to form a complete answer, you have two options: \n` +
@@ -264,7 +287,11 @@ export class Conversation {
     const continuationPrompt = callsStillAllowed ? promptIfCallsAvailable : promptIfNoCallsAvailable;
     const toolCalls = response.message.tool_calls;
     
-    const headerPrompts = await getHeaderPrompts({ conversationType: this.type, toolCallsAllowed: callsStillAllowed });
+    const headerPrompts = await getHeaderPrompts({
+      conversationType: this.type,
+      sessionId: this.sessionId,
+      toolCallsAllowed: callsStillAllowed,
+    });
     if (toolCalls && toolCalls.length > 0) {
       if (!callsStillAllowed) {
         await this.appendToContext({
@@ -396,18 +423,17 @@ export class Conversation {
 
   async requestTitle(): Promise<string> {
     const titlePrompt = `Based on the conversation so far, provide a concise title for this conversation that captures the main topics discussed. Do not include any headers or formatting, reply with only the title text of 6 words or less.`;
-    await this.appendToContext({
-      role: 'system',
-      content: titlePrompt
-    });
     const response = await retry(async () => {
       const res = await OllamaClient.chat({
         ...this.llmConnection,
-        messages: this.compactedContext.map(message => ({
-          role: message.role,
-          content: message.content,
-          tool_calls: message.tool_calls
-        })),
+        messages: [
+          ...this.compactedContext.map(message => ({
+            role: message.role,
+            content: message.content,
+            tool_calls: message.tool_calls
+          })),
+          { role: 'system', content: titlePrompt },
+        ],
         tools: buildOllamaToolDescriptionObject(this.type)
       });
 
@@ -421,7 +447,11 @@ export class Conversation {
   }
 }
 
-export function startConversation(type: DynamicPromptConversationType): Conversation {
-  const txn = new Conversation(type);
+export function startConversation(type: DynamicPromptConversationType, options?: StartConversationOptions): Conversation {
+  if (!hasConversationType(type)) {
+    throw new Error(`Cannot start conversation with unknown conversation type ${type}. Register it before using it.`);
+  }
+
+  const txn = new Conversation(type, options?.sessionId);
   return txn;
 }

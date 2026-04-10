@@ -8,17 +8,24 @@ import { SystemConfigFull } from './types/system-config-full.js';
 import { PluginHooks } from './plugin-hooks.js';
 import { addHeaderPrompt } from './header-prompts.js';
 import { addFooterPrompt } from './footer-prompts.js';
-import { addTool } from './tools.js';
+import { addConversationTypeToTool, addTool, hasTool } from './tools.js';
 import { exists, mkdir, writeFile } from './node/fs-promised.js';
 import path from 'node:path';
 import { readFile } from 'node:fs/promises';
 import { PluginHookInvocations } from './plugin-hooks.js';
+import { getConversationTypeOwner, registerConversationType } from './conversation-types.js';
 
 const loadedPlugins: AlicePlugin[] = [];
 const registeredPlugins: Record<string, AlicePlugin> = {};
 const registeredHeaderPromptNames: Record<string, string> = {};
 const registeredFooterPromptNames: Record<string, string> = {};
 const registeredToolNames: Record<string, string> = {};
+const pendingConversationTypeToolLinks: Array<{
+  requestingPluginId: string;
+  conversationTypeId: string;
+  sourcePluginId: string;
+  toolName: string;
+}> = [];
 
 const pluginCapabilities = {} as PluginCapabilities;
 const loadingPromises: Record<string, { 
@@ -46,7 +53,19 @@ function validatePluginConfig(config: unknown, schema: Type.TSchema, pluginId: s
   }
 }
 
-function createPluginInterface(pluginMetadata: AlicePluginMetadata): AlicePluginInterface {
+type EnginePluginInterface = AlicePluginInterface & {
+  closeRegistration: () => void;
+};
+
+function createPluginInterface(pluginMetadata: AlicePluginMetadata): EnginePluginInterface {
+  let registrationClosed = false;
+
+  function assertRegistrationOpen(featureName: string): void {
+    if (registrationClosed) {
+      throw new Error(`Plugin ${pluginMetadata.id} attempted to register ${featureName} after its registration callback had already finished. Disable ${pluginMetadata.id} to fix your assistant. If you are developing this plugin, register ${featureName} during the plugin registration callback instead.`);
+    }
+  }
+
   const api = {
     registerPlugin: async () => {
       const dependencyIds = pluginMetadata.dependencies?.map(dep => dep.id) || [];      
@@ -56,6 +75,8 @@ function createPluginInterface(pluginMetadata: AlicePluginMetadata): AlicePlugin
 
       return {
         registerTool: (toolDefinition: Tool) => {
+          assertRegistrationOpen(`tool ${toolDefinition.name}`);
+
           if (registeredToolNames[toolDefinition.name]) {
             throw new Error(`Plugin ${pluginMetadata.id} attempted to register a tool with name ` +
               `"${toolDefinition.name}", but that name is already registered by plugin ` +
@@ -69,6 +90,8 @@ function createPluginInterface(pluginMetadata: AlicePluginMetadata): AlicePlugin
         },
 
         registerHeaderSystemPrompt: (promptDefinition: DynamicPrompt) => {
+          assertRegistrationOpen(`header system prompt ${promptDefinition.name}`);
+
           if (!pluginMetadata.system) {
             const minWeight = 0;
             const maxWeight = 9999;
@@ -94,6 +117,8 @@ function createPluginInterface(pluginMetadata: AlicePluginMetadata): AlicePlugin
         },
 
         registerFooterSystemPrompt: (promptDefinition: DynamicPrompt) => {
+          assertRegistrationOpen(`footer system prompt ${promptDefinition.name}`);
+
           if (!pluginMetadata.system) {
             const minWeight = 0;
             const maxWeight = 9999;
@@ -118,9 +143,26 @@ function createPluginInterface(pluginMetadata: AlicePluginMetadata): AlicePlugin
           addFooterPrompt(promptDefinition);
         },
 
+        registerConversationType: (conversationTypeDefinition) => {
+          assertRegistrationOpen(`conversation type ${conversationTypeDefinition.id}`);
+          registerConversationType(conversationTypeDefinition, pluginMetadata.id);
+        },
+
+        addToolToConversationType: (conversationTypeId, sourcePluginId, toolName) => {
+          assertRegistrationOpen(`tool link ${sourcePluginId}.${toolName} -> ${conversationTypeId}`);
+          pendingConversationTypeToolLinks.push({
+            requestingPluginId: pluginMetadata.id,
+            conversationTypeId,
+            sourcePluginId,
+            toolName,
+          });
+        },
+
         hooks: PluginHooks(pluginMetadata.id),
 
         offer<T extends keyof PluginCapabilities>(capabilities: PluginCapabilities[T]): void {
+          assertRegistrationOpen('plugin capabilities');
+
           if (pluginCapabilities[pluginMetadata.id]) {
             throw new Error(`Plugin ${pluginMetadata.id} has already offered its capabilities. A plugin may only call offer once, and only during its registration callback.`);
           }
@@ -183,8 +225,12 @@ function createPluginInterface(pluginMetadata: AlicePluginMetadata): AlicePlugin
           }
         }
       };
-    }
-  } as AlicePluginInterface;
+    },
+
+    closeRegistration: () => {
+      registrationClosed = true;
+    },
+  } as EnginePluginInterface;
 
   return api;
 }
@@ -230,19 +276,46 @@ export const AlicePluginEngine = {
     });
     await Promise.all(loadedPlugins.map(async plugin => {
       console.log(`Registering plugin: ${plugin.pluginMetadata.id}...`);
+      const pluginInterface = createPluginInterface(plugin.pluginMetadata);
+
       try {
-        await plugin.registerPlugin(createPluginInterface(plugin.pluginMetadata));
+        await plugin.registerPlugin(pluginInterface);
       } catch (error) {
         console.error(`Error registering plugin ${plugin.pluginMetadata.id}:`, error);
         loadingPromises[plugin.pluginMetadata.id].reject(error);
 
         throw new Error(`Failed to register plugin ${plugin.pluginMetadata.id}.`, { cause: error });
       }
+
+      pluginInterface.closeRegistration();
       
       loadingPromises[plugin.pluginMetadata.id].resolve();
       registeredPlugins[plugin.pluginMetadata.id] = plugin;
       console.log(`Plugin registered: ${plugin.pluginMetadata.id}`);
     }));
+
+    pendingConversationTypeToolLinks.forEach((toolLink) => {
+      const conversationTypeOwner = getConversationTypeOwner(toolLink.conversationTypeId);
+      if (conversationTypeOwner !== toolLink.requestingPluginId) {
+        throw new Error(
+          `Plugin ${toolLink.requestingPluginId} attempted to add tool ${toolLink.sourcePluginId}.${toolLink.toolName} to conversation type ${toolLink.conversationTypeId}, but that conversation type is not owned by ${toolLink.requestingPluginId}. Register the conversation type first in ${toolLink.requestingPluginId}, then retry.`,
+        );
+      }
+
+      const sourcePluginEnabled = !!registeredPlugins[toolLink.sourcePluginId];
+      if (!sourcePluginEnabled) {
+        return;
+      }
+
+      const registeredToolOwner = registeredToolNames[toolLink.toolName];
+      if (!hasTool(toolLink.toolName) || registeredToolOwner !== toolLink.sourcePluginId) {
+        throw new Error(
+          `Plugin ${toolLink.requestingPluginId} attempted to add tool ${toolLink.sourcePluginId}.${toolLink.toolName} to conversation type ${toolLink.conversationTypeId}, but plugin ${toolLink.sourcePluginId} is enabled and does not provide that tool. Disable ${toolLink.requestingPluginId} to fix your assistant, or correct the requested plugin/tool name if you are developing this plugin.`,
+        );
+      }
+
+      addConversationTypeToTool(toolLink.toolName, toolLink.conversationTypeId);
+    });
     
     await PluginHookInvocations.invokeOnAllPluginsLoaded();
   },

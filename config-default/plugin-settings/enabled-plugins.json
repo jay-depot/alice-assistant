@@ -2,6 +2,7 @@
   "system": {
     "datetime": true,
     "system-info": true,
+    "personality": true,
     "memory": true,
     "web-ui": true,
     "scratch-files": true,

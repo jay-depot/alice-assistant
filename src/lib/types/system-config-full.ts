@@ -5,7 +5,6 @@ export const SystemConfigFull = Type.Intersect([
   SystemConfigBasic,
   Type.Object({
     configDirectory: Type.String(),
-    personality: Type.Record(Type.String(), Type.String()),
   }),
 ]);
 

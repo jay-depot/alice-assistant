@@ -23,16 +23,28 @@ const notificationsConversationInitiatePlugin: AlicePlugin = {
   async registerPlugin(pluginInterface) {
     const plugin = await pluginInterface.registerPlugin();
     const { registerNotificationSink } = plugin.request('notifications-broker')!;
-    const { queueAssistantMessage } = plugin.request('web-ui')!;
+    const { resolveTargetChatSession, queueAssistantMessageToSession } = plugin.request('web-ui')!;
 
     await registerNotificationSink('notifications-chat-initiate', {
       sendNotification: async (notification) => {
+        const sessionTitle = buildNotificationChatTitle(notification);
+        const sessionId = await resolveTargetChatSession({
+          title: sessionTitle,
+          alwaysOpenNewChat: true,
+        });
+
+        if (sessionId === null) {
+          console.warn('Notifications Chat Initiate: Could not resolve a target chat session for notification delivery.');
+          return;
+        }
+
         let messageText = buildFallbackChatNotification(notification);
 
         try {
           const renderedMessage = await renderChatNotificationInVoice(
             notification,
             'You are starting a text chat with the user because a notification needs their attention right now.',
+            sessionId,
           );
           if (renderedMessage.length > 0) {
             messageText = renderedMessage;
@@ -41,11 +53,9 @@ const notificationsConversationInitiatePlugin: AlicePlugin = {
           console.error('Notifications Chat Initiate: Failed to render notification in assistant voice. Falling back to plain notification text.', error);
         }
 
-        const sessionId = await queueAssistantMessage({
+        await queueAssistantMessageToSession(sessionId, {
           content: messageText,
-          title: buildNotificationChatTitle(notification),
           messageKind: 'notification',
-          alwaysOpenNewChat: true,
         });
 
         console.log(`Notifications Chat Initiate: Delivered notification into chat session ${sessionId}.`);

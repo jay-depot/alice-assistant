@@ -3,6 +3,7 @@ import { DynamicPrompt } from '../dynamic-prompt.js';
 import { Tool } from '../tool-system.js';
 import { SystemConfigFull } from './system-config-full.js';
 import { AlicePluginHooks } from './alice-plugin-hooks.js';
+import { ConversationTypeDefinition, ConversationTypeId } from '../conversation-types.js';
 
 type AlicePluginDependency = {
   id: string;
@@ -67,6 +68,10 @@ export type AlicePluginInterface = {
     registerHeaderSystemPrompt: (promptDefinition: DynamicPrompt) => void;
     // And for footer weights, nothing higher than 9999 unless you're a system plugin.
     registerFooterSystemPrompt: (promptDefinition: DynamicPrompt) => void;
+
+    registerConversationType: (conversationTypeDefinition: ConversationTypeDefinition) => void;
+
+    addToolToConversationType: (conversationTypeId: ConversationTypeId, pluginId: string, toolName: string) => void;
 
     hooks: AlicePluginHooks;
 

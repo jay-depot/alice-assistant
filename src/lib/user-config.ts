@@ -39,26 +39,6 @@ export const UserConfig = (() => {
       }
       const configData = fs.readFileSync(configPath, 'utf-8');
       config = JSON.parse(configData);
-      // load personality files, and cache them
-      const personalityDir = path.join(UserConfig.getConfigPath(), 'personality');
-      if (!fs.existsSync(personalityDir)) {
-        // We should crash here. An empty config was *just* created if we got to this point, so something very bad happened.
-        throw new Error(`Personality directory not found at ${personalityDir}. This should never happen, \
-          as the config directory and default config file should have been created if they \
-          didn't exist. Please check the permissions of the config directory and try again.`);
-      }
-      const personalityFiles = fs
-        .readdirSync(personalityDir, { withFileTypes: true })
-        .filter((entry) => entry.isFile() && path.extname(entry.name).toLowerCase() === '.md')
-        .map((entry) => entry.name);
-
-      config.personality = {};
-      for (const file of personalityFiles) {
-        const filePath = path.join(personalityDir, file);
-        const fileData = fs.readFileSync(filePath, 'utf-8');
-        const key = path.parse(file).name.replace(/[_-]/g, ' ').toLocaleUpperCase();
-        config.personality[key] = fileData;
-      }
 
       // Load the tool configs.
       const toolSettingsDir = path.join(UserConfig.getConfigPath(), 'tool-settings');

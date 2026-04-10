@@ -20,16 +20,27 @@ const notificationsChatInterruptionPlugin: AlicePlugin = {
   async registerPlugin(pluginInterface) {
     const plugin = await pluginInterface.registerPlugin();
     const { registerNotificationSink } = plugin.request('notifications-broker')!;
-    const { queueAssistantMessage } = plugin.request('web-ui')!;
+    const { resolveTargetChatSession, queueAssistantMessageToSession } = plugin.request('web-ui')!;
 
     await registerNotificationSink('notifications-chat-interruption', {
       sendNotification: async (notification) => {
+        const sessionId = await resolveTargetChatSession({
+          title: buildNotificationChatTitle(notification),
+          openNewChatIfNone: true,
+        });
+
+        if (sessionId === null) {
+          console.warn('Notifications Chat Interruption: Could not resolve a target chat session for notification delivery.');
+          return;
+        }
+
         let interruptionText = buildFallbackChatNotification(notification);
 
         try {
           const renderedInterruption = await renderChatNotificationInVoice(
             notification,
             'You are inserting a brief interruption into an already-active text chat with the user.',
+            sessionId,
           );
           if (renderedInterruption.length > 0) {
             interruptionText = renderedInterruption;
@@ -38,11 +49,9 @@ const notificationsChatInterruptionPlugin: AlicePlugin = {
           console.error('Notifications Chat Interruption: Failed to render interruption in assistant voice. Falling back to plain notification text.', error);
         }
 
-        const sessionId = await queueAssistantMessage({
+        await queueAssistantMessageToSession(sessionId, {
           content: interruptionText,
-          title: buildNotificationChatTitle(notification),
           messageKind: 'notification',
-          openNewChatIfNone: true,
         });
 
         console.log(`Notifications Chat Interruption: Delivered notification into chat session ${sessionId}.`);

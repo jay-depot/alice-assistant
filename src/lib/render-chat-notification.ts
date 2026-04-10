@@ -1,4 +1,5 @@
 import { Conversation } from '../lib.js';
+import { renderPersonalityPrompt } from './personality-system.js';
 import { UserConfig } from './user-config.js';
 
 export type NotificationPayload = {
@@ -6,23 +7,6 @@ export type NotificationPayload = {
   message: string;
   source: string;
 };
-
-function buildPersonalityPrompt(): string {
-  const config = UserConfig.getConfig();
-  const sections: string[] = [];
-
-  sections.push(`# PC DIGITAL ASSISTANT PERSONALITY AND SYSTEM INFO`);
-  sections.push(`## INTRODUCTION\n${config.personality.INTRO}`);
-  sections.push(`## PERSONALITY QUIRKS\n${config.personality.QUIRKS}`);
-
-  Object.keys(config.personality)
-    .filter((key) => key !== 'INTRO' && key !== 'QUIRKS')
-    .forEach((key) => {
-      sections.push(`## ${key}\n${config.personality[key]}`);
-    });
-
-  return sections.join('\n\n');
-}
 
 export function buildFallbackChatNotification(notification: NotificationPayload): string {
   const interruptionLines = ['Quick interruption.'];
@@ -51,13 +35,14 @@ export function buildNotificationChatTitle(notification: NotificationPayload): s
 export async function renderChatNotificationInVoice(
   notification: NotificationPayload,
   scenarioInstruction: string,
+  sessionId?: number,
 ): Promise<string> {
   const config = UserConfig.getConfig();
 
   const response = await Conversation.sendDirectRequest([
     {
       role: 'system',
-      content: buildPersonalityPrompt(),
+      content: await renderPersonalityPrompt({ purpose: 'notification', sessionId }),
     },
     {
       role: 'system',

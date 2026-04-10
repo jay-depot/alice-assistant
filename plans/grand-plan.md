@@ -5,7 +5,7 @@
 - This would also help with discoverability and trust. Users would know that System plugins are essential and maintained by the core team, Community plugins are optional but vetted by the community, and External user plugins are completely unvetted and should be used with caution.
 - Many of my own plugins will get moved to "community." Specifically, the following plugins *definitely*  move to community: brave-search-api, brave-search-news, brave-web-search, credential-clapback, currents-news, daily-goals, lightpanda-browser, mood, moltbook, notifications-libnotify.
 - The following plugins defintely stay in system: application, datetime, location-broker, memory, news-broker, notifications-broker, proficiencies, reminders-broker, scratch-files, skills, system-info, user-files, user-skills, weather-broker, web-search-broker.
-- Remaining plugins' destinations are TBD
+- Remaining plugins' destinations are TBD, but if the pattern is clear from similar plugins, follow it. If a system "broker" plugin requires at least one "sink" plugin to be useful, the simplest sink plugin option should be kept under system. Anything that requires an external API key should be community.
 
 ## Second. Personality plugin migration
 - see `plans/personality-plugin-migration.md` for the detailed plan. The high level summary is to move all personality prompt generation logic into a required system plugin, while keeping the existing user-facing personality directory intact for the first version. This will create a clean plugin boundary for future alternative personality implementations without disrupting current user content or conversation-level behavior.
@@ -17,11 +17,10 @@
 - Maybe consider finding a way to bundle the python client into the node module somehow, so it can be started and stopped automatically at the same time.
 - Open question: Connections. Just REST, or should we do something more custom over a socket or pipe?
 - Open question: Security. We should probably generate a random token the voice client needs to present to the service. Just set an environment variable before the voice plugin fires off the client? It's simple, at least.
-- Optional: If we're already setting up a socket or pipe, with token-based auth, then connecting a TUI to it (ideally with the same UI surface as the local web UI) wouldn't be *too* much extra work.
-- Optional but highly desirable: Actually secure the web-ui connection as well, ideally with the same token-based system. This one is *slightly* more annoying, simply because there needs to be a way to get the token to the user, so they can enter it into the web UI login screen. Option 1: print token to console with instructions. Option 2: have the assistant core launch the user's preferred browser with the token already appended to the URL as a query parameter.
+- Optional but highly desirable: Actually secure the web-ui connection as well, ideally with the same token-based system. This one is *slightly* more annoying, simply because there needs to be a way to get the token to the user, so they can enter it into the web UI login screen. Option 1: print token to console with instructions. Option 2: have the assistant core launch the user's preferred browser (just `xdg-open` is fine for now) with the token already appended to the URL as a query parameter whenever a new token needs to be generated. Keep token in cookie or local-storage, so it syncs across multiple browser tabs properly.
 
 ## Everything else
-### Agent dispatching and multi-agent personalities
+### Agent dispatching
 - see `plans/agent-dispatching.md` for the detailed plan. The high level summary is to create a clean architecture for agent handoff and multi-agent sessions, then use that architecture to give the assistant the power to do things in the background (within the bounds the user wishes to allow).
 
 ### MCP
