@@ -14,10 +14,11 @@
 - This thing is supposed to be voice-first, and voice support is more of a rough idea than even a draft. Just on principle, this should be a high priority for that reason alone.
 - It turns out, Node's audio pipeline is like the Easter Bunny: Small, cute, fuzzy, and doesn't exist.
 - Current plan is to split this into a client and server side, so the client can just be Python, which lets us handle wake word detection, STT processing, and TTS processing in a language that actually *has* first class bindings for OWW, Whisper, and Piper-tts.
-- Maybe consider finding a way to bundle the python client into the node module somehow, so it can be started and stopped automatically at the same time.
-- Open question: Connections. Just REST, or should we do something more custom over a socket or pipe?
-- Open question: Security. We should probably generate a random token the voice client needs to present to the service. Just set an environment variable before the voice plugin fires off the client? It's simple, at least.
-- Optional but highly desirable: Actually secure the web-ui connection as well, ideally with the same token-based system. This one is *slightly* more annoying, simply because there needs to be a way to get the token to the user, so they can enter it into the web UI login screen. Option 1: print token to console with instructions. Option 2: have the assistant core launch the user's preferred browser (just `xdg-open` is fine for now) with the token already appended to the URL as a query parameter whenever a new token needs to be generated. Keep token in cookie or local-storage, so it syncs across multiple browser tabs properly.
+- Maybe consider finding a way to bundle the python client into the node module somehow, so it can be started and stopped automatically at the same time. IDK, this isn't a blocker.
+- Let's just make it RESTful for now.
+- Open question: New API endpoints for voice, or generalize the existing ones?
+- We should securely generate a random token the voice client needs to present to the service, then set it as an environment variable before the voice plugin fires off the client.
+- Follow up on this later: Actually secure the web-ui connection as well, ideally with the same token-based system. This one is *slightly* more annoying, simply because there needs to be a way to get the token to the user, so they can enter it into the web UI login screen. Option 1: print token to console with instructions. Option 2: have the assistant core launch the user's preferred browser (just `xdg-open` is fine for now) with the token already appended to the URL as a query parameter whenever a new token needs to be generated. Keep token in cookie or local-storage, so it syncs across multiple browser tabs properly.
 
 ## Everything else
 ### Agent dispatching
