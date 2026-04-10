@@ -1,12 +1,13 @@
 import Type from 'typebox';
 import { AlicePlugin } from '../../lib.js';
+import { cookieJar } from './cookie-jar.js';
 
 const MINUTES = 60 * 1000;
 const MAX_CHUNK_SIZE = 160000;
 
 const SimpleFetchToolParametersSchema = Type.Object({
   url: Type.String({ description: 'The URL to fetch data from.' }),
-  accept: Type.Optional(Type.String({ description: 'The contents you wish to pass into the Accept header of the request. Defaults to */*.', default: '*/*' })),
+  headers: Type.Optional(Type.Record(Type.String(), Type.String(), { description: 'Additional headers to include in the POST request.' })),
   startReadingFrom: Type.Optional(Type.Number({ minimum: 0,description: 'The character index to start reading from for the fetched content. This is useful for fetching large web pages in chunks to avoid overflowing the context window. Set this parameter OR startReadingFromKeyword, but not both.' })),
   startReadingFromKeyword: Type.Optional(Type.Object({
     keyword: Type.String({ description: 'A unique keyword to search for in the fetched content to determine the character index to start reading from. This is useful for fetching large web pages in chunks when you cannot determine the appropriate startReadingFrom index ahead of time but can identify a keyword in the content to start from.' }),
@@ -20,8 +21,8 @@ type SimpleFetchToolParameters = Type.Static<typeof SimpleFetchToolParametersSch
 const SimplePostToolParametersSchema = Type.Object({
   url: Type.String({ description: 'The URL to send the POST request to.' }),
   body: Type.String({ description: 'The body of the POST request.' }),
-  contentType: Type.Optional(Type.String({ description: 'The content type of the POST request body. Defaults to application/json.', default: 'application/json' })),
-  accept: Type.Optional(Type.String({ description: 'The contents you wish to pass into the Accept header of the POST request. Defaults to application/json.', default: 'application/json' })),
+  contentType: Type.Optional(Type.String({ description: 'The content type of the POST request body. This defaults to application/json if not specified.' })),
+  headers: Type.Optional(Type.Record(Type.String(), Type.String(), { description: 'Additional headers to include in the POST request beyond Content-Type.' })),
   paginationKey: Type.Optional(Type.String({ description: 'A unique key to identify this POST request for pagination purposes. This is used in conjunction with the startReadingFrom and limit parameters to page through large responses without sending the same POST request multiple times.' })),
   startReadingFrom: Type.Optional(Type.Number({ minimum: 0,description: 'The character index to start reading from for the fetched content. This is useful for fetching large responses in chunks to avoid overflowing the context window. Set this parameter OR startReadingFromKeyword, but not both.' })),
   startReadingFromKeyword: Type.Optional(Type.Object({
@@ -33,8 +34,58 @@ const SimplePostToolParametersSchema = Type.Object({
 
 type SimplePostToolParameters = Type.Static<typeof SimplePostToolParametersSchema>;
 
-const fetchCache = new Map<string, { url: string; data: string, timestamp: Date }>();
-const postResponseCache = new Map<string, { url: string; body: string; data: string, accept: string, contentType: string, timestamp: Date }>();
+const fetchCache = new Map<string, { url: string; data: string, headers?: Record<string, string>, timestamp: Date }>();
+const postResponseCache = new Map<string, { url: string; body: string; data: string, headers?: Record<string, string>, contentType: string, timestamp: Date }>();
+
+function getIndex(args: { startReadingFrom?: number; startReadingFromKeyword?: { keyword: string; occurrence?: number } }, data: string): number {
+  if (args.startReadingFrom !== undefined) {
+    return args.startReadingFrom;
+  }
+  if (args.startReadingFromKeyword) {
+    const { keyword, occurrence = 1 } = args.startReadingFromKeyword;
+    let foundIndex = -1;
+    let index = -1;
+    let count = 0;
+    while (count < occurrence) {
+      index = data.indexOf(keyword, index + 1);
+      if (index === -1) break;
+      foundIndex = index;
+      count++;
+    }
+    return foundIndex;
+  }
+  return 0;
+}
+
+const MAX_REDIRECTS = 100;
+
+async function recursiveFetchWithAllCookiesCaptured(url: string, options: RequestInit, redirectCount = 0): Promise<Response> {
+  if (redirectCount > MAX_REDIRECTS) {
+    throw new Error(`Too many redirects (exceeded limit of ${MAX_REDIRECTS})`);
+  }
+
+  const response = await fetch(url, {
+    ...options,
+    redirect: 'manual',
+  });
+
+  const cookies = response.headers.getSetCookie();
+  console.log({ cookies });
+
+  if (cookies && cookies.length > 0) {
+    cookieJar.setCookies(new URL(url).hostname, cookies);
+  }
+
+  if (response.status >= 301 && response.status <= 308) {
+    const location = response.headers.get('Location');
+    if (location) {
+      const redirectUrl = new URL(location, url).href;
+      return recursiveFetchWithAllCookiesCaptured(redirectUrl, options, redirectCount + 1);
+    }
+  }
+
+  return response;
+}
 
 const webSimpleFetchPlugin: AlicePlugin = {
   pluginMetadata: {
@@ -67,10 +118,8 @@ const webSimpleFetchPlugin: AlicePlugin = {
       toolResultPromptIntro: '',
       toolResultPromptOutro: '',
       execute: async function (args: SimpleFetchToolParameters): Promise<string> {
-        // This has one small problem. It overflows the context window if you pull a typical web page.
-        // So this needs some kind of "cursor" functionality.
-        const { url, accept } = args as SimpleFetchToolParameters;
-        const cacheKey = `${url}::${accept ?? '*/*'}`;
+        const { url, headers } = args as SimpleFetchToolParameters;
+        const cacheKey = `${url}::${headers?.['Accept'] ?? '*/*'}`;
 
         const data = await (async () => {
           const cached = fetchCache.get(cacheKey);
@@ -78,16 +127,20 @@ const webSimpleFetchPlugin: AlicePlugin = {
             return cached.data;
           }
           
-          const response = await fetch(url, {
+          const response = await recursiveFetchWithAllCookiesCaptured(url, {
             headers: {
-              'Accept': accept ?? '*/*'
+              'Cookie': cookieJar.getCookieHeaderForSite(url),
+              'Accept': headers?.['Accept'] ?? '*/*',
+              ...headers,
             }
           });
+
+
           if (!response.ok) {
             throw new Error(`HTTP error! Status: ${response.status}`);
           }
           const data = await response.text();
-          fetchCache.set(cacheKey, { url, data, timestamp: new Date() });
+          fetchCache.set(cacheKey, { url, data, headers, timestamp: new Date() });
           return data;
         })();
         
@@ -98,23 +151,7 @@ const webSimpleFetchPlugin: AlicePlugin = {
             'of data at a time. Please specify a smaller limit.';
         }
         
-        const start = (() => {
-          if (args.startReadingFrom !== undefined) {
-            return args.startReadingFrom;
-          }
-          if (args.startReadingFromKeyword) {
-            const { keyword, occurrence = 1 } = args.startReadingFromKeyword;
-            let index = -1;
-            let count = 0;
-            while (count < occurrence) {
-              index = data.indexOf(keyword, index + 1);
-              if (index === -1) break;
-              count++;
-            }
-            return index !== -1 ? index : 0;
-          }
-          return 0;
-        })();
+        const start = getIndex(args, data);
         const end = start + limit;
         return data.slice(start, end);
       }
@@ -135,7 +172,7 @@ const webSimpleFetchPlugin: AlicePlugin = {
       toolResultPromptIntro: '',
       toolResultPromptOutro: '',
       execute: async function (args: SimplePostToolParameters): Promise<string> {
-        const { url, body, paginationKey, contentType, accept } = args as SimplePostToolParameters;
+        const { url, body, paginationKey, contentType, headers } = args as SimplePostToolParameters;
 
         const data = await (async () => {
           const cached = paginationKey ? postResponseCache.get(paginationKey) : undefined;
@@ -143,21 +180,25 @@ const webSimpleFetchPlugin: AlicePlugin = {
             return cached.data;
           }
           
-          const response = await fetch(url, {
+          const response = await recursiveFetchWithAllCookiesCaptured(url, {
             method: 'POST',
             headers: { 
+              'Cookie': cookieJar.getCookieHeaderForSite(url),
               'Content-Type': contentType ?? 'application/json',
-              'Accept': accept ?? '*/*'
+              'Accept': headers?.['Accept'] ?? '*/*',
+              ...headers 
             },
-            body: JSON.stringify(body),
+            body: body,
           });
           if (!response.ok) {
             throw new Error(`HTTP error! Status: ${response.status}`);
           }
           const data = await response.text();
+
           if (paginationKey) {
-            postResponseCache.set(paginationKey, { url, body, data, timestamp: new Date(), accept, contentType });
+            postResponseCache.set(paginationKey, { url, body, data, timestamp: new Date(), headers, contentType });
           }
+
           return data;
         })();
         
@@ -168,23 +209,12 @@ const webSimpleFetchPlugin: AlicePlugin = {
             'of data at a time. Please specify a smaller limit.';
         }
 
-        const start = (() => {
-          if (args.startReadingFrom !== undefined) {
-            return args.startReadingFrom;
-          }
-          if (args.startReadingFromKeyword) {
-            const { keyword, occurrence = 1 } = args.startReadingFromKeyword;
-            let index = -1;
-            let count = 0;
-            while (count < occurrence) {
-              index = data.indexOf(keyword, index + 1);
-              if (index === -1) break;
-              count++;
-            }
-            return index !== -1 ? index : 0;
-          }
-          return 0;
-        })();
+        const start = getIndex(args, data);
+
+        if (start === -1) {
+          return `Sorry, I could not find the of the keyword "${args.startReadingFromKeyword?.keyword}" in the response data, or it occurs fewer than ${args.startReadingFromKeyword?.occurrence} time(s). Please check the keyword and try again.`;
+        }
+
         const end = start + limit;
         return data.slice(start, end);
       }
