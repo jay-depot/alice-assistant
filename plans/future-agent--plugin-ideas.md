@@ -6,6 +6,16 @@ This file is a parking lot for future agent plugin concepts that could be develo
 ### Summary
 A plugin that offers several separate agents for managing email, including an independent `inbox-tagging` agent (with restricted access *only* allowing reading, tagging, and tag creation in the user's email account), and several task assistants that can be invoked for different inbox-maintenance tasks, like an interactive `inbox-cleaner` who can read and delete/archive your emails, but only while in conversation with you, and it can't send any emails or create new tags, and `email-assistant` who can read, tag, and compose draft replies, but not send them without explicit user review, nor delete anything and gives the user a conversational interface with their email.
 
+Also, I want the `inbox-cleaner` agent's default personality to be *irritatingly* chipper. I'm not sorry.
+
+On a slightly more serious note though, task assistants with personalities should probably provide at least a few options to choose from. For example, `inbox-cleaner` could have: `irritatingly chipper and upbeat`, `an anthropomorphic trash bag`, `stage magician`, and `borscht belt comedian` personalities to choose from, and the user could switch between them whenever they like. 
+
+While we're on the subject, let's make `email-assistant`'s default personality be `gossip blogger` because why not. The other options should be: `stuffy english butler`, `art critic`, `drill sergeant` and `pirate radio DJ`.
+
+I guess we can let people write their own, too.
+
+This would be a good example of a plugin managing its own agents' personalities internally.
+
 ### Why it is interesting
 - Email is kind of a core "digital assistant" thing. People kind of expect it, so it might as well be a good example to have in the system eventually.
 - It neatly illustrates the safety philosophy of this project by using separate agents with different permission levels for different email tasks, rather than giving one agent broad access to do everything.
@@ -22,6 +32,7 @@ I do too. I won't judge.
 - This is a fun and whimsical example of an agent that could be built on top of the existing moltbook plugin's API
 - It doesn't just pipe raw curl commands into bash like openclaw does (I'm never letting that go)
 - It's fun? For certain definitions of fun, at least.
+- On a more serious note, it's one of the few agents that actually *wants* the assistant personality loaded into it, unlike most of the others who are better off with simpler, more task-focused prompts. So it could be a good test case for the flexibility of the personality system after the migration.
 
 
 ## Deep-Dive Agent
@@ -46,5 +57,5 @@ A plugin that provides a scheduled-session agent with read-only access to system
 
 ## KDE Connect
 ### Summary
-A plugin that integrates with KDE Connect to allow the assistant to interact with the user's mobile device. Apropos to this plan file though, it has potential for several interesting limited-scope agents that could be given access to the user's phone for specific tasks, like a "notification reader" scheduled-session agent that can read incoming notifications aloud and provide summaries, or a "file transfer" independent agent that can move files back and forth between the phone and the computer without giving the assistant full access to the phone's contents.
+A plugin that integrates with KDE Connect to allow the assistant to interact with the user's mobile device. Apropos to this plan file though, it has potential for several interesting limited-scope agents that could be given access to the user's phone for specific tasks, like a "notification reader" scheduled-session agent that can read incoming notifications aloud and provide summaries (or decide they're too low priority), or a "file transfer" task assistant that can move files back and forth between the phone and the computer without giving the assistant full access to the phone's contents.
 
