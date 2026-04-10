@@ -26,6 +26,9 @@ export const SystemConfigBasic = Type.Object({
     model: Type.String(),
     speaker: Type.Number(),
   }),
+  openWakeWord: Type.Object({
+    model: Type.String(),
+  }),
 });
 
 export type SystemConfigBasic = Static<typeof SystemConfigBasic>;

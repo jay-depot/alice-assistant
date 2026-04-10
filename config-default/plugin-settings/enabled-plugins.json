@@ -5,6 +5,7 @@
     "personality": true,
     "memory": true,
     "web-ui": true,
+    "voice": true,
     "scratch-files": true,
     "location-broker": true,
     "notifications-broker": true,

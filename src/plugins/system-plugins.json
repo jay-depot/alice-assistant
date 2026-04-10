@@ -84,6 +84,12 @@
     "required": true
   },
   {
+    "id": "voice",
+    "name": "Voice",
+    "category": "system",
+    "required": true
+  },
+  {
     "id": "skills",
     "name": "Skills",
     "category": "system",

@@ -37,6 +37,7 @@ const defaultEnabledPlugins: EnabledPluginsConfig = {
     "notifications-chat-initiate": false,
     "reminders-broker": true,
     "web-ui": true,
+    "voice": true,
     "web-search-broker": true,
     "weather-broker": true,
     "daily-goals": true,
