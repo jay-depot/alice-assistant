@@ -9,7 +9,7 @@ import {
   startManagedVoiceClient,
   stopManagedVoiceClient,
 } from './managed-client.js';
-import { registerVoiceRoutes } from './routes.js';
+import { closeActiveVoiceSession, registerVoiceRoutes } from './routes.js';
 
 const currentDir = import.meta.dirname;
 
@@ -37,6 +37,8 @@ const voicePlugin: AlicePlugin = {
     const runtimeState = {
       accessToken: null as string | null,
       managedClientState: createManagedVoiceClientState(),
+      activeVoiceSession: null,
+      sessionIdleTimeoutMs: (config.getPluginConfig().sessionIdleTimeoutMinutes ?? 10) * 60_000,
     };
 
     registerVoiceRoutes(webUi.express, runtimeState);
@@ -65,11 +67,13 @@ const voicePlugin: AlicePlugin = {
     });
 
     plugin.hooks.onAssistantWillStopAcceptingRequests(async () => {
+      await closeActiveVoiceSession(runtimeState);
       await stopManagedVoiceClient(runtimeState.managedClientState);
       runtimeState.accessToken = null;
     });
 
     plugin.hooks.onPluginsWillUnload(async () => {
+      await closeActiveVoiceSession(runtimeState);
       await stopManagedVoiceClient(runtimeState.managedClientState);
       runtimeState.accessToken = null;
     });

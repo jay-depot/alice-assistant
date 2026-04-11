@@ -1,11 +1,19 @@
 import type { Express, Request, Response, NextFunction } from 'express';
-import { startConversation } from '../../../lib.js';
+import { type Conversation, startConversation } from '../../../lib.js';
+import { PluginHookInvocations } from '../../../lib/plugin-hooks.js';
 import { extractVoiceAccessToken, isVoiceAccessTokenValid } from './auth.js';
 import { isManagedVoiceClientRunning, type ManagedVoiceClientState } from './managed-client.js';
 
-type VoicePluginRuntimeState = {
+type ActiveVoiceSession = {
+  conversation: Conversation;
+  lastActivityAt: number;
+};
+
+export type VoicePluginRuntimeState = {
   accessToken: string | null;
   managedClientState: ManagedVoiceClientState;
+  activeVoiceSession: ActiveVoiceSession | null;
+  sessionIdleTimeoutMs: number;
 };
 
 type VoiceTurnRequestBody = {
@@ -24,6 +32,47 @@ function requireVoiceAccessToken(runtimeState: VoicePluginRuntimeState) {
   };
 }
 
+function hasActiveVoiceSessionExpired(runtimeState: VoicePluginRuntimeState): boolean {
+  if (!runtimeState.activeVoiceSession) {
+    return false;
+  }
+
+  return Date.now() - runtimeState.activeVoiceSession.lastActivityAt > runtimeState.sessionIdleTimeoutMs;
+}
+
+export async function closeActiveVoiceSession(runtimeState: VoicePluginRuntimeState): Promise<void> {
+  if (!runtimeState.activeVoiceSession) {
+    return;
+  }
+
+  const { conversation } = runtimeState.activeVoiceSession;
+  runtimeState.activeVoiceSession = null;
+
+  await PluginHookInvocations.invokeOnUserConversationWillEnd(conversation, 'voice');
+  await conversation.closeConversation();
+}
+
+async function getOrCreateActiveVoiceConversation(runtimeState: VoicePluginRuntimeState): Promise<Conversation> {
+  if (hasActiveVoiceSessionExpired(runtimeState)) {
+    await closeActiveVoiceSession(runtimeState);
+  }
+
+  if (runtimeState.activeVoiceSession) {
+    runtimeState.activeVoiceSession.lastActivityAt = Date.now();
+    return runtimeState.activeVoiceSession.conversation;
+  }
+
+  const conversation = startConversation('voice');
+  await PluginHookInvocations.invokeOnUserConversationWillBegin(conversation, 'voice');
+
+  runtimeState.activeVoiceSession = {
+    conversation,
+    lastActivityAt: Date.now(),
+  };
+
+  return conversation;
+}
+
 export function registerVoiceRoutes(app: Express, runtimeState: VoicePluginRuntimeState): void {
   const requireToken = requireVoiceAccessToken(runtimeState);
 
@@ -32,6 +81,8 @@ export function registerVoiceRoutes(app: Express, runtimeState: VoicePluginRunti
       ok: true,
       hasAccessToken: !!runtimeState.accessToken,
       managedClientRunning: isManagedVoiceClientRunning(runtimeState.managedClientState),
+      hasActiveVoiceSession: !!runtimeState.activeVoiceSession,
+      sessionIdleTimeoutMs: runtimeState.sessionIdleTimeoutMs,
     });
   });
 
@@ -45,8 +96,11 @@ export function registerVoiceRoutes(app: Express, runtimeState: VoicePluginRunti
     }
 
     try {
-      const conversation = startConversation('voice');
+      const conversation = await getOrCreateActiveVoiceConversation(runtimeState);
       const reply = await conversation.sendUserMessage(message);
+      if (runtimeState.activeVoiceSession) {
+        runtimeState.activeVoiceSession.lastActivityAt = Date.now();
+      }
 
       res.json({
         reply,

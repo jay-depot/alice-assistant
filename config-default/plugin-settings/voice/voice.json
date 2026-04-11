@@ -1,5 +1,8 @@
 {
   "launchManagedClient": false,
+  "sessionIdleTimeoutMinutes": 10,
+  "wakeWordDetectedSoundPath": "",
+  "audioCaptureClosedSoundPath": "",
   "managedClientCommand": "",
   "managedClientArgs": [],
   "logManagedClientOutput": true

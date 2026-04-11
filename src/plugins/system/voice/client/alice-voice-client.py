@@ -11,6 +11,8 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
+import warnings
+import wave
 from pathlib import Path
 
 
@@ -33,6 +35,25 @@ def load_system_config() -> dict:
     return json.loads(config_path.read_text(encoding='utf-8'))
 
 
+def load_voice_plugin_config() -> dict:
+    config_path = Path.home() / '.alice-assistant' / 'plugin-settings' / 'voice' / 'voice.json'
+    if not config_path.exists():
+        return {}
+
+    try:
+        return json.loads(config_path.read_text(encoding='utf-8'))
+    except Exception:
+        return {}
+
+
+def configure_runtime_warnings() -> None:
+    warnings.filterwarnings(
+        'ignore',
+        message=r"Specified provider 'CUDAExecutionProvider' is not in available provider names.*",
+        category=UserWarning,
+    )
+
+
 def get_record_seconds() -> int:
     try:
         return max(1, int(os.environ.get('ALICE_VOICE_RECORD_SECONDS', '7')))
@@ -52,6 +73,19 @@ def get_post_reply_cooldown_seconds() -> float:
         return max(0.0, float(os.environ.get('ALICE_VOICE_POST_REPLY_COOLDOWN_SECONDS', '1.5')))
     except ValueError:
         return 1.5
+
+
+def get_optional_sound_path(voice_plugin_config: dict, key: str) -> Path | None:
+    configured_path = str(voice_plugin_config.get(key, '')).strip()
+    if not configured_path:
+        return None
+
+    sound_path = Path(configured_path).expanduser()
+    if not sound_path.exists():
+        print(f'voice client: configured sound file does not exist for {key}: {sound_path}')
+        return None
+
+    return sound_path
 
 
 def record_audio_clip(seconds: int = 7) -> str:
@@ -123,6 +157,121 @@ def transcribe_audio_file(audio_path: str) -> str:
         shutil.rmtree(output_dir, ignore_errors=True)
 
 
+def resolve_piper_model_path(system_config: dict) -> Path:
+    piper_config = system_config.get('piperTts', {})
+    configured_model = str(piper_config.get('model', '')).strip()
+    if not configured_model:
+        raise RuntimeError('piperTts.model is not configured.')
+
+    model_path = Path(configured_model).expanduser()
+    if not model_path.exists():
+        raise RuntimeError(
+            f'Configured Piper model file does not exist: {model_path}. '
+            'Update piperTts.model to point to a real .onnx voice file installed on this machine.'
+        )
+
+    return model_path
+
+
+def resolve_piper_config_path(model_path: Path) -> Path | None:
+    candidates = [
+        Path(f'{model_path}.json'),
+        model_path.with_suffix('.json'),
+    ]
+
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+
+    return None
+
+
+def synthesize_speech_with_piper_module(text: str, system_config: dict, destination_path: str) -> None:
+    piper_module = importlib.import_module('piper')
+    PiperVoice = getattr(piper_module, 'PiperVoice')
+    SynthesisConfig = getattr(piper_module, 'SynthesisConfig')
+
+    piper_config = system_config.get('piperTts', {})
+    model_path = resolve_piper_model_path(system_config)
+    config_path = resolve_piper_config_path(model_path)
+
+    voice = PiperVoice.load(model_path, config_path=config_path, use_cuda=False)
+    synthesis_config = SynthesisConfig(speaker_id=piper_config.get('speaker'))
+
+    with wave.open(destination_path, 'wb') as wav_file:
+        wav_params_set = False
+        for audio_chunk in voice.synthesize(text, synthesis_config):
+            if not wav_params_set:
+                wav_file.setframerate(audio_chunk.sample_rate)
+                wav_file.setsampwidth(audio_chunk.sample_width)
+                wav_file.setnchannels(audio_chunk.sample_channels)
+                wav_params_set = True
+
+            wav_file.writeframes(audio_chunk.audio_int16_bytes)
+
+
+def synthesize_speech_with_system_piper(text: str, system_config: dict, destination_path: str) -> None:
+    helper_python = os.environ.get('ALICE_PIPER_PYTHON', '/usr/bin/python3').strip() or '/usr/bin/python3'
+    piper_config = system_config.get('piperTts', {})
+    model_path = resolve_piper_model_path(system_config)
+    config_path = resolve_piper_config_path(model_path)
+
+    helper_script = """
+import sys
+import wave
+from piper import PiperVoice, SynthesisConfig
+
+text = sys.argv[1]
+model_path = sys.argv[2]
+config_path = sys.argv[3]
+speaker_id = int(sys.argv[4])
+destination_path = sys.argv[5]
+
+voice = PiperVoice.load(model_path, config_path=config_path or None, use_cuda=False)
+synthesis_config = SynthesisConfig(speaker_id=speaker_id)
+
+with wave.open(destination_path, 'wb') as wav_file:
+    wav_params_set = False
+    for audio_chunk in voice.synthesize(text, synthesis_config):
+        if not wav_params_set:
+            wav_file.setframerate(audio_chunk.sample_rate)
+            wav_file.setsampwidth(audio_chunk.sample_width)
+            wav_file.setnchannels(audio_chunk.sample_channels)
+            wav_params_set = True
+
+        wav_file.writeframes(audio_chunk.audio_int16_bytes)
+""".strip()
+
+    subprocess.run([
+        helper_python,
+        '-c',
+        helper_script,
+        text,
+        str(model_path),
+        str(config_path or ''),
+        str(int(piper_config.get('speaker', 0))),
+        destination_path,
+    ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def synthesize_speech_locally(text: str, system_config: dict, destination_path: str) -> None:
+    last_error: Exception | None = None
+
+    try:
+        synthesize_speech_with_piper_module(text, system_config, destination_path)
+        return
+    except Exception as error:
+        last_error = error
+
+    try:
+        synthesize_speech_with_system_piper(text, system_config, destination_path)
+        return
+    except Exception as error:
+        last_error = error
+
+    raise RuntimeError(f'Unable to synthesize speech locally with Piper: {last_error}')
+
+
 def synthesize_speech_to_temp_file(text: str, system_config: dict) -> str:
     piper_config = system_config.get('piperTts', {})
     base_url = str(piper_config.get('host', '')).rstrip('/')
@@ -163,7 +312,8 @@ def synthesize_speech_to_temp_file(text: str, system_config: dict) -> str:
         except Exception as error:
             last_error = error
 
-    raise RuntimeError(f'Unable to synthesize speech with piper server at {base_url}: {last_error}')
+    synthesize_speech_locally(text, system_config, str(destination_path))
+    return str(destination_path)
 
 
 def play_audio_file(audio_path: str) -> None:
@@ -177,6 +327,25 @@ def play_audio_file(audio_path: str) -> None:
         run_command(['aplay', audio_path])
     else:
         run_command(['ffplay', '-nodisp', '-autoexit', '-loglevel', 'quiet', audio_path])
+
+
+def play_optional_sound(sound_path: Path | None) -> None:
+    if sound_path is None:
+        return
+
+    player = find_first_available_command(['paplay', 'aplay', 'ffplay'])
+    if player is None:
+        return
+
+    try:
+        if player == 'paplay':
+            run_command(['paplay', str(sound_path)])
+        elif player == 'aplay':
+            run_command(['aplay', str(sound_path)])
+        else:
+            run_command(['ffplay', '-nodisp', '-autoexit', '-loglevel', 'quiet', str(sound_path)])
+    except Exception as error:
+        print(f'voice client: failed to play optional sound {sound_path}: {error}')
 
 
 def send_voice_turn(message: str) -> str:
@@ -292,8 +461,10 @@ def wait_for_wake_word(system_config: dict) -> None:
                 return
 
 
-def run_manual_loop(system_config: dict) -> None:
+def run_manual_loop(system_config: dict, voice_plugin_config: dict) -> None:
     wake_word = os.environ.get('ALICE_VOICE_WAKE_WORD', system_config.get('wakeWord', 'Hey ALICE'))
+    wake_word_detected_sound = get_optional_sound_path(voice_plugin_config, 'wakeWordDetectedSoundPath')
+    audio_capture_closed_sound = get_optional_sound_path(voice_plugin_config, 'audioCaptureClosedSoundPath')
     print(f'ALICE voice client ready. Wake word configured as: {wake_word}')
     print('Manual dev mode: press Enter to record one turn, type text to send it directly, or type q to quit.')
 
@@ -311,11 +482,13 @@ def run_manual_loop(system_config: dict) -> None:
         if user_input:
             transcript = user_input
         else:
+            play_optional_sound(wake_word_detected_sound)
             audio_path = record_audio_clip(get_record_seconds())
             try:
                 transcript = transcribe_audio_file(audio_path)
             finally:
                 Path(audio_path).unlink(missing_ok=True)
+                play_optional_sound(audio_capture_closed_sound)
 
         if not transcript:
             print('voice client: no transcript detected.')
@@ -332,18 +505,22 @@ def run_manual_loop(system_config: dict) -> None:
             Path(audio_path).unlink(missing_ok=True)
 
 
-def run_wake_word_loop(system_config: dict) -> None:
+def run_wake_word_loop(system_config: dict, voice_plugin_config: dict) -> None:
     wake_word = os.environ.get('ALICE_VOICE_WAKE_WORD', system_config.get('wakeWord', 'Hey ALICE'))
+    wake_word_detected_sound = get_optional_sound_path(voice_plugin_config, 'wakeWordDetectedSoundPath')
+    audio_capture_closed_sound = get_optional_sound_path(voice_plugin_config, 'audioCaptureClosedSoundPath')
     print(f'ALICE voice client ready. Waiting for wake word: {wake_word}')
 
     while True:
         wait_for_wake_word(system_config)
 
+        play_optional_sound(wake_word_detected_sound)
         audio_path = record_audio_clip(get_record_seconds())
         try:
             transcript = transcribe_audio_file(audio_path)
         finally:
             Path(audio_path).unlink(missing_ok=True)
+            play_optional_sound(audio_capture_closed_sound)
 
         if not transcript:
             print('voice client: no transcript detected after wake word.')
@@ -366,12 +543,14 @@ def run_wake_word_loop(system_config: dict) -> None:
 
 def main() -> int:
     try:
+        configure_runtime_warnings()
         system_config = load_system_config()
+        voice_plugin_config = load_voice_plugin_config()
         check_health()
         if os.environ.get('ALICE_VOICE_MANUAL', '').strip() == '1':
-            run_manual_loop(system_config)
+            run_manual_loop(system_config, voice_plugin_config)
         else:
-            run_wake_word_loop(system_config)
+            run_wake_word_loop(system_config, voice_plugin_config)
         return 0
     except urllib.error.HTTPError as error:
         sys.stderr.write(f'voice client HTTP error: {error.code} {error.reason}\n')
