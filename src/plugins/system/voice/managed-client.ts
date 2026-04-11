@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process';
+import fs from 'node:fs';
 import type { VoicePluginConfig } from './config.js';
 
 export type ManagedVoiceClientState = {
@@ -35,8 +36,14 @@ export function startManagedVoiceClient(options: {
     return;
   }
 
+  if (!fs.existsSync(clientScriptPath)) {
+    throw new Error(`voice plugin could not find bundled client script at ${clientScriptPath}. Rebuild the project and try again.`);
+  }
+
   const command = config.managedClientCommand.trim() || 'python3';
-  const args = [clientScriptPath, ...config.managedClientArgs];
+  const args = config.managedClientCommand.trim()
+    ? [clientScriptPath, ...config.managedClientArgs]
+    : ['-u', clientScriptPath, ...config.managedClientArgs];
 
   const child = spawn(command, args, {
     stdio: ['inherit', 'pipe', 'pipe'],

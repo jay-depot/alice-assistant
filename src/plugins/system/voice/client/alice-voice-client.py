@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 
 import json
+import importlib
 import os
 import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -25,9 +27,30 @@ def run_command(command: list[str]) -> None:
 def load_system_config() -> dict:
     config_path = Path.home() / '.alice-assistant' / 'alice.json'
     if not config_path.exists():
-      raise RuntimeError(f'ALICE config file not found at {config_path}')
+        raise RuntimeError(f'ALICE config file not found at {config_path}')
 
     return json.loads(config_path.read_text(encoding='utf-8'))
+
+
+def get_record_seconds() -> int:
+    try:
+        return max(1, int(os.environ.get('ALICE_VOICE_RECORD_SECONDS', '7')))
+    except ValueError:
+        return 7
+
+
+def get_wake_threshold() -> float:
+    try:
+        return float(os.environ.get('ALICE_VOICE_WAKE_THRESHOLD', '0.5'))
+    except ValueError:
+        return 0.5
+
+
+def get_post_reply_cooldown_seconds() -> float:
+    try:
+        return max(0.0, float(os.environ.get('ALICE_VOICE_POST_REPLY_COOLDOWN_SECONDS', '1.5')))
+    except ValueError:
+        return 1.5
 
 
 def record_audio_clip(seconds: int = 7) -> str:
@@ -196,6 +219,57 @@ def check_health() -> None:
         raise RuntimeError('Voice API health check did not return ok=true.')
 
 
+def import_wake_word_runtime():
+    try:
+        np = importlib.import_module('numpy')
+        sd = importlib.import_module('sounddevice')
+        model_module = importlib.import_module('openwakeword.model')
+        Model = getattr(model_module, 'Model')
+    except ImportError as error:
+        raise RuntimeError(
+            'Wake-word voice mode requires Python packages openwakeword, numpy, and sounddevice. '
+            'Set ALICE_VOICE_MANUAL=1 to use manual dev mode instead.'
+        ) from error
+
+    return np, sd, Model
+
+
+def get_open_wake_word_model_path(system_config: dict) -> str:
+    configured_model = str(system_config.get('openWakeWord', {}).get('model', '')).strip()
+    if not configured_model:
+        raise RuntimeError(
+            'Wake-word voice mode requires alice.json openWakeWord.model to point to a trained OpenWakeWord model file. '
+            'Set ALICE_VOICE_MANUAL=1 to use manual dev mode instead.'
+        )
+
+    return configured_model
+
+
+def wait_for_wake_word(system_config: dict) -> None:
+    np, sd, Model = import_wake_word_runtime()
+    model_path = get_open_wake_word_model_path(system_config)
+    threshold = get_wake_threshold()
+    chunk_size = 1280
+
+    print(f'voice client: listening for wake word using model {model_path}')
+
+    wake_model = Model(wakeword_models=[model_path])
+
+    with sd.RawInputStream(samplerate=16000, channels=1, dtype='int16', blocksize=chunk_size) as stream:
+        while True:
+            audio_chunk, overflowed = stream.read(chunk_size)
+            if overflowed:
+                continue
+
+            prediction_input = np.frombuffer(audio_chunk, dtype=np.int16)
+            prediction = wake_model.predict(prediction_input)
+            score = max((float(value) for value in prediction.values()), default=0.0)
+
+            if score >= threshold:
+                print(f'voice client: wake word detected with score {score:.3f}')
+                return
+
+
 def run_manual_loop(system_config: dict) -> None:
     wake_word = os.environ.get('ALICE_VOICE_WAKE_WORD', system_config.get('wakeWord', 'Hey ALICE'))
     print(f'ALICE voice client ready. Wake word configured as: {wake_word}')
@@ -215,7 +289,7 @@ def run_manual_loop(system_config: dict) -> None:
         if user_input:
             transcript = user_input
         else:
-            audio_path = record_audio_clip(7)
+            audio_path = record_audio_clip(get_record_seconds())
             try:
                 transcript = transcribe_audio_file(audio_path)
             finally:
@@ -236,11 +310,46 @@ def run_manual_loop(system_config: dict) -> None:
             Path(audio_path).unlink(missing_ok=True)
 
 
+def run_wake_word_loop(system_config: dict) -> None:
+    wake_word = os.environ.get('ALICE_VOICE_WAKE_WORD', system_config.get('wakeWord', 'Hey ALICE'))
+    print(f'ALICE voice client ready. Waiting for wake word: {wake_word}')
+
+    while True:
+        wait_for_wake_word(system_config)
+
+        audio_path = record_audio_clip(get_record_seconds())
+        try:
+            transcript = transcribe_audio_file(audio_path)
+        finally:
+            Path(audio_path).unlink(missing_ok=True)
+
+        if not transcript:
+            print('voice client: no transcript detected after wake word.')
+            continue
+
+        print(f'user: {transcript}')
+        reply = send_voice_turn(transcript)
+        print(f'ALICE: {reply}')
+
+        audio_path = synthesize_speech_to_temp_file(reply, system_config)
+        try:
+            play_audio_file(audio_path)
+        finally:
+            Path(audio_path).unlink(missing_ok=True)
+
+        cooldown = get_post_reply_cooldown_seconds()
+        if cooldown > 0:
+            time.sleep(cooldown)
+
+
 def main() -> int:
     try:
         system_config = load_system_config()
         check_health()
-        run_manual_loop(system_config)
+        if os.environ.get('ALICE_VOICE_MANUAL', '').strip() == '1':
+            run_manual_loop(system_config)
+        else:
+            run_wake_word_loop(system_config)
         return 0
     except urllib.error.HTTPError as error:
         sys.stderr.write(f'voice client HTTP error: {error.code} {error.reason}\n')
