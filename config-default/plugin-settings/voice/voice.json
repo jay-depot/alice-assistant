@@ -1,8 +1,15 @@
 {
   "launchManagedClient": false,
   "sessionIdleTimeoutMinutes": 10,
+  "deferredSessionCloseDelayMs": 1500,
   "wakeWordDetectedSoundPath": "",
   "audioCaptureClosedSoundPath": "",
+  "minCaptureSeconds": 1.25,
+  "maxCaptureSeconds": 7,
+  "trailingSilenceMs": 900,
+  "speechThreshold": 0.015,
+  "backgroundNoiseSampleSeconds": 0.75,
+  "prerollMs": 250,
   "managedClientCommand": "",
   "managedClientArgs": [],
   "logManagedClientOutput": true

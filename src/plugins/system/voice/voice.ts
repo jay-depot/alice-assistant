@@ -1,6 +1,5 @@
 import { AlicePlugin } from '../../../lib.js';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { UserConfig } from '../../../lib/user-config.js';
 import { createVoiceAccessToken } from './auth.js';
 import { VoicePluginConfigSchema, defaultVoicePluginConfig } from './config.js';
@@ -9,7 +8,12 @@ import {
   startManagedVoiceClient,
   stopManagedVoiceClient,
 } from './managed-client.js';
-import { closeActiveVoiceSession, registerVoiceRoutes } from './routes.js';
+import {
+  closeActiveVoiceSession,
+  flushDeferredVoiceSessionCloses,
+  registerVoiceRoutes,
+  type VoicePluginRuntimeState,
+} from './routes.js';
 
 const currentDir = import.meta.dirname;
 
@@ -34,14 +38,47 @@ const voicePlugin: AlicePlugin = {
       throw new Error('voice plugin could not access the web-ui plugin capabilities. Disable voice or fix the web-ui plugin to continue.');
     }
 
-    const runtimeState = {
+    const runtimeState: VoicePluginRuntimeState = {
       accessToken: null as string | null,
       managedClientState: createManagedVoiceClientState(),
       activeVoiceSession: null,
       sessionIdleTimeoutMs: (config.getPluginConfig().sessionIdleTimeoutMinutes ?? 10) * 60_000,
+      deferredSessionCloseDelayMs: config.getPluginConfig().deferredSessionCloseDelayMs ?? 1500,
+      pendingVoiceSessionCloses: new Set(),
+      captureDebugConfig: {
+        minCaptureSeconds: config.getPluginConfig().minCaptureSeconds ?? 1.25,
+        maxCaptureSeconds: config.getPluginConfig().maxCaptureSeconds ?? 7,
+        trailingSilenceMs: config.getPluginConfig().trailingSilenceMs ?? 900,
+        speechThreshold: config.getPluginConfig().speechThreshold ?? 0.015,
+        prerollMs: config.getPluginConfig().prerollMs ?? 250,
+      },
+      lastCaptureDebug: null,
     };
 
     registerVoiceRoutes(webUi.express, runtimeState);
+
+    const closeVoiceRuntime = async () => {
+      console.log('voice plugin: shutting down voice runtime.');
+
+      if (runtimeState.activeVoiceSession) {
+        console.log('voice plugin: closing final active voice conversation during shutdown.');
+      }
+
+      await closeActiveVoiceSession(runtimeState);
+
+      if (runtimeState.pendingVoiceSessionCloses.size > 0) {
+        console.log(
+          `voice plugin: waiting for ${runtimeState.pendingVoiceSessionCloses.size} deferred voice conversation cleanup task(s) to finish.`,
+        );
+      }
+
+      await flushDeferredVoiceSessionCloses(runtimeState);
+
+      console.log('voice plugin: stopping managed voice client.');
+      await stopManagedVoiceClient(runtimeState.managedClientState);
+      runtimeState.accessToken = null;
+      console.log('voice plugin: voice runtime shutdown complete.');
+    };
 
     plugin.hooks.onAssistantWillAcceptRequests(async () => {
       runtimeState.accessToken = createVoiceAccessToken();
@@ -67,15 +104,11 @@ const voicePlugin: AlicePlugin = {
     });
 
     plugin.hooks.onAssistantWillStopAcceptingRequests(async () => {
-      await closeActiveVoiceSession(runtimeState);
-      await stopManagedVoiceClient(runtimeState.managedClientState);
-      runtimeState.accessToken = null;
+      await closeVoiceRuntime();
     });
 
     plugin.hooks.onPluginsWillUnload(async () => {
-      await closeActiveVoiceSession(runtimeState);
-      await stopManagedVoiceClient(runtimeState.managedClientState);
-      runtimeState.accessToken = null;
+      await closeVoiceRuntime();
     });
   },
 };

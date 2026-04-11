@@ -1,5 +1,6 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import fs from 'node:fs';
+import path from 'node:path';
 import type { VoicePluginConfig } from './config.js';
 
 export type ManagedVoiceClientState = {
@@ -41,14 +42,19 @@ export function startManagedVoiceClient(options: {
   }
 
   const command = config.managedClientCommand.trim() || 'python3';
-  const args = config.managedClientCommand.trim()
-    ? [clientScriptPath, ...config.managedClientArgs]
-    : ['-u', clientScriptPath, ...config.managedClientArgs];
+  const commandBasename = path.basename(command).toLowerCase();
+  const looksLikePython = commandBasename.includes('python') || commandBasename.includes('pypy');
+  const args = looksLikePython
+    ? ['-u', clientScriptPath, ...config.managedClientArgs]
+    : config.managedClientCommand.trim()
+      ? [clientScriptPath, ...config.managedClientArgs]
+      : ['-u', clientScriptPath, ...config.managedClientArgs];
 
   const child = spawn(command, args, {
     stdio: ['inherit', 'pipe', 'pipe'],
     env: {
       ...process.env,
+      PYTHONUNBUFFERED: '1',
       ALICE_VOICE_BASE_URL: baseUrl,
       ALICE_VOICE_TOKEN: token,
       ALICE_VOICE_WAKE_WORD: wakeWord,

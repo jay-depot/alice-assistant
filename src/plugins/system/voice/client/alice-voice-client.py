@@ -4,6 +4,7 @@ import json
 import importlib
 import inspect
 import os
+import signal
 import shutil
 import subprocess
 import sys
@@ -13,7 +14,26 @@ import urllib.error
 import urllib.request
 import warnings
 import wave
+from math import ceil
 from pathlib import Path
+
+
+shutdown_requested = False
+
+
+def handle_shutdown_signal(signum, _frame) -> None:
+    global shutdown_requested
+    if shutdown_requested:
+        raise SystemExit(0)
+
+    shutdown_requested = True
+    signal_name = signal.Signals(signum).name if signum in signal.Signals._value2member_map_ else str(signum)
+    print(f'voice client: received {signal_name}, exiting.')
+    raise KeyboardInterrupt()
+
+
+signal.signal(signal.SIGINT, handle_shutdown_signal)
+signal.signal(signal.SIGTERM, handle_shutdown_signal)
 
 
 def find_first_available_command(commands: list[str]) -> str | None:
@@ -21,6 +41,19 @@ def find_first_available_command(commands: list[str]) -> str | None:
         if shutil.which(command):
             return command
     return None
+
+
+def build_audio_playback_command(audio_path: str) -> list[str]:
+    player = find_first_available_command(['paplay', 'aplay', 'ffplay'])
+    if player is None:
+        raise RuntimeError('No audio playback command found. Install paplay, aplay, or ffplay.')
+
+    if player == 'paplay':
+        return ['paplay', audio_path]
+    if player == 'aplay':
+        return ['aplay', audio_path]
+
+    return ['ffplay', '-nodisp', '-autoexit', '-loglevel', 'quiet', audio_path]
 
 
 def run_command(command: list[str]) -> None:
@@ -54,11 +87,64 @@ def configure_runtime_warnings() -> None:
     )
 
 
-def get_record_seconds() -> int:
-    try:
-        return max(1, int(os.environ.get('ALICE_VOICE_RECORD_SECONDS', '7')))
-    except ValueError:
-        return 7
+def get_config_number(
+    voice_plugin_config: dict,
+    config_key: str,
+    env_keys: list[str],
+    default_value: float,
+    minimum: float,
+) -> float:
+    for env_key in env_keys:
+        raw_value = os.environ.get(env_key, '').strip()
+        if not raw_value:
+            continue
+
+        try:
+            return max(minimum, float(raw_value))
+        except ValueError:
+            continue
+
+    configured_value = voice_plugin_config.get(config_key)
+    if isinstance(configured_value, (int, float)):
+        return max(minimum, float(configured_value))
+
+    return max(minimum, default_value)
+
+
+def get_min_capture_seconds(voice_plugin_config: dict) -> float:
+    return get_config_number(voice_plugin_config, 'minCaptureSeconds', ['ALICE_VOICE_MIN_CAPTURE_SECONDS'], 1.25, 0.1)
+
+
+def get_max_capture_seconds(voice_plugin_config: dict) -> float:
+    return get_config_number(
+        voice_plugin_config,
+        'maxCaptureSeconds',
+        ['ALICE_VOICE_MAX_CAPTURE_SECONDS', 'ALICE_VOICE_RECORD_SECONDS'],
+        7.0,
+        0.5,
+    )
+
+
+def get_trailing_silence_ms(voice_plugin_config: dict) -> float:
+    return get_config_number(voice_plugin_config, 'trailingSilenceMs', ['ALICE_VOICE_TRAILING_SILENCE_MS'], 900.0, 100.0)
+
+
+def get_speech_threshold(voice_plugin_config: dict) -> float:
+    return get_config_number(voice_plugin_config, 'speechThreshold', ['ALICE_VOICE_SPEECH_THRESHOLD'], 0.015, 0.0001)
+
+
+def get_preroll_ms(voice_plugin_config: dict) -> float:
+    return get_config_number(voice_plugin_config, 'prerollMs', ['ALICE_VOICE_PREROLL_MS'], 250.0, 0.0)
+
+
+def get_background_noise_sample_seconds(voice_plugin_config: dict) -> float:
+    return get_config_number(
+        voice_plugin_config,
+        'backgroundNoiseSampleSeconds',
+        ['ALICE_VOICE_BACKGROUND_NOISE_SAMPLE_SECONDS'],
+        0.75,
+        0.1,
+    )
 
 
 def get_wake_threshold() -> float:
@@ -88,35 +174,259 @@ def get_optional_sound_path(voice_plugin_config: dict, key: str) -> Path | None:
     return sound_path
 
 
-def record_audio_clip(seconds: int = 7) -> str:
-    output_path = Path(tempfile.gettempdir()) / f'alice-voice-client-{os.getpid()}-{seconds}.wav'
-    recorder = find_first_available_command(['arecord', 'ffmpeg'])
-    if recorder is None:
-        raise RuntimeError('No recorder found. Install arecord (alsa-utils) or ffmpeg.')
+def import_audio_capture_runtime():
+    try:
+        np = importlib.import_module('numpy')
+        sd = importlib.import_module('sounddevice')
+    except ImportError as error:
+        raise RuntimeError(
+            'Voice capture requires Python packages numpy and sounddevice. '
+            'Install the bundled voice client requirements to continue.'
+        ) from error
 
-    if recorder == 'arecord':
-        run_command([
-            'arecord',
-            '-q',
-            '-f', 'S16_LE',
-            '-r', '16000',
-            '-c', '1',
-            '-d', str(seconds),
-            str(output_path),
-        ])
-    else:
-        run_command([
-            'ffmpeg',
-            '-y',
-            '-f', 'alsa',
-            '-i', 'default',
-            '-ac', '1',
-            '-ar', '16000',
-            '-t', str(seconds),
-            str(output_path),
-        ])
+    return np, sd
 
-    return str(output_path)
+
+def compute_normalized_rms(np, audio_chunk: bytes) -> float:
+    samples = np.frombuffer(audio_chunk, dtype=np.int16)
+    if samples.size == 0:
+        return 0.0
+
+    float_samples = samples.astype(np.float32)
+    rms = float(np.sqrt(np.mean(np.square(float_samples))))
+    return rms / 32768.0
+
+
+def write_wav_file(output_path: Path, audio_chunks: list[bytes], sample_rate: int) -> None:
+    with wave.open(str(output_path), 'wb') as wav_file:
+        wav_file.setnchannels(1)
+        wav_file.setsampwidth(2)
+        wav_file.setframerate(sample_rate)
+        for audio_chunk in audio_chunks:
+            wav_file.writeframes(audio_chunk)
+
+
+def build_capture_debug_payload(
+    source: str,
+    stop_reason: str,
+    speech_detected: bool,
+    min_capture_seconds: float,
+    max_capture_seconds: float,
+    trailing_silence_ms: float,
+    speech_threshold: float,
+    effective_speech_threshold: float,
+    noise_floor_rms: float,
+    preroll_ms: float,
+    captured_seconds: float | None,
+) -> dict:
+    return {
+        'source': source,
+        'stopReason': stop_reason,
+        'capturedSeconds': captured_seconds,
+        'speechDetected': speech_detected,
+        'minCaptureSeconds': min_capture_seconds,
+        'maxCaptureSeconds': max_capture_seconds,
+        'trailingSilenceMs': trailing_silence_ms,
+        'speechThreshold': speech_threshold,
+        'effectiveSpeechThreshold': effective_speech_threshold,
+        'noiseFloorRms': noise_floor_rms,
+        'prerollMs': preroll_ms,
+        'clientRecordedAt': time.strftime('%Y-%m-%dT%H:%M:%S%z'),
+    }
+
+
+def sample_background_noise(voice_plugin_config: dict) -> float:
+    np, sd = import_audio_capture_runtime()
+    sample_rate = 16000
+    chunk_size = 1600
+    sample_seconds = get_background_noise_sample_seconds(voice_plugin_config)
+    sample_chunks = max(1, ceil(sample_seconds / (chunk_size / sample_rate)))
+    sampled_rms_values: list[float] = []
+
+    print(f'voice client: sampling background noise for {sample_seconds:.2f}s before capture.')
+
+    with sd.RawInputStream(samplerate=sample_rate, channels=1, dtype='int16', blocksize=chunk_size) as stream:
+        for _ in range(sample_chunks):
+            audio_chunk, overflowed = stream.read(chunk_size)
+            if overflowed:
+                continue
+
+            sampled_rms_values.append(compute_normalized_rms(np, bytes(audio_chunk)))
+
+    if not sampled_rms_values:
+        print('voice client: background noise sampling overflowed completely; falling back to configured threshold only.')
+        return 0.0
+
+    noise_floor_rms = sum(sampled_rms_values) / len(sampled_rms_values)
+    print(f'voice client: sampled background noise floor rms={noise_floor_rms:.4f}.')
+    return noise_floor_rms
+
+
+def record_audio_clip(
+    voice_plugin_config: dict,
+    initial_noise_floor_rms: float,
+    listening_sound_path: Path | None = None,
+) -> dict:
+    np, sd = import_audio_capture_runtime()
+    sample_rate = 16000
+    chunk_size = 1600
+    chunk_duration_seconds = chunk_size / sample_rate
+    min_capture_seconds = get_min_capture_seconds(voice_plugin_config)
+    max_capture_seconds = max(get_max_capture_seconds(voice_plugin_config), min_capture_seconds)
+    trailing_silence_ms = get_trailing_silence_ms(voice_plugin_config)
+    speech_threshold = get_speech_threshold(voice_plugin_config)
+    preroll_ms = get_preroll_ms(voice_plugin_config)
+
+    max_chunks = max(1, ceil(max_capture_seconds / chunk_duration_seconds))
+    min_chunks = max(1, ceil(min_capture_seconds / chunk_duration_seconds))
+    trailing_silence_chunks = max(1, ceil((trailing_silence_ms / 1000.0) / chunk_duration_seconds))
+
+    captured_chunks: list[bytes] = []
+    speech_detected = False
+    consecutive_silent_chunks = 0
+    stop_reason = 'max-duration'
+    noise_floor_rms = initial_noise_floor_rms
+    effective_speech_threshold = max(speech_threshold, noise_floor_rms * 3.0)
+    speech_start_chunk_index: int | None = None
+
+    print(
+        'voice client: starting capture '
+        f'(min={min_capture_seconds:.2f}s, max={max_capture_seconds:.2f}s, trailing_silence_ms={int(trailing_silence_ms)}, '
+        f'configured_threshold={speech_threshold:.4f}, effective_threshold={effective_speech_threshold:.4f}, preroll_ms={int(preroll_ms)}).'
+    )
+
+    with sd.RawInputStream(samplerate=sample_rate, channels=1, dtype='int16', blocksize=chunk_size) as stream:
+        listening_sound_process = None
+
+        if listening_sound_path is not None:
+            try:
+                listening_sound_process = subprocess.Popen(
+                    build_audio_playback_command(str(listening_sound_path)),
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                print('voice client: playing listening cue while priming capture stream.')
+            except Exception as error:
+                print(f'voice client: failed to play listening cue {listening_sound_path}: {error}')
+                listening_sound_process = None
+
+        overlap_chunks_count = max(1, ceil((preroll_ms / 1000.0) / chunk_duration_seconds))
+        drain_overlap: list[bytes] = []
+
+        while listening_sound_process is not None and listening_sound_process.poll() is None:
+            audio_chunk, overflowed = stream.read(chunk_size)
+            if not overflowed:
+                drain_overlap.append(bytes(audio_chunk))
+                if len(drain_overlap) > overlap_chunks_count:
+                    drain_overlap.pop(0)
+
+        if listening_sound_process is not None:
+            listening_sound_process.wait()
+            print('voice client: listening cue finished, retaining audio for transcription.')
+
+        # Prepend the tail of the drain phase so first-syllable audio is never discarded.
+        captured_chunks.extend(drain_overlap)
+
+        for _ in range(max_chunks):
+            audio_chunk, overflowed = stream.read(chunk_size)
+            # Keep overflowed chunks — losing them causes transcription gaps.
+            audio_bytes = bytes(audio_chunk)
+            chunk_rms = compute_normalized_rms(np, audio_bytes)
+            captured_chunks.append(audio_bytes)
+
+            if not speech_detected:
+                chunk_has_speech = chunk_rms >= effective_speech_threshold
+            else:
+                chunk_has_speech = chunk_rms >= effective_speech_threshold
+
+            if not speech_detected:
+                if not chunk_has_speech:
+                    continue
+
+                speech_detected = True
+                speech_start_chunk_index = len(captured_chunks) - 1
+                print(
+                    'voice client: speech detected '
+                    f'(chunk_rms={chunk_rms:.4f}, noise_floor_rms={noise_floor_rms:.4f}, effective_threshold={effective_speech_threshold:.4f}).'
+                )
+                consecutive_silent_chunks = 0
+                continue
+
+            if chunk_has_speech:
+                consecutive_silent_chunks = 0
+                continue
+
+            consecutive_silent_chunks += 1
+            speech_chunk_count = len(captured_chunks) - (speech_start_chunk_index or 0)
+            if speech_chunk_count >= min_chunks and consecutive_silent_chunks >= trailing_silence_chunks:
+                stop_reason = 'trailing-silence'
+                break
+
+    if not speech_detected or not captured_chunks:
+        print(
+            'voice client: no speech detected '
+            f'within {max_capture_seconds:.2f}s capture window '
+            f'(noise_floor_rms={noise_floor_rms:.4f}, effective_threshold={effective_speech_threshold:.4f}).'
+        )
+        return {
+            'audioPath': None,
+            'debug': build_capture_debug_payload(
+                'captured-audio',
+                'no-speech-detected',
+                False,
+                min_capture_seconds,
+                max_capture_seconds,
+                trailing_silence_ms,
+                speech_threshold,
+                effective_speech_threshold,
+                noise_floor_rms,
+                preroll_ms,
+                None,
+            ),
+        }
+
+    output_path = Path(tempfile.gettempdir()) / f'alice-voice-client-{os.getpid()}-{int(time.time() * 1000)}.wav'
+    write_wav_file(output_path, captured_chunks, sample_rate)
+
+    captured_seconds = len(captured_chunks) * chunk_duration_seconds
+    print(
+        'voice client: captured '
+        f'{captured_seconds:.2f}s of audio '
+        f'({stop_reason}, configured_threshold={speech_threshold:.4f}, effective_threshold={effective_speech_threshold:.4f}, '
+        f'noise_floor_rms={noise_floor_rms:.4f}, trailing_silence_ms={int(trailing_silence_ms)}).'
+    )
+    return {
+        'audioPath': str(output_path),
+        'debug': build_capture_debug_payload(
+            'captured-audio',
+            stop_reason,
+            True,
+            min_capture_seconds,
+            max_capture_seconds,
+            trailing_silence_ms,
+            speech_threshold,
+            effective_speech_threshold,
+            noise_floor_rms,
+            preroll_ms,
+            captured_seconds,
+        ),
+    }
+
+
+def capture_voice_turn(
+    voice_plugin_config: dict,
+    wake_word_detected_sound: Path | None,
+    audio_capture_closed_sound: Path | None,
+) -> dict:
+    noise_floor_rms = sample_background_noise(voice_plugin_config)
+
+    try:
+        capture_result = record_audio_clip(voice_plugin_config, noise_floor_rms, wake_word_detected_sound)
+    finally:
+        play_optional_sound(audio_capture_closed_sound)
+
+    report_voice_capture_debug(capture_result['debug'])
+    return capture_result
 
 
 def transcribe_audio_file(audio_path: str) -> str:
@@ -317,35 +627,38 @@ def synthesize_speech_to_temp_file(text: str, system_config: dict) -> str:
 
 
 def play_audio_file(audio_path: str) -> None:
-    player = find_first_available_command(['paplay', 'aplay', 'ffplay'])
-    if player is None:
-        raise RuntimeError('No audio playback command found. Install paplay, aplay, or ffplay.')
-
-    if player == 'paplay':
-        run_command(['paplay', audio_path])
-    elif player == 'aplay':
-        run_command(['aplay', audio_path])
-    else:
-        run_command(['ffplay', '-nodisp', '-autoexit', '-loglevel', 'quiet', audio_path])
+    run_command(build_audio_playback_command(audio_path))
 
 
 def play_optional_sound(sound_path: Path | None) -> None:
     if sound_path is None:
         return
 
-    player = find_first_available_command(['paplay', 'aplay', 'ffplay'])
-    if player is None:
-        return
-
     try:
-        if player == 'paplay':
-            run_command(['paplay', str(sound_path)])
-        elif player == 'aplay':
-            run_command(['aplay', str(sound_path)])
-        else:
-            run_command(['ffplay', '-nodisp', '-autoexit', '-loglevel', 'quiet', str(sound_path)])
+        run_command(build_audio_playback_command(str(sound_path)))
     except Exception as error:
         print(f'voice client: failed to play optional sound {sound_path}: {error}')
+
+
+def report_voice_capture_debug(capture_debug: dict) -> None:
+    base_url = os.environ.get('ALICE_VOICE_BASE_URL', '').rstrip('/')
+    token = os.environ.get('ALICE_VOICE_TOKEN', '')
+    request = urllib.request.Request(
+        f'{base_url}/api/voice/debug/capture',
+        data=json.dumps(capture_debug).encode('utf-8'),
+        headers={
+            'content-type': 'application/json',
+            'authorization': f'Bearer {token}',
+        },
+        method='POST',
+    )
+
+    try:
+        with urllib.request.urlopen(request):
+            return
+    except Exception as error:
+        if os.environ.get('ALICE_DEBUG', '').strip():
+            print(f'voice client: failed to report capture debug payload: {error}')
 
 
 def send_voice_turn(message: str) -> str:
@@ -480,15 +793,35 @@ def run_manual_loop(system_config: dict, voice_plugin_config: dict) -> None:
             return
 
         if user_input:
+            report_voice_capture_debug(build_capture_debug_payload(
+                'manual-text',
+                'manual-text-input',
+                True,
+                get_min_capture_seconds(voice_plugin_config),
+                get_max_capture_seconds(voice_plugin_config),
+                get_trailing_silence_ms(voice_plugin_config),
+                get_speech_threshold(voice_plugin_config),
+                get_speech_threshold(voice_plugin_config),
+                0.0,
+                get_preroll_ms(voice_plugin_config),
+                0.0,
+            ))
             transcript = user_input
         else:
-            play_optional_sound(wake_word_detected_sound)
-            audio_path = record_audio_clip(get_record_seconds())
+            capture_result = capture_voice_turn(
+                voice_plugin_config,
+                wake_word_detected_sound,
+                audio_capture_closed_sound,
+            )
+            audio_path = capture_result['audioPath']
+            if audio_path is None:
+                print('voice client: no transcript detected.')
+                continue
+
             try:
                 transcript = transcribe_audio_file(audio_path)
             finally:
                 Path(audio_path).unlink(missing_ok=True)
-                play_optional_sound(audio_capture_closed_sound)
 
         if not transcript:
             print('voice client: no transcript detected.')
@@ -514,13 +847,20 @@ def run_wake_word_loop(system_config: dict, voice_plugin_config: dict) -> None:
     while True:
         wait_for_wake_word(system_config)
 
-        play_optional_sound(wake_word_detected_sound)
-        audio_path = record_audio_clip(get_record_seconds())
+        capture_result = capture_voice_turn(
+            voice_plugin_config,
+            wake_word_detected_sound,
+            audio_capture_closed_sound,
+        )
+        audio_path = capture_result['audioPath']
+        if audio_path is None:
+            print('voice client: no transcript detected after wake word.')
+            continue
+
         try:
             transcript = transcribe_audio_file(audio_path)
         finally:
             Path(audio_path).unlink(missing_ok=True)
-            play_optional_sound(audio_capture_closed_sound)
 
         if not transcript:
             print('voice client: no transcript detected after wake word.')
@@ -551,6 +891,8 @@ def main() -> int:
             run_manual_loop(system_config, voice_plugin_config)
         else:
             run_wake_word_loop(system_config, voice_plugin_config)
+        return 0
+    except KeyboardInterrupt:
         return 0
     except urllib.error.HTTPError as error:
         sys.stderr.write(f'voice client HTTP error: {error.code} {error.reason}\n')
