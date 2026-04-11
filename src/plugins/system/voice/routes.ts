@@ -3,6 +3,7 @@ import { type Conversation, startConversation } from '../../../lib.js';
 import { PluginHookInvocations } from '../../../lib/plugin-hooks.js';
 import { extractVoiceAccessToken, isVoiceAccessTokenValid } from './auth.js';
 import { isManagedVoiceClientRunning, type ManagedVoiceClientState } from './managed-client.js';
+import { markdownToTts } from './markdown-to-tts.js';
 
 type ActiveVoiceSession = {
   conversation: Conversation;
@@ -368,7 +369,7 @@ export function registerVoiceRoutes(app: Express, runtimeState: VoicePluginRunti
       }
 
       const responseBody: VoiceTurnResponseBody = {
-        reply,
+        reply: markdownToTts(reply),
         continueConversation: !endConversation,
         endConversation,
       };
