@@ -111,7 +111,7 @@ function MoodWidget() {
     className={`mood-widget mood-widget--${mood}`}
     title={`Current mood: ${mood} ${face}`}
   >
-    {face}
+    <pre>{face}</pre>
   </div>
   );
 }

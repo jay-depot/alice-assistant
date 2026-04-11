@@ -12,7 +12,7 @@ On a slightly more serious note though, task assistants with personalities shoul
 
 While we're on the subject, let's make `email-assistant`'s default personality be `gossip blogger` because why not. The other options should be: `stuffy english butler`, `art critic`, `drill sergeant` and `pirate radio DJ`.
 
-I guess we can let people write their own, too.
+I guess we can let people configure their own, too. The personalities for these should be simple one-liners, so they stay focused on their tasks first and foremost.
 
 This would be a good example of a plugin managing its own agents' personalities internally.
 
