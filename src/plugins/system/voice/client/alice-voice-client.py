@@ -111,6 +111,24 @@ def get_config_number(
     return max(minimum, default_value)
 
 
+def get_config_string(
+    voice_plugin_config: dict,
+    config_key: str,
+    env_keys: list[str],
+    default_value: str,
+) -> str:
+    for env_key in env_keys:
+        raw_value = os.environ.get(env_key, '').strip()
+        if raw_value:
+            return raw_value
+
+    configured_value = voice_plugin_config.get(config_key)
+    if isinstance(configured_value, str) and configured_value.strip():
+        return configured_value.strip()
+
+    return default_value
+
+
 def get_min_capture_seconds(voice_plugin_config: dict) -> float:
     return get_config_number(voice_plugin_config, 'minCaptureSeconds', ['ALICE_VOICE_MIN_CAPTURE_SECONDS'], 1.25, 0.1)
 
@@ -159,6 +177,63 @@ def get_post_reply_cooldown_seconds() -> float:
         return max(0.0, float(os.environ.get('ALICE_VOICE_POST_REPLY_COOLDOWN_SECONDS', '1.5')))
     except ValueError:
         return 1.5
+
+
+def get_continuation_capture_settle_seconds(voice_plugin_config: dict) -> float:
+    return get_config_number(
+        voice_plugin_config,
+        'continuationCaptureSettleSeconds',
+        ['ALICE_VOICE_CONTINUATION_CAPTURE_SETTLE_SECONDS'],
+        0.35,
+        0.0,
+    )
+
+
+def get_continuation_noise_floor_multiplier(voice_plugin_config: dict) -> float:
+    return get_config_number(
+        voice_plugin_config,
+        'continuationNoiseFloorMultiplier',
+        ['ALICE_VOICE_CONTINUATION_NOISE_MULTIPLIER'],
+        1.5,
+        0.0,
+    )
+
+
+def get_continuation_threshold_cap_multiplier(voice_plugin_config: dict) -> float:
+    return get_config_number(
+        voice_plugin_config,
+        'continuationThresholdCapMultiplier',
+        ['ALICE_VOICE_CONTINUATION_THRESHOLD_CAP_MULTIPLIER'],
+        2.0,
+        1.0,
+    )
+
+
+def get_continuation_silence_prompt(voice_plugin_config: dict) -> str:
+    return get_config_string(
+        voice_plugin_config,
+        'continuationSilencePrompt',
+        ['ALICE_VOICE_CONTINUATION_SILENCE_PROMPT'],
+        'All right, I will close that conversation now.',
+    )
+
+
+def get_archiving_started_prompt(voice_plugin_config: dict) -> str:
+    return get_config_string(
+        voice_plugin_config,
+        'archivingStartedPrompt',
+        ['ALICE_VOICE_ARCHIVING_STARTED_PROMPT'],
+        'Archiving that now, one moment.',
+    )
+
+
+def get_archiving_completed_prompt(voice_plugin_config: dict) -> str:
+    return get_config_string(
+        voice_plugin_config,
+        'archivingCompletedPrompt',
+        ['ALICE_VOICE_ARCHIVING_COMPLETED_PROMPT'],
+        'Finished archiving, ready for another request.',
+    )
 
 
 def get_optional_sound_path(voice_plugin_config: dict, key: str) -> Path | None:
@@ -266,6 +341,8 @@ def record_audio_clip(
     voice_plugin_config: dict,
     initial_noise_floor_rms: float,
     listening_sound_path: Path | None = None,
+    noise_floor_multiplier: float = 3.0,
+    max_effective_threshold: float | None = None,
 ) -> dict:
     np, sd = import_audio_capture_runtime()
     sample_rate = 16000
@@ -286,7 +363,9 @@ def record_audio_clip(
     consecutive_silent_chunks = 0
     stop_reason = 'max-duration'
     noise_floor_rms = initial_noise_floor_rms
-    effective_speech_threshold = max(speech_threshold, noise_floor_rms * 3.0)
+    effective_speech_threshold = max(speech_threshold, noise_floor_rms * noise_floor_multiplier)
+    if isinstance(max_effective_threshold, (int, float)):
+        effective_speech_threshold = min(effective_speech_threshold, float(max_effective_threshold))
     speech_start_chunk_index: int | None = None
 
     print(
@@ -417,11 +496,33 @@ def capture_voice_turn(
     voice_plugin_config: dict,
     wake_word_detected_sound: Path | None,
     audio_capture_closed_sound: Path | None,
+    continuation_mode: bool = False,
 ) -> dict:
     noise_floor_rms = sample_background_noise(voice_plugin_config)
+    noise_floor_multiplier = 3.0
+    max_effective_threshold: float | None = None
+
+    if continuation_mode:
+        settle_seconds = get_continuation_capture_settle_seconds(voice_plugin_config)
+        if settle_seconds > 0:
+            time.sleep(settle_seconds)
+
+        # Continuation turns happen right after local TTS playback, so avoid over-inflating
+        # the speech threshold from temporary speaker bleed into the ambient sample.
+        noise_floor_multiplier = get_continuation_noise_floor_multiplier(voice_plugin_config)
+        max_effective_threshold = (
+            get_speech_threshold(voice_plugin_config)
+            * get_continuation_threshold_cap_multiplier(voice_plugin_config)
+        )
 
     try:
-        capture_result = record_audio_clip(voice_plugin_config, noise_floor_rms, wake_word_detected_sound)
+        capture_result = record_audio_clip(
+            voice_plugin_config,
+            noise_floor_rms,
+            wake_word_detected_sound,
+            noise_floor_multiplier=noise_floor_multiplier,
+            max_effective_threshold=max_effective_threshold,
+        )
     finally:
         play_optional_sound(audio_capture_closed_sound)
 
@@ -640,6 +741,18 @@ def play_optional_sound(sound_path: Path | None) -> None:
         print(f'voice client: failed to play optional sound {sound_path}: {error}')
 
 
+def speak_text(text: str, system_config: dict) -> None:
+    cleaned_text = text.strip()
+    if not cleaned_text:
+        return
+
+    audio_path = synthesize_speech_to_temp_file(cleaned_text, system_config)
+    try:
+        play_audio_file(audio_path)
+    finally:
+        Path(audio_path).unlink(missing_ok=True)
+
+
 def report_voice_capture_debug(capture_debug: dict) -> None:
     base_url = os.environ.get('ALICE_VOICE_BASE_URL', '').rstrip('/')
     token = os.environ.get('ALICE_VOICE_TOKEN', '')
@@ -661,7 +774,7 @@ def report_voice_capture_debug(capture_debug: dict) -> None:
             print(f'voice client: failed to report capture debug payload: {error}')
 
 
-def send_voice_turn(message: str) -> str:
+def send_voice_turn(message: str) -> dict:
     base_url = os.environ.get('ALICE_VOICE_BASE_URL', '').rstrip('/')
     token = os.environ.get('ALICE_VOICE_TOKEN', '')
     request = urllib.request.Request(
@@ -681,10 +794,22 @@ def send_voice_turn(message: str) -> str:
     if not isinstance(reply, str) or not reply.strip():
         raise RuntimeError('Voice API did not return a reply.')
 
-    return reply
+    end_conversation = response_json.get('endConversation')
+    if not isinstance(end_conversation, bool):
+        end_conversation = False
+
+    continue_conversation = response_json.get('continueConversation')
+    if not isinstance(continue_conversation, bool):
+        continue_conversation = not end_conversation
+
+    return {
+        'reply': reply,
+        'endConversation': end_conversation,
+        'continueConversation': continue_conversation,
+    }
 
 
-def check_health() -> None:
+def check_health() -> dict:
     base_url = os.environ.get('ALICE_VOICE_BASE_URL', '').rstrip('/')
     token = os.environ.get('ALICE_VOICE_TOKEN', '')
     request = urllib.request.Request(
@@ -700,6 +825,143 @@ def check_health() -> None:
 
     if not response_json.get('ok'):
         raise RuntimeError('Voice API health check did not return ok=true.')
+
+    return response_json
+
+
+def fetch_voice_events(after_sequence: int) -> tuple[list[dict], int]:
+    base_url = os.environ.get('ALICE_VOICE_BASE_URL', '').rstrip('/')
+    token = os.environ.get('ALICE_VOICE_TOKEN', '')
+    request = urllib.request.Request(
+        f'{base_url}/api/voice/events?afterSequence={max(0, after_sequence)}',
+        headers={
+            'authorization': f'Bearer {token}',
+        },
+        method='GET',
+    )
+
+    with urllib.request.urlopen(request) as response:
+        response_json = json.loads(response.read().decode('utf-8'))
+
+    if not response_json.get('ok'):
+        raise RuntimeError('Voice API events request did not return ok=true.')
+
+    events = response_json.get('events')
+    if not isinstance(events, list):
+        events = []
+
+    latest_sequence = response_json.get('latestSequence')
+    if not isinstance(latest_sequence, int) or latest_sequence < 0:
+        latest_sequence = after_sequence
+
+    return events, latest_sequence
+
+
+def process_voice_events(
+    events: list[dict],
+    after_sequence: int,
+    system_config: dict,
+    voice_plugin_config: dict,
+    spoken_started: bool,
+    spoken_completed: bool,
+) -> tuple[int, bool, bool]:
+    current_sequence = after_sequence
+    started = spoken_started
+    completed = spoken_completed
+
+    for event in events:
+        if not isinstance(event, dict):
+            continue
+
+        sequence = event.get('sequence')
+        if isinstance(sequence, int) and sequence > current_sequence:
+            current_sequence = sequence
+
+        event_type = event.get('type')
+        if event_type == 'archiving-started' and not started:
+            speak_text(get_archiving_started_prompt(voice_plugin_config), system_config)
+            started = True
+        elif event_type == 'archiving-completed' and not completed:
+            speak_text(get_archiving_completed_prompt(voice_plugin_config), system_config)
+            completed = True
+
+    return current_sequence, started, completed
+
+
+def announce_archival_progress(after_sequence: int, system_config: dict, voice_plugin_config: dict) -> int:
+    current_sequence = after_sequence
+    spoken_started = False
+    spoken_completed = False
+    deadline = time.monotonic() + 15.0
+
+    while time.monotonic() < deadline and not spoken_completed:
+        events, latest_sequence = fetch_voice_events(current_sequence)
+        current_sequence, spoken_started, spoken_completed = process_voice_events(
+            events,
+            current_sequence,
+            system_config,
+            voice_plugin_config,
+            spoken_started,
+            spoken_completed,
+        )
+        current_sequence = max(current_sequence, latest_sequence)
+
+        if spoken_completed:
+            break
+
+        time.sleep(0.2)
+
+    return current_sequence
+
+
+def notify_continuation_timeout() -> bool:
+    base_url = os.environ.get('ALICE_VOICE_BASE_URL', '').rstrip('/')
+    token = os.environ.get('ALICE_VOICE_TOKEN', '')
+    request = urllib.request.Request(
+        f'{base_url}/api/voice/continue-timeout',
+        data=b'{}',
+        headers={
+            'content-type': 'application/json',
+            'authorization': f'Bearer {token}',
+        },
+        method='POST',
+    )
+
+    with urllib.request.urlopen(request) as response:
+        response_json = json.loads(response.read().decode('utf-8'))
+
+    closed_conversation = response_json.get('closedConversation')
+    return bool(closed_conversation) if isinstance(closed_conversation, bool) else False
+
+
+def capture_transcript_from_microphone(
+    voice_plugin_config: dict,
+    wake_word_detected_sound: Path | None,
+    audio_capture_closed_sound: Path | None,
+    no_transcript_message: str,
+    continuation_mode: bool = False,
+) -> str | None:
+    capture_result = capture_voice_turn(
+        voice_plugin_config,
+        wake_word_detected_sound,
+        audio_capture_closed_sound,
+        continuation_mode=continuation_mode,
+    )
+    audio_path = capture_result['audioPath']
+    if audio_path is None:
+        print(no_transcript_message)
+        return None
+
+    try:
+        transcript = transcribe_audio_file(audio_path)
+    finally:
+        Path(audio_path).unlink(missing_ok=True)
+
+    if not transcript:
+        print(no_transcript_message)
+        return None
+
+    return transcript
 
 
 def import_wake_word_runtime():
@@ -774,7 +1036,7 @@ def wait_for_wake_word(system_config: dict) -> None:
                 return
 
 
-def run_manual_loop(system_config: dict, voice_plugin_config: dict) -> None:
+def run_manual_loop(system_config: dict, voice_plugin_config: dict, last_event_sequence: int) -> None:
     wake_word = os.environ.get('ALICE_VOICE_WAKE_WORD', system_config.get('wakeWord', 'Hey ALICE'))
     wake_word_detected_sound = get_optional_sound_path(voice_plugin_config, 'wakeWordDetectedSoundPath')
     audio_capture_closed_sound = get_optional_sound_path(voice_plugin_config, 'audioCaptureClosedSoundPath')
@@ -828,17 +1090,17 @@ def run_manual_loop(system_config: dict, voice_plugin_config: dict) -> None:
             continue
 
         print(f'user: {transcript}')
-        reply = send_voice_turn(transcript)
+        turn_result = send_voice_turn(transcript)
+        reply = turn_result['reply']
         print(f'ALICE: {reply}')
 
-        audio_path = synthesize_speech_to_temp_file(reply, system_config)
-        try:
-            play_audio_file(audio_path)
-        finally:
-            Path(audio_path).unlink(missing_ok=True)
+        speak_text(reply, system_config)
+
+        if turn_result['endConversation']:
+            last_event_sequence = announce_archival_progress(last_event_sequence, system_config, voice_plugin_config)
 
 
-def run_wake_word_loop(system_config: dict, voice_plugin_config: dict) -> None:
+def run_wake_word_loop(system_config: dict, voice_plugin_config: dict, last_event_sequence: int) -> None:
     wake_word = os.environ.get('ALICE_VOICE_WAKE_WORD', system_config.get('wakeWord', 'Hey ALICE'))
     wake_word_detected_sound = get_optional_sound_path(voice_plugin_config, 'wakeWordDetectedSoundPath')
     audio_capture_closed_sound = get_optional_sound_path(voice_plugin_config, 'audioCaptureClosedSoundPath')
@@ -847,38 +1109,41 @@ def run_wake_word_loop(system_config: dict, voice_plugin_config: dict) -> None:
     while True:
         wait_for_wake_word(system_config)
 
-        capture_result = capture_voice_turn(
+        transcript = capture_transcript_from_microphone(
             voice_plugin_config,
             wake_word_detected_sound,
             audio_capture_closed_sound,
+            'voice client: no transcript detected after wake word.',
         )
-        audio_path = capture_result['audioPath']
-        if audio_path is None:
-            print('voice client: no transcript detected after wake word.')
+        if transcript is None:
             continue
 
-        try:
-            transcript = transcribe_audio_file(audio_path)
-        finally:
-            Path(audio_path).unlink(missing_ok=True)
+        while True:
+            print(f'user: {transcript}')
+            turn_result = send_voice_turn(transcript)
+            reply = turn_result['reply']
+            print(f'ALICE: {reply}')
+            speak_text(reply, system_config)
 
-        if not transcript:
-            print('voice client: no transcript detected after wake word.')
-            continue
+            if turn_result['endConversation']:
+                last_event_sequence = announce_archival_progress(last_event_sequence, system_config, voice_plugin_config)
+                break
 
-        print(f'user: {transcript}')
-        reply = send_voice_turn(transcript)
-        print(f'ALICE: {reply}')
+            transcript = capture_transcript_from_microphone(
+                voice_plugin_config,
+                wake_word_detected_sound,
+                audio_capture_closed_sound,
+                'voice client: no follow-up transcript detected during continuation.',
+                continuation_mode=True,
+            )
+            if transcript is not None:
+                continue
 
-        audio_path = synthesize_speech_to_temp_file(reply, system_config)
-        try:
-            play_audio_file(audio_path)
-        finally:
-            Path(audio_path).unlink(missing_ok=True)
-
-        cooldown = get_post_reply_cooldown_seconds()
-        if cooldown > 0:
-            time.sleep(cooldown)
+            print('voice client: no follow-up transcript detected during continuation; closing conversation.')
+            if notify_continuation_timeout():
+                speak_text(get_continuation_silence_prompt(voice_plugin_config), system_config)
+                last_event_sequence = announce_archival_progress(last_event_sequence, system_config, voice_plugin_config)
+            break
 
 
 def main() -> int:
@@ -886,11 +1151,14 @@ def main() -> int:
         configure_runtime_warnings()
         system_config = load_system_config()
         voice_plugin_config = load_voice_plugin_config()
-        check_health()
+        health_response = check_health()
+        last_event_sequence = health_response.get('latestEventSequence', 0)
+        if not isinstance(last_event_sequence, int) or last_event_sequence < 0:
+            last_event_sequence = 0
         if os.environ.get('ALICE_VOICE_MANUAL', '').strip() == '1':
-            run_manual_loop(system_config, voice_plugin_config)
+            run_manual_loop(system_config, voice_plugin_config, last_event_sequence)
         else:
-            run_wake_word_loop(system_config, voice_plugin_config)
+            run_wake_word_loop(system_config, voice_plugin_config, last_event_sequence)
         return 0
     except KeyboardInterrupt:
         return 0

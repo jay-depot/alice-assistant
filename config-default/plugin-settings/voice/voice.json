@@ -1,9 +1,12 @@
 {
   "launchManagedClient": false,
   "sessionIdleTimeoutMinutes": 10,
-  "deferredSessionCloseDelayMs": 1500,
+  "deferredSessionCloseDelayMs": 0,
   "wakeWordDetectedSoundPath": "",
   "audioCaptureClosedSoundPath": "",
+  "continuationSilencePrompt": "All right, I will close that conversation now.",
+  "archivingStartedPrompt": "Archiving that now, one moment.",
+  "archivingCompletedPrompt": "Finished archiving, ready for another request.",
   "minCaptureSeconds": 1.25,
   "maxCaptureSeconds": 7,
   "trailingSilenceMs": 900,

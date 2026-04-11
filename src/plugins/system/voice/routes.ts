@@ -7,12 +7,18 @@ import { isManagedVoiceClientRunning, type ManagedVoiceClientState } from './man
 type ActiveVoiceSession = {
   conversation: Conversation;
   lastActivityAt: number;
+  requestedConversationEnd: boolean;
 };
 
 type DeferredVoiceSessionClose = {
   conversation: Conversation;
-  timer: ReturnType<typeof setTimeout> | null;
   closePromise: Promise<void> | null;
+};
+
+type VoiceClientEvent = {
+  sequence: number;
+  type: 'archiving-started' | 'archiving-completed';
+  createdAtMs: number;
 };
 
 type VoiceCaptureDebugConfig = {
@@ -46,10 +52,23 @@ export type VoicePluginRuntimeState = {
   pendingVoiceSessionCloses: Set<DeferredVoiceSessionClose>;
   captureDebugConfig: VoiceCaptureDebugConfig;
   lastCaptureDebug: VoiceCaptureDebugState | null;
+  nextVoiceClientEventSequence: number;
+  voiceClientEvents: VoiceClientEvent[];
 };
 
 type VoiceTurnRequestBody = {
   message?: string;
+};
+
+type VoiceTurnResponseBody = {
+  reply: string;
+  continueConversation: boolean;
+  endConversation: boolean;
+};
+
+type VoiceContinuationTimeoutResponseBody = {
+  ok: boolean;
+  closedConversation: boolean;
 };
 
 type VoiceCaptureDebugRequestBody = {
@@ -64,6 +83,37 @@ type VoiceCaptureDebugRequestBody = {
   prerollMs?: unknown;
   clientRecordedAt?: unknown;
 };
+
+function enqueueVoiceClientEvent(runtimeState: VoicePluginRuntimeState, type: VoiceClientEvent['type']): void {
+  runtimeState.voiceClientEvents.push({
+    sequence: runtimeState.nextVoiceClientEventSequence,
+    type,
+    createdAtMs: Date.now(),
+  });
+  runtimeState.nextVoiceClientEventSequence += 1;
+
+  if (runtimeState.voiceClientEvents.length > 32) {
+    runtimeState.voiceClientEvents.splice(0, runtimeState.voiceClientEvents.length - 32);
+  }
+}
+
+function getVoiceClientEventsAfter(runtimeState: VoicePluginRuntimeState, afterSequence: number): VoiceClientEvent[] {
+  return runtimeState.voiceClientEvents.filter((event) => event.sequence > afterSequence);
+}
+
+function parseAfterSequence(queryValue: unknown): number {
+  if (typeof queryValue === 'string') {
+    const parsed = Number.parseInt(queryValue, 10);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+  }
+
+  if (Array.isArray(queryValue) && typeof queryValue[0] === 'string') {
+    const parsed = Number.parseInt(queryValue[0], 10);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+  }
+
+  return 0;
+}
 
 function updateLastCaptureDebug(runtimeState: VoicePluginRuntimeState, body: VoiceCaptureDebugRequestBody): boolean {
   if (typeof body.source !== 'string' || typeof body.stopReason !== 'string' || typeof body.speechDetected !== 'boolean') {
@@ -121,6 +171,16 @@ function hasActiveVoiceSessionExpired(runtimeState: VoicePluginRuntimeState): bo
   return Date.now() - runtimeState.activeVoiceSession.lastActivityAt > runtimeState.sessionIdleTimeoutMs;
 }
 
+export function requestActiveVoiceConversationEnd(runtimeState: VoicePluginRuntimeState): boolean {
+  if (!runtimeState.activeVoiceSession) {
+    return false;
+  }
+
+  runtimeState.activeVoiceSession.requestedConversationEnd = true;
+  runtimeState.activeVoiceSession.lastActivityAt = Date.now();
+  return true;
+}
+
 function finalizeDeferredVoiceSessionClose(
   runtimeState: VoicePluginRuntimeState,
   deferredClose: DeferredVoiceSessionClose,
@@ -129,18 +189,15 @@ function finalizeDeferredVoiceSessionClose(
     return deferredClose.closePromise;
   }
 
-  if (deferredClose.timer) {
-    clearTimeout(deferredClose.timer);
-    deferredClose.timer = null;
-  }
-
   deferredClose.closePromise = (async () => {
-    console.log('voice plugin: finalizing inactive voice conversation.');
+    console.log('voice plugin: finalizing voice conversation and archiving immediately.');
+    enqueueVoiceClientEvent(runtimeState, 'archiving-started');
     await PluginHookInvocations.invokeOnUserConversationWillEnd(deferredClose.conversation, 'voice');
     await deferredClose.conversation.closeConversation();
   })().catch((error) => {
-    console.error('voice plugin: deferred voice session cleanup failed:', error);
+    console.error('voice plugin: voice session cleanup failed:', error);
   }).finally(() => {
+    enqueueVoiceClientEvent(runtimeState, 'archiving-completed');
     runtimeState.pendingVoiceSessionCloses.delete(deferredClose);
   });
 
@@ -150,22 +207,12 @@ function finalizeDeferredVoiceSessionClose(
 function scheduleDeferredVoiceSessionClose(runtimeState: VoicePluginRuntimeState, conversation: Conversation): void {
   const deferredClose: DeferredVoiceSessionClose = {
     conversation,
-    timer: null,
     closePromise: null,
   };
 
   runtimeState.pendingVoiceSessionCloses.add(deferredClose);
-
-  if (runtimeState.deferredSessionCloseDelayMs <= 0) {
-    console.log('voice plugin: expiring voice session and finalizing immediately in the background.');
-    void finalizeDeferredVoiceSessionClose(runtimeState, deferredClose);
-    return;
-  }
-
-  console.log(`voice plugin: scheduling voice session cleanup in ${runtimeState.deferredSessionCloseDelayMs}ms.`);
-  deferredClose.timer = setTimeout(() => {
-    void finalizeDeferredVoiceSessionClose(runtimeState, deferredClose);
-  }, runtimeState.deferredSessionCloseDelayMs);
+  console.log('voice plugin: closing stale voice session without deferred archival delay.');
+  void finalizeDeferredVoiceSessionClose(runtimeState, deferredClose);
 }
 
 export async function flushDeferredVoiceSessionCloses(runtimeState: VoicePluginRuntimeState): Promise<void> {
@@ -193,7 +240,6 @@ export async function closeActiveVoiceSession(
 
   const deferredClose: DeferredVoiceSessionClose = {
     conversation,
-    timer: null,
     closePromise: null,
   };
 
@@ -203,8 +249,8 @@ export async function closeActiveVoiceSession(
 
 async function getOrCreateActiveVoiceConversation(runtimeState: VoicePluginRuntimeState): Promise<Conversation> {
   if (hasActiveVoiceSessionExpired(runtimeState)) {
-    console.log('voice plugin: active voice session expired, scheduling closure and starting a fresh conversation.');
-    await closeActiveVoiceSession(runtimeState, { deferFinalization: true });
+    console.log('voice plugin: active voice session expired, closing it immediately before starting a fresh conversation.');
+    await closeActiveVoiceSession(runtimeState);
   }
 
   if (runtimeState.activeVoiceSession) {
@@ -219,6 +265,7 @@ async function getOrCreateActiveVoiceConversation(runtimeState: VoicePluginRunti
   runtimeState.activeVoiceSession = {
     conversation,
     lastActivityAt: Date.now(),
+    requestedConversationEnd: false,
   };
 
   return conversation;
@@ -238,6 +285,7 @@ export function registerVoiceRoutes(app: Express, runtimeState: VoicePluginRunti
       sessionIdleTimeoutMs: runtimeState.sessionIdleTimeoutMs,
       deferredSessionCloseDelayMs: runtimeState.deferredSessionCloseDelayMs,
       pendingSessionCloseCount: runtimeState.pendingVoiceSessionCloses.size,
+      latestEventSequence: runtimeState.nextVoiceClientEventSequence - 1,
       debug: {
         session: {
           activeSessionAgeMs: runtimeState.activeVoiceSession
@@ -245,13 +293,23 @@ export function registerVoiceRoutes(app: Express, runtimeState: VoicePluginRunti
             : null,
           deferredCloseState: {
             pendingCount: pendingDeferredCloses.length,
-            scheduledCount: pendingDeferredCloses.filter((deferredClose) => deferredClose.timer !== null).length,
+            scheduledCount: 0,
             inFlightCount: pendingDeferredCloses.filter((deferredClose) => deferredClose.closePromise !== null).length,
           },
         },
         capture: runtimeState.captureDebugConfig,
         lastCapture: runtimeState.lastCaptureDebug,
       },
+    });
+  });
+
+  app.get('/api/voice/events', requireToken, (req, res) => {
+    const afterSequence = parseAfterSequence(req.query.afterSequence);
+
+    res.json({
+      ok: true,
+      latestSequence: runtimeState.nextVoiceClientEventSequence - 1,
+      events: getVoiceClientEventsAfter(runtimeState, afterSequence),
     });
   });
 
@@ -266,6 +324,22 @@ export function registerVoiceRoutes(app: Express, runtimeState: VoicePluginRunti
     res.json({ ok: true });
   });
 
+  app.post('/api/voice/continue-timeout', requireToken, async (_req, res) => {
+    const closedConversation = !!runtimeState.activeVoiceSession;
+
+    if (closedConversation) {
+      console.log('voice plugin: continuation turn ended in silence, closing voice conversation immediately.');
+      await closeActiveVoiceSession(runtimeState, { deferFinalization: true });
+    }
+
+    const responseBody: VoiceContinuationTimeoutResponseBody = {
+      ok: true,
+      closedConversation,
+    };
+
+    res.json(responseBody);
+  });
+
   app.post('/api/voice/turn', requireToken, async (req, res) => {
     const body = (req.body ?? {}) as VoiceTurnRequestBody;
     const message = body.message?.trim();
@@ -277,14 +351,29 @@ export function registerVoiceRoutes(app: Express, runtimeState: VoicePluginRunti
 
     try {
       const conversation = await getOrCreateActiveVoiceConversation(runtimeState);
+      if (runtimeState.activeVoiceSession?.conversation === conversation) {
+        runtimeState.activeVoiceSession.requestedConversationEnd = false;
+      }
+
       const reply = await conversation.sendUserMessage(message);
-      if (runtimeState.activeVoiceSession) {
+      const endConversation = runtimeState.activeVoiceSession?.conversation === conversation
+        ? runtimeState.activeVoiceSession.requestedConversationEnd
+        : false;
+
+      if (endConversation) {
+        console.log('voice plugin: assistant requested the current voice conversation to end after this reply.');
+        await closeActiveVoiceSession(runtimeState, { deferFinalization: true });
+      } else if (runtimeState.activeVoiceSession?.conversation === conversation) {
         runtimeState.activeVoiceSession.lastActivityAt = Date.now();
       }
 
-      res.json({
+      const responseBody: VoiceTurnResponseBody = {
         reply,
-      });
+        continueConversation: !endConversation,
+        endConversation,
+      };
+
+      res.json(responseBody);
     } catch (error) {
       const messageText = error instanceof Error ? error.message : String(error);
       res.status(500).json({ error: messageText });

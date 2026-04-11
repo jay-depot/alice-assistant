@@ -1,5 +1,6 @@
 import { AlicePlugin } from '../../../lib.js';
 import path from 'node:path';
+import { Type } from 'typebox';
 import { UserConfig } from '../../../lib/user-config.js';
 import { createVoiceAccessToken } from './auth.js';
 import { VoicePluginConfigSchema, defaultVoicePluginConfig } from './config.js';
@@ -11,6 +12,7 @@ import {
 import {
   closeActiveVoiceSession,
   flushDeferredVoiceSessionCloses,
+  requestActiveVoiceConversationEnd,
   registerVoiceRoutes,
   type VoicePluginRuntimeState,
 } from './routes.js';
@@ -43,7 +45,7 @@ const voicePlugin: AlicePlugin = {
       managedClientState: createManagedVoiceClientState(),
       activeVoiceSession: null,
       sessionIdleTimeoutMs: (config.getPluginConfig().sessionIdleTimeoutMinutes ?? 10) * 60_000,
-      deferredSessionCloseDelayMs: config.getPluginConfig().deferredSessionCloseDelayMs ?? 1500,
+      deferredSessionCloseDelayMs: 0,
       pendingVoiceSessionCloses: new Set(),
       captureDebugConfig: {
         minCaptureSeconds: config.getPluginConfig().minCaptureSeconds ?? 1.25,
@@ -53,7 +55,28 @@ const voicePlugin: AlicePlugin = {
         prerollMs: config.getPluginConfig().prerollMs ?? 250,
       },
       lastCaptureDebug: null,
+      nextVoiceClientEventSequence: 1,
+      voiceClientEvents: [],
     };
+
+    plugin.registerTool({
+      name: 'endVoiceConversation',
+      availableFor: ['voice'],
+      description: 'Use endVoiceConversation only when the user clearly indicates the conversation is over, such as saying that will be all, that is it, or thanks that is all. Do not call it just because a task is complete if the user still appears to be engaged.',
+      systemPromptFragment: '',
+      parameters: Type.Object({}),
+      toolResultPromptIntro: 'The current voice conversation has been marked to end right after your current reply is spoken.',
+      toolResultPromptOutro: 'Give a brief wrap-up reply. Do not ask a follow-up question, do not invite the user to continue, and do not imply that you are still waiting for another turn.',
+      execute: async (_args, context) => {
+        if (context.conversationType !== 'voice') {
+          throw new Error('endVoiceConversation can only be used during voice conversations.');
+        }
+
+        return requestActiveVoiceConversationEnd(runtimeState)
+          ? 'The current voice conversation will end after your reply is delivered.'
+          : 'No active voice conversation was available to end.';
+      },
+    });
 
     registerVoiceRoutes(webUi.express, runtimeState);
 

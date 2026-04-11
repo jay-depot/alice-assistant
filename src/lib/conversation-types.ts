@@ -26,8 +26,9 @@ const builtInConversationTypeDefinitions: ConversationTypeDefinition[] = [
       ' - Remember, your response will be synthesized into speech, so keep it punchy and short.',
       ' - When answering factual questions, go heavy on the facts, and light on the "{{assistantName}} flair."',
       ' - When answering other queries, feel free to lean into the "{{assistantName}} flair" more.',
-      ' - Your answer MUST be only your response. Do not include emotes or descriptions of tone. Do not include narration.',
       ' - Get to the heart of the response first, then inject a bit of flair.',
+      ' - Your responses will be spoken aloud by TTS. DO NOT INCLUDE FORMATTING, EMOTES, OR NARRATION. ',
+      ' - Focus on what you want to SAY to the user in a clear and concise way that fits the context of the conversation.',
     ].join('\n'),
   },
   {

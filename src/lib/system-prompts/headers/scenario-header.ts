@@ -35,10 +35,6 @@ export const scenarioHeaderPrompt: DynamicPrompt = {
 
     systemPromptChunks.push(`# SCENARIO\n`);
 
-    if (conversationTypeDefinition.id === 'autonomy') {
-      return false;
-    }
-
     systemPromptChunks.push(
       substituteScenarioTemplate(
         conversationTypeDefinition.scenarioPrompt ??

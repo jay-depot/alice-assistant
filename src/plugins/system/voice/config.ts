@@ -16,6 +16,15 @@ export const VoicePluginConfigSchema = Type.Object({
   audioCaptureClosedSoundPath: Type.Optional(Type.String({
     description: 'Optional path to a local audio file to play when audio capture has finished.',
   })),
+  continuationSilencePrompt: Type.Optional(Type.String({
+    description: 'Spoken line to say when the user stays silent during the immediate follow-up listening turn and the conversation is being closed.',
+  })),
+  archivingStartedPrompt: Type.Optional(Type.String({
+    description: 'Spoken line to say when a voice conversation starts archiving after it is closed.',
+  })),
+  archivingCompletedPrompt: Type.Optional(Type.String({
+    description: 'Spoken line to say when voice conversation archival has finished.',
+  })),
   minCaptureSeconds: Type.Optional(Type.Number({
     description: 'Minimum amount of time to keep recording after capture begins before trailing silence can end the turn.',
   })),
@@ -50,9 +59,12 @@ export type VoicePluginConfig = Type.Static<typeof VoicePluginConfigSchema>;
 export const defaultVoicePluginConfig: VoicePluginConfig = {
   launchManagedClient: false,
   sessionIdleTimeoutMinutes: 10,
-  deferredSessionCloseDelayMs: 1500,
+  deferredSessionCloseDelayMs: 0,
   wakeWordDetectedSoundPath: '',
   audioCaptureClosedSoundPath: '',
+  continuationSilencePrompt: 'All right, I will close that conversation now.',
+  archivingStartedPrompt: 'Archiving that now, one moment.',
+  archivingCompletedPrompt: 'Finished archiving, ready for another request.',
   minCaptureSeconds: 1.25,
   maxCaptureSeconds: 7,
   trailingSilenceMs: 900,
