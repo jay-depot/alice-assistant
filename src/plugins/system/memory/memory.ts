@@ -216,7 +216,11 @@ const memoryPlugin: AlicePlugin = {
             });
             return JSON.stringify({ memories });
           } else if (args.keyword) {
-            const keywords = args.keyword.split(',').map(k => k.trim());
+            const keywords = args.keyword
+              .split(',')
+              .map(k => k.split(' '))
+              .flat()
+              .map(k => k.trim());
 
             const keywordEntities = await em.find(Keyword, {
               keyword: { $in: keywords },

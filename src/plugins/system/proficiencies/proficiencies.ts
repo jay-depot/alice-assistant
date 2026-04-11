@@ -30,6 +30,7 @@ const UpdateProficiencyParametersSchema = Type.Object({
   proficiencyName: Type.String({ description: 'The PascalCase name of the proficiency to update.' }),
   recallWhen: Type.Optional(Type.String({ description: 'Updated recall trigger for the proficiency.' })),
   contents: Type.Optional(Type.String({ description: 'Updated proficiency contents.' })),
+  append: Type.Optional(Type.Boolean({ description: 'Whether to append the provided contents to the existing contents instead of replacing them. Defaults to false.' })),
 });
 
 type UpdateProficiencyParameters = Static<typeof UpdateProficiencyParametersSchema>;
@@ -262,7 +263,11 @@ const proficienciesPlugin: AlicePlugin = {
           }
 
           if (args.contents !== undefined) {
-            entry.contents = args.contents;
+            if (args.append) {
+              entry.contents = `${entry.contents}\n${args.contents}`;
+            } else {
+              entry.contents = args.contents;
+            }
           }
 
           const now = new Date();
