@@ -11,7 +11,7 @@ import {
 } from './managed-client.js';
 import { registerVoiceRoutes } from './routes.js';
 
-const currentDir = path.dirname(fileURLToPath(import.meta.url));
+const currentDir = import.meta.dirname;
 
 const voicePlugin: AlicePlugin = {
   pluginMetadata: {

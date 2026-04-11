@@ -2,6 +2,7 @@
 
 import json
 import importlib
+import inspect
 import os
 import shutil
 import subprocess
@@ -245,6 +246,27 @@ def get_open_wake_word_model_path(system_config: dict) -> str:
     return configured_model
 
 
+def create_wake_word_model(Model, model_path: str):
+    parameter_names = set(inspect.signature(Model.__init__).parameters.keys())
+
+    if 'wakeword_models' in parameter_names:
+        if model_path.endswith('.onnx'):
+            return Model(wakeword_models=[model_path], inference_framework='onnx')
+
+        return Model(wakeword_models=[model_path])
+
+    if 'wakeword_model_paths' in parameter_names:
+        if model_path.endswith('.tflite'):
+            raise RuntimeError(
+                'The installed openwakeword package only supports the older ONNX-based API, but the configured wake-word model is a .tflite file. '
+                'Use the .onnx model instead, or install a newer openwakeword build that supports tflite wakeword_models.'
+            )
+
+        return Model(wakeword_model_paths=[model_path])
+
+    raise RuntimeError('Unsupported openwakeword Model constructor shape. Unable to initialize wake-word model safely.')
+
+
 def wait_for_wake_word(system_config: dict) -> None:
     np, sd, Model = import_wake_word_runtime()
     model_path = get_open_wake_word_model_path(system_config)
@@ -253,7 +275,7 @@ def wait_for_wake_word(system_config: dict) -> None:
 
     print(f'voice client: listening for wake word using model {model_path}')
 
-    wake_model = Model(wakeword_models=[model_path])
+    wake_model = create_wake_word_model(Model, model_path)
 
     with sd.RawInputStream(samplerate=16000, channels=1, dtype='int16', blocksize=chunk_size) as stream:
         while True:
