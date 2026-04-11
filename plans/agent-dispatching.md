@@ -128,8 +128,8 @@ Session-linked    | Agent ID + Session ID  | Assistant makes | Saves state to da
 ------------------|------------------------|-----------------|---------------------------------------------|-----------------                  
 Scheduled-session | Agent ID + Schedule ID | Plugin code     | Outstanding tasks are given some time to    | Running, Handoff Pending
                   |                        |                 | complete at shutdown. No provisions to      | Cancelled, Erroring,
-                  |                        |                 | resume built in.                            | Stuck, Completed
-                  |                        |                 |                                             | 
+                  |                        |                 | resume built in.                            | Stuck, Completed,
+                  |                        |                 |                                             | Armed
 ------------------|------------------------|-----------------|---------------------------------------------|-----------------
 Independent       | Agent ID               | Plugin code     | Core provides a single, long-running        | Hatching, Running, 
                   |                        |                 | context that persists across restarts. No   | Freezing, Thawing,
