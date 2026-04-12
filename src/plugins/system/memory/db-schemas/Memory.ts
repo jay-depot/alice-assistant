@@ -8,9 +8,9 @@ const MemorySchema = defineEntity({
     timestamp: p.datetime(),
     content: p.string(),
     keywords: () => p.manyToMany(Keyword).mappedBy('memories'),
-  }
+  },
 });
 
-export class Memory extends MemorySchema.class {};
+export class Memory extends MemorySchema.class {}
 
 MemorySchema.setClass(Memory);

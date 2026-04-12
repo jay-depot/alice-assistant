@@ -16,7 +16,9 @@ export function RegionSlot({ region, className }: RegionSlotProps) {
   }
 
   return (
-    <div className={classNames('region-slot', `region-slot--${region}`, className)}>
+    <div
+      className={classNames('region-slot', `region-slot--${region}`, className)}
+    >
       {components.map((Component, index) => (
         <Component key={`${region}-${index}`} />
       ))}

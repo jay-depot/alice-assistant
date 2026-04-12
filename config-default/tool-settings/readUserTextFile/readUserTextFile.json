@@ -1,17 +1,6 @@
 {
-  "allowedRoots": [
-    "~/Documents",
-    "~/Downloads",
-    "~/Desktop"
-  ],
-  "allowedExtensions": [
-    ".txt",
-    ".md",
-    ".csv",
-    ".json",
-    ".log",
-    ".org"
-  ],
+  "allowedRoots": ["~/Documents", "~/Downloads", "~/Desktop"],
+  "allowedExtensions": [".txt", ".md", ".csv", ".json", ".log", ".org"],
   "maxFileSizeBytes": 10485760,
   "defaultMaxBytes": 65536,
   "absoluteMaxBytes": 1048576

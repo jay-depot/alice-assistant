@@ -32,11 +32,11 @@ Sketch a future web UI surface for plugin configuration, with room for soft-conf
    - short description
    - enabled/disabled toggle (Which will be itself disabled if the plugin is required or has enabled dependents, with an explanation tooltip on hover)
    - "Type" badges for system+required, system+optional, community, or user plugin
-   - "Warning" badges for the highest "level" of registered agentic independence included in the plugin. Something akin ski diamonds for the overall level (DO NOT RELY SOLELY ON COLOR FOR THIS. COLOR *AND* AN ADDITIONAL VISUAL SIGNAL LIKE THE NUMBER OF [CHOSEN_ICON] OR [CHOSEN_ICON] WITH CLEAR "PLUSES" AFTERWARDS IS IDEAL), plus additional badges for any specific agentic functionality we end up tracking in the metadata  (See `plans/agent-dispatching.md` for more on this)
-      - Candidates for the "level" badge include:
-         - Robot heads, or a single robot head, followed by 0, 1 or 2 plusses (I'm partial to this, specifically the latter option. Using a robot head is cute and funny, which makes it on-brand. We don't use robot heads anywhere else yet, so the user can learn this is the idiom. The plusses are a better alternative to repeating robot heads, which might imply more *agents*, rather than more *agency*)
-         - Gears
-         - Diamonds (like ski resort difficulty ratings, but for the agent's independence level instead of slope difficulty)
+   - "Warning" badges for the highest "level" of registered agentic independence included in the plugin. Something akin ski diamonds for the overall level (DO NOT RELY SOLELY ON COLOR FOR THIS. COLOR _AND_ AN ADDITIONAL VISUAL SIGNAL LIKE THE NUMBER OF [CHOSEN_ICON] OR [CHOSEN_ICON] WITH CLEAR "PLUSES" AFTERWARDS IS IDEAL), plus additional badges for any specific agentic functionality we end up tracking in the metadata (See `plans/agent-dispatching.md` for more on this)
+     - Candidates for the "level" badge include:
+       - Robot heads, or a single robot head, followed by 0, 1 or 2 plusses (I'm partial to this, specifically the latter option. Using a robot head is cute and funny, which makes it on-brand. We don't use robot heads anywhere else yet, so the user can learn this is the idiom. The plusses are a better alternative to repeating robot heads, which might imply more _agents_, rather than more _agency_)
+       - Gears
+       - Diamonds (like ski resort difficulty ratings, but for the agent's independence level instead of slope difficulty)
 
 2. Add an inline warnings area per plugin entry.
    - Warning text appears only when the current enabled set triggers a known soft conflict.
@@ -62,7 +62,7 @@ Sketch a future web UI surface for plugin configuration, with room for soft-conf
 3. Keep actual config persistence compatible with `enabled-plugins.json`.
    - The UI will be a friendlier editor for the existing config files, which the user should always be able to explore, and edit directly if desired or needed.
    - HARD BLOCKER: All remaining legacy tool configs need to be migrated into their plugins or this cannot work. If you are not confident this has been done completely, DO NOT PROCEED WITH THE UI WORK.
-   - SOFT BLOCKER: peer and optional dependencies for plugins are on the feature roadmap. It will *probably* be easier to do this after those are in place, but proceed if you are confident the later retrofit won't be too difficult.
+   - SOFT BLOCKER: peer and optional dependencies for plugins are on the feature roadmap. It will _probably_ be easier to do this after those are in place, but proceed if you are confident the later retrofit won't be too difficult.
    - RESOLVED: Built-in plugins are now split into `src/plugins/system/` and `src/plugins/community/`, and the UI design should reflect that distinction rather than assuming a flat built-in plugin directory.
    - SOFT BLOCKER: The loading process for user plugins exists, but is untested. We can work on this UI without that, but it will impact testing scope if that turns out to have been broken all along.
 

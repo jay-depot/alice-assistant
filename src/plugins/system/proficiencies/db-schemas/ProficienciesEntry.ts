@@ -12,7 +12,7 @@ const ProficienciesEntrySchema = defineEntity({
     createdAt: p.datetime(),
     updatedAt: p.datetime(),
     lastAccessedAt: p.datetime(),
-  }
+  },
 });
 
 export class ProficienciesEntry extends ProficienciesEntrySchema.class {}

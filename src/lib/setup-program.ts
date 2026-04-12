@@ -18,7 +18,10 @@ type SetupArgs = {
 
 type PromptSession = {
   question: (text: string) => Promise<string>;
-  selectMany: (title: string, options: Array<{ id: string; label: string; selected: boolean }>) => Promise<string[]>;
+  selectMany: (
+    title: string,
+    options: Array<{ id: string; label: string; selected: boolean }>
+  ) => Promise<string[]>;
   close: () => void;
   printSection: (title: string) => void;
   printInfo: (message: string) => void;
@@ -75,17 +78,47 @@ type SetupSystemConfig = {
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const packageRootDir = path.resolve(currentDir, '..', '..');
 const defaultConfigDir = path.join(packageRootDir, 'config-default');
-const defaultEnabledPluginsPath = path.join(defaultConfigDir, 'plugin-settings', 'enabled-plugins.json');
-const defaultVoiceConfigPath = path.join(defaultConfigDir, 'plugin-settings', 'voice', 'voice.json');
+const defaultEnabledPluginsPath = path.join(
+  defaultConfigDir,
+  'plugin-settings',
+  'enabled-plugins.json'
+);
+const defaultVoiceConfigPath = path.join(
+  defaultConfigDir,
+  'plugin-settings',
+  'voice',
+  'voice.json'
+);
 const systemPluginsRegistryCandidatePaths = [
   path.join(packageRootDir, 'src', 'plugins', 'system-plugins.json'),
   path.join(packageRootDir, 'dist', 'plugins', 'system-plugins.json'),
 ];
 const voiceRequirementsCandidatePaths = [
-  path.join(packageRootDir, 'src', 'plugins', 'system', 'voice', 'client', 'requirements.txt'),
-  path.join(packageRootDir, 'dist', 'plugins', 'system', 'voice', 'client', 'requirements.txt'),
+  path.join(
+    packageRootDir,
+    'src',
+    'plugins',
+    'system',
+    'voice',
+    'client',
+    'requirements.txt'
+  ),
+  path.join(
+    packageRootDir,
+    'dist',
+    'plugins',
+    'system',
+    'voice',
+    'client',
+    'requirements.txt'
+  ),
 ];
-const setupExtrasPath = path.join(defaultConfigDir, 'plugin-settings', 'voice', 'setup-python-extras.json');
+const setupExtrasPath = path.join(
+  defaultConfigDir,
+  'plugin-settings',
+  'voice',
+  'setup-python-extras.json'
+);
 
 function parseArgs(argv: string[]): SetupArgs {
   return {
@@ -103,7 +136,9 @@ function createReadlinePromptSession(): PromptSession {
   const selectMany: PromptSession['selectMany'] = async (_title, options) => {
     const selected: string[] = [];
     for (const option of options) {
-      const answer = await rl.question(`${option.label} (${option.selected ? 'Y/n' : 'y/N'}): `);
+      const answer = await rl.question(
+        `${option.label} (${option.selected ? 'Y/n' : 'y/N'}): `
+      );
       const value = answer.trim();
       const enabled = value ? isYes(value) : option.selected;
       if (enabled) {
@@ -205,16 +240,6 @@ function createBlessedPromptSession(): PromptSession {
     },
   });
 
-  const checkboxHelp = blessed.box({
-    parent: checkboxDialog,
-    top: 0,
-    left: 1,
-    width: '100%-2',
-    height: 2,
-    tags: true,
-    content: '{bold}Space{/bold} toggle  {bold}Enter{/bold} confirm  {bold}Esc{/bold} keep defaults',
-  });
-
   const checkboxList = blessed.list({
     parent: checkboxDialog,
     top: 2,
@@ -248,7 +273,7 @@ function createBlessedPromptSession(): PromptSession {
 
   return {
     question: async (text: string) => {
-      return await new Promise<string>((resolve) => {
+      return await new Promise<string>(resolve => {
         promptDialog.input(text, '', (_err, value) => {
           const normalized = `${value ?? ''}`;
           logPanel.add(`{bold}> ${text}{/bold}`);
@@ -261,16 +286,18 @@ function createBlessedPromptSession(): PromptSession {
       });
     },
     selectMany: async (title, options) => {
-      return await new Promise<string[]>((resolve) => {
-        const states = options.map((option) => ({ ...option }));
+      return await new Promise<string[]>(resolve => {
+        const states = options.map(option => ({ ...option }));
 
         const renderItems = () => {
           checkboxDialog.setLabel(` ${title} `);
           checkboxList.setItems(
-            states.map((option) => {
-              const marker = option.selected ? '{green-fg}[x]{/green-fg}' : '[ ]';
+            states.map(option => {
+              const marker = option.selected
+                ? '{green-fg}[x]{/green-fg}'
+                : '[ ]';
               return `${marker} ${option.label}`;
-            }),
+            })
           );
           render();
         };
@@ -283,11 +310,15 @@ function createBlessedPromptSession(): PromptSession {
           render();
 
           if (keepDefaults) {
-            resolve(options.filter((option) => option.selected).map((option) => option.id));
+            resolve(
+              options.filter(option => option.selected).map(option => option.id)
+            );
             return;
           }
 
-          resolve(states.filter((option) => option.selected).map((option) => option.id));
+          resolve(
+            states.filter(option => option.selected).map(option => option.id)
+          );
         };
 
         checkboxDialog.show();
@@ -342,7 +373,9 @@ function createPromptSession(args: SetupArgs): PromptSession {
   }
 }
 
-async function firstReadablePath(candidatePaths: string[]): Promise<string | null> {
+async function firstReadablePath(
+  candidatePaths: string[]
+): Promise<string | null> {
   for (const candidatePath of candidatePaths) {
     try {
       await fs.access(candidatePath, fsConstants.R_OK);
@@ -357,7 +390,12 @@ async function firstReadablePath(candidatePaths: string[]): Promise<string | nul
 
 function isYes(value: string): boolean {
   const normalized = value.trim().toLowerCase();
-  return normalized === 'y' || normalized === 'yes' || normalized === 'true' || normalized === '1';
+  return (
+    normalized === 'y' ||
+    normalized === 'yes' ||
+    normalized === 'true' ||
+    normalized === '1'
+  );
 }
 
 function toNumberOrDefault(rawValue: string, fallback: number): number {
@@ -390,12 +428,12 @@ async function writeJsonFile(filePath: string, value: unknown): Promise<void> {
 
 async function commandExists(commandName: string): Promise<boolean> {
   const checkCommand = process.platform === 'win32' ? 'where' : 'which';
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     const child = spawn(checkCommand, [commandName], {
       stdio: 'ignore',
     });
 
-    child.on('close', (code) => {
+    child.on('close', code => {
       resolve(code === 0);
     });
 
@@ -405,16 +443,24 @@ async function commandExists(commandName: string): Promise<boolean> {
   });
 }
 
-async function runCommand(command: string, args: string[], stdio: 'inherit' | 'pipe'): Promise<void> {
+async function runCommand(
+  command: string,
+  args: string[],
+  stdio: 'inherit' | 'pipe'
+): Promise<void> {
   await new Promise<void>((resolve, reject) => {
     const child = spawn(command, args, { stdio });
     child.on('error', reject);
-    child.on('close', (code) => {
+    child.on('close', code => {
       if (code === 0) {
         resolve();
         return;
       }
-      reject(new Error(`${command} ${args.join(' ')} exited with code ${code ?? 'null'}.`));
+      reject(
+        new Error(
+          `${command} ${args.join(' ')} exited with code ${code ?? 'null'}.`
+        )
+      );
     });
   });
 }
@@ -423,7 +469,7 @@ async function askQuestion(
   session: PromptSession,
   question: string,
   defaultValue: string,
-  defaultsMode: boolean,
+  defaultsMode: boolean
 ): Promise<string> {
   if (defaultsMode) {
     return defaultValue;
@@ -438,7 +484,7 @@ async function askYesNo(
   session: PromptSession,
   question: string,
   defaultValue: boolean,
-  defaultsMode: boolean,
+  defaultsMode: boolean
 ): Promise<boolean> {
   if (defaultsMode) {
     return defaultValue;
@@ -463,17 +509,25 @@ async function probeOllama(host: string): Promise<boolean> {
 }
 
 async function loadSystemPlugins(): Promise<SystemPluginEntry[]> {
-  const registryPath = await firstReadablePath(systemPluginsRegistryCandidatePaths);
+  const registryPath = await firstReadablePath(
+    systemPluginsRegistryCandidatePaths
+  );
   if (!registryPath) {
-    throw new Error(`Could not find system plugin registry in any known location: ${systemPluginsRegistryCandidatePaths.join(', ')}`);
+    throw new Error(
+      `Could not find system plugin registry in any known location: ${systemPluginsRegistryCandidatePaths.join(', ')}`
+    );
   }
 
   return readJsonFile<SystemPluginEntry[]>(registryPath);
 }
 
 async function ensureBundledFilesExist(): Promise<void> {
-  const systemPluginsRegistryPath = await firstReadablePath(systemPluginsRegistryCandidatePaths);
-  const voiceRequirementsPath = await firstReadablePath(voiceRequirementsCandidatePaths);
+  const systemPluginsRegistryPath = await firstReadablePath(
+    systemPluginsRegistryCandidatePaths
+  );
+  const voiceRequirementsPath = await firstReadablePath(
+    voiceRequirementsCandidatePaths
+  );
 
   const requiredFiles = [
     defaultConfigDir,
@@ -493,16 +547,22 @@ async function ensureBundledFilesExist(): Promise<void> {
     try {
       await fs.access(target, fsConstants.R_OK);
     } catch {
-      throw new Error(`Setup cannot continue because a required bundled file is missing: ${target}`);
+      throw new Error(
+        `Setup cannot continue because a required bundled file is missing: ${target}`
+      );
     }
   }
 
   if (!systemPluginsRegistryPath) {
-    throw new Error(`Setup cannot continue because system plugin registry was not found. Looked in: ${systemPluginsRegistryCandidatePaths.join(', ')}`);
+    throw new Error(
+      `Setup cannot continue because system plugin registry was not found. Looked in: ${systemPluginsRegistryCandidatePaths.join(', ')}`
+    );
   }
 
   if (!voiceRequirementsPath) {
-    throw new Error(`Setup cannot continue because voice requirements file was not found. Looked in: ${voiceRequirementsCandidatePaths.join(', ')}`);
+    throw new Error(
+      `Setup cannot continue because voice requirements file was not found. Looked in: ${voiceRequirementsCandidatePaths.join(', ')}`
+    );
   }
 }
 
@@ -514,8 +574,8 @@ async function loadPythonExtras(): Promise<string[]> {
     }
 
     return extras.extras
-      .map((entry) => `${entry}`.trim())
-      .filter((entry) => entry.length > 0);
+      .map(entry => `${entry}`.trim())
+      .filter(entry => entry.length > 0);
   } catch {
     return [];
   }
@@ -524,15 +584,15 @@ async function loadPythonExtras(): Promise<string[]> {
 async function configureEnabledPlugins(
   session: PromptSession,
   defaultsMode: boolean,
-  currentEnabledPlugins: EnabledPluginsFile,
+  currentEnabledPlugins: EnabledPluginsFile
 ): Promise<EnabledPluginsFile> {
   const systemPlugins = await loadSystemPlugins();
   const updatedSystemState: Record<string, boolean> = {
     ...currentEnabledPlugins.system,
   };
 
-  const optionalPlugins = systemPlugins.filter((plugin) => !plugin.required);
-  const requiredPlugins = systemPlugins.filter((plugin) => plugin.required);
+  const optionalPlugins = systemPlugins.filter(plugin => !plugin.required);
+  const requiredPlugins = systemPlugins.filter(plugin => plugin.required);
 
   for (const plugin of requiredPlugins) {
     updatedSystemState[plugin.id] = true;
@@ -546,11 +606,11 @@ async function configureEnabledPlugins(
     } else {
       const selectedOptionalPluginIds = await session.selectMany(
         'Plugin Selection',
-        optionalPlugins.map((plugin) => ({
+        optionalPlugins.map(plugin => ({
           id: plugin.id,
           label: `${plugin.id} (${plugin.category})`,
           selected: !!updatedSystemState[plugin.id],
-        })),
+        }))
       );
       const selectedSet = new Set(selectedOptionalPluginIds);
       for (const plugin of optionalPlugins) {
@@ -563,7 +623,7 @@ async function configureEnabledPlugins(
     session,
     'Enable user plugins',
     currentEnabledPlugins.user.enableUserPlugins,
-    defaultsMode,
+    defaultsMode
   );
 
   return {
@@ -578,77 +638,95 @@ async function configureEnabledPlugins(
 async function configureCoreSettings(
   session: PromptSession,
   defaultsMode: boolean,
-  currentConfig: SetupSystemConfig,
+  currentConfig: SetupSystemConfig
 ): Promise<SetupSystemConfig> {
-  const wakeWord = await askQuestion(session, 'Wake word', currentConfig.wakeWord ?? 'Hey ALICE', defaultsMode);
-  const assistantName = await askQuestion(session, 'Assistant name', currentConfig.assistantName ?? 'ALICE', defaultsMode);
-  const location = await askQuestion(session, 'Location', currentConfig.location ?? '', defaultsMode);
+  const wakeWord = await askQuestion(
+    session,
+    'Wake word',
+    currentConfig.wakeWord ?? 'Hey ALICE',
+    defaultsMode
+  );
+  const assistantName = await askQuestion(
+    session,
+    'Assistant name',
+    currentConfig.assistantName ?? 'ALICE',
+    defaultsMode
+  );
+  const location = await askQuestion(
+    session,
+    'Location',
+    currentConfig.location ?? '',
+    defaultsMode
+  );
 
   const webEnabled = await askYesNo(
     session,
     'Enable web interface',
     currentConfig.webInterface?.enabled ?? true,
-    defaultsMode,
+    defaultsMode
   );
   const webPortRaw = await askQuestion(
     session,
     'Web interface port',
     `${currentConfig.webInterface?.port ?? 47153}`,
-    defaultsMode,
+    defaultsMode
   );
   const webBind = await askQuestion(
     session,
     'Web interface bind address',
     currentConfig.webInterface?.bindToAddress ?? '127.0.0.1',
-    defaultsMode,
+    defaultsMode
   );
 
   const ollamaHostRaw = await askQuestion(
     session,
     'Ollama host',
     currentConfig.ollama?.host ?? 'http://127.0.0.1:11434',
-    defaultsMode,
+    defaultsMode
   );
   const ollamaModel = await askQuestion(
     session,
     'Ollama model',
     currentConfig.ollama?.model ?? 'qwen2:7b',
-    defaultsMode,
+    defaultsMode
   );
   const ollamaNumCtxRaw = await askQuestion(
     session,
     'Ollama num_ctx',
     `${currentConfig.ollama?.options?.num_ctx ?? 32000}`,
-    defaultsMode,
+    defaultsMode
   );
 
   const piperHost = await askQuestion(
     session,
     'Piper TTS host',
     currentConfig.piperTts?.host ?? 'http://127.0.0.1:5000',
-    defaultsMode,
+    defaultsMode
   );
   const piperModel = await askQuestion(
     session,
     'Piper model path',
     currentConfig.piperTts?.model ?? '',
-    defaultsMode,
+    defaultsMode
   );
   const piperSpeakerRaw = await askQuestion(
     session,
     'Piper speaker id',
     `${currentConfig.piperTts?.speaker ?? 0}`,
-    defaultsMode,
+    defaultsMode
   );
 
   const openWakeWordModel = await askQuestion(
     session,
     'OpenWakeWord model path',
     currentConfig.openWakeWord?.model ?? '',
-    defaultsMode,
+    defaultsMode
   );
 
-  const normalizedOllamaHost = normalizeOllamaHost(ollamaHostRaw, currentConfig.ollama?.host ?? 'http://127.0.0.1:11434');
+  const normalizedOllamaHost = normalizeOllamaHost(
+    ollamaHostRaw,
+    currentConfig.ollama?.host ?? 'http://127.0.0.1:11434'
+  );
 
   return {
     ...currentConfig,
@@ -657,7 +735,10 @@ async function configureCoreSettings(
     location,
     webInterface: {
       enabled: webEnabled,
-      port: toNumberOrDefault(webPortRaw, currentConfig.webInterface?.port ?? 47153),
+      port: toNumberOrDefault(
+        webPortRaw,
+        currentConfig.webInterface?.port ?? 47153
+      ),
       bindToAddress: webBind,
     },
     ollama: {
@@ -666,14 +747,20 @@ async function configureCoreSettings(
       model: ollamaModel,
       options: {
         ...(currentConfig.ollama?.options ?? {}),
-        num_ctx: toNumberOrDefault(ollamaNumCtxRaw, currentConfig.ollama?.options?.num_ctx ?? 32000),
+        num_ctx: toNumberOrDefault(
+          ollamaNumCtxRaw,
+          currentConfig.ollama?.options?.num_ctx ?? 32000
+        ),
       },
     },
     piperTts: {
       ...(currentConfig.piperTts ?? {}),
       host: piperHost,
       model: piperModel,
-      speaker: toNumberOrDefault(piperSpeakerRaw, currentConfig.piperTts?.speaker ?? 0),
+      speaker: toNumberOrDefault(
+        piperSpeakerRaw,
+        currentConfig.piperTts?.speaker ?? 0
+      ),
     },
     openWakeWord: {
       ...(currentConfig.openWakeWord ?? {}),
@@ -688,9 +775,13 @@ function printHelp(): void {
   console.log('');
   console.log('Options:');
   console.log('  --defaults, --yes    Accept defaults for all prompts');
-  console.log('  --force-venv         Recreate ~/.alice-assistant/voice-venv if it already exists');
+  console.log(
+    '  --force-venv         Recreate ~/.alice-assistant/voice-venv if it already exists'
+  );
   console.log('  --quiet, -q          Reduce setup output');
-  console.log('  --plain              Disable Blessed UI and use plain prompts');
+  console.log(
+    '  --plain              Disable Blessed UI and use plain prompts'
+  );
   console.log('  --help, -h           Show this help message');
 }
 
@@ -710,7 +801,7 @@ async function setupVoiceVenv(options: {
     session,
     'Provision voice Python environment now',
     true,
-    defaultsMode,
+    defaultsMode
   );
   if (!shouldSetupVoice) {
     return null;
@@ -718,16 +809,24 @@ async function setupVoiceVenv(options: {
 
   const hasPython = await commandExists('python3');
   if (!hasPython) {
-    throw new Error('python3 is required but was not found on PATH. Install python3 and rerun alice-assistant-setup.');
+    throw new Error(
+      'python3 is required but was not found on PATH. Install python3 and rerun alice-assistant-setup.'
+    );
   }
 
-  const venvExists = await fs.access(venvPythonPath).then(() => true).catch(() => false);
-  const shouldRecreate = venvExists && (forceVenv || await askYesNo(
-    session,
-    'voice-venv already exists. Recreate it',
-    false,
-    defaultsMode,
-  ));
+  const venvExists = await fs
+    .access(venvPythonPath)
+    .then(() => true)
+    .catch(() => false);
+  const shouldRecreate =
+    venvExists &&
+    (forceVenv ||
+      (await askYesNo(
+        session,
+        'voice-venv already exists. Recreate it',
+        false,
+        defaultsMode
+      )));
 
   if (venvExists && shouldRecreate) {
     if (!quiet) {
@@ -736,50 +835,66 @@ async function setupVoiceVenv(options: {
     await fs.rm(venvPath, { recursive: true, force: true });
   }
 
-  const finalVenvExists = await fs.access(venvPythonPath).then(() => true).catch(() => false);
+  const finalVenvExists = await fs
+    .access(venvPythonPath)
+    .then(() => true)
+    .catch(() => false);
   if (!finalVenvExists) {
     if (!quiet) {
       console.log(`Creating venv at ${venvPath}...`);
     }
-    await runCommand('python3', ['-m', 'venv', venvPath], quiet ? 'pipe' : 'inherit');
+    await runCommand(
+      'python3',
+      ['-m', 'venv', venvPath],
+      quiet ? 'pipe' : 'inherit'
+    );
   }
 
   if (!quiet) {
     console.log('Installing required voice dependencies...');
   }
-  const voiceRequirementsPath = await firstReadablePath(voiceRequirementsCandidatePaths);
+  const voiceRequirementsPath = await firstReadablePath(
+    voiceRequirementsCandidatePaths
+  );
   if (!voiceRequirementsPath) {
-    throw new Error(`Could not locate voice requirements file. Looked in: ${voiceRequirementsCandidatePaths.join(', ')}`);
+    throw new Error(
+      `Could not locate voice requirements file. Looked in: ${voiceRequirementsCandidatePaths.join(', ')}`
+    );
   }
 
-  await runCommand(venvPipPath, ['install', '-r', voiceRequirementsPath], quiet ? 'pipe' : 'inherit');
+  await runCommand(
+    venvPipPath,
+    ['install', '-r', voiceRequirementsPath],
+    quiet ? 'pipe' : 'inherit'
+  );
 
   const bundledExtras = await loadPythonExtras();
   const extrasInput = await askQuestion(
     session,
     'Additional pip packages (comma-separated)',
     bundledExtras.join(', '),
-    defaultsMode,
+    defaultsMode
   );
   const extras = extrasInput
     .split(',')
-    .map((entry) => entry.trim())
-    .filter((entry) => entry.length > 0);
+    .map(entry => entry.trim())
+    .filter(entry => entry.length > 0);
 
   if (extras.length > 0) {
     if (!quiet) {
       console.log(`Installing extras: ${extras.join(', ')}`);
     }
-    await runCommand(venvPipPath, ['install', ...extras], quiet ? 'pipe' : 'inherit');
+    await runCommand(
+      venvPipPath,
+      ['install', ...extras],
+      quiet ? 'pipe' : 'inherit'
+    );
   }
 
   await runCommand(
     venvPythonPath,
-    [
-      '-c',
-      'import numpy, openwakeword, sounddevice; print("voice-deps-ok")',
-    ],
-    quiet ? 'pipe' : 'inherit',
+    ['-c', 'import numpy, openwakeword, sounddevice; print("voice-deps-ok")'],
+    quiet ? 'pipe' : 'inherit'
   );
 
   return {
@@ -798,20 +913,26 @@ async function updateVoicePluginConfig(options: {
   const voiceConfigDir = path.join(configDir, 'plugin-settings', 'voice');
   const voiceConfigPath = path.join(voiceConfigDir, 'voice.json');
 
-  const fallback = await readJsonFile<Record<string, unknown>>(defaultVoiceConfigPath);
-  const current = await fs.access(voiceConfigPath).then(async () => readJsonFile<Record<string, unknown>>(voiceConfigPath)).catch(() => fallback);
+  const fallback = await readJsonFile<Record<string, unknown>>(
+    defaultVoiceConfigPath
+  );
+  const current = await fs
+    .access(voiceConfigPath)
+    .then(async () => readJsonFile<Record<string, unknown>>(voiceConfigPath))
+    .catch(() => fallback);
 
   const launchManagedClient = await askYesNo(
     session,
     'Enable managed voice client launch at startup',
     (current.launchManagedClient as boolean | undefined) ?? false,
-    defaultsMode,
+    defaultsMode
   );
 
   const updated = {
     ...current,
     launchManagedClient,
-    managedClientCommand: pythonPath ?? (current.managedClientCommand as string | undefined) ?? '',
+    managedClientCommand:
+      pythonPath ?? (current.managedClientCommand as string | undefined) ?? '',
   };
 
   await fs.mkdir(voiceConfigDir, { recursive: true });
@@ -831,23 +952,41 @@ export async function runSetupProgram(argv: string[]): Promise<void> {
 
   try {
     session.printSection('A.L.I.C.E Setup Wizard');
-    session.printInfo('This command scaffolds ~/.alice-assistant and configures voice dependencies.');
+    session.printInfo(
+      'This command scaffolds ~/.alice-assistant and configures voice dependencies.'
+    );
 
     const configDir = UserConfig.getConfigPath();
     const aliceConfigPath = path.join(configDir, 'alice.json');
-    const enabledPluginsPath = path.join(configDir, 'plugin-settings', 'enabled-plugins.json');
+    const enabledPluginsPath = path.join(
+      configDir,
+      'plugin-settings',
+      'enabled-plugins.json'
+    );
 
-    const currentConfig = await readJsonFile<SetupSystemConfig>(aliceConfigPath);
-    const currentEnabledPlugins = await fs.access(enabledPluginsPath)
+    const currentConfig =
+      await readJsonFile<SetupSystemConfig>(aliceConfigPath);
+    const currentEnabledPlugins = await fs
+      .access(enabledPluginsPath)
       .then(async () => readJsonFile<EnabledPluginsFile>(enabledPluginsPath))
-      .catch(async () => readJsonFile<EnabledPluginsFile>(defaultEnabledPluginsPath));
+      .catch(async () =>
+        readJsonFile<EnabledPluginsFile>(defaultEnabledPluginsPath)
+      );
 
     session.printSection('Core Settings');
-    const nextConfig = await configureCoreSettings(session, args.defaults, currentConfig);
+    const nextConfig = await configureCoreSettings(
+      session,
+      args.defaults,
+      currentConfig
+    );
     await writeJsonFile(aliceConfigPath, nextConfig);
 
     session.printSection('Plugin Selection');
-    const nextEnabledPlugins = await configureEnabledPlugins(session, args.defaults, currentEnabledPlugins);
+    const nextEnabledPlugins = await configureEnabledPlugins(
+      session,
+      args.defaults,
+      currentEnabledPlugins
+    );
     await writeJsonFile(enabledPluginsPath, nextEnabledPlugins);
 
     session.printSection('Voice Environment');
@@ -866,14 +1005,18 @@ export async function runSetupProgram(argv: string[]): Promise<void> {
       pythonPath: voiceSetup?.pythonPath ?? null,
     });
 
-    const ollamaReachable = await probeOllama(nextConfig.ollama?.host ?? 'http://127.0.0.1:11434');
+    const ollamaReachable = await probeOllama(
+      nextConfig.ollama?.host ?? 'http://127.0.0.1:11434'
+    );
 
     session.printSection('Summary');
     session.printInfo('Setup complete.');
     session.printInfo(`Config directory: ${configDir}`);
     session.printInfo(`alice.json: ${aliceConfigPath}`);
     session.printInfo(`enabled-plugins.json: ${enabledPluginsPath}`);
-    session.printInfo(`Voice plugin config: ${path.join(configDir, 'plugin-settings', 'voice', 'voice.json')}`);
+    session.printInfo(
+      `Voice plugin config: ${path.join(configDir, 'plugin-settings', 'voice', 'voice.json')}`
+    );
     if (voiceSetup) {
       session.printInfo(`Voice venv: ${voiceSetup.venvPath}`);
       session.printInfo(`Voice python: ${voiceSetup.pythonPath}`);

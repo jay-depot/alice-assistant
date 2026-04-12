@@ -1,7 +1,7 @@
 import { defineEntity, p } from '@mikro-orm/core';
 
 /**
- * An *exceedingly simple* schedule schema for single-instance reminders. 
+ * An *exceedingly simple* schedule schema for single-instance reminders.
  */
 const RemindersScheduleSchema = defineEntity({
   name: 'RemindersSchedule',
@@ -12,7 +12,7 @@ const RemindersScheduleSchema = defineEntity({
     source: p.string(), // the name of the plugin that provided this reminder
     createdAt: p.datetime(),
     updatedAt: p.datetime(),
-  }
+  },
 });
 
 export class RemindersSchedule extends RemindersScheduleSchema.class {}

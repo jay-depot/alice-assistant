@@ -3,7 +3,10 @@ import { AlicePlugin } from '../../../lib.js';
 import { createMoltbookClient } from './moltbook-client.js';
 import registerMoltbookAgentTool from './tools/register-moltbook-agent.js';
 import getMoltbookClaimStatusTool from './tools/get-moltbook-claim-status.js';
-import { getMoltbookProfileTool, updateMoltbookProfileTool } from './tools/profile-tools.js';
+import {
+  getMoltbookProfileTool,
+  updateMoltbookProfileTool,
+} from './tools/profile-tools.js';
 import {
   getMoltbookCommentsTool,
   getMoltbookFeedTool,
@@ -39,34 +42,43 @@ import {
 import path from 'path';
 
 export const MoltbookPluginConfigSchema = Type.Object({
-  apiKey: Type.Optional(Type.String({ description: 'Optional Moltbook API key. If omitted, the plugin falls back to stored credentials or MOLTBOOK_API_KEY.' })),
+  apiKey: Type.Optional(
+    Type.String({
+      description:
+        'Optional Moltbook API key. If omitted, the plugin falls back to stored credentials or MOLTBOOK_API_KEY.',
+    })
+  ),
   defaultFeedLimit: Type.Number({ default: 10, minimum: 1, maximum: 25 }),
   defaultCommentLimit: Type.Number({ default: 20, minimum: 1, maximum: 100 }),
 });
 
-export type MoltbookPluginConfigSchema = Type.Static<typeof MoltbookPluginConfigSchema>;
+export type MoltbookPluginConfigSchema = Type.Static<
+  typeof MoltbookPluginConfigSchema
+>;
 
 const moltbookPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'moltbook',
     name: 'Moltbook Plugin',
-    description: 'Integrates the Moltbook social network for AI agents so the assistant can register, ' +
-      'read its feed, and interact on behalf of the user when explicitly asked. You REALLY shouldn\'t ' +
+    description:
+      'Integrates the Moltbook social network for AI agents so the assistant can register, ' +
+      "read its feed, and interact on behalf of the user when explicitly asked. You REALLY shouldn't " +
       'enable this plugin. At all. But if you insist on trying to connect your assistant to Moltbook, ' +
       'this plugin tries to do it in the safest way possible. Consider it the least bad option.',
     version: 'LATEST',
-    dependencies: [
-      { id: "skills", version: "LATEST" },
-    ],
+    dependencies: [{ id: 'skills', version: 'LATEST' }],
     required: false,
   },
 
   async registerPlugin(pluginInterface) {
     const plugin = await pluginInterface.registerPlugin();
-    const config = await plugin.config<MoltbookPluginConfigSchema>(MoltbookPluginConfigSchema, {
-      defaultFeedLimit: 10,
-      defaultCommentLimit: 20,
-    });
+    const config = await plugin.config<MoltbookPluginConfigSchema>(
+      MoltbookPluginConfigSchema,
+      {
+        defaultFeedLimit: 10,
+        defaultCommentLimit: 20,
+      }
+    );
 
     const moltbookClient = createMoltbookClient({
       pluginConfig: config.getPluginConfig(),
@@ -103,7 +115,7 @@ const moltbookPlugin: AlicePlugin = {
     plugin.registerTool(scanForMoltbookDMRequestIDsTool(moltbookClient));
 
     const { registerSkillFile } = plugin.request('skills');
-    registerSkillFile(path.join(import.meta.dirname, 'skills', 'Moltbook.md'))
+    registerSkillFile(path.join(import.meta.dirname, 'skills', 'Moltbook.md'));
   },
 };
 

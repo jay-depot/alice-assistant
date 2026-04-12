@@ -10,11 +10,11 @@ const brainstormPlugin: AlicePlugin = {
     name: 'Brainstorm',
     version: 'LATEST',
     description:
-      'Provides a focused Brainstorm Assistant that captures the user\'s stream-of-consciousness ' +
+      "Provides a focused Brainstorm Assistant that captures the user's stream-of-consciousness " +
       'thoughts without inserting ideas of its own, then organizes and saves the notes when done.',
   },
 
-  registerPlugin: async (api) => {
+  registerPlugin: async api => {
     const plugin = await api.registerPlugin();
 
     const brainstormTools = createTaskAssistantToolPair({
@@ -38,11 +38,12 @@ const brainstormPlugin: AlicePlugin = {
         systemPromptFragment: '',
         toolResultPromptIntro: '',
         toolResultPromptOutro: '',
-        buildHandoff: async (args) => {
+        buildHandoff: async args => {
           const typedArgs = args as { contextHints?: string };
           return {
             contextHints: typedArgs.contextHints,
-            kickoffMessage: 'I\'m ready. Put down every raw thought you have, and I\'ll just keep pace. What\'s on your mind?',
+            kickoffMessage:
+              "I'm ready. Put down every raw thought you have, and I'll just keep pace. What's on your mind?",
           };
         },
       },
@@ -53,31 +54,41 @@ const brainstormPlugin: AlicePlugin = {
           'Provide an organized version of their notes using their own words as much as possible.',
         parameters: Type.Object({
           summary: Type.String({
-            description: 'A 1–2 sentence summary of the brainstorm topic and key themes.',
+            description:
+              'A 1–2 sentence summary of the brainstorm topic and key themes.',
           }),
           organizedNotes: Type.String({
             description:
               'The organized brainstorm notes in markdown format, using category headings ' +
-              'and bullet points. Preserve the user\'s original wording as much as possible.',
+              "and bullet points. Preserve the user's original wording as much as possible.",
           }),
           suggestedFilename: Type.String({
-            description: 'A suggested base filename for the notes file (kebab-case, no extension).',
+            description:
+              'A suggested base filename for the notes file (kebab-case, no extension).',
           }),
         }),
         systemPromptFragment: '',
         toolResultPromptIntro: '',
         toolResultPromptOutro:
           'Acknowledge to the user that their brainstorm session is complete and briefly describe the notes.',
-        buildCompletion: async (args) => {
-          const typedArgs = args as { summary: string; organizedNotes: string; suggestedFilename: string };
+        buildCompletion: async args => {
+          const typedArgs = args as {
+            summary: string;
+            organizedNotes: string;
+            suggestedFilename: string;
+          };
           const { summary, organizedNotes, suggestedFilename } = typedArgs;
 
           const dateStr = new Date().toISOString().split('T')[0];
-          const baseFilename = (suggestedFilename || 'brainstorm').replace(/[^a-z0-9-]/gi, '-').toLowerCase();
+          const baseFilename = (suggestedFilename || 'brainstorm')
+            .replace(/[^a-z0-9-]/gi, '-')
+            .toLowerCase();
           const filename = `${baseFilename}-${dateStr}.md`;
           const expandedPath = simpleExpandTilde(`~/${filename}`);
 
-          const titleLine = baseFilename.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+          const titleLine = baseFilename
+            .replace(/-/g, ' ')
+            .replace(/\b\w/g, c => c.toUpperCase());
           const fileContent = `# ${titleLine}\n\n*Date: ${dateStr}*\n\n${organizedNotes}\n`;
 
           let savedPath: string | null = null;
@@ -85,7 +96,10 @@ const brainstormPlugin: AlicePlugin = {
             await writeFile(expandedPath, fileContent, 'utf-8');
             savedPath = expandedPath;
           } catch (writeError) {
-            console.error('Brainstorm plugin: Failed to write notes file:', writeError);
+            console.error(
+              'Brainstorm plugin: Failed to write notes file:',
+              writeError
+            );
           }
 
           return {
@@ -103,7 +117,8 @@ const brainstormPlugin: AlicePlugin = {
     plugin.registerConversationType({
       id: 'brainstorm',
       name: 'Brainstorm Session',
-      description: 'A focused brainstorm conversation where the assistant listens and encourages, ' +
+      description:
+        'A focused brainstorm conversation where the assistant listens and encourages, ' +
         'without inserting its own ideas, then organizes and saves the notes when done.',
       baseType: 'chat',
       includePersonality: false,

@@ -10,10 +10,12 @@ const NotificationsChatSegueNotificationSchema = defineEntity({
     status: p.enum(['pending', 'delivered']),
     createdAt: p.datetime(),
     updatedAt: p.datetime(),
-  }
+  },
 });
 
-export class NotificationsChatSegueNotification extends NotificationsChatSegueNotificationSchema.class {
+export class NotificationsChatSegueNotification
+  extends NotificationsChatSegueNotificationSchema.class
+{
   declare id: number;
   declare title: string;
   declare message: string;
@@ -23,4 +25,6 @@ export class NotificationsChatSegueNotification extends NotificationsChatSegueNo
   declare updatedAt: Date;
 }
 
-NotificationsChatSegueNotificationSchema.setClass(NotificationsChatSegueNotification);
+NotificationsChatSegueNotificationSchema.setClass(
+  NotificationsChatSegueNotification
+);

@@ -2,19 +2,40 @@
   "availableApplications": [
     {
       "alias": "web_browser",
-      "relevantTopics": ["browse the web", "show me the page", "open the website", "navigate to the website", "go to the website", "let me read it myself"],
+      "relevantTopics": [
+        "browse the web",
+        "show me the page",
+        "open the website",
+        "navigate to the website",
+        "go to the website",
+        "let me read it myself"
+      ],
       "commandLine": "xdg-open",
       "arguments": "[url]"
     },
     {
       "alias": "file_manager",
-      "relevantTopics": ["file management", "organizing files", "finding files", "show me the file", "where is the file"],
+      "relevantTopics": [
+        "file management",
+        "organizing files",
+        "finding files",
+        "show me the file",
+        "where is the file"
+      ],
       "commandLine": "xdg-open",
       "arguments": "[path]"
     },
     {
       "alias": "text_editor",
-      "relevantTopics": ["text editing", "notes", "configuration files", "simple edit", "small change to this file", "text file", "config file"],
+      "relevantTopics": [
+        "text editing",
+        "notes",
+        "configuration files",
+        "simple edit",
+        "small change to this file",
+        "text file",
+        "config file"
+      ],
       "commandLine": "xdg-open",
       "arguments": "[file]"
     },
@@ -38,19 +59,37 @@
     },
     {
       "alias": "code_editor",
-      "relevantTopics": ["code editing", "programming", "development", "project folder"],
+      "relevantTopics": [
+        "code editing",
+        "programming",
+        "development",
+        "project folder"
+      ],
       "commandLine": "code --new-window",
       "arguments": "[file]|[project folder]"
     },
     {
       "alias": "open_anything",
-      "relevantTopics": ["open the file", "open this file", "open it with the default application", "open it", "let's see what's in this file", "unknown file type"],
+      "relevantTopics": [
+        "open the file",
+        "open this file",
+        "open it with the default application",
+        "open it",
+        "let's see what's in this file",
+        "unknown file type"
+      ],
       "commandLine": "xdg-open",
       "arguments": "[file]"
     },
     {
       "alias": "dropbox",
-      "relevantTopics": ["cloud storage", "file syncing", "access my files from anywhere", "show me my dropbox", "open my dropbox folder"],
+      "relevantTopics": [
+        "cloud storage",
+        "file syncing",
+        "access my files from anywhere",
+        "show me my dropbox",
+        "open my dropbox folder"
+      ],
       "commandLine": "dolphin --new-window ~/Dropbox",
       "arguments": ""
     }

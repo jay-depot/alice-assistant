@@ -5,7 +5,8 @@ const braveSearchNewsPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'brave-search-news',
     name: 'Brave Search News Plugin',
-    description: 'Uses Brave Search API to provide a news source for the news broker plugin.',
+    description:
+      'Uses Brave Search API to provide a news source for the news broker plugin.',
     version: 'LATEST',
     dependencies: [
       { id: 'brave-search-api', version: 'LATEST' },
@@ -21,11 +22,13 @@ const braveSearchNewsPlugin: AlicePlugin = {
 
     const braveSearch = getBraveSearchApiClient();
     if (!braveSearch) {
-      console.warn('Brave Search News Plugin: Brave Search API client is not available. Please ensure the Brave Search API plugin is correctly configured.');
+      console.warn(
+        'Brave Search News Plugin: Brave Search API client is not available. Please ensure the Brave Search API plugin is correctly configured.'
+      );
       return;
     }
 
-    registerNewsProvider('brave-search-news', async (query) => {
+    registerNewsProvider('brave-search-news', async query => {
       const apiResponse = await braveSearch.newsSearch(query, {
         count: 10,
         safesearch: SafeSearchLevel.Off,
@@ -42,7 +45,7 @@ const braveSearchNewsPlugin: AlicePlugin = {
         source: result.source,
       }));
     });
-  }
+  },
 };
 
 export default braveSearchNewsPlugin;

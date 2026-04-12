@@ -1,7 +1,10 @@
 import { Tool } from '../../../../lib/tool-system.js';
 import { Static, Type } from 'typebox';
 
-const parameters = Type.Object({ path: Type.String(), filter: Type.Optional(Type.String()) });
+const parameters = Type.Object({
+  path: Type.String(),
+  filter: Type.Optional(Type.String()),
+});
 
 const getDirectoryListingTool: Tool = {
   name: 'getDirectoryListing',
@@ -10,14 +13,16 @@ const getDirectoryListingTool: Tool = {
     Retrieves a list of files and folders in a specified directory on the user's computer. Has the guardrail that only allows the 
     listing of directories explicitly defined in the tool's config file.
   `,
-  systemPromptFragment: `Call getDirectoryListing when the user asks you to show them the contents of a folder on their computer, ` +
+  systemPromptFragment:
+    `Call getDirectoryListing when the user asks you to show them the contents of a folder on their computer, ` +
     `or when they ask you to find a file without providing enough information to open it directly. Use the "path" argument to ` +
     `specify the directory you want to list, and optionally use the "filter" argument to specify a keyword or glob that should ` +
     `be used to filter the results. For example, if the user says "Can you show me the files in my Documents folder?", you might ` +
     `call getDirectoryListing with the "path" argument set to "~/Documents". If the user says "I can't find my resume, do you know ` +
     `where it is?", you might call getDirectoryListing with the "path" argument set to "~/" and the "filter" argument set to "resume"`,
   parameters,
-  toolResultPromptIntro: 'You have just received the results of a call to the getDirectoryListing tool. The results are in JSON format and have the following structure:\n' +
+  toolResultPromptIntro:
+    'You have just received the results of a call to the getDirectoryListing tool. The results are in JSON format and have the following structure:\n' +
     '{\n' +
     '    "path": "The path that was listed",\n' +
     '    "items": [\n' +
@@ -41,11 +46,11 @@ const getDirectoryListingTool: Tool = {
         { name: 'file1.txt', type: 'file' },
         { name: 'file2.txt', type: 'file' },
         { name: 'folder1', type: 'folder' },
-        { name: 'folder2', type: 'folder' }
-      ].filter(item => !filter || item.name.includes(filter))
+        { name: 'folder2', type: 'folder' },
+      ].filter(item => !filter || item.name.includes(filter)),
     };
     return JSON.stringify(dummyResult);
-  }
+  },
 };
 
-export default getDirectoryListingTool; 
+export default getDirectoryListingTool;

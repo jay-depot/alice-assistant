@@ -24,9 +24,13 @@ export function createEmptyExtensionRegistry(): ExtensionRegistry {
 }
 
 export function useExtensions() {
-  const [registry, setRegistry] = useState<ExtensionRegistry>(createEmptyExtensionRegistry());
+  const [registry, setRegistry] = useState<ExtensionRegistry>(
+    createEmptyExtensionRegistry()
+  );
   const [routes, setRoutes] = useState<PluginClientRoute[]>([]);
-  const [registrations, setRegistrations] = useState<ExtensionRegistration[]>([]);
+  const [registrations, setRegistrations] = useState<ExtensionRegistration[]>(
+    []
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -47,15 +51,17 @@ export function useExtensions() {
         registerComponent: (region, component) => {
           nextRegistry[region].push(component);
         },
-        registerRoute: (route) => {
+        registerRoute: route => {
           nextRoutes.push(route);
         },
       };
 
       const ensureStylesheet = (styleUrl: string) => {
         const existingLink = Array.from(
-          document.head.querySelectorAll<HTMLLinkElement>('link[data-alice-plugin-style-url]'),
-        ).find((link) => link.dataset.alicePluginStyleUrl === styleUrl);
+          document.head.querySelectorAll<HTMLLinkElement>(
+            'link[data-alice-plugin-style-url]'
+          )
+        ).find(link => link.dataset.alicePluginStyleUrl === styleUrl);
 
         if (existingLink) {
           return;
@@ -75,9 +81,12 @@ export function useExtensions() {
           }
 
           const module = await import(/* @vite-ignore */ extension.scriptUrl);
-          const exportedExtension = (module.default ?? module) as PluginClientExport;
+          const exportedExtension = (module.default ??
+            module) as PluginClientExport;
 
-          for (const [region, component] of Object.entries(exportedExtension.regions ?? {})) {
+          for (const [region, component] of Object.entries(
+            exportedExtension.regions ?? {}
+          )) {
             if (component) {
               api.registerComponent(region as UIRegion, component);
             }
@@ -91,7 +100,10 @@ export function useExtensions() {
             await exportedExtension.onAliceUIReady(api);
           }
         } catch (error) {
-          console.error(`Failed to load UI extension from ${extension.scriptUrl}:`, error);
+          console.error(
+            `Failed to load UI extension from ${extension.scriptUrl}:`,
+            error
+          );
         }
       }
 

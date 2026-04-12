@@ -1,8 +1,23 @@
 import path from 'node:path';
-import { mkdir, readFile, writeFile, exists } from '../../../lib/node/fs-promised.js';
+import {
+  mkdir,
+  readFile,
+  writeFile,
+  exists,
+} from '../../../lib/node/fs-promised.js';
 import type { SystemConfigFull } from '../../../lib/types/system-config-full.js';
 import type { MoltbookPluginConfigSchema } from './moltbook.js';
-import { formatComments, formatFeedItems, formatHome, formatNotificationSummary, formatPost, formatProfile, formatSearchResults, formatSubmolt, formatSubmoltList } from './moltbook-format.js';
+import {
+  formatComments,
+  formatFeedItems,
+  formatHome,
+  formatNotificationSummary,
+  formatPost,
+  formatProfile,
+  formatSearchResults,
+  formatSubmolt,
+  formatSubmoltList,
+} from './moltbook-format.js';
 import { solveMoltbookVerificationChallenge } from './moltbook-verification.js';
 
 export const MOLTBOOK_BASE_URL = 'https://www.moltbook.com/api/v1';
@@ -37,17 +52,30 @@ type RegistrationResult = {
 
 function assertTrustedBaseUrl() {
   const parsed = new URL(MOLTBOOK_BASE_URL);
-  if (parsed.origin !== 'https://www.moltbook.com' || !parsed.pathname.startsWith('/api/v1')) {
-    throw new Error('Moltbook Plugin: Refusing to use an untrusted Moltbook host. Only https://www.moltbook.com/api/v1 is allowed.');
+  if (
+    parsed.origin !== 'https://www.moltbook.com' ||
+    !parsed.pathname.startsWith('/api/v1')
+  ) {
+    throw new Error(
+      'Moltbook Plugin: Refusing to use an untrusted Moltbook host. Only https://www.moltbook.com/api/v1 is allowed.'
+    );
   }
 }
 
-function buildUrl(requestPath: string, query?: Record<string, string | number | undefined>) {
+function buildUrl(
+  requestPath: string,
+  query?: Record<string, string | number | undefined>
+) {
   assertTrustedBaseUrl();
-  const url = new URL(requestPath.startsWith('/') ? requestPath.slice(1) : requestPath, `${MOLTBOOK_BASE_URL}/`);
+  const url = new URL(
+    requestPath.startsWith('/') ? requestPath.slice(1) : requestPath,
+    `${MOLTBOOK_BASE_URL}/`
+  );
 
   if (url.origin !== 'https://www.moltbook.com') {
-    throw new Error('Moltbook Plugin: Refusing to send a request to a non-www Moltbook host.');
+    throw new Error(
+      'Moltbook Plugin: Refusing to send a request to a non-www Moltbook host.'
+    );
   }
 
   Object.entries(query ?? {}).forEach(([key, value]) => {
@@ -65,18 +93,21 @@ function normalizeErrorPayload(payload: unknown) {
   }
 
   const record = payload as JsonRecord;
-  const message = typeof record.error === 'string'
-    ? record.error
-    : typeof record.message === 'string'
-      ? record.message
-      : undefined;
+  const message =
+    typeof record.error === 'string'
+      ? record.error
+      : typeof record.message === 'string'
+        ? record.message
+        : undefined;
   const hint = typeof record.hint === 'string' ? record.hint : undefined;
 
   if (!message && !hint) {
     return undefined;
   }
 
-  return [message, hint ? `Hint: ${hint}` : undefined].filter(Boolean).join(' ');
+  return [message, hint ? `Hint: ${hint}` : undefined]
+    .filter(Boolean)
+    .join(' ');
 }
 
 function getHeaderValue(headers: Headers, name: string) {
@@ -99,23 +130,33 @@ async function safeJson(response: Response) {
 
 export type MoltbookClient = ReturnType<typeof createMoltbookClient>;
 
-export function createMoltbookClient({ pluginConfig, systemConfig }: MoltbookClientOptions) {
-  const credentialsFilePath = path.join(systemConfig.configDirectory, 'plugin-settings', 'moltbook', 'credentials.json');
+export function createMoltbookClient({
+  pluginConfig,
+  systemConfig,
+}: MoltbookClientOptions) {
+  const credentialsFilePath = path.join(
+    systemConfig.configDirectory,
+    'plugin-settings',
+    'moltbook',
+    'credentials.json'
+  );
 
   async function ensureCredentialsDirectory() {
     const directory = path.dirname(credentialsFilePath);
-    if (!await exists(directory)) {
+    if (!(await exists(directory))) {
       await mkdir(directory, { recursive: true });
     }
   }
 
   async function readStoredCredentials() {
-    if (!await exists(credentialsFilePath)) {
+    if (!(await exists(credentialsFilePath))) {
       return undefined;
     }
 
     try {
-      return JSON.parse(await readFile(credentialsFilePath, 'utf-8')) as JsonRecord;
+      return JSON.parse(
+        await readFile(credentialsFilePath, 'utf-8')
+      ) as JsonRecord;
     } catch {
       return undefined;
     }
@@ -127,7 +168,10 @@ export function createMoltbookClient({ pluginConfig, systemConfig }: MoltbookCli
     }
 
     const storedCredentials = await readStoredCredentials();
-    const storedApiKey = typeof storedCredentials?.api_key === 'string' ? storedCredentials.api_key : undefined;
+    const storedApiKey =
+      typeof storedCredentials?.api_key === 'string'
+        ? storedCredentials.api_key
+        : undefined;
     if (storedApiKey) {
       return storedApiKey;
     }
@@ -137,19 +181,35 @@ export function createMoltbookClient({ pluginConfig, systemConfig }: MoltbookCli
 
   async function saveCredentials(registration: RegistrationResult) {
     await ensureCredentialsDirectory();
-    await writeFile(credentialsFilePath, JSON.stringify({
-      api_key: registration.apiKey,
-      agent_name: registration.agentName,
-      claim_url: registration.claimUrl,
-      verification_code: registration.verificationCode,
-      saved_at: new Date().toISOString(),
-    }, null, 2), 'utf-8');
+    await writeFile(
+      credentialsFilePath,
+      JSON.stringify(
+        {
+          api_key: registration.apiKey,
+          agent_name: registration.agentName,
+          claim_url: registration.claimUrl,
+          verification_code: registration.verificationCode,
+          saved_at: new Date().toISOString(),
+        },
+        null,
+        2
+      ),
+      'utf-8'
+    );
   }
 
-  async function request<T = JsonRecord>({ method = 'GET', path: requestPath, query, body, requiresAuth = true }: RequestOptions): Promise<{ data: T; headers: Headers; }> {
+  async function request<T = JsonRecord>({
+    method = 'GET',
+    path: requestPath,
+    query,
+    body,
+    requiresAuth = true,
+  }: RequestOptions): Promise<{ data: T; headers: Headers }> {
     const apiKey = requiresAuth ? await resolveApiKey() : undefined;
     if (requiresAuth && !apiKey) {
-      throw new Error('Moltbook Plugin: No API key is available. Register an agent first or add credentials in plugin-settings/moltbook/moltbook.json or plugin-settings/moltbook/credentials.json.');
+      throw new Error(
+        'Moltbook Plugin: No API key is available. Register an agent first or add credentials in plugin-settings/moltbook/moltbook.json or plugin-settings/moltbook/credentials.json.'
+      );
     }
 
     const url = buildUrl(requestPath, query);
@@ -157,24 +217,34 @@ export function createMoltbookClient({ pluginConfig, systemConfig }: MoltbookCli
       method,
       headers: {
         'Content-Type': 'application/json',
-        ...(apiKey ? { 'Authorization': `Bearer ${apiKey}` } : {}),
+        ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
       },
       ...(body ? { body: JSON.stringify(body) } : {}),
     });
 
     const payload = await safeJson(response);
     if (!response.ok) {
-      const rateLimitRemaining = getHeaderValue(response.headers, 'X-RateLimit-Remaining');
-      const rateLimitReset = getHeaderValue(response.headers, 'X-RateLimit-Reset');
+      const rateLimitRemaining = getHeaderValue(
+        response.headers,
+        'X-RateLimit-Remaining'
+      );
+      const rateLimitReset = getHeaderValue(
+        response.headers,
+        'X-RateLimit-Reset'
+      );
       const retryAfter = getHeaderValue(response.headers, 'Retry-After');
       const details = normalizeErrorPayload(payload);
       const rateLimitSummary = [
         rateLimitRemaining ? `Remaining: ${rateLimitRemaining}.` : undefined,
         rateLimitReset ? `Reset: ${rateLimitReset}.` : undefined,
         retryAfter ? `Retry-After: ${retryAfter}s.` : undefined,
-      ].filter(Boolean).join(' ');
+      ]
+        .filter(Boolean)
+        .join(' ');
 
-      throw new Error(`Moltbook API request failed with status ${response.status}. ${details ?? ''} ${rateLimitSummary}`.trim());
+      throw new Error(
+        `Moltbook API request failed with status ${response.status}. ${details ?? ''} ${rateLimitSummary}`.trim()
+      );
     }
 
     return {
@@ -183,7 +253,10 @@ export function createMoltbookClient({ pluginConfig, systemConfig }: MoltbookCli
     };
   }
 
-  async function maybeVerifyContent(contentType: 'post' | 'comment', data: JsonRecord): Promise<VerificationOutcome> {
+  async function maybeVerifyContent(
+    contentType: 'post' | 'comment',
+    data: JsonRecord
+  ): Promise<VerificationOutcome> {
     const content = data[contentType];
     if (!content || typeof content !== 'object') {
       return {
@@ -204,15 +277,22 @@ export function createMoltbookClient({ pluginConfig, systemConfig }: MoltbookCli
     }
 
     const verificationRecord = verification as JsonRecord;
-    const verificationCode = typeof verificationRecord.verification_code === 'string' ? verificationRecord.verification_code : undefined;
-    const challengeText = typeof verificationRecord.challenge_text === 'string' ? verificationRecord.challenge_text : undefined;
+    const verificationCode =
+      typeof verificationRecord.verification_code === 'string'
+        ? verificationRecord.verification_code
+        : undefined;
+    const challengeText =
+      typeof verificationRecord.challenge_text === 'string'
+        ? verificationRecord.challenge_text
+        : undefined;
     console.log('Moltbook API', { challengeText });
 
     if (!verificationCode || !challengeText) {
       return {
         attempted: false,
         success: false,
-        message: 'Moltbook requested verification, but the challenge payload was incomplete.',
+        message:
+          'Moltbook requested verification, but the challenge payload was incomplete.',
       };
     }
 
@@ -244,7 +324,10 @@ export function createMoltbookClient({ pluginConfig, systemConfig }: MoltbookCli
       return {
         attempted: true,
         success: false,
-        message: error instanceof Error ? error.message : 'Verification failed for an unknown reason.',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Verification failed for an unknown reason.',
       };
     }
   }
@@ -258,7 +341,10 @@ export function createMoltbookClient({ pluginConfig, systemConfig }: MoltbookCli
       return pluginConfig.defaultCommentLimit;
     },
     async registerAgent(name: string, description: string) {
-      const response = await request<{ agent?: JsonRecord; important?: string }>({
+      const response = await request<{
+        agent?: JsonRecord;
+        important?: string;
+      }>({
         method: 'POST',
         path: '/agents/register',
         requiresAuth: false,
@@ -266,15 +352,27 @@ export function createMoltbookClient({ pluginConfig, systemConfig }: MoltbookCli
       });
 
       const agent = response.data.agent;
-      const apiKey = typeof agent?.api_key === 'string' ? agent.api_key : undefined;
-      const claimUrl = typeof agent?.claim_url === 'string' ? agent.claim_url : undefined;
-      const verificationCode = typeof agent?.verification_code === 'string' ? agent.verification_code : undefined;
+      const apiKey =
+        typeof agent?.api_key === 'string' ? agent.api_key : undefined;
+      const claimUrl =
+        typeof agent?.claim_url === 'string' ? agent.claim_url : undefined;
+      const verificationCode =
+        typeof agent?.verification_code === 'string'
+          ? agent.verification_code
+          : undefined;
 
       if (!apiKey || !claimUrl || !verificationCode) {
-        throw new Error('Moltbook Plugin: Registration succeeded but the response was missing credentials or claim details.');
+        throw new Error(
+          'Moltbook Plugin: Registration succeeded but the response was missing credentials or claim details.'
+        );
       }
 
-      const registration = { apiKey, agentName: name, claimUrl, verificationCode };
+      const registration = {
+        apiKey,
+        agentName: name,
+        claimUrl,
+        verificationCode,
+      };
       await saveCredentials(registration);
       return registration;
     },
@@ -284,14 +382,20 @@ export function createMoltbookClient({ pluginConfig, systemConfig }: MoltbookCli
     },
     async getProfile(name?: string) {
       if (name) {
-        const response = await request<JsonRecord>({ path: '/agents/profile', query: { name } });
+        const response = await request<JsonRecord>({
+          path: '/agents/profile',
+          query: { name },
+        });
         return response.data;
       }
 
       const response = await request<JsonRecord>({ path: '/agents/me' });
       return response.data;
     },
-    async updateProfile(update: { description?: string; metadata?: Record<string, unknown>; }) {
+    async updateProfile(update: {
+      description?: string;
+      metadata?: Record<string, unknown>;
+    }) {
       const response = await request<JsonRecord>({
         method: 'PATCH',
         path: '/agents/me',
@@ -303,19 +407,47 @@ export function createMoltbookClient({ pluginConfig, systemConfig }: MoltbookCli
       const response = await request<JsonRecord>({ path: '/home' });
       return response.data;
     },
-    async getFeed(options: { sort?: string; limit?: number; cursor?: string; filter?: string; }) {
-      const response = await request<JsonRecord>({ path: '/feed', query: options });
+    async getFeed(options: {
+      sort?: string;
+      limit?: number;
+      cursor?: string;
+      filter?: string;
+    }) {
+      const response = await request<JsonRecord>({
+        path: '/feed',
+        query: options,
+      });
       return response.data;
     },
-    async getSubmoltFeed(options: { submolt: string; sort?: string; limit?: number; cursor?: string; }) {
-      const response = await request<JsonRecord>({ path: `/submolts/${encodeURIComponent(options.submolt)}/feed`, query: { sort: options.sort, limit: options.limit, cursor: options.cursor } });
+    async getSubmoltFeed(options: {
+      submolt: string;
+      sort?: string;
+      limit?: number;
+      cursor?: string;
+    }) {
+      const response = await request<JsonRecord>({
+        path: `/submolts/${encodeURIComponent(options.submolt)}/feed`,
+        query: {
+          sort: options.sort,
+          limit: options.limit,
+          cursor: options.cursor,
+        },
+      });
       return response.data;
     },
     async getPost(postId: string) {
-      const response = await request<JsonRecord>({ path: `/posts/${encodeURIComponent(postId)}` });
+      const response = await request<JsonRecord>({
+        path: `/posts/${encodeURIComponent(postId)}`,
+      });
       return response.data;
     },
-    async getComments(options: { postId: string; sort?: string; limit?: number; cursor?: string; requesterId?: string; }) {
+    async getComments(options: {
+      postId: string;
+      sort?: string;
+      limit?: number;
+      cursor?: string;
+      requesterId?: string;
+    }) {
       const response = await request<JsonRecord>({
         path: `/posts/${encodeURIComponent(options.postId)}/comments`,
         query: {
@@ -332,10 +464,17 @@ export function createMoltbookClient({ pluginConfig, systemConfig }: MoltbookCli
       return response.data;
     },
     async getSubmolt(name: string) {
-      const response = await request<JsonRecord>({ path: `/submolts/${encodeURIComponent(name)}` });
+      const response = await request<JsonRecord>({
+        path: `/submolts/${encodeURIComponent(name)}`,
+      });
       return response.data;
     },
-    async search(options: { query: string; type?: string; limit?: number; cursor?: string; }) {
+    async search(options: {
+      query: string;
+      type?: string;
+      limit?: number;
+      cursor?: string;
+    }) {
       const response = await request<JsonRecord>({
         path: '/search',
         query: {
@@ -347,19 +486,47 @@ export function createMoltbookClient({ pluginConfig, systemConfig }: MoltbookCli
       });
       return response.data;
     },
-    async createPost(input: { submolt_name: string; title: string; content?: string; url?: string; type?: string; }) {
-      const response = await request<JsonRecord>({ method: 'POST', path: '/posts', body: input });
+    async createPost(input: {
+      submolt_name: string;
+      title: string;
+      content?: string;
+      url?: string;
+      type?: string;
+    }) {
+      const response = await request<JsonRecord>({
+        method: 'POST',
+        path: '/posts',
+        body: input,
+      });
       const verification = await maybeVerifyContent('post', response.data);
       return { data: response.data, verification };
     },
-    async createComment(postId: string, input: { content: string; parent_id?: string; }) {
-      const response = await request<JsonRecord>({ method: 'POST', path: `/posts/${encodeURIComponent(postId)}/comments`, body: input });
+    async createComment(
+      postId: string,
+      input: { content: string; parent_id?: string }
+    ) {
+      const response = await request<JsonRecord>({
+        method: 'POST',
+        path: `/posts/${encodeURIComponent(postId)}/comments`,
+        body: input,
+      });
       const verification = await maybeVerifyContent('comment', response.data);
       return { data: response.data, verification };
     },
-    async vote(targetType: 'post' | 'comment', targetId: string, direction: 'upvote' | 'downvote') {
-      const pathSuffix = targetType === 'post' ? `/posts/${encodeURIComponent(targetId)}/${direction}` : `/comments/${encodeURIComponent(targetId)}/${direction}`;
-      const response = await request<JsonRecord>({ method: 'POST', path: pathSuffix, body: {} });
+    async vote(
+      targetType: 'post' | 'comment',
+      targetId: string,
+      direction: 'upvote' | 'downvote'
+    ) {
+      const pathSuffix =
+        targetType === 'post'
+          ? `/posts/${encodeURIComponent(targetId)}/${direction}`
+          : `/comments/${encodeURIComponent(targetId)}/${direction}`;
+      const response = await request<JsonRecord>({
+        method: 'POST',
+        path: pathSuffix,
+        body: {},
+      });
       return response.data;
     },
     async follow(agentName: string, shouldFollow: boolean) {
@@ -428,7 +595,7 @@ export function createMoltbookClient({ pluginConfig, systemConfig }: MoltbookCli
       });
       return response.data;
     },
-    async listDMConversations(options?: { limit?: number; cursor?: string; }) {
+    async listDMConversations(options?: { limit?: number; cursor?: string }) {
       // List DM conversations (optionally paginated)
       const response = await request<JsonRecord>({
         path: '/agents/dm/conversations',
@@ -436,7 +603,10 @@ export function createMoltbookClient({ pluginConfig, systemConfig }: MoltbookCli
       });
       return response.data;
     },
-    async readDMConversation(conversationId: string, options?: { limit?: number; cursor?: string; }) {
+    async readDMConversation(
+      conversationId: string,
+      options?: { limit?: number; cursor?: string }
+    ) {
       // Read messages in a DM conversation
       const response = await request<JsonRecord>({
         path: `/agents/dm/conversations/${encodeURIComponent(conversationId)}`,
@@ -455,7 +625,7 @@ export function createMoltbookClient({ pluginConfig, systemConfig }: MoltbookCli
     },
 
     // List pending DM requests (incoming requests to approve)
-    async listPendingDMRequests(options?: { limit?: number; cursor?: string; }) {
+    async listPendingDMRequests(options?: { limit?: number; cursor?: string }) {
       // The endpoint is assumed to be /messaging/pending-requests (adjust if needed)
       const response = await request<JsonRecord>({
         path: '/agents/dm/requests',

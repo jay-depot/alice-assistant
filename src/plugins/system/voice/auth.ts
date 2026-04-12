@@ -4,7 +4,9 @@ export function createVoiceAccessToken(): string {
   return randomBytes(32).toString('hex');
 }
 
-export function extractVoiceAccessToken(headers: Record<string, string | string[] | undefined>): string | null {
+export function extractVoiceAccessToken(
+  headers: Record<string, string | string[] | undefined>
+): string | null {
   const directHeader = headers['x-alice-voice-token'];
   if (typeof directHeader === 'string' && directHeader.trim()) {
     return directHeader.trim();
@@ -19,7 +21,10 @@ export function extractVoiceAccessToken(headers: Record<string, string | string[
   return match?.[1]?.trim() || null;
 }
 
-export function isVoiceAccessTokenValid(expectedToken: string | null, providedToken: string | null): boolean {
+export function isVoiceAccessTokenValid(
+  expectedToken: string | null,
+  providedToken: string | null
+): boolean {
   if (!expectedToken || !providedToken) {
     return false;
   }

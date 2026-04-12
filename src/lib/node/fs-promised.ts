@@ -18,4 +18,4 @@ export const exists = async (path: string): Promise<boolean> => {
   } catch {
     return false;
   }
-}
+};

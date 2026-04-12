@@ -23,28 +23,33 @@ const voicePlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'voice',
     name: 'Voice',
-    description: 'Provides token-protected local voice endpoints and supervises the managed local voice client.',
+    description:
+      'Provides token-protected local voice endpoints and supervises the managed local voice client.',
     version: 'LATEST',
-    dependencies: [
-      { id: 'web-ui', version: 'LATEST' },
-    ],
+    dependencies: [{ id: 'web-ui', version: 'LATEST' }],
     required: true,
   },
 
   async registerPlugin(pluginInterface) {
     const plugin = await pluginInterface.registerPlugin();
-    const config = await plugin.config(VoicePluginConfigSchema, defaultVoicePluginConfig);
+    const config = await plugin.config(
+      VoicePluginConfigSchema,
+      defaultVoicePluginConfig
+    );
     const webUi = plugin.request('web-ui');
 
     if (!webUi) {
-      throw new Error('voice plugin could not access the web-ui plugin capabilities. Disable voice or fix the web-ui plugin to continue.');
+      throw new Error(
+        'voice plugin could not access the web-ui plugin capabilities. Disable voice or fix the web-ui plugin to continue.'
+      );
     }
 
     const runtimeState: VoicePluginRuntimeState = {
       accessToken: null as string | null,
       managedClientState: createManagedVoiceClientState(),
       activeVoiceSession: null,
-      sessionIdleTimeoutMs: (config.getPluginConfig().sessionIdleTimeoutMinutes ?? 10) * 60_000,
+      sessionIdleTimeoutMs:
+        (config.getPluginConfig().sessionIdleTimeoutMinutes ?? 10) * 60_000,
       deferredSessionCloseDelayMs: 0,
       pendingVoiceSessionCloses: new Set(),
       captureDebugConfig: {
@@ -62,14 +67,19 @@ const voicePlugin: AlicePlugin = {
     plugin.registerTool({
       name: 'endVoiceConversation',
       availableFor: ['voice'],
-      description: 'Use endVoiceConversation only when the user clearly indicates the conversation is over, such as saying that will be all, that is it, or thanks that is all. Do not call it just because a task is complete if the user still appears to be engaged.',
+      description:
+        'Use endVoiceConversation only when the user clearly indicates the conversation is over, such as saying that will be all, that is it, or thanks that is all. Do not call it just because a task is complete if the user still appears to be engaged.',
       systemPromptFragment: '',
       parameters: Type.Object({}),
-      toolResultPromptIntro: 'The current voice conversation has been marked to end right after your current reply is spoken.',
-      toolResultPromptOutro: 'Give a brief wrap-up reply. Do not ask a follow-up question, do not invite the user to continue, and do not imply that you are still waiting for another turn.',
+      toolResultPromptIntro:
+        'The current voice conversation has been marked to end right after your current reply is spoken.',
+      toolResultPromptOutro:
+        'Give a brief wrap-up reply. Do not ask a follow-up question, do not invite the user to continue, and do not imply that you are still waiting for another turn.',
       execute: async (_args, context) => {
         if (context.conversationType !== 'voice') {
-          throw new Error('endVoiceConversation can only be used during voice conversations.');
+          throw new Error(
+            'endVoiceConversation can only be used during voice conversations.'
+          );
         }
 
         return requestActiveVoiceConversationEnd(runtimeState)
@@ -84,14 +94,16 @@ const voicePlugin: AlicePlugin = {
       console.log('voice plugin: shutting down voice runtime.');
 
       if (runtimeState.activeVoiceSession) {
-        console.log('voice plugin: closing final active voice conversation during shutdown.');
+        console.log(
+          'voice plugin: closing final active voice conversation during shutdown.'
+        );
       }
 
       await closeActiveVoiceSession(runtimeState);
 
       if (runtimeState.pendingVoiceSessionCloses.size > 0) {
         console.log(
-          `voice plugin: waiting for ${runtimeState.pendingVoiceSessionCloses.size} deferred voice conversation cleanup task(s) to finish.`,
+          `voice plugin: waiting for ${runtimeState.pendingVoiceSessionCloses.size} deferred voice conversation cleanup task(s) to finish.`
         );
       }
 
@@ -105,12 +117,16 @@ const voicePlugin: AlicePlugin = {
 
     plugin.hooks.onAssistantWillAcceptRequests(async () => {
       runtimeState.accessToken = createVoiceAccessToken();
-      console.log('voice plugin: generated local access token for managed voice client.');
+      console.log(
+        'voice plugin: generated local access token for managed voice client.'
+      );
     });
 
     plugin.hooks.onAssistantAcceptsRequests(async () => {
       if (!runtimeState.accessToken) {
-        throw new Error('voice plugin could not launch the managed voice client because no access token was initialized.');
+        throw new Error(
+          'voice plugin could not launch the managed voice client because no access token was initialized.'
+        );
       }
 
       const systemConfig = UserConfig.getConfig();
@@ -121,7 +137,11 @@ const voicePlugin: AlicePlugin = {
         token: runtimeState.accessToken,
         baseUrl,
         wakeWord: systemConfig.wakeWord,
-        clientScriptPath: path.join(currentDir, 'client', 'alice-voice-client.py'),
+        clientScriptPath: path.join(
+          currentDir,
+          'client',
+          'alice-voice-client.py'
+        ),
         state: runtimeState.managedClientState,
       });
     });

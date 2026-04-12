@@ -5,18 +5,22 @@ import { getSystemInfo } from './get-system-info.js';
 
 const SystemInfoPluginConfigSchema = Type.Object({
   mustMentionIfNetworkDown: Type.Boolean({
-    description: 'Whether the assistant must mention in its response if the network connectivity status is "disconnected" or "limited" in the results of the systemHealthCheck tool.',
+    description:
+      'Whether the assistant must mention in its response if the network connectivity status is "disconnected" or "limited" in the results of the systemHealthCheck tool.',
     default: true,
   }),
 });
 
-export type SystemInfoPluginConfigSchema = Type.Static<typeof SystemInfoPluginConfigSchema>;
+export type SystemInfoPluginConfigSchema = Type.Static<
+  typeof SystemInfoPluginConfigSchema
+>;
 
 const systemInfoPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'system-info',
     name: 'System Info Plugin',
-    description: 'Provides the assistant with information about the system it is running on, ' +
+    description:
+      'Provides the assistant with information about the system it is running on, ' +
       'including but not limited to: system resources (CPU, memory, disk usage), operating ' +
       'system information, and other relevant details. This information can be used by the ' +
       'assistant to make informed decisions about how to handle tasks, manage resources, and ' +
@@ -31,6 +35,7 @@ const systemInfoPlugin: AlicePlugin = {
   async registerPlugin(pluginInterface) {
     const plugin = await pluginInterface.registerPlugin();
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const config = await plugin.config(SystemInfoPluginConfigSchema, {
       mustMentionIfNetworkDown: true,
     });
@@ -47,14 +52,26 @@ const systemInfoPlugin: AlicePlugin = {
         systemPromptChunks.push(` - Distribution: ${systemInfo.distribution}`);
         systemPromptChunks.push(` - Kernel: ${systemInfo.kernel}`);
         systemPromptChunks.push(` - CPU: ${systemInfo.cpu}`);
-        systemPromptChunks.push(` - Physical Cores: ${systemInfo.physicalCores}`);
+        systemPromptChunks.push(
+          ` - Physical Cores: ${systemInfo.physicalCores}`
+        );
         systemPromptChunks.push(` - Threads: ${systemInfo.threadCount}`);
-        systemPromptChunks.push(` - RAM: ${systemInfo.totalMemory} ${systemInfo.totalMemoryUnit}`);
+        systemPromptChunks.push(
+          ` - RAM: ${systemInfo.totalMemory} ${systemInfo.totalMemoryUnit}`
+        );
         systemPromptChunks.push(` - GPU: ${systemInfo.gpuModel || 'Unknown'}`);
-        systemPromptChunks.push(` - VRAM: ${systemInfo.vramSize || 'Unknown'} ${systemInfo.vramSizeUnit || ''}`);
-        systemPromptChunks.push(` - Desktop Environment: ${systemInfo.desktopEnvironment}`);
-        systemPromptChunks.push(` - Window Manager: ${systemInfo.windowManager}`);
-        systemPromptChunks.push(` - Graphical Server: ${systemInfo.graphicalServer}`);
+        systemPromptChunks.push(
+          ` - VRAM: ${systemInfo.vramSize || 'Unknown'} ${systemInfo.vramSizeUnit || ''}`
+        );
+        systemPromptChunks.push(
+          ` - Desktop Environment: ${systemInfo.desktopEnvironment}`
+        );
+        systemPromptChunks.push(
+          ` - Window Manager: ${systemInfo.windowManager}`
+        );
+        systemPromptChunks.push(
+          ` - Graphical Server: ${systemInfo.graphicalServer}`
+        );
         systemPromptChunks.push(` - Display Size: ${systemInfo.displaySize}`);
         systemPromptChunks.push(` - Shell: ${systemInfo.shell}`);
         systemPromptChunks.push(` - Terminal: ${systemInfo.terminal}`);
@@ -63,11 +80,11 @@ const systemInfoPlugin: AlicePlugin = {
         systemPromptChunks.push(` - Timezone: ${systemInfo.timezone}`);
 
         return systemPromptChunks.join('\n');
-      }
+      },
     });
 
     // plugin.registerTool(systemHealthCheckTool(config.getPluginConfig()));
-  }
+  },
 };
 
 export default systemInfoPlugin;

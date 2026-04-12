@@ -8,18 +8,23 @@ import { freshenScratchFilesIndex } from '../scratch-files-index.js';
 
 const parameters = Type.Object({ filename: Type.String() });
 
-const deleteScratchFileTool: (config: ScratchFilesPluginConfigSchema) => Tool = (config) => ({
+const deleteScratchFileTool: (
+  config: ScratchFilesPluginConfigSchema
+) => Tool = config => ({
   name: 'deleteScratchFile',
   availableFor: ['autonomy', 'chat', 'voice'],
-  description: 'Deletes a text file from the internal scratch directory. This is meant to be used in conjunction with the ' +
+  description:
+    'Deletes a text file from the internal scratch directory. This is meant to be used in conjunction with the ' +
     'writeScratchFile, readScratchFile, and listScratchFiles tools, which allow you to write, read, and list text files in ' +
     'this scratch directory. You can call this tool with the filename of the file you want to delete as an argument.',
-  systemPromptFragment: `Call deleteScratchFile when you want to delete a text file from your internal scratch directory. ` +
+  systemPromptFragment:
+    `Call deleteScratchFile when you want to delete a text file from your internal scratch directory. ` +
     `The file must be located in your scratch directory, and you must provide the filename as an argument. For example, if ` +
     `you previously wrote a file named "notes.txt" using the writeScratchFile tool and no longer need it, you would call ` +
     `deleteScratchFile with the argument "filename" set to "notes.txt" to delete it.`,
   parameters,
-  toolResultPromptIntro: 'You have just deleted a text file from your internal scratch directory using the deleteScratchFile tool.\n',
+  toolResultPromptIntro:
+    'You have just deleted a text file from your internal scratch directory using the deleteScratchFile tool.\n',
   toolResultPromptOutro: '',
   execute: async (args: Static<typeof parameters>) => {
     const filename = args.filename;
@@ -30,7 +35,11 @@ const deleteScratchFileTool: (config: ScratchFilesPluginConfigSchema) => Tool = 
       return `Error: File type not allowed.`;
     }
 
-    if (filename.includes('/') || filename.includes('\\') || filename.includes('..')) {
+    if (
+      filename.includes('/') ||
+      filename.includes('\\') ||
+      filename.includes('..')
+    ) {
       return `Error: Invalid filename. Path traversal characters are not allowed.`;
     }
 
@@ -45,7 +54,7 @@ const deleteScratchFileTool: (config: ScratchFilesPluginConfigSchema) => Tool = 
     await freshenScratchFilesIndex(config);
 
     return `Deleted file ${filename}.`;
-  }
+  },
 });
 
 export default deleteScratchFileTool;

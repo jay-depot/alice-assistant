@@ -1,6 +1,12 @@
-export const BUILT_IN_CONVERSATION_TYPE_IDS = ['voice', 'chat', 'startup', 'autonomy'] as const;
+export const BUILT_IN_CONVERSATION_TYPE_IDS = [
+  'voice',
+  'chat',
+  'startup',
+  'autonomy',
+] as const;
 
-export type BuiltInConversationTypeId = typeof BUILT_IN_CONVERSATION_TYPE_IDS[number];
+export type BuiltInConversationTypeId =
+  (typeof BUILT_IN_CONVERSATION_TYPE_IDS)[number];
 export type ConversationTypeId = BuiltInConversationTypeId | (string & {});
 
 export type ConversationTypeFamily = BuiltInConversationTypeId;
@@ -18,7 +24,8 @@ const builtInConversationTypeDefinitions: ConversationTypeDefinition[] = [
   {
     id: 'voice',
     name: 'Voice Conversation',
-    description: 'A wake-word-driven voice interaction that should produce short spoken replies.',
+    description:
+      'A wake-word-driven voice interaction that should produce short spoken replies.',
     baseType: 'voice',
     includePersonality: true,
     scenarioPrompt: [
@@ -49,7 +56,8 @@ const builtInConversationTypeDefinitions: ConversationTypeDefinition[] = [
   {
     id: 'startup',
     name: 'Startup Conversation',
-    description: 'A startup status exchange used when the assistant boots and checks its model connection.',
+    description:
+      'A startup status exchange used when the assistant boots and checks its model connection.',
     baseType: 'startup',
     includePersonality: true,
     scenarioPrompt: [
@@ -61,69 +69,94 @@ const builtInConversationTypeDefinitions: ConversationTypeDefinition[] = [
   {
     id: 'autonomy',
     name: 'Autonomous Conversation',
-    description: 'A limited-autonomy workflow triggered by timers, events, or other plugin-driven activity.',
+    description:
+      'A limited-autonomy workflow triggered by timers, events, or other plugin-driven activity.',
     baseType: 'autonomy',
     includePersonality: true,
   },
 ];
 
-function normalizeConversationTypeDefinition(definition: ConversationTypeDefinition): ConversationTypeDefinition {
+function normalizeConversationTypeDefinition(
+  definition: ConversationTypeDefinition
+): ConversationTypeDefinition {
   return {
     ...definition,
     includePersonality: definition.includePersonality ?? true,
   };
 }
 
-const builtInConversationTypeMap = new Map<ConversationTypeId, ConversationTypeDefinition>(
-  builtInConversationTypeDefinitions.map((definition) => {
-    const normalizedDefinition = normalizeConversationTypeDefinition(definition);
+const builtInConversationTypeMap = new Map<
+  ConversationTypeId,
+  ConversationTypeDefinition
+>(
+  builtInConversationTypeDefinitions.map(definition => {
+    const normalizedDefinition =
+      normalizeConversationTypeDefinition(definition);
     return [normalizedDefinition.id, normalizedDefinition];
-  }),
+  })
 );
 
-const registeredConversationTypeMap = new Map<ConversationTypeId, ConversationTypeDefinition>(
-  builtInConversationTypeDefinitions.map((definition) => {
-    const normalizedDefinition = normalizeConversationTypeDefinition(definition);
+const registeredConversationTypeMap = new Map<
+  ConversationTypeId,
+  ConversationTypeDefinition
+>(
+  builtInConversationTypeDefinitions.map(definition => {
+    const normalizedDefinition =
+      normalizeConversationTypeDefinition(definition);
     return [normalizedDefinition.id, normalizedDefinition];
-  }),
+  })
 );
 
 const conversationTypeOwners = new Map<ConversationTypeId, string>(
-  builtInConversationTypeDefinitions.map((definition) => [definition.id, 'core']),
+  builtInConversationTypeDefinitions.map(definition => [definition.id, 'core'])
 );
 
-export function isBuiltInConversationType(type: ConversationTypeId): type is BuiltInConversationTypeId {
+export function isBuiltInConversationType(
+  type: ConversationTypeId
+): type is BuiltInConversationTypeId {
   return builtInConversationTypeMap.has(type);
 }
 
-export function registerConversationType(definition: ConversationTypeDefinition, pluginId: string): void {
+export function registerConversationType(
+  definition: ConversationTypeDefinition,
+  pluginId: string
+): void {
   const normalizedDefinition = normalizeConversationTypeDefinition(definition);
   const existingOwner = conversationTypeOwners.get(definition.id);
   if (existingOwner) {
     throw new Error(
-      `Plugin ${pluginId} attempted to register conversation type ${definition.id}, but that ID is already registered by ${existingOwner}. Disable one of these plugins to fix your assistant. If you are developing one of these plugins, change the conversation type ID.`,
+      `Plugin ${pluginId} attempted to register conversation type ${definition.id}, but that ID is already registered by ${existingOwner}. Disable one of these plugins to fix your assistant. If you are developing one of these plugins, change the conversation type ID.`
     );
   }
 
   if (!normalizedDefinition.name.trim()) {
-    throw new Error(`Plugin ${pluginId} attempted to register conversation type ${definition.id} without a name.`);
+    throw new Error(
+      `Plugin ${pluginId} attempted to register conversation type ${definition.id} without a name.`
+    );
   }
 
   if (!normalizedDefinition.description.trim()) {
-    throw new Error(`Plugin ${pluginId} attempted to register conversation type ${definition.id} without a description.`);
+    throw new Error(
+      `Plugin ${pluginId} attempted to register conversation type ${definition.id} without a description.`
+    );
   }
 
   if (!isBuiltInConversationType(normalizedDefinition.baseType)) {
     throw new Error(
-      `Plugin ${pluginId} attempted to register conversation type ${definition.id} with invalid base type ${normalizedDefinition.baseType}. Valid base types are ${BUILT_IN_CONVERSATION_TYPE_IDS.join(', ')}.`,
+      `Plugin ${pluginId} attempted to register conversation type ${definition.id} with invalid base type ${normalizedDefinition.baseType}. Valid base types are ${BUILT_IN_CONVERSATION_TYPE_IDS.join(', ')}.`
     );
   }
 
-  registeredConversationTypeMap.set(normalizedDefinition.id, normalizedDefinition);
+  registeredConversationTypeMap.set(
+    normalizedDefinition.id,
+    normalizedDefinition
+  );
   conversationTypeOwners.set(normalizedDefinition.id, pluginId);
 }
 
-export function getConversationTypeDefinition(type: ConversationTypeId): ConversationTypeDefinition | undefined {
+export function getConversationTypeDefinition(
+  type: ConversationTypeId
+): ConversationTypeDefinition | undefined {
   return registeredConversationTypeMap.get(type);
 }
 
@@ -139,6 +172,8 @@ export function listBuiltInConversationTypes(): ConversationTypeDefinition[] {
   return [...builtInConversationTypeMap.values()];
 }
 
-export function getConversationTypeOwner(type: ConversationTypeId): string | undefined {
+export function getConversationTypeOwner(
+  type: ConversationTypeId
+): string | undefined {
   return conversationTypeOwners.get(type);
 }

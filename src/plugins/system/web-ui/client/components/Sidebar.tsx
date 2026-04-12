@@ -24,7 +24,11 @@ export function Sidebar({
       <div id="sidebar-header">
         <RegionSlot region="sidebar-top" />
         <div className="logo">A.L.I.C.E.</div>
-        <button id="new-chat-btn" title="Start a new conversation" onClick={onNewChat}>
+        <button
+          id="new-chat-btn"
+          title="Start a new conversation"
+          onClick={onNewChat}
+        >
           + New Chat
         </button>
       </div>
@@ -37,15 +41,21 @@ export function Sidebar({
       {routes.length > 0 ? (
         <nav className="plugin-nav" aria-label="Plugin pages">
           <div className="plugin-nav__title">Pages</div>
-          {routes.map((route) => {
-            const label = route.title?.trim() || route.path.replace(/^\//, '') || 'Plugin page';
+          {routes.map(route => {
+            const label =
+              route.title?.trim() ||
+              route.path.replace(/^\//, '') ||
+              'Plugin page';
 
             return (
               <NavLink
                 key={route.path}
                 to={route.path}
                 className={({ isActive }) =>
-                  classNames('plugin-nav__link', isActive && 'plugin-nav__link--active')
+                  classNames(
+                    'plugin-nav__link',
+                    isActive && 'plugin-nav__link--active'
+                  )
                 }
               >
                 {label}

@@ -20,12 +20,16 @@ const datetimePlugin: AlicePlugin = {
       getPrompt: async () => {
         const systemPromptChunks: string[] = [];
         systemPromptChunks.push(`## CURRENT DATE AND TIME\n`);
-        systemPromptChunks.push(`The current date and time are: ${format(new Date(), 'PPP pp')}`);
-        systemPromptChunks.push(`The current day of the week is: ${format(new Date(), 'EEEE')}`);
+        systemPromptChunks.push(
+          `The current date and time are: ${format(new Date(), 'PPP pp')}`
+        );
+        systemPromptChunks.push(
+          `The current day of the week is: ${format(new Date(), 'EEEE')}`
+        );
         return systemPromptChunks.join('\n');
-      }
+      },
     });
-  }
+  },
 };
 
 export default datetimePlugin;

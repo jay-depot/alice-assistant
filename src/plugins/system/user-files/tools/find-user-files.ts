@@ -4,11 +4,27 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 const parameters = Type.Object({
-  namePattern: Type.String({ description: 'Filename pattern to search for (supports * and ? wildcards)' }),
-  extensions: Type.Optional(Type.Array(Type.String(), { description: 'File extensions to filter by (e.g. [".txt", ".pdf"])' })),
-  containsText: Type.Optional(Type.String({ description: 'Optional text to search within filenames' })),
-  modifiedAfter: Type.Optional(Type.String({ description: 'ISO 8601 date to find files modified after this date' })),
-  limit: Type.Optional(Type.Number({ description: 'Maximum number of results to return (default: 50)' }))
+  namePattern: Type.String({
+    description: 'Filename pattern to search for (supports * and ? wildcards)',
+  }),
+  extensions: Type.Optional(
+    Type.Array(Type.String(), {
+      description: 'File extensions to filter by (e.g. [".txt", ".pdf"])',
+    })
+  ),
+  containsText: Type.Optional(
+    Type.String({ description: 'Optional text to search within filenames' })
+  ),
+  modifiedAfter: Type.Optional(
+    Type.String({
+      description: 'ISO 8601 date to find files modified after this date',
+    })
+  ),
+  limit: Type.Optional(
+    Type.Number({
+      description: 'Maximum number of results to return (default: 50)',
+    })
+  ),
 });
 
 function matchesPattern(filename: string, pattern: string): boolean {
@@ -36,14 +52,27 @@ function searchDirectory(
       if (results.length >= limit) break;
 
       // Skip hidden files and common system directories
-      if (entry.name.startsWith('.') || ['node_modules', '$RECYCLE.BIN', 'System Volume Information'].includes(entry.name)) {
+      if (
+        entry.name.startsWith('.') ||
+        ['node_modules', '$RECYCLE.BIN', 'System Volume Information'].includes(
+          entry.name
+        )
+      ) {
         continue;
       }
 
       const fullPath = path.join(dir, entry.name);
 
       if (entry.isDirectory()) {
-        searchDirectory(fullPath, namePattern, extensions, containsText, modifiedAfter, results, limit);
+        searchDirectory(
+          fullPath,
+          namePattern,
+          extensions,
+          containsText,
+          modifiedAfter,
+          results,
+          limit
+        );
       } else if (entry.isFile()) {
         // Check name pattern
         if (!matchesPattern(entry.name, namePattern)) continue;
@@ -55,7 +84,10 @@ function searchDirectory(
         }
 
         // Check text content in filename
-        if (containsText && !entry.name.toLowerCase().includes(containsText.toLowerCase())) {
+        if (
+          containsText &&
+          !entry.name.toLowerCase().includes(containsText.toLowerCase())
+        ) {
           continue;
         }
 
@@ -69,23 +101,25 @@ function searchDirectory(
         results.push({
           path: fullPath,
           size: stats.size,
-          modified: stats.mtime.toISOString()
+          modified: stats.mtime.toISOString(),
         });
       }
     }
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (err) {
     // Silently skip directories we can't read
     return;
   }
 }
 
-const findUserFilesTool: (config) => Tool = (config) => ({
+const findUserFilesTool: (config) => Tool = config => ({
   name: 'findUserFiles',
   availableFor: ['chat', 'voice', 'autonomy'],
-  description: `Recursively searches allowed directories for files matching a name pattern, with optional filters for ` +
+  description:
+    `Recursively searches allowed directories for files matching a name pattern, with optional filters for ` +
     `file extensions, text content, and modification date.`,
-  systemPromptFragment: `Call findUserFiles when the user asks you to find a file by name or pattern. You must provide ` +
+  systemPromptFragment:
+    `Call findUserFiles when the user asks you to find a file by name or pattern. You must provide ` +
     `the "namePattern" argument. You can optionally use "extensions" to filter by file type (e.g., [".txt", ".pdf"]), ` +
     `"containsText" to search for files containing specific text in the filename, "modifiedAfter" to find recently ` +
     `modified files (use ISO 8601 format like "2024-03-20"), and "limit" to control the maximum number of results ` +
@@ -100,21 +134,24 @@ const findUserFilesTool: (config) => Tool = (config) => ({
 
     if (allowedRoots.length === 0) {
       return JSON.stringify({
-        error: 'No search roots configured. Please configure allowedRoots in tool settings.',
-        results: []
+        error:
+          'No search roots configured. Please configure allowedRoots in tool settings.',
+        results: [],
       });
     }
 
     const namePattern = args.namePattern;
     const extensions = args.extensions;
     const containsText = args.containsText;
-    const modifiedAfter = args.modifiedAfter ? new Date(args.modifiedAfter) : undefined;
+    const modifiedAfter = args.modifiedAfter
+      ? new Date(args.modifiedAfter)
+      : undefined;
     const limit = args.limit || 50;
 
     if (limit > 500) {
       return JSON.stringify({
         error: 'Limit exceeds maximum allowed value of 500',
-        results: []
+        results: [],
       });
     }
 
@@ -124,15 +161,29 @@ const findUserFilesTool: (config) => Tool = (config) => ({
       const expandedRoot = root.replace(/^~/, process.env.HOME || '/root');
       if (!fs.existsSync(expandedRoot)) continue;
 
-      searchDirectory(expandedRoot, namePattern, extensions, containsText, modifiedAfter, results, limit);
+      searchDirectory(
+        expandedRoot,
+        namePattern,
+        extensions,
+        containsText,
+        modifiedAfter,
+        results,
+        limit
+      );
     }
 
     return JSON.stringify({
-      query: { namePattern, extensions, containsText, modifiedAfter: args.modifiedAfter, limit },
+      query: {
+        namePattern,
+        extensions,
+        containsText,
+        modifiedAfter: args.modifiedAfter,
+        limit,
+      },
       resultCount: results.length,
-      results: results.slice(0, limit)
+      results: results.slice(0, limit),
     });
-  }
+  },
 });
 
 export default findUserFilesTool;

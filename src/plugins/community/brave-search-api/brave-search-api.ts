@@ -3,22 +3,27 @@ import { AlicePlugin } from '../../../lib.js';
 import { BraveSearch } from 'brave-search';
 
 const WebSearchBrokerPluginConfigSchema = Type.Object({
-  apiKey: Type.Optional(Type.String({ description: 'API key for the Brave Search API' })),
+  apiKey: Type.Optional(
+    Type.String({ description: 'API key for the Brave Search API' })
+  ),
 });
 
-type WebSearchBrokerPluginConfigSchema = Type.Static<typeof WebSearchBrokerPluginConfigSchema>;
+type WebSearchBrokerPluginConfigSchema = Type.Static<
+  typeof WebSearchBrokerPluginConfigSchema
+>;
 
 declare module '../../../lib.js' {
   export interface PluginCapabilities {
     'brave-search-api': {
       getBraveSearchApiClient: () => BraveSearch | null;
-    }
+    };
   }
 }
 
 const braveSearchApiPlugin: AlicePlugin = {
   pluginMetadata: {
-    description: 'Provides a common instance of the Brave search API client for other plugins to use.',
+    description:
+      'Provides a common instance of the Brave search API client for other plugins to use.',
     id: 'brave-search-api',
     name: 'Brave Search API Plugin',
     required: false,
@@ -28,21 +33,26 @@ const braveSearchApiPlugin: AlicePlugin = {
 
   async registerPlugin(pluginInterface) {
     const plugin = await pluginInterface.registerPlugin();
-    const config = await plugin.config<WebSearchBrokerPluginConfigSchema>(WebSearchBrokerPluginConfigSchema, {});
+    const config = await plugin.config<WebSearchBrokerPluginConfigSchema>(
+      WebSearchBrokerPluginConfigSchema,
+      {}
+    );
 
     const apiKey = config.getPluginConfig().apiKey;
 
     plugin.offer<'brave-search-api'>({
       getBraveSearchApiClient: () => {
         if (!apiKey) {
-          console.warn('Brave Search API Plugin: No API key provided, Brave Search API client will not work. Please provide an API key in the plugin configuration to enable Brave Search API functionality.');
+          console.warn(
+            'Brave Search API Plugin: No API key provided, Brave Search API client will not work. Please provide an API key in the plugin configuration to enable Brave Search API functionality.'
+          );
           return null;
         }
 
         return new BraveSearch(apiKey);
-      }
+      },
     });
-  }
-}
+  },
+};
 
 export default braveSearchApiPlugin;

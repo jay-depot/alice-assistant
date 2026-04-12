@@ -40,7 +40,12 @@ export function formatTime(isoString: string): string {
   });
 }
 
-export function getMessageKey({ role, messageKind, timestamp, content }: {
+export function getMessageKey({
+  role,
+  messageKind,
+  timestamp,
+  content,
+}: {
   role: string;
   messageKind: string;
   timestamp: string;
@@ -49,7 +54,11 @@ export function getMessageKey({ role, messageKind, timestamp, content }: {
   return `${role}:${messageKind}:${timestamp}:${content}`;
 }
 
-export function isDisplayableMessage({ role, messageKind, content }: {
+export function isDisplayableMessage({
+  role,
+  messageKind,
+  content,
+}: {
   role: string;
   messageKind: string;
   content: string;
@@ -66,6 +75,8 @@ export function normalizeMoodClass(mood: string): string {
   return normalizedMood || 'neutral';
 }
 
-export function classNames(...names: Array<string | false | null | undefined>): string {
+export function classNames(
+  ...names: Array<string | false | null | undefined>
+): string {
   return names.filter(Boolean).join(' ');
 }

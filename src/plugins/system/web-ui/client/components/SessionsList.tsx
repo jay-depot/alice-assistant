@@ -7,13 +7,17 @@ interface SessionsListProps {
   onSelectSession: (id: number | string) => void;
 }
 
-export function SessionsList({ sessions, currentSessionId, onSelectSession }: SessionsListProps) {
+export function SessionsList({
+  sessions,
+  currentSessionId,
+  onSelectSession,
+}: SessionsListProps) {
   return (
     <div id="sessions-list">
       {sessions.length === 0 ? (
         <div className="sessions-empty">No previous sessions</div>
       ) : (
-        sessions.map((session) => (
+        sessions.map(session => (
           <SessionItem
             key={String(session.id)}
             session={session}

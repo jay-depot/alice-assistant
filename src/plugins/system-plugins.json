@@ -90,6 +90,12 @@
     "required": true
   },
   {
+    "id": "troubleshooting",
+    "name": "Troubleshooting",
+    "category": "system",
+    "required": false
+  },
+  {
     "id": "skills",
     "name": "Skills",
     "category": "system",

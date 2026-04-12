@@ -2,7 +2,10 @@ import type { Express, Request, Response, NextFunction } from 'express';
 import { type Conversation, startConversation } from '../../../lib.js';
 import { PluginHookInvocations } from '../../../lib/plugin-hooks.js';
 import { extractVoiceAccessToken, isVoiceAccessTokenValid } from './auth.js';
-import { isManagedVoiceClientRunning, type ManagedVoiceClientState } from './managed-client.js';
+import {
+  isManagedVoiceClientRunning,
+  type ManagedVoiceClientState,
+} from './managed-client.js';
 import { markdownToTts } from './markdown-to-tts.js';
 
 type ActiveVoiceSession = {
@@ -85,7 +88,10 @@ type VoiceCaptureDebugRequestBody = {
   clientRecordedAt?: unknown;
 };
 
-function enqueueVoiceClientEvent(runtimeState: VoicePluginRuntimeState, type: VoiceClientEvent['type']): void {
+function enqueueVoiceClientEvent(
+  runtimeState: VoicePluginRuntimeState,
+  type: VoiceClientEvent['type']
+): void {
   runtimeState.voiceClientEvents.push({
     sequence: runtimeState.nextVoiceClientEventSequence,
     type,
@@ -94,12 +100,20 @@ function enqueueVoiceClientEvent(runtimeState: VoicePluginRuntimeState, type: Vo
   runtimeState.nextVoiceClientEventSequence += 1;
 
   if (runtimeState.voiceClientEvents.length > 32) {
-    runtimeState.voiceClientEvents.splice(0, runtimeState.voiceClientEvents.length - 32);
+    runtimeState.voiceClientEvents.splice(
+      0,
+      runtimeState.voiceClientEvents.length - 32
+    );
   }
 }
 
-function getVoiceClientEventsAfter(runtimeState: VoicePluginRuntimeState, afterSequence: number): VoiceClientEvent[] {
-  return runtimeState.voiceClientEvents.filter((event) => event.sequence > afterSequence);
+function getVoiceClientEventsAfter(
+  runtimeState: VoicePluginRuntimeState,
+  afterSequence: number
+): VoiceClientEvent[] {
+  return runtimeState.voiceClientEvents.filter(
+    event => event.sequence > afterSequence
+  );
 }
 
 function parseAfterSequence(queryValue: unknown): number {
@@ -116,13 +130,21 @@ function parseAfterSequence(queryValue: unknown): number {
   return 0;
 }
 
-function updateLastCaptureDebug(runtimeState: VoicePluginRuntimeState, body: VoiceCaptureDebugRequestBody): boolean {
-  if (typeof body.source !== 'string' || typeof body.stopReason !== 'string' || typeof body.speechDetected !== 'boolean') {
+function updateLastCaptureDebug(
+  runtimeState: VoicePluginRuntimeState,
+  body: VoiceCaptureDebugRequestBody
+): boolean {
+  if (
+    typeof body.source !== 'string' ||
+    typeof body.stopReason !== 'string' ||
+    typeof body.speechDetected !== 'boolean'
+  ) {
     return false;
   }
 
   if (
-    (body.capturedSeconds !== null && typeof body.capturedSeconds !== 'number') ||
+    (body.capturedSeconds !== null &&
+      typeof body.capturedSeconds !== 'number') ||
     typeof body.minCaptureSeconds !== 'number' ||
     typeof body.maxCaptureSeconds !== 'number' ||
     typeof body.trailingSilenceMs !== 'number' ||
@@ -133,7 +155,8 @@ function updateLastCaptureDebug(runtimeState: VoicePluginRuntimeState, body: Voi
     return false;
   }
 
-  const capturedSeconds = typeof body.capturedSeconds === 'number' ? body.capturedSeconds : null;
+  const capturedSeconds =
+    typeof body.capturedSeconds === 'number' ? body.capturedSeconds : null;
 
   runtimeState.lastCaptureDebug = {
     source: body.source,
@@ -154,7 +177,9 @@ function updateLastCaptureDebug(runtimeState: VoicePluginRuntimeState, body: Voi
 
 function requireVoiceAccessToken(runtimeState: VoicePluginRuntimeState) {
   return (req: Request, res: Response, next: NextFunction): void => {
-    const token = extractVoiceAccessToken(req.headers as Record<string, string | string[] | undefined>);
+    const token = extractVoiceAccessToken(
+      req.headers as Record<string, string | string[] | undefined>
+    );
     if (!isVoiceAccessTokenValid(runtimeState.accessToken, token)) {
       res.status(401).json({ error: 'Unauthorized voice client request.' });
       return;
@@ -164,15 +189,22 @@ function requireVoiceAccessToken(runtimeState: VoicePluginRuntimeState) {
   };
 }
 
-function hasActiveVoiceSessionExpired(runtimeState: VoicePluginRuntimeState): boolean {
+function hasActiveVoiceSessionExpired(
+  runtimeState: VoicePluginRuntimeState
+): boolean {
   if (!runtimeState.activeVoiceSession) {
     return false;
   }
 
-  return Date.now() - runtimeState.activeVoiceSession.lastActivityAt > runtimeState.sessionIdleTimeoutMs;
+  return (
+    Date.now() - runtimeState.activeVoiceSession.lastActivityAt >
+    runtimeState.sessionIdleTimeoutMs
+  );
 }
 
-export function requestActiveVoiceConversationEnd(runtimeState: VoicePluginRuntimeState): boolean {
+export function requestActiveVoiceConversationEnd(
+  runtimeState: VoicePluginRuntimeState
+): boolean {
   if (!runtimeState.activeVoiceSession) {
     return false;
   }
@@ -184,48 +216,64 @@ export function requestActiveVoiceConversationEnd(runtimeState: VoicePluginRunti
 
 function finalizeDeferredVoiceSessionClose(
   runtimeState: VoicePluginRuntimeState,
-  deferredClose: DeferredVoiceSessionClose,
+  deferredClose: DeferredVoiceSessionClose
 ): Promise<void> {
   if (deferredClose.closePromise) {
     return deferredClose.closePromise;
   }
 
   deferredClose.closePromise = (async () => {
-    console.log('voice plugin: finalizing voice conversation and archiving immediately.');
+    console.log(
+      'voice plugin: finalizing voice conversation and archiving immediately.'
+    );
     enqueueVoiceClientEvent(runtimeState, 'archiving-started');
-    await PluginHookInvocations.invokeOnUserConversationWillEnd(deferredClose.conversation, 'voice');
+    await PluginHookInvocations.invokeOnUserConversationWillEnd(
+      deferredClose.conversation,
+      'voice'
+    );
     await deferredClose.conversation.closeConversation();
-  })().catch((error) => {
-    console.error('voice plugin: voice session cleanup failed:', error);
-  }).finally(() => {
-    enqueueVoiceClientEvent(runtimeState, 'archiving-completed');
-    runtimeState.pendingVoiceSessionCloses.delete(deferredClose);
-  });
+  })()
+    .catch(error => {
+      console.error('voice plugin: voice session cleanup failed:', error);
+    })
+    .finally(() => {
+      enqueueVoiceClientEvent(runtimeState, 'archiving-completed');
+      runtimeState.pendingVoiceSessionCloses.delete(deferredClose);
+    });
 
   return deferredClose.closePromise;
 }
 
-function scheduleDeferredVoiceSessionClose(runtimeState: VoicePluginRuntimeState, conversation: Conversation): void {
+function scheduleDeferredVoiceSessionClose(
+  runtimeState: VoicePluginRuntimeState,
+  conversation: Conversation
+): void {
   const deferredClose: DeferredVoiceSessionClose = {
     conversation,
     closePromise: null,
   };
 
   runtimeState.pendingVoiceSessionCloses.add(deferredClose);
-  console.log('voice plugin: closing stale voice session without deferred archival delay.');
+  console.log(
+    'voice plugin: closing stale voice session without deferred archival delay.'
+  );
   void finalizeDeferredVoiceSessionClose(runtimeState, deferredClose);
 }
 
-export async function flushDeferredVoiceSessionCloses(runtimeState: VoicePluginRuntimeState): Promise<void> {
+export async function flushDeferredVoiceSessionCloses(
+  runtimeState: VoicePluginRuntimeState
+): Promise<void> {
   const pendingCloses = [...runtimeState.pendingVoiceSessionCloses];
   await Promise.allSettled(
-    pendingCloses.map((deferredClose) => finalizeDeferredVoiceSessionClose(runtimeState, deferredClose)),
+    pendingCloses.map(deferredClose =>
+      finalizeDeferredVoiceSessionClose(runtimeState, deferredClose)
+    )
   );
 }
 
 export async function closeActiveVoiceSession(
   runtimeState: VoicePluginRuntimeState,
-  options: { deferFinalization?: boolean } = {},
+  options: { deferFinalization?: boolean } = {}
 ): Promise<void> {
   if (!runtimeState.activeVoiceSession) {
     return;
@@ -248,9 +296,13 @@ export async function closeActiveVoiceSession(
   await finalizeDeferredVoiceSessionClose(runtimeState, deferredClose);
 }
 
-async function getOrCreateActiveVoiceConversation(runtimeState: VoicePluginRuntimeState): Promise<Conversation> {
+async function getOrCreateActiveVoiceConversation(
+  runtimeState: VoicePluginRuntimeState
+): Promise<Conversation> {
   if (hasActiveVoiceSessionExpired(runtimeState)) {
-    console.log('voice plugin: active voice session expired, closing it immediately before starting a fresh conversation.');
+    console.log(
+      'voice plugin: active voice session expired, closing it immediately before starting a fresh conversation.'
+    );
     await closeActiveVoiceSession(runtimeState);
   }
 
@@ -261,7 +313,10 @@ async function getOrCreateActiveVoiceConversation(runtimeState: VoicePluginRunti
 
   const conversation = startConversation('voice');
   console.log('voice plugin: started a new voice conversation.');
-  await PluginHookInvocations.invokeOnUserConversationWillBegin(conversation, 'voice');
+  await PluginHookInvocations.invokeOnUserConversationWillBegin(
+    conversation,
+    'voice'
+  );
 
   runtimeState.activeVoiceSession = {
     conversation,
@@ -272,7 +327,10 @@ async function getOrCreateActiveVoiceConversation(runtimeState: VoicePluginRunti
   return conversation;
 }
 
-export function registerVoiceRoutes(app: Express, runtimeState: VoicePluginRuntimeState): void {
+export function registerVoiceRoutes(
+  app: Express,
+  runtimeState: VoicePluginRuntimeState
+): void {
   const requireToken = requireVoiceAccessToken(runtimeState);
 
   app.get('/api/voice/health', requireToken, (_req, res) => {
@@ -281,7 +339,9 @@ export function registerVoiceRoutes(app: Express, runtimeState: VoicePluginRunti
     res.json({
       ok: true,
       hasAccessToken: !!runtimeState.accessToken,
-      managedClientRunning: isManagedVoiceClientRunning(runtimeState.managedClientState),
+      managedClientRunning: isManagedVoiceClientRunning(
+        runtimeState.managedClientState
+      ),
       hasActiveVoiceSession: !!runtimeState.activeVoiceSession,
       sessionIdleTimeoutMs: runtimeState.sessionIdleTimeoutMs,
       deferredSessionCloseDelayMs: runtimeState.deferredSessionCloseDelayMs,
@@ -295,7 +355,9 @@ export function registerVoiceRoutes(app: Express, runtimeState: VoicePluginRunti
           deferredCloseState: {
             pendingCount: pendingDeferredCloses.length,
             scheduledCount: 0,
-            inFlightCount: pendingDeferredCloses.filter((deferredClose) => deferredClose.closePromise !== null).length,
+            inFlightCount: pendingDeferredCloses.filter(
+              deferredClose => deferredClose.closePromise !== null
+            ).length,
           },
         },
         capture: runtimeState.captureDebugConfig,
@@ -318,7 +380,9 @@ export function registerVoiceRoutes(app: Express, runtimeState: VoicePluginRunti
     const body = (req.body ?? {}) as VoiceCaptureDebugRequestBody;
 
     if (!updateLastCaptureDebug(runtimeState, body)) {
-      res.status(400).json({ error: 'Voice capture debug payload is invalid.' });
+      res
+        .status(400)
+        .json({ error: 'Voice capture debug payload is invalid.' });
       return;
     }
 
@@ -329,7 +393,9 @@ export function registerVoiceRoutes(app: Express, runtimeState: VoicePluginRunti
     const closedConversation = !!runtimeState.activeVoiceSession;
 
     if (closedConversation) {
-      console.log('voice plugin: continuation turn ended in silence, closing voice conversation immediately.');
+      console.log(
+        'voice plugin: continuation turn ended in silence, closing voice conversation immediately.'
+      );
       await closeActiveVoiceSession(runtimeState, { deferFinalization: true });
     }
 
@@ -346,25 +412,35 @@ export function registerVoiceRoutes(app: Express, runtimeState: VoicePluginRunti
     const message = body.message?.trim();
 
     if (!message) {
-      res.status(400).json({ error: 'Voice turn request must include a non-empty message.' });
+      res.status(400).json({
+        error: 'Voice turn request must include a non-empty message.',
+      });
       return;
     }
 
     try {
-      const conversation = await getOrCreateActiveVoiceConversation(runtimeState);
+      const conversation =
+        await getOrCreateActiveVoiceConversation(runtimeState);
       if (runtimeState.activeVoiceSession?.conversation === conversation) {
         runtimeState.activeVoiceSession.requestedConversationEnd = false;
       }
 
       const reply = await conversation.sendUserMessage(message);
-      const endConversation = runtimeState.activeVoiceSession?.conversation === conversation
-        ? runtimeState.activeVoiceSession.requestedConversationEnd
-        : false;
+      const endConversation =
+        runtimeState.activeVoiceSession?.conversation === conversation
+          ? runtimeState.activeVoiceSession.requestedConversationEnd
+          : false;
 
       if (endConversation) {
-        console.log('voice plugin: assistant requested the current voice conversation to end after this reply.');
-        await closeActiveVoiceSession(runtimeState, { deferFinalization: true });
-      } else if (runtimeState.activeVoiceSession?.conversation === conversation) {
+        console.log(
+          'voice plugin: assistant requested the current voice conversation to end after this reply.'
+        );
+        await closeActiveVoiceSession(runtimeState, {
+          deferFinalization: true,
+        });
+      } else if (
+        runtimeState.activeVoiceSession?.conversation === conversation
+      ) {
         runtimeState.activeVoiceSession.lastActivityAt = Date.now();
       }
 
@@ -376,7 +452,8 @@ export function registerVoiceRoutes(app: Express, runtimeState: VoicePluginRunti
 
       res.json(responseBody);
     } catch (error) {
-      const messageText = error instanceof Error ? error.message : String(error);
+      const messageText =
+        error instanceof Error ? error.message : String(error);
       res.status(500).json({ error: messageText });
     }
   });

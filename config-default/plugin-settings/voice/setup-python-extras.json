@@ -1,6 +1,3 @@
 {
-  "extras": [
-    "openai-whisper",
-    "piper-tts"
-  ]
+  "extras": ["openai-whisper", "piper-tts"]
 }

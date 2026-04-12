@@ -12,8 +12,19 @@ const sortEnum = Type.Union([
 const homeParameters = Type.Object({});
 
 const feedParameters = Type.Object({
-  source: Type.Optional(Type.Union([Type.Literal('personalized'), Type.Literal('following'), Type.Literal('submolt')], { default: 'personalized' })),
-  submolt: Type.Optional(Type.String({ description: 'Required when source is submolt.' })),
+  source: Type.Optional(
+    Type.Union(
+      [
+        Type.Literal('personalized'),
+        Type.Literal('following'),
+        Type.Literal('submolt'),
+      ],
+      { default: 'personalized' }
+    )
+  ),
+  submolt: Type.Optional(
+    Type.String({ description: 'Required when source is submolt.' })
+  ),
   sort: Type.Optional(sortEnum),
   limit: Type.Optional(Type.Number({ minimum: 1, maximum: 25 })),
   cursor: Type.Optional(Type.String()),
@@ -28,11 +39,17 @@ const postParameters = Type.Object({
 type PostParameters = Type.Static<typeof postParameters>;
 
 const commentsParameters = Type.Object({
-  postId: Type.String({ description: 'The Moltbook post ID whose comments should be retrieved.' }),
-  sort: Type.Optional(Type.Union([Type.Literal('best'), Type.Literal('new'), Type.Literal('old')])),
+  postId: Type.String({
+    description: 'The Moltbook post ID whose comments should be retrieved.',
+  }),
+  sort: Type.Optional(
+    Type.Union([Type.Literal('best'), Type.Literal('new'), Type.Literal('old')])
+  ),
   limit: Type.Optional(Type.Number({ minimum: 1, maximum: 100 })),
   cursor: Type.Optional(Type.String()),
-  requesterId: Type.Optional(Type.String({ description: 'Optional requester ID to include vote state.' })),
+  requesterId: Type.Optional(
+    Type.String({ description: 'Optional requester ID to include vote state.' })
+  ),
 });
 
 type CommentsParameters = Type.Static<typeof commentsParameters>;
@@ -40,14 +57,24 @@ type CommentsParameters = Type.Static<typeof commentsParameters>;
 const listSubmoltsParameters = Type.Object({});
 
 const getSubmoltParameters = Type.Object({
-  name: Type.String({ description: 'The submolt name, without the m/ prefix.' }),
+  name: Type.String({
+    description: 'The submolt name, without the m/ prefix.',
+  }),
 });
 
 type GetSubmoltParameters = Type.Static<typeof getSubmoltParameters>;
 
 const searchParameters = Type.Object({
-  query: Type.String({ description: 'Natural-language Moltbook search query.' }),
-  type: Type.Optional(Type.Union([Type.Literal('all'), Type.Literal('posts'), Type.Literal('comments')])),
+  query: Type.String({
+    description: 'Natural-language Moltbook search query.',
+  }),
+  type: Type.Optional(
+    Type.Union([
+      Type.Literal('all'),
+      Type.Literal('posts'),
+      Type.Literal('comments'),
+    ])
+  ),
   limit: Type.Optional(Type.Number({ minimum: 1, maximum: 50 })),
   cursor: Type.Optional(Type.String()),
 });
@@ -57,8 +84,10 @@ type SearchParameters = Type.Static<typeof searchParameters>;
 export const getMoltbookHomeTool = (client: MoltbookClient): Tool => ({
   name: 'getMoltbookHome',
   availableFor: ['chat', 'voice'],
-  description: 'Fetches the Moltbook dashboard with account summary, notifications, and suggested next actions.',
-  systemPromptFragment: 'Use getMoltbookHome when the user asks what is happening on Moltbook, wants a status overview, or wants to know what needs attention first.',
+  description:
+    'Fetches the Moltbook dashboard with account summary, notifications, and suggested next actions.',
+  systemPromptFragment:
+    'Use getMoltbookHome when the user asks what is happening on Moltbook, wants a status overview, or wants to know what needs attention first.',
   parameters: homeParameters,
   toolResultPromptIntro: 'Here is the current Moltbook dashboard.',
   toolResultPromptOutro: '',
@@ -71,8 +100,10 @@ export const getMoltbookHomeTool = (client: MoltbookClient): Tool => ({
 export const getMoltbookFeedTool = (client: MoltbookClient): Tool => ({
   name: 'getMoltbookFeed',
   availableFor: ['chat', 'voice'],
-  description: 'Reads the personalized Moltbook feed, following-only feed, or a specific submolt feed.',
-  systemPromptFragment: 'Use getMoltbookFeed when the user wants to browse Moltbook posts. Prefer small limits unless the user asks for a larger slice.',
+  description:
+    'Reads the personalized Moltbook feed, following-only feed, or a specific submolt feed.',
+  systemPromptFragment:
+    'Use getMoltbookFeed when the user wants to browse Moltbook posts. Prefer small limits unless the user asks for a larger slice.',
   parameters: feedParameters,
   toolResultPromptIntro: 'Here are the requested Moltbook feed results.',
   toolResultPromptOutro: '',
@@ -106,7 +137,8 @@ export const getMoltbookPostTool = (client: MoltbookClient): Tool => ({
   name: 'getMoltbookPost',
   availableFor: ['chat', 'voice'],
   description: 'Retrieves a single Moltbook post by ID.',
-  systemPromptFragment: 'Use getMoltbookPost when the user references a specific Moltbook post ID or when a previous tool returned a post ID that needs to be opened.',
+  systemPromptFragment:
+    'Use getMoltbookPost when the user references a specific Moltbook post ID or when a previous tool returned a post ID that needs to be opened.',
   parameters: postParameters,
   toolResultPromptIntro: 'Here is the requested Moltbook post.',
   toolResultPromptOutro: '',
@@ -120,7 +152,8 @@ export const getMoltbookCommentsTool = (client: MoltbookClient): Tool => ({
   name: 'getMoltbookComments',
   availableFor: ['chat', 'voice'],
   description: 'Retrieves the comment tree for a Moltbook post.',
-  systemPromptFragment: 'Use getMoltbookComments when the user wants to inspect or summarize the conversation underneath a Moltbook post.',
+  systemPromptFragment:
+    'Use getMoltbookComments when the user wants to inspect or summarize the conversation underneath a Moltbook post.',
   parameters: commentsParameters,
   toolResultPromptIntro: 'Here is the Moltbook comment thread.',
   toolResultPromptOutro: '',
@@ -140,7 +173,8 @@ export const listMoltbookSubmoltsTool = (client: MoltbookClient): Tool => ({
   name: 'listMoltbookSubmolts',
   availableFor: ['chat', 'voice'],
   description: 'Lists Moltbook submolts and their high-level metadata.',
-  systemPromptFragment: 'Use listMoltbookSubmolts when the user wants to discover Moltbook communities or needs candidate submolts to browse or subscribe to.',
+  systemPromptFragment:
+    'Use listMoltbookSubmolts when the user wants to discover Moltbook communities or needs candidate submolts to browse or subscribe to.',
   parameters: listSubmoltsParameters,
   toolResultPromptIntro: 'Here are the Moltbook submolts that were returned.',
   toolResultPromptOutro: '',
@@ -154,7 +188,8 @@ export const getMoltbookSubmoltTool = (client: MoltbookClient): Tool => ({
   name: 'getMoltbookSubmolt',
   availableFor: ['chat', 'voice'],
   description: 'Retrieves one Moltbook submolt and its metadata.',
-  systemPromptFragment: 'Use getMoltbookSubmolt when the user asks about a specific Moltbook community or before subscribing to it.',
+  systemPromptFragment:
+    'Use getMoltbookSubmolt when the user asks about a specific Moltbook community or before subscribing to it.',
   parameters: getSubmoltParameters,
   toolResultPromptIntro: 'Here is the requested Moltbook submolt.',
   toolResultPromptOutro: '',
@@ -168,7 +203,8 @@ export const searchMoltbookTool = (client: MoltbookClient): Tool => ({
   name: 'searchMoltbook',
   availableFor: ['chat', 'voice'],
   description: 'Runs Moltbook semantic search across posts and comments.',
-  systemPromptFragment: 'Use searchMoltbook when the user wants concept-based discovery on Moltbook or when you need to research whether a topic is already being discussed there.',
+  systemPromptFragment:
+    'Use searchMoltbook when the user wants concept-based discovery on Moltbook or when you need to research whether a topic is already being discussed there.',
   parameters: searchParameters,
   toolResultPromptIntro: 'Here are the Moltbook search results.',
   toolResultPromptOutro: '',

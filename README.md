@@ -26,61 +26,70 @@ in `./config-default/example-personalities/`
 
 ## Work In Progress
 
-In its current state, you can pull this code, install it, compile it, and run it, and if 
-you have ollama set up correctly, it will send a "startup prompt" to your assistant, print 
-the response on your terminal, and then start a basic Web UI to chat with the assistant. It 
-can do web searches, if you enable the correct plugins, and get a Brave Search API key, and 
-it can also use that as a news source, as well as connect to Currents as an alternative. It 
-can also connect to Moltbook, if you're crazy enough to try it (unless you really know what 
-you're doing,please don't). Past conversation memory also works now, as does internal 
-"scratch file" management for the assistant to maintain its own notes as a sort of "extended 
-memory".
+In its current state, you can pull this code, install it, build it, and run it. If Ollama is
+set up correctly, the assistant will run a startup conversation to verify the model connection,
+print the response to the terminal, and then start the web UI for chat.
 
-There is now also a very basic skill recall system.
+The current runtime already includes plugin-based web search, news brokering, memory, scratch
+files, reminders, notifications, daily goals, mood UI extensions, and a growing task-assistant
+surface. Voice support also now exists in-tree as a managed local client plus token-protected
+local endpoints, but that stack is still evolving.
 
-In the meantime, I've been working on the voice loop in another branch. It's slow work. Audio 
-in Node *sucks.* Any tips or contributions there would be *greatly* appreciated.
+Optional integrations such as Brave Search, Currents, Moltbook, Piper TTS, Whisper, and wake-word
+tooling depend on which plugins you enable and how you configure them.
 
-Future plans for how to interact with this assistant may go one of a few ways:
+The remaining roadmap, in no particular order, includes:
 
-1. A user-scoped systemd service that runs in the background listening for wake words, and
-   accepting web-based chat sessions if the user opens one in their browser
-2. Convert this entire thing into an electron app, handle audio monitoring, wake word detection,
-   STT processing, TTS processing, and audio output through electron.
-3. Modularize even further. Move all audio processing and wake word detection into an external 
-   python program that communicates with the main assistant over a socket with a well defined API.
+- More plugins, especially task assistants. Something for email, and maybe coding.
+- The implementation of the plan for progressive levels of agentic features.
+- Polishing the out-of-the-box experience that is now starting to exist.
+- A TUI might be in the near future.
+- Refactoring LLM connections into the plugin layer, so other services can be integrated
+- Add hooks to the LLM selection logic, so llm-router plugins could be developed
+- Tighten up the voice experience as I use it more and identify rough edges
+- Add more tests, especially for the core runtime and plugin system, as well as the plugins themselves.
 
 ## Installation
 
-1. Install Dependencies
+1. Install Ollama.
+   See `MODELS.md` for notes on which models work well with Alice Assistant.
+2. Clone this repository.
+3. Run `npm install`.
+4. Run `npm run build`.
 
-- ollama (See MODELS.md for details on which models work well with Alice Assistant, and which don't)
-- openwakeword
-- whisper
-- piper-tts
+Optional local services and tools:
 
-2. ~~Get it from npm: `npm i -g alice-assistant` (TODO: Make sure name is available on
-   npm, or change it here)~~ Really, just pull it from this repo for now. I'll publish
-   this when it's in a more useful state.
-3. Generate, and install your trained wake word model
-4. ???
-5. PROFIT!
+- Piper TTS, if you want local text-to-speech.
+- Whisper, if you want local speech-to-text.
+- OpenWakeWord and a trained wake-word model, if you want wake-word-driven voice flows.
+- External service credentials such as Brave Search or Currents, if you enable the related plugins.
 
 ## Usage
 
-For now, clone this repo, `npm install`, `npm run build`, and then `npm start` to start the 
-assistant. The first time you start it, it will create your config directory in 
-`~/.alice-assistant/` and populate it with the default config files and then probably error 
-out because of missing settings. Follow the instructions in the error messages, which will 
-tell you what settings you need to configure. I've tried to make the error messages as 
-helpful as possible, but if you run into any that arent, feel free to open an issue and 
-I'll try to clarify them.
+Run `npm start` after building.
 
-It will do a quick LLM connection test, and print the model's response to the terminal, 
-then it will open a web UI as http://localhost:47153/ where you can chat with the assistant. 
-If you have the news-broker and one of the news source plugins enabled, you can try it out by 
-asking something like: "What's the latest news on [some topic]?" Tool calls are all logged 
-to the terminal for now, so you can confirm they work by checking there.
+On first run, the assistant creates `~/.alice-assistant/` and scaffolds it from `config-default/`.
+That includes the main config, plugin enablement config, personality files, plugin settings, and
+web-interface customization files.
+
+By default, the assistant will:
+
+- load the default config from `~/.alice-assistant/`
+- attempt a startup conversation against your configured Ollama model
+- print that startup exchange to the terminal
+- start the web UI on `http://localhost:47153/` unless you changed the bind address or port
+
+Depending on which plugins you enable and configure, the assistant can also search the web, fetch
+news, manage reminders, store long-term memory, use scratch files, and expose plugin-provided UI
+regions in the web client. Tool calls are still logged to the terminal.
+
+## Testing
+
+Vitest is configured for the project.
+
+- `npm test` runs the test suite once.
+- `npm run test:watch` runs tests in watch mode.
+- `npm run test:coverage` runs the suite with coverage reporting.
 
 ## Contributing
 
@@ -88,10 +97,9 @@ to the terminal for now, so you can confirm they work by checking there.
   implementation is clean
 - If you use an AI to generate it, you still have to be able to explain it in your own, human
   written, words
-- Before the conversion to plug-in architecture, I stated that I would not accept pull requests 
-  adding agentic features. This is no longer the case, however like alternative LLM providers, 
-  they must be fully disabled by default and the relevant plugin's descriptions must clearly 
-  state the fact that autonomous features are included.
+- Pull requests adding agentic features may be acceptable, but like alternative LLM providers,
+  they must be fully disabled by default and the relevant plugin descriptions must clearly state
+  that autonomous features are included.
 - "I'd like to add the ability to connect to GPT/Claude/Gemini/DeepSeek!" On the unlikely chance
   this project ever gets enough attention for someone to say this, I'll respond in advance: Yes,
   I will accept pull requests extending this project with that functionality, however there are

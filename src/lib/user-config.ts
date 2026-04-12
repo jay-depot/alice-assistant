@@ -1,7 +1,7 @@
 /**
  * @file user-config.ts
- * 
- * Finds, or creates the expected configuration folder for Alice in the user's home directory. 
+ *
+ * Finds, or creates the expected configuration folder for Alice in the user's home directory.
  */
 
 import * as fs from 'fs';
@@ -22,7 +22,12 @@ export const UserConfig = (() => {
       if (!fs.existsSync(configDir)) {
         fs.mkdirSync(configDir);
         // Copy the contents of the config-default folder into the new config directory. This will give the user a starting point for configuring their assistant, and also ensure that all necessary files are in place.
-        const defaultConfigDir = path.join(currentDir, '..', '..', 'config-default');
+        const defaultConfigDir = path.join(
+          currentDir,
+          '..',
+          '..',
+          'config-default'
+        );
         fs.cpSync(defaultConfigDir, configDir, { recursive: true });
       }
       return configDir;
@@ -41,7 +46,10 @@ export const UserConfig = (() => {
       config = JSON.parse(configData);
 
       // Load the tool configs.
-      const toolSettingsDir = path.join(UserConfig.getConfigPath(), 'tool-settings');
+      const toolSettingsDir = path.join(
+        UserConfig.getConfigPath(),
+        'tool-settings'
+      );
       if (!fs.existsSync(toolSettingsDir)) {
         // We should crash here. An empty config was *just* created if we got to this point, so something very bad happened.
         throw new Error(`Tool settings directory not found at ${toolSettingsDir}. This should never happen, \
@@ -53,9 +61,11 @@ export const UserConfig = (() => {
 
     getConfig: (): SystemConfigFull => {
       if (!config) {
-        throw new Error('Config not loaded. Please call UserConfig.load() before calling getConfig().');
+        throw new Error(
+          'Config not loaded. Please call UserConfig.load() before calling getConfig().'
+        );
       }
       return config;
-    }
-  }
+    },
+  };
 })();

@@ -30,12 +30,19 @@ export function ChatHeader({
             id="delete-session-btn"
             type="button"
             disabled={!canDelete}
-            title={isEndingSession ? 'Archiving this session' : 'End and archive this session'}
+            title={
+              isEndingSession
+                ? 'Archiving this session'
+                : 'End and archive this session'
+            }
             onClick={onDelete}
           >
             {isEndingSession ? (
               <>
-                <span className="header-action-spinner" aria-hidden="true"></span>
+                <span
+                  className="header-action-spinner"
+                  aria-hidden="true"
+                ></span>
                 <span>Archiving...</span>
               </>
             ) : (

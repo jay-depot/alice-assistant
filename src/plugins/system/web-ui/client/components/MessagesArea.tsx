@@ -26,11 +26,12 @@ export function MessagesArea({
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const visibleMessages = useMemo(
     () => messages.filter(isDisplayableMessage),
-    [messages],
+    [messages]
   );
-  const lastVisibleMessageKey = visibleMessages.length > 0
-    ? getMessageKey(visibleMessages[visibleMessages.length - 1])
-    : null;
+  const lastVisibleMessageKey =
+    visibleMessages.length > 0
+      ? getMessageKey(visibleMessages[visibleMessages.length - 1])
+      : null;
 
   useLayoutEffect(() => {
     const container = messagesRef.current;
@@ -49,7 +50,13 @@ export function MessagesArea({
     return () => {
       window.cancelAnimationFrame(frameId);
     };
-  }, [isEndingSession, isProcessing, lastVisibleMessageKey, showWelcome, visibleMessages.length]);
+  }, [
+    isEndingSession,
+    isProcessing,
+    lastVisibleMessageKey,
+    showWelcome,
+    visibleMessages.length,
+  ]);
 
   return (
     <div id="messages-area" ref={messagesRef}>
@@ -62,19 +69,23 @@ export function MessagesArea({
           <MessageBubble
             key={`${message.timestamp}-${index}`}
             message={message}
-            receiptStatus={message.role === 'user'
-              ? getMessageKey(message) === lastReadMessageKey
-                ? 'read'
-                : getMessageKey(message) === pendingMessageKey
-                  ? 'sent'
-                  : null
-              : null}
+            receiptStatus={
+              message.role === 'user'
+                ? getMessageKey(message) === lastReadMessageKey
+                  ? 'read'
+                  : getMessageKey(message) === pendingMessageKey
+                    ? 'sent'
+                    : null
+                : null
+            }
           />
         ))
       )}
 
       {isProcessing ? <ProcessingStatus /> : null}
-      {isEndingSession ? <ProcessingStatus label="Archiving conversation..." /> : null}
+      {isEndingSession ? (
+        <ProcessingStatus label="Archiving conversation..." />
+      ) : null}
 
       <RegionSlot region="message-suffix" />
     </div>

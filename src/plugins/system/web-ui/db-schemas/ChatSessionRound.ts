@@ -11,7 +11,7 @@ const ChatSessionRoundSchema = defineEntity({
     content: p.string(),
     timestamp: p.datetime(),
     senderName: p.string().nullable().default(null),
-  }
+  },
 });
 
 export class ChatSessionRound extends ChatSessionRoundSchema.class {}

@@ -18,7 +18,10 @@ export async function createSession(): Promise<Session> {
   return data.session;
 }
 
-export async function patchSession(id: number | string, message: string): Promise<Session> {
+export async function patchSession(
+  id: number | string,
+  message: string
+): Promise<Session> {
   const data = await apiFetch<{ session: Session }>(`/api/chat/${id}`, {
     method: 'PATCH',
     body: JSON.stringify({ message }),

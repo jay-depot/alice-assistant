@@ -1,5 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import { startConversation, type Conversation, type Message } from './conversation.js';
+import {
+  startConversation,
+  type Conversation,
+  type Message,
+} from './conversation.js';
 import type { ConversationTypeId } from './conversation-types.js';
 import type { Tool, ToolExecutionContext } from './tool-system.js';
 import type { TSchema } from 'typebox';
@@ -10,7 +14,7 @@ type Deferred<T> = {
   reject: (reason?: unknown) => void;
 };
 
-function createDeferred<T>(): Deferred<T> {
+export function createDeferred<T>(): Deferred<T> {
   let resolve!: (value: T) => void;
   let reject!: (reason?: unknown) => void;
   const promise = new Promise<T>((innerResolve, innerReject) => {
@@ -24,7 +28,11 @@ function createDeferred<T>(): Deferred<T> {
 // Public types
 // ---------------------------------------------------------------------------
 
-export type TaskAssistantStatus = 'running' | 'completed' | 'cancelled' | 'error';
+export type TaskAssistantStatus =
+  | 'running'
+  | 'completed'
+  | 'cancelled'
+  | 'error';
 
 export type TaskAssistantEntryMode = 'chat' | 'voice';
 
@@ -103,7 +111,12 @@ export type TaskAssistantStartToolFactoryOptions = {
   systemPromptFragment: Tool['systemPromptFragment'];
   toolResultPromptIntro?: Tool['toolResultPromptIntro'];
   toolResultPromptOutro?: Tool['toolResultPromptOutro'];
-  buildHandoff: (args: Record<string, unknown>, context: ToolExecutionContext) => Promise<Omit<TaskAssistantToolHandoffOptions, 'definitionId' | 'context'>> | Omit<TaskAssistantToolHandoffOptions, 'definitionId' | 'context'>;
+  buildHandoff: (
+    args: Record<string, unknown>,
+    context: ToolExecutionContext
+  ) =>
+    | Promise<Omit<TaskAssistantToolHandoffOptions, 'definitionId' | 'context'>>
+    | Omit<TaskAssistantToolHandoffOptions, 'definitionId' | 'context'>;
   formatResult?: (result: TaskAssistantResult) => string;
 };
 
@@ -114,7 +127,12 @@ export type TaskAssistantCompletionToolFactoryOptions = {
   systemPromptFragment: Tool['systemPromptFragment'];
   toolResultPromptIntro?: Tool['toolResultPromptIntro'];
   toolResultPromptOutro?: Tool['toolResultPromptOutro'];
-  buildCompletion: (args: Record<string, unknown>, context: ToolExecutionContext) => Promise<Omit<TaskAssistantCompletionOptions, 'context'>> | Omit<TaskAssistantCompletionOptions, 'context'>;
+  buildCompletion: (
+    args: Record<string, unknown>,
+    context: ToolExecutionContext
+  ) =>
+    | Promise<Omit<TaskAssistantCompletionOptions, 'context'>>
+    | Omit<TaskAssistantCompletionOptions, 'context'>;
   formatResult?: (result: TaskAssistantResult) => string;
 };
 
@@ -125,32 +143,48 @@ export type TaskAssistantToolPairFactoryOptions = {
 
 function requireToolContextSessionId(context: ToolExecutionContext): number {
   if (!context.sessionId) {
-    throw new Error(`Tool ${context.toolName} requires an active chat or voice session.`);
+    throw new Error(
+      `Tool ${context.toolName} requires an active chat or voice session.`
+    );
   }
 
   return context.sessionId;
 }
 
-function getEntryModeFromToolContext(context: ToolExecutionContext): TaskAssistantEntryMode {
+function getEntryModeFromToolContext(
+  context: ToolExecutionContext
+): TaskAssistantEntryMode {
   return context.conversationType === 'voice' ? 'voice' : 'chat';
 }
 
-function requireTaskAssistantDefinitionForContext(context: ToolExecutionContext, explicitTaskAssistantId?: string): TaskAssistantDefinition {
+function requireTaskAssistantDefinitionForContext(
+  context: ToolExecutionContext,
+  explicitTaskAssistantId?: string
+): TaskAssistantDefinition {
   const taskAssistantId = explicitTaskAssistantId ?? context.taskAssistantId;
   if (!taskAssistantId) {
-    throw new Error(`Tool ${context.toolName} is not running inside a task assistant context.`);
+    throw new Error(
+      `Tool ${context.toolName} is not running inside a task assistant context.`
+    );
   }
 
   const definition = definitions.get(taskAssistantId)?.definition;
   if (!definition) {
-    throw new Error(`No task assistant definition found with id "${taskAssistantId}".`);
+    throw new Error(
+      `No task assistant definition found with id "${taskAssistantId}".`
+    );
   }
 
   return definition;
 }
 
-function buildTaskAssistantResultFromOptions(options: TaskAssistantCompletionOptions): TaskAssistantResult {
-  const definition = requireTaskAssistantDefinitionForContext(options.context, options.taskAssistantId);
+function buildTaskAssistantResultFromOptions(
+  options: TaskAssistantCompletionOptions
+): TaskAssistantResult {
+  const definition = requireTaskAssistantDefinitionForContext(
+    options.context,
+    options.taskAssistantId
+  );
 
   return {
     taskAssistantId: definition.id,
@@ -165,7 +199,10 @@ function buildTaskAssistantResultFromOptions(options: TaskAssistantCompletionOpt
   };
 }
 
-async function appendSeedMessages(instance: ActiveTaskAssistantInstance, options: TaskAssistantToolHandoffOptions): Promise<void> {
+async function appendSeedMessages(
+  instance: ActiveTaskAssistantInstance,
+  options: TaskAssistantToolHandoffOptions
+): Promise<void> {
   if (options.contextHints) {
     await instance.conversation.appendExternalMessage({
       role: 'system',
@@ -189,7 +226,10 @@ async function appendSeedMessages(instance: ActiveTaskAssistantInstance, options
 // Internal state
 // ---------------------------------------------------------------------------
 
-const definitions = new Map<string, { definition: TaskAssistantDefinition; pluginId: string }>();
+const definitions = new Map<
+  string,
+  { definition: TaskAssistantDefinition; pluginId: string }
+>();
 const activeInstances = new Map<number, ActiveTaskAssistantInstance>(); // keyed by session id
 const completionWaits = new Map<number, Deferred<TaskAssistantResult>>();
 const suspensionSignals = new Map<number, Deferred<void>>();
@@ -198,7 +238,9 @@ const suspensionSignals = new Map<number, Deferred<void>>();
 // Internal helpers
 // ---------------------------------------------------------------------------
 
-export function formatTaskAssistantToolResult(result: TaskAssistantResult): string {
+export function formatTaskAssistantToolResult(
+  result: TaskAssistantResult
+): string {
   const lines: string[] = [
     `Task assistant: ${result.taskAssistantName}`,
     `Status: ${result.status}`,
@@ -214,7 +256,9 @@ export function formatTaskAssistantToolResult(result: TaskAssistantResult): stri
   return lines.join('\n');
 }
 
-function getOptionalToolPrompt<T extends Tool['toolResultPromptIntro'] | Tool['toolResultPromptOutro']>(prompt: T | undefined): T {
+function getOptionalToolPrompt<
+  T extends Tool['toolResultPromptIntro'] | Tool['toolResultPromptOutro'],
+>(prompt: T | undefined): T {
   return (prompt ?? '') as T;
 }
 
@@ -293,7 +337,9 @@ function getOptionalToolPrompt<T extends Tool['toolResultPromptIntro'] | Tool['t
  * plugin.registerTool(tools.startTool);
  * plugin.registerTool(tools.completionTool);
  */
-export function createTaskAssistantToolPair(options: TaskAssistantToolPairFactoryOptions): {
+export function createTaskAssistantToolPair(
+  options: TaskAssistantToolPairFactoryOptions
+): {
   startTool: Tool;
   completionTool: Tool;
 } {
@@ -304,8 +350,12 @@ export function createTaskAssistantToolPair(options: TaskAssistantToolPairFactor
       description: options.start.description,
       parameters: options.start.parameters,
       systemPromptFragment: options.start.systemPromptFragment,
-      toolResultPromptIntro: getOptionalToolPrompt(options.start.toolResultPromptIntro),
-      toolResultPromptOutro: getOptionalToolPrompt(options.start.toolResultPromptOutro),
+      toolResultPromptIntro: getOptionalToolPrompt(
+        options.start.toolResultPromptIntro
+      ),
+      toolResultPromptOutro: getOptionalToolPrompt(
+        options.start.toolResultPromptOutro
+      ),
       execute: async (args, context) => {
         const result = await TaskAssistants.runForToolCall({
           definitionId: options.start.definitionId,
@@ -313,7 +363,10 @@ export function createTaskAssistantToolPair(options: TaskAssistantToolPairFactor
           ...(await options.start.buildHandoff(args, context)),
         });
 
-        return options.start.formatResult?.(result) ?? formatTaskAssistantToolResult(result);
+        return (
+          options.start.formatResult?.(result) ??
+          formatTaskAssistantToolResult(result)
+        );
       },
     },
     completionTool: {
@@ -322,15 +375,21 @@ export function createTaskAssistantToolPair(options: TaskAssistantToolPairFactor
       description: options.complete.description,
       parameters: options.complete.parameters,
       systemPromptFragment: options.complete.systemPromptFragment,
-      toolResultPromptIntro: getOptionalToolPrompt(options.complete.toolResultPromptIntro),
-      toolResultPromptOutro: getOptionalToolPrompt(options.complete.toolResultPromptOutro),
+      toolResultPromptIntro: getOptionalToolPrompt(
+        options.complete.toolResultPromptIntro
+      ),
+      toolResultPromptOutro: getOptionalToolPrompt(
+        options.complete.toolResultPromptOutro
+      ),
       execute: async (args, context) => {
         const result = await TaskAssistants.completeForToolCall({
           context,
           ...(await options.complete.buildCompletion(args, context)),
         });
 
-        return options.complete.formatResult?.(result) ?? result.handbackMessage;
+        return (
+          options.complete.formatResult?.(result) ?? result.handbackMessage
+        );
       },
     },
   };
@@ -340,8 +399,13 @@ export function createTaskAssistantToolPair(options: TaskAssistantToolPairFactor
 // Event wiring surface (consumed by plugin-hooks.ts to avoid import cycles)
 // ---------------------------------------------------------------------------
 
-type TaskAssistantBeginCallback = (instance: ActiveTaskAssistantInstance) => Promise<void>;
-type TaskAssistantEndCallback = (instance: ActiveTaskAssistantInstance, result: TaskAssistantResult) => Promise<void>;
+type TaskAssistantBeginCallback = (
+  instance: ActiveTaskAssistantInstance
+) => Promise<void>;
+type TaskAssistantEndCallback = (
+  instance: ActiveTaskAssistantInstance,
+  result: TaskAssistantResult
+) => Promise<void>;
 
 const onBeginCallbacks: TaskAssistantBeginCallback[] = [];
 const onEndCallbacks: TaskAssistantEndCallback[] = [];
@@ -367,13 +431,16 @@ export const TaskAssistants = {
   /**
    * @internal Called by the plugin engine when a plugin calls registerTaskAssistant.
    */
-  registerDefinition(pluginId: string, definition: TaskAssistantDefinition): void {
+  registerDefinition(
+    pluginId: string,
+    definition: TaskAssistantDefinition
+  ): void {
     if (definitions.has(definition.id)) {
       const existing = definitions.get(definition.id)!;
       throw new Error(
         `Plugin ${pluginId} attempted to register a task assistant with id "${definition.id}", ` +
-        `but that id is already registered by plugin ${existing.pluginId}. ` +
-        `Disable one of these plugins to fix your assistant.`
+          `but that id is already registered by plugin ${existing.pluginId}. ` +
+          `Disable one of these plugins to fix your assistant.`
       );
     }
     definitions.set(definition.id, { definition, pluginId });
@@ -384,8 +451,8 @@ export const TaskAssistants = {
   },
 
   /**
-  * Starts a task assistant for the given session. Fires the onTaskAssistantWillBegin hooks.
-   * 
+   * Starts a task assistant for the given session. Fires the onTaskAssistantWillBegin hooks.
+   *
    * @throws if the definition id is not registered, or the session already has an active instance.
    */
   async start(options: {
@@ -398,13 +465,13 @@ export const TaskAssistants = {
     if (!entry) {
       throw new Error(
         `No task assistant definition found with id "${definitionId}". ` +
-        `Make sure the plugin that provides this task assistant is enabled.`
+          `Make sure the plugin that provides this task assistant is enabled.`
       );
     }
     if (activeInstances.has(sessionId)) {
       throw new Error(
         `Session ${sessionId} already has an active task assistant. ` +
-        `Each session may only have one task assistant active at a time.`
+          `Each session may only have one task assistant active at a time.`
       );
     }
 
@@ -414,7 +481,10 @@ export const TaskAssistants = {
       definition,
       parentSessionId: sessionId,
       entryMode,
-      conversation: startConversation(definition.conversationType, { sessionId, taskAssistantId: definition.id }),
+      conversation: startConversation(definition.conversationType, {
+        sessionId,
+        taskAssistantId: definition.id,
+      }),
       startedAt: new Date(),
     };
 
@@ -430,7 +500,9 @@ export const TaskAssistants = {
   },
 
   /** Returns the active task assistant instance for the given session, or undefined. */
-  getActiveInstance(sessionId: number): ActiveTaskAssistantInstance | undefined {
+  getActiveInstance(
+    sessionId: number
+  ): ActiveTaskAssistantInstance | undefined {
     return activeInstances.get(sessionId);
   },
 
@@ -460,7 +532,9 @@ export const TaskAssistants = {
   async waitForResult(sessionId: number): Promise<TaskAssistantResult> {
     const completion = completionWaits.get(sessionId);
     if (!completion) {
-      throw new Error(`Session ${sessionId} is not waiting on a task assistant result.`);
+      throw new Error(
+        `Session ${sessionId} is not waiting on a task assistant result.`
+      );
     }
 
     const suspension = suspensionSignals.get(sessionId);
@@ -474,7 +548,9 @@ export const TaskAssistants = {
    * Starts a task assistant from within a tool call and optionally seeds it with initial
    * system or assistant messages.
    */
-  async startForToolCall(options: TaskAssistantToolHandoffOptions): Promise<ActiveTaskAssistantInstance> {
+  async startForToolCall(
+    options: TaskAssistantToolHandoffOptions
+  ): Promise<ActiveTaskAssistantInstance> {
     const sessionId = requireToolContextSessionId(options.context);
     const instance = await this.start({
       definitionId: options.definitionId,
@@ -490,7 +566,9 @@ export const TaskAssistants = {
    * Starts a task assistant from a tool call and resolves only when the task assistant
    * has completed or been cancelled.
    */
-  async runForToolCall(options: TaskAssistantToolHandoffOptions): Promise<TaskAssistantResult> {
+  async runForToolCall(
+    options: TaskAssistantToolHandoffOptions
+  ): Promise<TaskAssistantResult> {
     const sessionId = requireToolContextSessionId(options.context);
     await this.startForToolCall(options);
     return this.waitForResult(sessionId);
@@ -499,7 +577,9 @@ export const TaskAssistants = {
   /**
    * Same as runForToolCall, but formats the final TaskAssistantResult into a tool-result string.
    */
-  async runForToolCallAndFormat(options: TaskAssistantToolHandoffOptions): Promise<string> {
+  async runForToolCallAndFormat(
+    options: TaskAssistantToolHandoffOptions
+  ): Promise<string> {
     const result = await this.runForToolCall(options);
     return formatTaskAssistantToolResult(result);
   },
@@ -507,7 +587,9 @@ export const TaskAssistants = {
   /**
    * Builds a normalized TaskAssistantResult using the current tool context.
    */
-  buildResultForToolCall(options: TaskAssistantCompletionOptions): TaskAssistantResult {
+  buildResultForToolCall(
+    options: TaskAssistantCompletionOptions
+  ): TaskAssistantResult {
     return buildTaskAssistantResultFromOptions(options);
   },
 
@@ -515,7 +597,9 @@ export const TaskAssistants = {
    * Completes the current task assistant from within a completion tool and returns the
    * normalized result that was resolved back to the parent tool call.
    */
-  async completeForToolCall(options: TaskAssistantCompletionOptions): Promise<TaskAssistantResult> {
+  async completeForToolCall(
+    options: TaskAssistantCompletionOptions
+  ): Promise<TaskAssistantResult> {
     const sessionId = requireToolContextSessionId(options.context);
     const result = buildTaskAssistantResultFromOptions(options);
     await this.complete(sessionId, result);
@@ -525,7 +609,9 @@ export const TaskAssistants = {
   /**
    * Same as completeForToolCall, but formats the normalized result as a tool-result string.
    */
-  async completeForToolCallAndFormat(options: TaskAssistantCompletionOptions): Promise<string> {
+  async completeForToolCallAndFormat(
+    options: TaskAssistantCompletionOptions
+  ): Promise<string> {
     const result = await this.completeForToolCall(options);
     return formatTaskAssistantToolResult(result);
   },
@@ -534,7 +620,10 @@ export const TaskAssistants = {
    * Marks the task assistant as complete. Removes the active instance, resolves the waiting
    * parent tool call result, and fires onTaskAssistantWillEnd hooks.
    */
-  async complete(sessionId: number, result: TaskAssistantResult): Promise<void> {
+  async complete(
+    sessionId: number,
+    result: TaskAssistantResult
+  ): Promise<void> {
     const instance = activeInstances.get(sessionId);
     if (!instance) {
       return;
