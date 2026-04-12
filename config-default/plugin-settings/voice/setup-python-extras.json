@@ -1,0 +1,6 @@
+{
+  "extras": [
+    "openai-whisper",
+    "piper-tts"
+  ]
+}

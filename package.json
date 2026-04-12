@@ -5,6 +5,10 @@
   "license": "MIT",
   "author": "",
   "type": "module",
+  "bin": {
+    "alice-assistant-start": "bin/alice-assistant-start",
+    "alice-assistant-setup": "bin/alice-assistant-setup"
+  },
   "main": "dist/lib.js",
   "scripts": {
     "build": "npm run build:server && npm run build:client && npm run build:plugin-ui",
@@ -20,14 +24,12 @@
     "@lightpanda/browser": "^1.2.0",
     "@mikro-orm/core": "^7.0.3",
     "@mikro-orm/sqlite": "^7.0.3",
+    "blessed": "^0.1.81",
     "brave-search": "^0.9.0",
     "date-fns": "^4.1.0",
     "express": "^5.2.1",
     "mikro-orm": "^7.0.3",
-    "nodejs-whisper": "^0.2.9",
     "ollama": "^0.6.3",
-    "onnxruntime-web": "^1.24.3",
-    "openwakeword-js": "^0.1.27",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-markdown": "^10.1.0",

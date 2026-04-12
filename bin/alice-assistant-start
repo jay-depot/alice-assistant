@@ -1,0 +1,18 @@
+#!/usr/bin/env node
+
+import path from 'node:path';
+import { access } from 'node:fs/promises';
+import { constants as fsConstants } from 'node:fs';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
+const currentDir = path.dirname(fileURLToPath(import.meta.url));
+const distEntry = path.join(currentDir, '..', 'dist', 'index.js');
+
+try {
+  await access(distEntry, fsConstants.R_OK);
+} catch {
+  console.error(`Could not find built entrypoint at ${distEntry}. Run \`npm run build\` first.`);
+  process.exit(1);
+}
+
+await import(pathToFileURL(distEntry).href);

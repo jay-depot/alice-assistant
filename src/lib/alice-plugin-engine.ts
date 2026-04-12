@@ -330,6 +330,10 @@ export const AlicePluginEngine = {
     await PluginHookInvocations.invokeOnAllPluginsLoaded();
   },
 
+  getLoadedPlugins: () => {
+    return loadedPlugins.map(plugin => plugin.pluginMetadata);
+  }
+
   // Future plans:
   // hotLoadPlugin: async (plugin: AlicePlugin) => {},
   // unloadPlugin: async (pluginId: string) => {},

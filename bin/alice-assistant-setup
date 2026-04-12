@@ -1,0 +1,28 @@
+#!/usr/bin/env node
+
+import path from 'node:path';
+import { access } from 'node:fs/promises';
+import { constants as fsConstants } from 'node:fs';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
+const currentDir = path.dirname(fileURLToPath(import.meta.url));
+const setupModulePath = path.join(currentDir, '..', 'dist', 'lib', 'setup-program.js');
+
+try {
+  await access(setupModulePath, fsConstants.R_OK);
+} catch {
+  console.error(`Could not find setup module at ${setupModulePath}. Run \`npm run build\` first.`);
+  process.exit(1);
+}
+
+const setupModule = await import(pathToFileURL(setupModulePath).href);
+
+if (!setupModule.runSetupProgram || typeof setupModule.runSetupProgram !== 'function') {
+  console.error('Setup module is missing runSetupProgram(). Rebuild and try again.');
+  process.exit(1);
+}
+
+setupModule.runSetupProgram(process.argv.slice(2)).catch((err) => {
+  console.error('Fatal setup error', err);
+  process.exit(1);
+});
