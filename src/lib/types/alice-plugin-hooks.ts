@@ -1,5 +1,6 @@
 import { Conversation, Message } from '../conversation.js';
 import { DynamicPromptConversationType } from '../dynamic-prompt.js';
+import type { ActiveTaskAssistantInstance, TaskAssistantResult } from '../task-assistant.js';
 
 export type AlicePluginHooks = {
   /**
@@ -122,4 +123,21 @@ export type AlicePluginHooks = {
    * during `onAssistantStoppedAcceptingRequests`.
    */
   onPluginsWillUnload: (callback: () => Promise<void>) => void,
+
+  /**
+   * Registers a callback to be called when a task assistant is about to begin.
+   * This is called immediately after the task assistant's Conversation is created,
+   * before any user messages are sent to it.
+   *
+   * Callbacks may be registered at any time before the first task assistant session begins.
+   */
+  onTaskAssistantWillBegin: (callback: (instance: ActiveTaskAssistantInstance) => Promise<void>) => void,
+
+  /**
+   * Registers a callback to be called when a task assistant session has ended
+   * (either completed or cancelled).
+   *
+   * Callbacks may be registered at any time before the first task assistant session ends.
+   */
+  onTaskAssistantWillEnd: (callback: (instance: ActiveTaskAssistantInstance, result: TaskAssistantResult) => Promise<void>) => void,
 };

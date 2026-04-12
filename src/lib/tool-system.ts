@@ -19,6 +19,8 @@ export type ToolExecutionContext = {
   toolName: string;
   conversationType: DynamicPromptConversationType;
   sessionId?: number;
+  /** Set when the tool is being called within a task assistant conversation. */
+  taskAssistantId?: string;
 };
 
 export type Tool = {

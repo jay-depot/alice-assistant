@@ -31,6 +31,8 @@ export type Message = {
 
 export type StartConversationOptions = {
   sessionId?: number;
+  /** Set this when the conversation is for a task assistant. */
+  taskAssistantId?: string;
 };
 
 function checkLLMResponseForDegeneracy(response: string) {
@@ -105,7 +107,7 @@ export class Conversation {
   public compactedContext: Message[] = [];
   private synchronizedRawMessageCount = 0;
 
-  constructor(public type: DynamicPromptConversationType, public sessionId?: number) {
+  constructor(public type: DynamicPromptConversationType, public sessionId?: number, public taskAssistantId?: string) {
     this.llmConnection = {
       ...getLLMConnection(),
     }
@@ -223,9 +225,10 @@ export class Conversation {
     const headerPrompts = await getHeaderPrompts({
       conversationType: this.type,
       sessionId: this.sessionId,
+      taskAssistantId: this.taskAssistantId,
       toolCallsAllowed: true,
     });
-    const footerPrompts = await getFooterPrompts({ conversationType: this.type, sessionId: this.sessionId });
+    const footerPrompts = await getFooterPrompts({ conversationType: this.type, sessionId: this.sessionId, taskAssistantId: this.taskAssistantId });
 
     if (userMessage) {
       await this.appendToContext({
@@ -276,7 +279,7 @@ export class Conversation {
     // appropriate "tool response" prompt back to the LLM, then wait for the next response. If it's 
     // not a tool call, just return the response content.
     const callsStillAllowed = depth < MAX_TOOL_CALL_DEPTH;
-    const footerPrompts = await getFooterPrompts({ conversationType: this.type, sessionId: this.sessionId });
+    const footerPrompts = await getFooterPrompts({ conversationType: this.type, sessionId: this.sessionId, taskAssistantId: this.taskAssistantId });
     const promptIfCallsAvailable = ` - If you need to make another tool call, make it now. Otherwise, answer the user's query in character. You have ${MAX_TOOL_CALL_DEPTH - depth} remaining recursive tool calls you may make regarding this user query.`;
     const promptIfNoCallsAvailable =  ` - You may make no more recursive tool calls for this conversation turn, so you must answer the user's query in character.\n` +
     ` - If you still do not have sufficient information to form a complete answer, you have two options: \n` +
@@ -290,6 +293,7 @@ export class Conversation {
     const headerPrompts = await getHeaderPrompts({
       conversationType: this.type,
       sessionId: this.sessionId,
+      taskAssistantId: this.taskAssistantId,
       toolCallsAllowed: callsStillAllowed,
     });
     if (toolCalls && toolCalls.length > 0) {
@@ -344,6 +348,7 @@ export class Conversation {
             toolName,
             conversationType: this.type,
             sessionId: this.sessionId,
+            taskAssistantId: this.taskAssistantId,
           });
           const toolResultIntro = typeof tool.toolResultPromptIntro === 'function' ? tool.toolResultPromptIntro(this.type) : tool.toolResultPromptIntro;
           const toolResultOutro = typeof tool.toolResultPromptOutro === 'function' ? tool.toolResultPromptOutro(this.type) : tool.toolResultPromptOutro;
@@ -456,6 +461,6 @@ export function startConversation(type: DynamicPromptConversationType, options?:
     throw new Error(`Cannot start conversation with unknown conversation type ${type}. Register it before using it.`);
   }
 
-  const txn = new Conversation(type, options?.sessionId);
+  const txn = new Conversation(type, options?.sessionId, options?.taskAssistantId);
   return txn;
 }

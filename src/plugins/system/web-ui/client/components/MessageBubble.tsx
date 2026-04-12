@@ -17,6 +17,7 @@ export function MessageBubble({ message, receiptStatus = null }: MessageBubblePr
       message.messageKind === 'notification' && 'message--notification',
     )}>
       {message.messageKind === 'notification' ? <div className="message__label">Notification</div> : null}
+      {message.role === 'assistant' && message.senderName ? <div className="message__sender">{message.senderName}</div> : null}
       <div className="message__bubble"><MarkdownHooks>{message.content}</MarkdownHooks></div>
       <div className="message__meta">
         <span>{formatTime(message.timestamp)}</span>

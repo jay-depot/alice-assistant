@@ -220,5 +220,11 @@
     "name": "Personality Facets",
     "category": "community",
     "required": false
+  },
+  {
+    "id": "brainstorm",
+    "name": "Brainstorm",
+    "category": "community",
+    "required": false
   }
 ]

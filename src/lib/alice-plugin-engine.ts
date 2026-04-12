@@ -14,6 +14,7 @@ import path from 'node:path';
 import { readFile } from 'node:fs/promises';
 import { PluginHookInvocations } from './plugin-hooks.js';
 import { getConversationTypeOwner, registerConversationType } from './conversation-types.js';
+import { TaskAssistants } from './task-assistant.js';
 
 const loadedPlugins: AlicePlugin[] = [];
 const registeredPlugins: Record<string, AlicePlugin> = {};
@@ -150,6 +151,11 @@ function createPluginInterface(pluginMetadata: AlicePluginMetadata): EnginePlugi
         registerConversationType: (conversationTypeDefinition) => {
           assertRegistrationOpen(`conversation type ${conversationTypeDefinition.id}`);
           registerConversationType(conversationTypeDefinition, pluginMetadata.id);
+        },
+
+        registerTaskAssistant: (definition) => {
+          assertRegistrationOpen(`task assistant ${definition.id}`);
+          TaskAssistants.registerDefinition(pluginMetadata.id, definition);
         },
 
         addToolToConversationType: (conversationTypeId, sourcePluginId, toolName) => {

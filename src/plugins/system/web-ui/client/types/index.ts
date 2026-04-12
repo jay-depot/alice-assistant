@@ -8,6 +8,7 @@ export interface Message {
   messageKind: MessageKind;
   content: string;
   timestamp: string;
+  senderName?: string | null;
 }
 
 export interface Session {

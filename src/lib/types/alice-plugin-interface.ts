@@ -68,6 +68,8 @@ export type AlicePluginInterface = {
 
     registerConversationType: (conversationTypeDefinition: ConversationTypeDefinition) => void;
 
+    registerTaskAssistant: (definition: import('../task-assistant.js').TaskAssistantDefinition) => void;
+
     addToolToConversationType: (conversationTypeId: ConversationTypeId, pluginId: string, toolName: string) => void;
 
     hooks: AlicePluginHooks;

@@ -1,4 +1,5 @@
-import { AlicePluginHooks, Conversation, DynamicPromptConversationType, Message } from '../lib.js';
+import { AlicePluginHooks, Conversation, DynamicPromptConversationType, Message, TaskAssistantEvents } from '../lib.js';
+import type { ActiveTaskAssistantInstance, TaskAssistantResult } from '../lib.js';
 
 const registeredHooks: {
   onUserConversationWillBegin: Array<(conversation: Conversation, type: DynamicPromptConversationType) => Promise<void>>;
@@ -12,6 +13,8 @@ const registeredHooks: {
   onPluginsWillUnload: Array<() => Promise<void>>;
   onUserPluginsUnloaded: Array<() => Promise<void>>;
   onSystemPluginsWillUnload: Array<() => Promise<void>>;
+  onTaskAssistantWillBegin: Array<(instance: ActiveTaskAssistantInstance) => Promise<void>>;
+  onTaskAssistantWillEnd: Array<(instance: ActiveTaskAssistantInstance, result: TaskAssistantResult) => Promise<void>>;
 } = {
   onUserConversationWillBegin: [],
   onUserConversationWillEnd: [],
@@ -24,6 +27,8 @@ const registeredHooks: {
   onPluginsWillUnload: [],
   onUserPluginsUnloaded: [],
   onSystemPluginsWillUnload: [],
+  onTaskAssistantWillBegin: [],
+  onTaskAssistantWillEnd: [],
 };
 
 const isRegistrationOpenForHook = {
@@ -96,7 +101,13 @@ export const PluginHooks:(pluginId: string) => AlicePluginHooks = (pluginId) => 
       throw new Error(`${pluginId} tried to register onPluginsWillUnload too late. The onPluginsWillUnload hook can only be registered before or during onAssistantStoppedAcceptingRequests. Please disable ${pluginId} to fix your assistant. If you are developing this plugin, check your hook timings.`);
     }
     registeredHooks.onPluginsWillUnload.push(callback);
-  }
+  },
+  onTaskAssistantWillBegin: (callback: (instance: ActiveTaskAssistantInstance) => Promise<void>) => {
+    registeredHooks.onTaskAssistantWillBegin.push(callback);
+  },
+  onTaskAssistantWillEnd: (callback: (instance: ActiveTaskAssistantInstance, result: TaskAssistantResult) => Promise<void>) => {
+    registeredHooks.onTaskAssistantWillEnd.push(callback);
+  },
 });
 
 export const PluginHookInvocations = {
@@ -152,3 +163,16 @@ export const PluginHookInvocations = {
     }
   }
 };
+
+// Wire TaskAssistantEvents so that task assistant lifecycle events fan out to registered plugin hooks.
+TaskAssistantEvents.onBegin(async (instance: ActiveTaskAssistantInstance) => {
+  for (const callback of registeredHooks.onTaskAssistantWillBegin) {
+    await callback(instance);
+  }
+});
+
+TaskAssistantEvents.onEnd(async (instance: ActiveTaskAssistantInstance, result: TaskAssistantResult) => {
+  for (const callback of registeredHooks.onTaskAssistantWillEnd) {
+    await callback(instance, result);
+  }
+});

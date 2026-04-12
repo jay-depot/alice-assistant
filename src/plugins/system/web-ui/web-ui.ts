@@ -1,4 +1,4 @@
-import { AlicePlugin, AliceUiScriptRegistration, Conversation, Message, startConversation } from '../../../lib.js';
+import { AlicePlugin, AliceUiScriptRegistration, Conversation, Message, startConversation, TaskAssistants } from '../../../lib.js';
 import express, { Express } from 'express';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -90,9 +90,12 @@ const webUiPlugin: AlicePlugin = {
       session: ChatSession,
       conversation: Conversation,
       assistantMessageKind: 'chat' | 'notification' = 'chat',
+      senderName?: string,
     ): Promise<void> => {
       const unsynchronizedMessages = conversation.getUnsynchronizedMessages();
-      const persistableMessages = unsynchronizedMessages.filter((message) => message.role !== 'system');
+      const persistableMessages = unsynchronizedMessages.filter((message) => (
+        message.role !== 'system' && (message.role !== 'assistant' || message.content.trim().length > 0)
+      ));
 
       if (persistableMessages.length === 0) {
         if (unsynchronizedMessages.length > 0) {
@@ -108,6 +111,7 @@ const webUiPlugin: AlicePlugin = {
           messageKind: message.role === 'assistant' ? assistantMessageKind : 'chat',
           timestamp: new Date(),
           content: message.content,
+          senderName: message.role === 'assistant' ? (senderName ?? null) : null,
         });
 
         session.rounds.add(round);
@@ -446,9 +450,60 @@ const webUiPlugin: AlicePlugin = {
             throw new Error(`Chat session ${session.id} not found while processing message.`);
           }
 
+          const activeInstance = TaskAssistants.getActiveInstance(session.id);
+          if (activeInstance) {
+            await activeInstance.conversation.appendExternalMessage({ role: 'user', content: message });
+            await persistUnsynchronizedMessages(em, queuedSession, activeInstance.conversation, 'chat', activeInstance.definition.name);
+            await activeInstance.conversation.sendUserMessage();
+            await persistUnsynchronizedMessages(em, queuedSession, activeInstance.conversation, 'chat', activeInstance.definition.name);
+            queuedSession.updatedAt = new Date();
+            await em.flush();
+            return queuedSession;
+          }
+
           const llmTransaction = getOrCreateCachedConversation(queuedSession);
 
-          const response = await llmTransaction.sendUserMessage(message);
+          await llmTransaction.appendExternalMessage({ role: 'user', content: message });
+          await persistUnsynchronizedMessages(em, queuedSession, llmTransaction, 'chat');
+
+          const suspensionSignal = TaskAssistants.getSuspensionSignal(session.id);
+          const responsePromise = llmTransaction.sendUserMessage();
+          const processingOutcome = await Promise.race([
+            responsePromise.then(() => 'completed' as const),
+            suspensionSignal.then(() => 'suspended' as const),
+          ]);
+
+          if (processingOutcome === 'suspended') {
+            const suspendedTaskAssistant = TaskAssistants.getActiveInstance(session.id);
+            if (suspendedTaskAssistant) {
+              await persistUnsynchronizedMessages(em, queuedSession, suspendedTaskAssistant.conversation, 'chat', suspendedTaskAssistant.definition.name);
+            }
+            await em.flush();
+
+            void responsePromise.then(async () => {
+              await runSessionOperation(session.id, async () => {
+                const em = orm.em.fork();
+                const resumedSession = await em.findOne(ChatSession, { id: session.id }, { populate: ['rounds'] });
+                if (!resumedSession) {
+                  return;
+                }
+
+                await persistUnsynchronizedMessages(em, resumedSession, llmTransaction, 'chat');
+
+                const resumedTitleSummary = await llmTransaction.requestTitle();
+                resumedSession.title = resumedTitleSummary.length > 0 ? resumedTitleSummary : 'New Conversation';
+
+                await em.flush();
+              });
+            }).catch((error) => {
+              console.error(`Failed to finalize suspended task assistant parent turn for session ${session.id}:`, error);
+            });
+
+            return queuedSession;
+          }
+
+          TaskAssistants.clearSuspensionSignal(session.id);
+
           await persistUnsynchronizedMessages(em, queuedSession, llmTransaction, 'chat');
 
           const titleSummary = await llmTransaction.requestTitle();
@@ -466,7 +521,7 @@ const webUiPlugin: AlicePlugin = {
           updatedAt: updatedSession.updatedAt,
           messages: updatedSession.rounds.getItems()
             .filter(round => round.role !== 'system')
-            .map(round => ({ role: round.role, messageKind: round.messageKind, content: round.content, timestamp: round.timestamp }))
+            .map(round => ({ role: round.role, messageKind: round.messageKind, content: round.content, timestamp: round.timestamp, senderName: round.senderName }))
         }});
       });
 
@@ -509,7 +564,7 @@ const webUiPlugin: AlicePlugin = {
           createdAt: session.createdAt,
           updatedAt: session.updatedAt,
           assistantMood: 'happy', // This will pull from the global "mood" state the assistant can set through tools. It's common across all assistant conversations.
-          messages: session.rounds.getItems().filter(round => round.role !== 'system').map(round => ({ role: round.role, messageKind: round.messageKind, content: round.content, timestamp: round.timestamp }))
+          messages: session.rounds.getItems().filter(round => round.role !== 'system').map(round => ({ role: round.role, messageKind: round.messageKind, content: round.content, timestamp: round.timestamp, senderName: round.senderName }))
         }});
       });
 
