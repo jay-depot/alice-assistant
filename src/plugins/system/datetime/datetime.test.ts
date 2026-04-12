@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { format } from 'date-fns';
 import type { AlicePluginInterface } from '../../../lib.js';
 import datetimePlugin from './datetime.js';
 
@@ -85,8 +86,8 @@ describe('datetimePlugin', () => {
   });
 
   it('footer prompt includes current date and time in proper format', async () => {
-    // Set a fixed date: March 15, 2024, 14:30:45
-    vi.setSystemTime(new Date('2024-03-15T14:30:45Z'));
+    const currentDate = new Date('2024-03-15T14:30:45Z');
+    vi.setSystemTime(currentDate);
 
     await datetimePlugin.registerPlugin(
       mockInterface as unknown as AlicePluginInterface
@@ -96,10 +97,8 @@ describe('datetimePlugin', () => {
     const promptText = await registeredPrompt.getPrompt();
 
     expect(promptText).toContain('## CURRENT DATE AND TIME');
-    // date-fns 'PPP pp' format with UTC: March 15th, 2024 10:30:45 AM
-    expect(promptText).toContain('March 15th, 2024');
-    expect(promptText).toContain('10:30:45 AM');
-    expect(promptText).toContain('Friday');
+    expect(promptText).toContain(format(currentDate, 'PPP pp'));
+    expect(promptText).toContain(format(currentDate, 'EEEE'));
   });
 
   it('footer prompt includes day of week', async () => {
@@ -124,18 +123,17 @@ describe('datetimePlugin', () => {
     const registeredPrompt = mockInterface.registeredFooterPrompts[0];
 
     // First call
-    vi.setSystemTime(new Date('2024-03-15T14:30:45Z'));
+    const firstDate = new Date('2024-03-15T14:30:45Z');
+    vi.setSystemTime(firstDate);
     let promptText = await registeredPrompt.getPrompt();
-    expect(promptText).toContain('March 15th, 2024');
-    expect(promptText).toContain('10:30:45 AM');
+    expect(promptText).toContain(format(firstDate, 'PPP pp'));
 
     // Second call with different time - verify date changed
-    vi.setSystemTime(new Date('2024-12-25T09:15:00Z'));
+    const secondDate = new Date('2024-12-25T09:15:00Z');
+    vi.setSystemTime(secondDate);
     promptText = await registeredPrompt.getPrompt();
-    expect(promptText).toContain('December 25th, 2024');
-    // Verify time updated (actual time depends on local timezone)
-    expect(promptText).toMatch(/\d{1,2}:\d{2}:\d{2} (AM|PM)/);
-    expect(promptText).toContain('Wednesday');
+    expect(promptText).toContain(format(secondDate, 'PPP pp'));
+    expect(promptText).toContain(format(secondDate, 'EEEE'));
   });
 
   it('has high weight priority for footer prompt', async () => {
