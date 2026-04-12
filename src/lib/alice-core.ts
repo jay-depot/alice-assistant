@@ -6,8 +6,6 @@ import { PluginHookInvocations } from './plugin-hooks.js';
 export const AliceCore = {
   waitForShutdownSignal: () => {
     return new Promise<void>(resolve => {
-      // This is a dummy loop to keep the assistant running until I
-      // add the actual voice loop.
       console.log('Entering main loop. Press Ctrl+C to exit.');
       let shuttingDown = false;
       const cleanupSignalHandlers = () => {

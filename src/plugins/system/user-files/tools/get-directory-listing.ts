@@ -1,12 +1,50 @@
 import { Tool } from '../../../../lib/tool-system.js';
 import { Static, Type } from 'typebox';
+import * as fs from 'fs';
+import * as pathLib from 'path';
 
 const parameters = Type.Object({
   path: Type.String(),
   filter: Type.Optional(Type.String()),
 });
 
-const getDirectoryListingTool: Tool = {
+function expandAndResolvePath(inputPath: string): string {
+  return pathLib.resolve(inputPath.replace(/^~/, process.env.HOME || '/root'));
+}
+
+function isAllowedPath(
+  absolutePath: string,
+  allowedFilePaths: string[]
+): boolean {
+  return allowedFilePaths.some(root => {
+    const absoluteRoot = expandAndResolvePath(root);
+    return (
+      absolutePath === absoluteRoot ||
+      absolutePath.startsWith(`${absoluteRoot}${pathLib.sep}`)
+    );
+  });
+}
+
+function matchesFilter(name: string, filter?: string): boolean {
+  if (!filter) return true;
+
+  const normalizedName = name.toLowerCase();
+  const normalizedFilter = filter.toLowerCase();
+
+  if (normalizedFilter.includes('*') || normalizedFilter.includes('?')) {
+    const regexPattern = normalizedFilter
+      .replace(/[-/\\^$+?.()|[\]{}]/g, '\\$&')
+      .replace(/\*/g, '.*')
+      .replace(/\?/g, '.');
+    return new RegExp(`^${regexPattern}$`, 'i').test(name);
+  }
+
+  return normalizedName.includes(normalizedFilter);
+}
+
+const getDirectoryListingTool: (config: {
+  allowedFilePaths?: string[];
+}) => Tool = config => ({
   name: 'getDirectoryListing',
   availableFor: ['chat', 'voice', 'autonomy'],
   description: `
@@ -38,19 +76,63 @@ const getDirectoryListingTool: Tool = {
   execute: async (args: Static<typeof parameters>) => {
     const path = args.path;
     const filter = args.filter;
-    // Here you would add the code to list the contents of the specified directory on the user's computer, optionally filtering by the provided keyword, and return the results in the specified JSON format.
-    // For the sake of this example, let's just return some dummy data.
-    const dummyResult = {
-      path,
-      items: [
-        { name: 'file1.txt', type: 'file' },
-        { name: 'file2.txt', type: 'file' },
-        { name: 'folder1', type: 'folder' },
-        { name: 'folder2', type: 'folder' },
-      ].filter(item => !filter || item.name.includes(filter)),
-    };
-    return JSON.stringify(dummyResult);
+    const allowedFilePaths = config.allowedFilePaths || [];
+
+    if (allowedFilePaths.length === 0) {
+      return JSON.stringify({
+        error:
+          'No allowed file paths configured. Please configure allowedFilePaths in user-files plugin settings.',
+      });
+    }
+
+    const absolutePath = expandAndResolvePath(path);
+    if (!isAllowedPath(absolutePath, allowedFilePaths)) {
+      return JSON.stringify({
+        error: 'Access denied. Path is outside allowed file paths.',
+      });
+    }
+
+    if (!fs.existsSync(absolutePath)) {
+      return JSON.stringify({
+        error: `Directory not found: ${path}`,
+      });
+    }
+
+    const stats = fs.statSync(absolutePath);
+    if (!stats.isDirectory()) {
+      return JSON.stringify({
+        error: `Path is not a directory: ${path}`,
+      });
+    }
+
+    try {
+      const entries = fs.readdirSync(absolutePath, { withFileTypes: true });
+      const items = entries
+        .filter(entry => !entry.name.startsWith('.'))
+        .filter(entry => matchesFilter(entry.name, filter))
+        .map(entry => ({
+          name: entry.name,
+          type: entry.isDirectory() ? 'folder' : 'file',
+        }))
+        .sort((a, b) => {
+          if (a.type !== b.type) {
+            return a.type === 'folder' ? -1 : 1;
+          }
+          return a.name.localeCompare(b.name);
+        });
+
+      return JSON.stringify({
+        path,
+        absolutePath,
+        itemCount: items.length,
+        items,
+      });
+    } catch (err) {
+      return JSON.stringify({
+        error: `Failed to list directory: ${err instanceof Error ? err.message : 'Unknown error'}`,
+      });
+    }
   },
-};
+});
 
 export default getDirectoryListingTool;

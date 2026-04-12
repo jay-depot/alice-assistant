@@ -6,7 +6,8 @@ import * as path from 'path';
 const parameters = Type.Object({
   path: Type.String({ description: 'Path to the text file to read' }),
   offset: Type.Optional(
-    Type.Number({
+    Type.Integer({
+      minimum: 0,
       description: 'Byte offset to start reading from (default: 0)',
     })
   ),
@@ -20,13 +21,13 @@ const parameters = Type.Object({
   ),
 });
 
-function isAllowedPath(filePath: string, allowedRoots: string[]): boolean {
+function isAllowedPath(filePath: string, allowedFilePaths: string[]): boolean {
   // Expand tilde
   const expandedPath = filePath.replace(/^~/, process.env.HOME || '/root');
   const absolutePath = path.resolve(expandedPath);
 
   // Check if path is within allowed roots
-  for (const root of allowedRoots) {
+  for (const root of allowedFilePaths) {
     const expandedRoot = root.replace(/^~/, process.env.HOME || '/root');
     const absoluteRoot = path.resolve(expandedRoot);
     if (absolutePath.startsWith(absoluteRoot)) {
@@ -52,8 +53,7 @@ const readUserTextFileTool: (config) => Tool = config => ({
   name: 'readUserTextFile',
   availableFor: ['chat', 'voice', 'autonomy'],
   description:
-    `Reads the contents of a text file from the user's filesystem in chunks, with optional offset and size limits. ` +
-    `Complements previewUserTextFile for full document access.`,
+    `Reads the contents of a text file from the user's filesystem in chunks, with optional offset and size limits.`,
   systemPromptFragment:
     `Call readUserTextFile when the user asks you to read the full contents of a text file, summarize ` +
     `a document, or extract information from it. Provide the "path" argument with the file to read. Optionally use "maxBytes" ` +
@@ -68,7 +68,7 @@ const readUserTextFileTool: (config) => Tool = config => ({
     `question, summarize the content, or extract relevant information.`,
   toolResultPromptOutro: '',
   execute: async (args: Static<typeof parameters>) => {
-    const allowedRoots = config.allowedRoots || [];
+    const allowedFilePaths = config.allowedFilePaths || [];
     const allowedExtensions = config.allowedExtensions || [
       '.txt',
       '.md',
@@ -77,19 +77,25 @@ const readUserTextFileTool: (config) => Tool = config => ({
       '.log',
     ];
 
-    if (allowedRoots.length === 0) {
+    if (allowedFilePaths.length === 0) {
       return JSON.stringify({
         error:
-          'No allowed root directories configured for readUserTextFile tool.',
+          'No allowed root directories configured for readUserTextFile tool. Configure allowedFilePaths in tool settings.',
       });
     }
 
     const filePath = args.path;
-    const offset = args.offset || 0;
+    const offset = args.offset ?? 0;
     const maxBytes = Math.min(args.maxBytes || 65536, 1048576); // Cap at 1MB
 
+    if (!Number.isInteger(offset) || offset < 0) {
+      return JSON.stringify({
+        error: 'Offset must be a non-negative integer.',
+      });
+    }
+
     // Security checks
-    if (!isAllowedPath(filePath, allowedRoots)) {
+    if (!isAllowedPath(filePath, allowedFilePaths)) {
       return JSON.stringify({
         error: `Access denied. Path is outside allowed root directories.`,
       });
@@ -120,11 +126,17 @@ const readUserTextFileTool: (config) => Tool = config => ({
     }
 
     // Check file size limits
-    const maxAllowedSize =
-      config.toolSettings.readUserTextFile?.maxFileSizeBytes || 10485760; // 10MB default
+    const maxAllowedSize = config.maxFileSizeBytes || 10485760; // 10MB default
     if (stats.size > maxAllowedSize) {
       return JSON.stringify({
         error: `File exceeds maximum allowed size of ${maxAllowedSize} bytes.`,
+        fileSize: stats.size,
+      });
+    }
+
+    if (offset > stats.size) {
+      return JSON.stringify({
+        error: `Offset ${offset} is beyond end of file (${stats.size} bytes).`,
         fileSize: stats.size,
       });
     }
@@ -149,9 +161,7 @@ const readUserTextFileTool: (config) => Tool = config => ({
           : 'Partial contents (truncated)',
       });
     } catch (err) {
-      return JSON.stringify({
-        error: `Failed to read file: ${err instanceof Error ? err.message : 'Unknown error'}`,
-      });
+      return `Failed to read file: ${err instanceof Error ? err.message : 'Unknown error'}`;
     }
   },
 });

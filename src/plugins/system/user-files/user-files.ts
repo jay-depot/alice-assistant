@@ -2,7 +2,6 @@ import { Type } from 'typebox';
 import { AlicePlugin } from '../../../lib.js';
 import findUserFilesTool from './tools/find-user-files.js';
 import getDirectoryListingTool from './tools/get-directory-listing.js';
-import previewUserTextFileTool from './tools/preview-user-text-file.js';
 import readUserTextFileTool from './tools/read-user-text-file.js';
 import writeUserTextFileTool from './tools/write-user-text-file.js';
 
@@ -11,6 +10,7 @@ const UserFilesPluginConfigSchema = Type.Object(
     allowedFilePaths: Type.Array(Type.String(), { default: [] }),
     allowedFileTypesReadOnly: Type.Array(Type.String(), { default: [] }),
     allowedFileTypesWrite: Type.Array(Type.String(), { default: [] }),
+    maxFileSizeBytes: Type.Number({ default: 10485760, minimum: 1 }),
   },
   {
     description:
@@ -88,6 +88,7 @@ const userFilesPlugin: AlicePlugin = {
       allowedFilePaths: [],
       allowedFileTypesReadOnly: [],
       allowedFileTypesWrite: [],
+      maxFileSizeBytes: 10485760,
     });
 
     const handlers: FileHandler[] = [];
@@ -136,10 +137,9 @@ const userFilesPlugin: AlicePlugin = {
 
     // Register tools after that here:
     plugin.registerTool(findUserFilesTool(config.getPluginConfig()));
-    plugin.registerTool(getDirectoryListingTool);
-    plugin.registerTool(previewUserTextFileTool);
+    plugin.registerTool(getDirectoryListingTool(config.getPluginConfig()));
     plugin.registerTool(readUserTextFileTool(config.getPluginConfig()));
-    plugin.registerTool(writeUserTextFileTool);
+    plugin.registerTool(writeUserTextFileTool(config.getPluginConfig()));
   },
 };
 

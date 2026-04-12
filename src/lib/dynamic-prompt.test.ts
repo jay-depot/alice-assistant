@@ -54,7 +54,7 @@ describe('processDynamicPrompts', () => {
 
   it('excludes prompts that return false asynchronously', async () => {
     const prompts: DynamicPrompt[] = [
-      { weight: 1, name: 'gone', getPrompt: async () => false },
+      { weight: 1, name: 'gone', getPrompt: async () => false as const },
       { weight: 2, name: 'kept', getPrompt: async () => 'kept' },
     ];
     expect(await processDynamicPrompts(context, prompts)).toEqual(['kept']);

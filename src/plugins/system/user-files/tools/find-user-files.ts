@@ -130,12 +130,12 @@ const findUserFilesTool: (config) => Tool = config => ({
   toolResultPromptIntro: ``,
   toolResultPromptOutro: '',
   execute: async (args: Static<typeof parameters>) => {
-    const allowedRoots = config.allowedRoots || [];
+    const allowedFilePaths = config.allowedFilePaths || [];
 
-    if (allowedRoots.length === 0) {
+    if (allowedFilePaths.length === 0) {
       return JSON.stringify({
         error:
-          'No search roots configured. Please configure allowedRoots in tool settings.',
+          'No search roots configured. Please configure allowedFilePaths in tool settings.',
         results: [],
       });
     }
@@ -157,7 +157,7 @@ const findUserFilesTool: (config) => Tool = config => ({
 
     const results: Array<{ path: string; size: number; modified: string }> = [];
 
-    for (const root of allowedRoots) {
+    for (const root of allowedFilePaths) {
       const expandedRoot = root.replace(/^~/, process.env.HOME || '/root');
       if (!fs.existsSync(expandedRoot)) continue;
 

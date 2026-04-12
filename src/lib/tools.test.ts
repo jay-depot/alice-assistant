@@ -38,7 +38,7 @@ describe('addTool', () => {
   it('throws when the tool references an unknown conversation type', () => {
     expect(() =>
       tools.addTool(makeMinimalTool({ availableFor: ['unknown-type'] }))
-    ).toThrowError(/unknown-type/);
+    ).toThrow(/unknown-type/);
   });
 
   it('throws and names the tool in the error', () => {
@@ -46,7 +46,7 @@ describe('addTool', () => {
       tools.addTool(
         makeMinimalTool({ name: 'badTool', availableFor: ['no-such'] })
       )
-    ).toThrowError(/badTool/);
+    ).toThrow(/badTool/);
   });
 
   it('can register a custom conversation type and then a tool for it', () => {
@@ -148,12 +148,12 @@ describe('addConversationTypeToTool', () => {
   it('throws when the tool does not exist', () => {
     expect(() =>
       tools.addConversationTypeToTool('missingTool', 'voice')
-    ).toThrowError(/missingTool/);
+    ).toThrow(/missingTool/);
   });
 
   it('throws when the conversation type does not exist', () => {
     expect(() =>
       tools.addConversationTypeToTool('myTool', 'no-such-type')
-    ).toThrowError(/no-such-type/);
+    ).toThrow(/no-such-type/);
   });
 });

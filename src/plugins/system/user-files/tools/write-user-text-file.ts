@@ -1,12 +1,40 @@
 import { Static, Type } from 'typebox';
 import { Tool } from '../../../../lib/tool-system.js';
+import * as fs from 'fs';
+import * as pathLib from 'path';
 
 const parameters = Type.Object({
   path: Type.String(),
   contents: Type.String(),
 });
 
-const writeUserTextFileTool: Tool = {
+function expandAndResolvePath(inputPath: string): string {
+  return pathLib.resolve(inputPath.replace(/^~/, process.env.HOME || '/root'));
+}
+
+function isAllowedPath(
+  absolutePath: string,
+  allowedFilePaths: string[]
+): boolean {
+  return allowedFilePaths.some(root => {
+    const absoluteRoot = expandAndResolvePath(root);
+    return (
+      absolutePath === absoluteRoot ||
+      absolutePath.startsWith(`${absoluteRoot}${pathLib.sep}`)
+    );
+  });
+}
+
+function pathContainsHiddenSegment(absolutePath: string): boolean {
+  return absolutePath
+    .split(pathLib.sep)
+    .some(segment => segment.startsWith('.'));
+}
+
+const writeUserTextFileTool: (config: {
+  allowedFilePaths?: string[];
+  allowedFileTypesWrite?: string[];
+}) => Tool = config => ({
   name: 'writeUserTextFile',
   availableFor: ['chat', 'voice'],
   description:
@@ -27,9 +55,72 @@ const writeUserTextFileTool: Tool = {
   execute: async (args: Static<typeof parameters>) => {
     const filename = args.path;
     const contents = args.contents;
-    // Here you would add the code to write the specified contents to a text file with the specified filename on the user\'s filesystem. For safety, you should ensure that the filename does not contain any path traversal characters, and that it ends with a .txt extension.
-    return `Written file ${filename}. ${contents.length} characters written.`;
+
+    const allowedFilePaths = config.allowedFilePaths || [];
+    const allowedWriteExtensions = config.allowedFileTypesWrite || [];
+
+    if (allowedFilePaths.length === 0) {
+      return JSON.stringify({
+        error:
+          'No allowed file paths configured. Please configure allowedFilePaths in user-files plugin settings.',
+      });
+    }
+
+    const absolutePath = expandAndResolvePath(filename);
+
+    if (!isAllowedPath(absolutePath, allowedFilePaths)) {
+      return JSON.stringify({
+        error: 'Access denied. Path is outside allowed file paths.',
+      });
+    }
+
+    if (
+      pathContainsHiddenSegment(
+        pathLib.relative(pathLib.parse(absolutePath).root, absolutePath)
+      )
+    ) {
+      return JSON.stringify({
+        error:
+          'Writing hidden files or files inside hidden directories is not allowed.',
+      });
+    }
+
+    const extension = pathLib.extname(absolutePath).toLowerCase();
+    if (
+      allowedWriteExtensions.length > 0 &&
+      !allowedWriteExtensions.includes(extension)
+    ) {
+      return JSON.stringify({
+        error: `File type not allowed for writing. Allowed extensions: ${allowedWriteExtensions.join(', ')}`,
+      });
+    }
+
+    const parentDir = pathLib.dirname(absolutePath);
+    if (!fs.existsSync(parentDir)) {
+      fs.mkdirSync(parentDir, { recursive: true });
+    }
+
+    if (fs.existsSync(absolutePath) && !fs.statSync(absolutePath).isFile()) {
+      return JSON.stringify({
+        error: 'Target path exists and is not a regular file.',
+      });
+    }
+
+    try {
+      fs.writeFileSync(absolutePath, contents, { encoding: 'utf-8' });
+      return JSON.stringify({
+        path: filename,
+        absolutePath,
+        charsWritten: contents.length,
+        bytesWritten: Buffer.byteLength(contents, 'utf-8'),
+        message: `Written file ${filename}. ${contents.length} characters written.`,
+      });
+    } catch (err) {
+      return JSON.stringify({
+        error: `Failed to write file: ${err instanceof Error ? err.message : 'Unknown error'}`,
+      });
+    }
   },
-};
+});
 
 export default writeUserTextFileTool;

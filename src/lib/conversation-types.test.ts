@@ -107,14 +107,14 @@ describe('registerConversationType', () => {
     m.registerConversationType(validDefinition, 'plugin-a');
     expect(() =>
       m.registerConversationType(validDefinition, 'plugin-b')
-    ).toThrowError(/plugin-a/);
+    ).toThrow(/plugin-a/);
   });
 
   it('throws when registering a duplicate ID and names both plugins in the message', () => {
     m.registerConversationType(validDefinition, 'plugin-a');
     expect(() =>
       m.registerConversationType(validDefinition, 'plugin-b')
-    ).toThrowError(/plugin-b/);
+    ).toThrow(/plugin-b/);
   });
 
   it('throws when the name is empty', () => {
@@ -147,7 +147,7 @@ describe('registerConversationType', () => {
         { ...validDefinition, baseType: 'invalid' as 'chat' },
         'my-plugin'
       )
-    ).toThrowError(/voice|chat|startup|autonomy/);
+    ).toThrow(/voice|chat|startup|autonomy/);
   });
 
   it('includes the new type in listConversationTypes', () => {

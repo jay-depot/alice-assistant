@@ -117,6 +117,8 @@ Test configuration currently targets:
 
 Existing tests cover core runtime areas including conversation types, conversations, dynamic prompts, personality prompt assembly, render helpers, task assistants, tools, and tilde expansion.
 
+The eslint directive `@typescript-eslint/no-explicit-any` is only allowed as a line comment, and only in tests. Never use it elsewhere.
+
 ---
 
 ## Linting & Formatting

@@ -36,14 +36,14 @@ describe('personality provider registration', () => {
     m.registerFallbackPersonalityProvider('plugin-a', makeProvider('first'));
     expect(() =>
       m.registerFallbackPersonalityProvider('plugin-b', makeProvider('second'))
-    ).toThrowError(/plugin-a/);
+    ).toThrow(/plugin-a/);
   });
 
   it('throw message names the conflicting plugin', () => {
     m.registerFallbackPersonalityProvider('plugin-a', makeProvider('first'));
     expect(() =>
       m.registerFallbackPersonalityProvider('plugin-b', makeProvider('second'))
-    ).toThrowError(/plugin-b/);
+    ).toThrow(/plugin-b/);
   });
 
   // ---- registerPersonalityProvider (active override) ----
@@ -64,7 +64,7 @@ describe('personality provider registration', () => {
     m.registerPersonalityProvider('plugin-x', makeProvider('first'));
     expect(() =>
       m.registerPersonalityProvider('plugin-y', makeProvider('second'))
-    ).toThrowError(/plugin-x/);
+    ).toThrow(/plugin-x/);
   });
 });
 

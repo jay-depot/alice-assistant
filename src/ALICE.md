@@ -1,6 +1,6 @@
 # ALICE.md
 
-You have been sent to read this file because your user has requested help troubleshooting an issue with their assistant. This file contains information to help you navigate your own code, so help your user resolve any issues they are having. Use what you learn here to suggest potential configuration issues your user needs to fix.
+You have been sent to read this file because your user has requested help troubleshooting an issue with their assistant. This file contains information to help you navigate your own code, to help your user resolve any issues they are having. Use what you learn here to suggest potential configuration issues your user needs to fix.
 
 ## The layout of the codebase
 
