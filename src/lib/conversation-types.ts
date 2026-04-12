@@ -18,6 +18,7 @@ export type ConversationTypeDefinition = {
   baseType: ConversationTypeFamily;
   includePersonality?: boolean;
   scenarioPrompt?: string;
+  maxToolCallDepth?: number;
 };
 
 const builtInConversationTypeDefinitions: ConversationTypeDefinition[] = [
@@ -82,6 +83,7 @@ function normalizeConversationTypeDefinition(
   return {
     ...definition,
     includePersonality: definition.includePersonality ?? true,
+    maxToolCallDepth: definition.maxToolCallDepth,
   };
 }
 
@@ -138,6 +140,16 @@ export function registerConversationType(
   if (!normalizedDefinition.description.trim()) {
     throw new Error(
       `Plugin ${pluginId} attempted to register conversation type ${definition.id} without a description.`
+    );
+  }
+
+  if (
+    normalizedDefinition.maxToolCallDepth !== undefined &&
+    (!Number.isInteger(normalizedDefinition.maxToolCallDepth) ||
+      normalizedDefinition.maxToolCallDepth < 1)
+  ) {
+    throw new Error(
+      `Plugin ${pluginId} attempted to register conversation type ${definition.id} with invalid maxToolCallDepth ${normalizedDefinition.maxToolCallDepth}. It must be a positive integer.`
     );
   }
 

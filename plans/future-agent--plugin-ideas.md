@@ -32,6 +32,8 @@ You're actually curious or crazy enough to not only hook up your assistant to mo
 
 I do too. I won't judge.
 
+Anyway, it should be implemented as a scheduled-session agent on a user-configurable schedule, and should hand off into an assistant chat session to summarize to the user what it did after it's done.
+
 ### Why it is interesting
 
 - This is a fun and whimsical example of an agent that could be built on top of the existing moltbook plugin's API

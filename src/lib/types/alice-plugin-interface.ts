@@ -77,6 +77,10 @@ export type AlicePluginInterface = {
       definition: import('../task-assistant.js').TaskAssistantDefinition
     ) => void;
 
+    registerSessionLinkedAgent: (
+      definition: import('../agent-system.js').SessionLinkedAgentDefinition
+    ) => { autoStartTool: Tool };
+
     addToolToConversationType: (
       conversationTypeId: ConversationTypeId,
       pluginId: string,

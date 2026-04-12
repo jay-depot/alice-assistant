@@ -7,7 +7,10 @@ import { getHeaderPrompts } from './header-prompts.js';
 import { getFooterPrompts } from './footer-prompts.js';
 import { PluginHookInvocations } from './plugin-hooks.js';
 import { retryAsPromised as retry } from 'retry-as-promised';
-import { hasConversationType } from './conversation-types.js';
+import {
+  getConversationTypeDefinition,
+  hasConversationType,
+} from './conversation-types.js';
 
 export const SUMMARY_HEADER = '# Summary of earlier conversation:\n';
 const SUMMARY_PROMPT =
@@ -34,6 +37,8 @@ export type StartConversationOptions = {
   sessionId?: number;
   /** Set this when the conversation is for a task assistant. */
   taskAssistantId?: string;
+  /** Set when the conversation belongs to a session-linked agent. */
+  agentInstanceId?: string;
 };
 
 export function checkLLMResponseForDegeneracy(response: string) {
@@ -133,7 +138,8 @@ export class Conversation {
   constructor(
     public type: DynamicPromptConversationType,
     public sessionId?: number,
-    public taskAssistantId?: string
+    public taskAssistantId?: string,
+    public agentInstanceId?: string
   ) {
     this.llmConnection = {
       ...getLLMConnection(),
@@ -347,19 +353,22 @@ export class Conversation {
     // Check if the response content is a tool call. If it is, execute the tool call and send the
     // appropriate "tool response" prompt back to the LLM, then wait for the next response. If it's
     // not a tool call, just return the response content.
-    const callsStillAllowed = depth < MAX_TOOL_CALL_DEPTH;
+    const maxToolCallDepth =
+      getConversationTypeDefinition(this.type)?.maxToolCallDepth ??
+      MAX_TOOL_CALL_DEPTH;
+    const callsStillAllowed = depth < maxToolCallDepth;
     const footerPrompts = await getFooterPrompts({
       conversationType: this.type,
       sessionId: this.sessionId,
       taskAssistantId: this.taskAssistantId,
     });
-    const promptIfCallsAvailable = ` - If you need to make another tool call, make it now. Otherwise, answer the user's query in character. You have ${MAX_TOOL_CALL_DEPTH - depth} remaining recursive tool calls you may make regarding this user query.`;
+    const promptIfCallsAvailable = ` - If you need to make another tool call, make it now. Otherwise, answer the user's query in character. You have ${maxToolCallDepth - depth} remaining recursive tool calls you may make regarding this user query.`;
     const promptIfNoCallsAvailable =
       ` - You may make no more recursive tool calls for this conversation turn, so you must answer the user's query in character.\n` +
       ` - If you still do not have sufficient information to form a complete answer, you have two options: \n` +
       `   1) Do your best with the information you have, or \n` +
       `   2) If you are missing a specific piece of information that would be critical to forming a complete answer, ask the user in character ` +
-      `if you can continue looking. If they agree, you may use the new quota of 5 recursive tool calls for the next round of conversation to continue.`;
+      `if you can continue looking. If they agree, the next round of conversation will have a fresh tool-call budget.`;
 
     const continuationPrompt = callsStillAllowed
       ? promptIfCallsAvailable
@@ -415,7 +424,7 @@ export class Conversation {
         return fallbackResponse.message.content || '';
       }
 
-      if (depth > MAX_TOOL_CALL_DEPTH) {
+      if (depth > maxToolCallDepth) {
         throw new Error(
           'Maximum tool call depth exceeded. Possible infinite loop detected.'
         );
@@ -438,6 +447,7 @@ export class Conversation {
               conversationType: this.type,
               sessionId: this.sessionId,
               taskAssistantId: this.taskAssistantId,
+              agentInstanceId: this.agentInstanceId,
             });
             const toolResultIntro =
               typeof tool.toolResultPromptIntro === 'function'
@@ -608,7 +618,8 @@ export function startConversation(
   const txn = new Conversation(
     type,
     options?.sessionId,
-    options?.taskAssistantId
+    options?.taskAssistantId,
+    options?.agentInstanceId
   );
   return txn;
 }

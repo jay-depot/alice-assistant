@@ -5,6 +5,7 @@ import {
   Message,
   startConversation,
   TaskAssistants,
+  AgentSystem,
 } from '../../../lib.js';
 import express, { Express } from 'express';
 import * as fs from 'fs';
@@ -619,6 +620,17 @@ const webUiPlugin: AlicePlugin = {
               llmTransaction,
               'chat'
             );
+
+            // Drain any pending agent messages into the LLM context before processing
+            const pendingAgentMessages = AgentSystem.getAndClearPendingMessages(
+              session.id
+            );
+            for (const agentMsg of pendingAgentMessages) {
+              await llmTransaction.appendExternalMessage({
+                role: 'system',
+                content: `## ${agentMsg.heading}\n\n${agentMsg.content}`,
+              });
+            }
 
             const suspensionSignal = TaskAssistants.getSuspensionSignal(
               session.id

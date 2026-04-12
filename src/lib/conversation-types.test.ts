@@ -103,6 +103,16 @@ describe('registerConversationType', () => {
     ).toBe(true);
   });
 
+  it('preserves maxToolCallDepth when provided', () => {
+    m.registerConversationType(
+      { ...validDefinition, id: 'deep-search', maxToolCallDepth: 25 },
+      'my-plugin'
+    );
+    expect(
+      m.getConversationTypeDefinition('deep-search')?.maxToolCallDepth
+    ).toBe(25);
+  });
+
   it('throws when registering a duplicate ID', () => {
     m.registerConversationType(validDefinition, 'plugin-a');
     expect(() =>
@@ -148,6 +158,28 @@ describe('registerConversationType', () => {
         'my-plugin'
       )
     ).toThrow(/voice|chat|startup|autonomy/);
+  });
+
+  it('throws when maxToolCallDepth is zero or negative', () => {
+    expect(() =>
+      m.registerConversationType(
+        { ...validDefinition, id: 'bad-depth', maxToolCallDepth: 0 },
+        'my-plugin'
+      )
+    ).toThrow(/maxToolCallDepth/);
+  });
+
+  it('throws when maxToolCallDepth is not an integer', () => {
+    expect(() =>
+      m.registerConversationType(
+        {
+          ...validDefinition,
+          id: 'fractional-depth',
+          maxToolCallDepth: 2.5,
+        },
+        'my-plugin'
+      )
+    ).toThrow(/maxToolCallDepth/);
   });
 
   it('includes the new type in listConversationTypes', () => {

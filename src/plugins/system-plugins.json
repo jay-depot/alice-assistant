@@ -232,5 +232,23 @@
     "name": "Brainstorm",
     "category": "community",
     "required": false
+  },
+  {
+    "id": "agents",
+    "name": "Agent Engine",
+    "category": "system",
+    "required": false
+  },
+  {
+    "id": "deep-dive",
+    "name": "Deep-Dive Research Agent",
+    "category": "community",
+    "required": false
+  },
+  {
+    "id": "test-agents",
+    "name": "Test Agents",
+    "category": "community",
+    "required": false
   }
 ]

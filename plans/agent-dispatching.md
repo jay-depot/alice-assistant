@@ -16,13 +16,13 @@ An agent is a runtime worker that performs a bounded task with a bounded set of 
 
 A transport is a communication medium through which assistant sessions are conducted or surfaced. Chat is the current primary transport. Voice and any future plugin-provided media such as email, SMS, or Telegram should be modeled as transports, not as agents.
 
-Agents may use transports, report into transports, or hand off work into assistant sessions conducted through transports. They are not themselves the transport abstraction.
+Agents may report into transports, or hand off work into assistant sessions conducted through transports. They are not themselves the transport abstraction.
 
 ### Sessions and handoffs
 
 An assistant session is an interactive conversation context with the user.
 
-A handoff is the act of transferring context gathered by an agent into an assistant session so the assistant can continue interactively with the user.
+A handoff is the act of transferring context gathered by an agent into an assistant session so the assistant can continue interactively with the user. The handoff _transforms_ the agent into an assistant session, and the agent's context becomes part of the new session's history. The agent is effectively "consumed" by the handoff, and should not continue running after the handoff completes.
 
 ## Agent Types
 

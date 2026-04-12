@@ -7,3 +7,4 @@ export * from './lib/personality-system.js';
 export * from './lib/conversation.js';
 export * from './lib/tool-system.js';
 export * from './lib/task-assistant.js';
+export * from './lib/agent-system.js';

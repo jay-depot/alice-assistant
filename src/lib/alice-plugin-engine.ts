@@ -23,6 +23,7 @@ import {
   registerConversationType,
 } from './conversation-types.js';
 import { TaskAssistants } from './task-assistant.js';
+import { AgentSystem } from './agent-system.js';
 
 const loadedPlugins: AlicePlugin[] = [];
 const registeredPlugins: Record<string, AlicePlugin> = {};
@@ -205,6 +206,13 @@ function createPluginInterface(
         registerTaskAssistant: definition => {
           assertRegistrationOpen(`task assistant ${definition.id}`);
           TaskAssistants.registerDefinition(pluginMetadata.id, definition);
+        },
+
+        registerSessionLinkedAgent: definition => {
+          assertRegistrationOpen(`session-linked agent ${definition.id}`);
+          AgentSystem.registerDefinition(pluginMetadata.id, definition);
+          const autoStartTool = AgentSystem.generateStartTool(definition);
+          return { autoStartTool };
         },
 
         addToolToConversationType: (

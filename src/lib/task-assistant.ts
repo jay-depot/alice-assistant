@@ -233,6 +233,22 @@ const definitions = new Map<
 const activeInstances = new Map<number, ActiveTaskAssistantInstance>(); // keyed by session id
 const completionWaits = new Map<number, Deferred<TaskAssistantResult>>();
 const suspensionSignals = new Map<number, Deferred<void>>();
+const TASK_ASSISTANT_LOG_PREFIX = '[TaskAssistants]';
+
+function logTaskAssistantLifecycle(
+  event: string,
+  details?: Record<string, unknown>
+): void {
+  if (details) {
+    console.log(`${TASK_ASSISTANT_LOG_PREFIX} ${event}`, details);
+    return;
+  }
+  console.log(`${TASK_ASSISTANT_LOG_PREFIX} ${event}`);
+}
+
+function getElapsedMilliseconds(instance: ActiveTaskAssistantInstance): number {
+  return Date.now() - instance.startedAt.getTime();
+}
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -444,6 +460,11 @@ export const TaskAssistants = {
       );
     }
     definitions.set(definition.id, { definition, pluginId });
+    logTaskAssistantLifecycle('definition registered', {
+      pluginId,
+      taskAssistantId: definition.id,
+      conversationType: definition.conversationType,
+    });
   },
 
   getDefinition(id: string): TaskAssistantDefinition | undefined {
@@ -461,14 +482,31 @@ export const TaskAssistants = {
     entryMode: TaskAssistantEntryMode;
   }): Promise<ActiveTaskAssistantInstance> {
     const { definitionId, sessionId, entryMode } = options;
+    logTaskAssistantLifecycle('start requested', {
+      definitionId,
+      sessionId,
+      entryMode,
+    });
+
     const entry = definitions.get(definitionId);
     if (!entry) {
+      logTaskAssistantLifecycle('start failed: definition not found', {
+        definitionId,
+        sessionId,
+      });
       throw new Error(
         `No task assistant definition found with id "${definitionId}". ` +
           `Make sure the plugin that provides this task assistant is enabled.`
       );
     }
     if (activeInstances.has(sessionId)) {
+      logTaskAssistantLifecycle(
+        'start failed: active instance already exists',
+        {
+          definitionId,
+          sessionId,
+        }
+      );
       throw new Error(
         `Session ${sessionId} already has an active task assistant. ` +
           `Each session may only have one task assistant active at a time.`
@@ -492,9 +530,23 @@ export const TaskAssistants = {
     completionWaits.set(sessionId, createDeferred<TaskAssistantResult>());
     suspensionSignals.set(sessionId, createDeferred<void>());
 
+    logTaskAssistantLifecycle('started', {
+      sessionId,
+      definitionId: definition.id,
+      instanceId: instance.instanceId,
+      entryMode,
+      conversationType: definition.conversationType,
+    });
+
     for (const callback of onBeginCallbacks) {
       await callback(instance);
     }
+
+    logTaskAssistantLifecycle('begin hooks completed', {
+      sessionId,
+      instanceId: instance.instanceId,
+      callbackCount: onBeginCallbacks.length,
+    });
 
     return instance;
   },
@@ -522,6 +574,7 @@ export const TaskAssistants = {
   },
 
   clearSuspensionSignal(sessionId: number): void {
+    logTaskAssistantLifecycle('suspension signal cleared', { sessionId });
     suspensionSignals.delete(sessionId);
   },
 
@@ -532,16 +585,27 @@ export const TaskAssistants = {
   async waitForResult(sessionId: number): Promise<TaskAssistantResult> {
     const completion = completionWaits.get(sessionId);
     if (!completion) {
+      logTaskAssistantLifecycle('wait failed: no pending completion', {
+        sessionId,
+      });
       throw new Error(
         `Session ${sessionId} is not waiting on a task assistant result.`
       );
     }
 
+    logTaskAssistantLifecycle('waiting for result', { sessionId });
+
     const suspension = suspensionSignals.get(sessionId);
     suspension?.resolve();
     suspensionSignals.delete(sessionId);
 
-    return completion.promise;
+    const result = await completion.promise;
+    logTaskAssistantLifecycle('result received', {
+      sessionId,
+      taskAssistantId: result.taskAssistantId,
+      status: result.status,
+    });
+    return result;
   },
 
   /**
@@ -552,6 +616,15 @@ export const TaskAssistants = {
     options: TaskAssistantToolHandoffOptions
   ): Promise<ActiveTaskAssistantInstance> {
     const sessionId = requireToolContextSessionId(options.context);
+    logTaskAssistantLifecycle('start for tool call requested', {
+      sessionId,
+      toolName: options.context.toolName,
+      definitionId: options.definitionId,
+      hasContextHints: !!options.contextHints,
+      initialMessageCount: options.initialMessages?.length ?? 0,
+      hasKickoffMessage: !!options.kickoffMessage,
+    });
+
     const instance = await this.start({
       definitionId: options.definitionId,
       sessionId,
@@ -559,6 +632,13 @@ export const TaskAssistants = {
     });
 
     await appendSeedMessages(instance, options);
+    logTaskAssistantLifecycle('seed messages appended', {
+      sessionId,
+      instanceId: instance.instanceId,
+      hasContextHints: !!options.contextHints,
+      initialMessageCount: options.initialMessages?.length ?? 0,
+      hasKickoffMessage: !!options.kickoffMessage,
+    });
     return instance;
   },
 
@@ -570,8 +650,19 @@ export const TaskAssistants = {
     options: TaskAssistantToolHandoffOptions
   ): Promise<TaskAssistantResult> {
     const sessionId = requireToolContextSessionId(options.context);
+    logTaskAssistantLifecycle('run for tool call started', {
+      sessionId,
+      definitionId: options.definitionId,
+      toolName: options.context.toolName,
+    });
     await this.startForToolCall(options);
-    return this.waitForResult(sessionId);
+    const result = await this.waitForResult(sessionId);
+    logTaskAssistantLifecycle('run for tool call finished', {
+      sessionId,
+      taskAssistantId: result.taskAssistantId,
+      status: result.status,
+    });
+    return result;
   },
 
   /**
@@ -602,6 +693,12 @@ export const TaskAssistants = {
   ): Promise<TaskAssistantResult> {
     const sessionId = requireToolContextSessionId(options.context);
     const result = buildTaskAssistantResultFromOptions(options);
+    logTaskAssistantLifecycle('complete for tool call requested', {
+      sessionId,
+      toolName: options.context.toolName,
+      taskAssistantId: result.taskAssistantId,
+      status: result.status,
+    });
     await this.complete(sessionId, result);
     return result;
   },
@@ -626,8 +723,22 @@ export const TaskAssistants = {
   ): Promise<void> {
     const instance = activeInstances.get(sessionId);
     if (!instance) {
+      logTaskAssistantLifecycle('complete ignored: no active instance', {
+        sessionId,
+        taskAssistantId: result.taskAssistantId,
+        status: result.status,
+      });
       return;
     }
+
+    logTaskAssistantLifecycle('completing', {
+      sessionId,
+      instanceId: instance.instanceId,
+      taskAssistantId: instance.definition.id,
+      status: result.status,
+      elapsedMs: getElapsedMilliseconds(instance),
+    });
+
     activeInstances.delete(sessionId);
     completionWaits.get(sessionId)?.resolve(result);
     completionWaits.delete(sessionId);
@@ -636,6 +747,15 @@ export const TaskAssistants = {
     for (const callback of onEndCallbacks) {
       await callback(instance, result);
     }
+
+    logTaskAssistantLifecycle('completed', {
+      sessionId,
+      instanceId: instance.instanceId,
+      taskAssistantId: instance.definition.id,
+      status: result.status,
+      elapsedMs: getElapsedMilliseconds(instance),
+      callbackCount: onEndCallbacks.length,
+    });
   },
 
   /**
@@ -644,8 +764,19 @@ export const TaskAssistants = {
   async cancel(sessionId: number): Promise<void> {
     const instance = activeInstances.get(sessionId);
     if (!instance) {
+      logTaskAssistantLifecycle('cancel ignored: no active instance', {
+        sessionId,
+      });
       return;
     }
+
+    logTaskAssistantLifecycle('cancelling', {
+      sessionId,
+      instanceId: instance.instanceId,
+      taskAssistantId: instance.definition.id,
+      elapsedMs: getElapsedMilliseconds(instance),
+    });
+
     activeInstances.delete(sessionId);
 
     const cancelResult: TaskAssistantResult = {
@@ -663,5 +794,13 @@ export const TaskAssistants = {
     for (const callback of onEndCallbacks) {
       await callback(instance, cancelResult);
     }
+
+    logTaskAssistantLifecycle('cancelled', {
+      sessionId,
+      instanceId: instance.instanceId,
+      taskAssistantId: instance.definition.id,
+      elapsedMs: getElapsedMilliseconds(instance),
+      callbackCount: onEndCallbacks.length,
+    });
   },
 };
