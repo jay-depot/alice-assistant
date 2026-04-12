@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { createSession, endSession, fetchSession, patchSession } from '../api/sessions.js';
+import {
+  createSession,
+  endSession,
+  fetchSession,
+  patchSession,
+} from '../api/sessions.js';
 import type { Message, Session } from '../types/index.js';
 import { getMessageKey } from '../utils.js';
 
@@ -28,20 +33,32 @@ function getLastReadMessageKey(messages: Message[]): string | null {
   return null;
 }
 
-export function useSession({ onError, refreshSessions }: UseSessionOptions = {}) {
-  const [currentSessionId, setCurrentSessionId] = useState<number | string | null>(null);
+export function useSession({
+  onError,
+  refreshSessions,
+}: UseSessionOptions = {}) {
+  const [currentSessionId, setCurrentSessionId] = useState<
+    number | string | null
+  >(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [sessionTitle, setSessionTitle] = useState(DEFAULT_TITLE);
   const [isSessionBusy, setIsSessionBusy] = useState(false);
   const [isProcessingMessage, setIsProcessingMessage] = useState(false);
   const [isEndingSession, setIsEndingSession] = useState(false);
-  const [pendingMessageKey, setPendingMessageKey] = useState<string | null>(null);
-  const [lastReadMessageKey, setLastReadMessageKey] = useState<string | null>(null);
+  const [pendingMessageKey, setPendingMessageKey] = useState<string | null>(
+    null
+  );
+  const [lastReadMessageKey, setLastReadMessageKey] = useState<string | null>(
+    null
+  );
 
-  const reportError = useCallback((message: string, error: unknown) => {
-    console.error(message, error);
-    onError?.(message);
-  }, [onError]);
+  const reportError = useCallback(
+    (message: string, error: unknown) => {
+      console.error(message, error);
+      onError?.(message);
+    },
+    [onError]
+  );
 
   const applySessionState = useCallback((session: Session) => {
     setCurrentSessionId(session.id);
@@ -50,26 +67,38 @@ export function useSession({ onError, refreshSessions }: UseSessionOptions = {})
     setLastReadMessageKey(getLastReadMessageKey(session.messages));
   }, []);
 
-  const reloadSession = useCallback(async (id: number | string) => {
-    const session = await fetchSession(id);
-    applySessionState(session);
-  }, [applySessionState]);
+  const reloadSession = useCallback(
+    async (id: number | string) => {
+      const session = await fetchSession(id);
+      applySessionState(session);
+    },
+    [applySessionState]
+  );
 
-  const loadSession = useCallback(async (id: number | string) => {
-    if (isSessionBusy || isProcessingMessage || isEndingSession) {
-      return;
-    }
+  const loadSession = useCallback(
+    async (id: number | string) => {
+      if (isSessionBusy || isProcessingMessage || isEndingSession) {
+        return;
+      }
 
-    setIsSessionBusy(true);
+      setIsSessionBusy(true);
 
-    try {
-      await reloadSession(id);
-    } catch (error) {
-      reportError('Failed to load conversation.', error);
-    } finally {
-      setIsSessionBusy(false);
-    }
-  }, [isEndingSession, isProcessingMessage, isSessionBusy, reloadSession, reportError]);
+      try {
+        await reloadSession(id);
+      } catch (error) {
+        reportError('Failed to load conversation.', error);
+      } finally {
+        setIsSessionBusy(false);
+      }
+    },
+    [
+      isEndingSession,
+      isProcessingMessage,
+      isSessionBusy,
+      reloadSession,
+      reportError,
+    ]
+  );
 
   const handleNewChat = useCallback(async () => {
     if (isSessionBusy || isProcessingMessage || isEndingSession) {
@@ -96,45 +125,75 @@ export function useSession({ onError, refreshSessions }: UseSessionOptions = {})
     } finally {
       setIsSessionBusy(false);
     }
-  }, [applySessionState, isEndingSession, isProcessingMessage, isSessionBusy, refreshSessions, reportError]);
+  }, [
+    applySessionState,
+    isEndingSession,
+    isProcessingMessage,
+    isSessionBusy,
+    refreshSessions,
+    reportError,
+  ]);
 
-  const sendMessage = useCallback(async (content: string) => {
-    const message = content.trim();
-    if (!message || isSessionBusy || isProcessingMessage || isEndingSession || currentSessionId === null) {
-      return;
-    }
-
-    const optimisticMessage: Message = {
-      role: 'user',
-      messageKind: 'chat',
-      content: message,
-      timestamp: new Date().toISOString(),
-    };
-    const optimisticMessageKey = getMessageKey(optimisticMessage);
-
-    setMessages((currentMessages) => [...currentMessages, optimisticMessage]);
-    setPendingMessageKey(optimisticMessageKey);
-    setIsProcessingMessage(true);
-
-    try {
-      const session = await patchSession(currentSessionId, message);
-      applySessionState(session);
-      await refreshSessions?.();
-    } catch (error) {
-      reportError('Failed to send message. Please try again.', error);
-      try {
-        await reloadSession(currentSessionId);
-      } catch (reloadError) {
-        reportError('Failed to reload conversation.', reloadError);
+  const sendMessage = useCallback(
+    async (content: string) => {
+      const message = content.trim();
+      if (
+        !message ||
+        isSessionBusy ||
+        isProcessingMessage ||
+        isEndingSession ||
+        currentSessionId === null
+      ) {
+        return;
       }
-    } finally {
-      setPendingMessageKey(null);
-      setIsProcessingMessage(false);
-    }
-  }, [applySessionState, currentSessionId, isEndingSession, isProcessingMessage, isSessionBusy, refreshSessions, reloadSession, reportError]);
+
+      const optimisticMessage: Message = {
+        role: 'user',
+        messageKind: 'chat',
+        content: message,
+        timestamp: new Date().toISOString(),
+      };
+      const optimisticMessageKey = getMessageKey(optimisticMessage);
+
+      setMessages(currentMessages => [...currentMessages, optimisticMessage]);
+      setPendingMessageKey(optimisticMessageKey);
+      setIsProcessingMessage(true);
+
+      try {
+        const session = await patchSession(currentSessionId, message);
+        applySessionState(session);
+        await refreshSessions?.();
+      } catch (error) {
+        reportError('Failed to send message. Please try again.', error);
+        try {
+          await reloadSession(currentSessionId);
+        } catch (reloadError) {
+          reportError('Failed to reload conversation.', reloadError);
+        }
+      } finally {
+        setPendingMessageKey(null);
+        setIsProcessingMessage(false);
+      }
+    },
+    [
+      applySessionState,
+      currentSessionId,
+      isEndingSession,
+      isProcessingMessage,
+      isSessionBusy,
+      refreshSessions,
+      reloadSession,
+      reportError,
+    ]
+  );
 
   const deleteSession = useCallback(async () => {
-    if (currentSessionId === null || isSessionBusy || isProcessingMessage || isEndingSession) {
+    if (
+      currentSessionId === null ||
+      isSessionBusy ||
+      isProcessingMessage ||
+      isEndingSession
+    ) {
       return;
     }
 
@@ -161,7 +220,14 @@ export function useSession({ onError, refreshSessions }: UseSessionOptions = {})
     } finally {
       setIsEndingSession(false);
     }
-  }, [currentSessionId, isEndingSession, isProcessingMessage, isSessionBusy, refreshSessions, reportError]);
+  }, [
+    currentSessionId,
+    isEndingSession,
+    isProcessingMessage,
+    isSessionBusy,
+    refreshSessions,
+    reportError,
+  ]);
 
   const resetToWelcome = useCallback(() => {
     setCurrentSessionId(null);
@@ -184,7 +250,12 @@ export function useSession({ onError, refreshSessions }: UseSessionOptions = {})
   }, [currentSessionId, isSessionBusy]);
 
   useEffect(() => {
-    if (currentSessionId === null || isSessionBusy || isProcessingMessage || isEndingSession) {
+    if (
+      currentSessionId === null ||
+      isSessionBusy ||
+      isProcessingMessage ||
+      isEndingSession
+    ) {
       return;
     }
 
@@ -193,11 +264,13 @@ export function useSession({ onError, refreshSessions }: UseSessionOptions = {})
         try {
           const session = await fetchSession(currentSessionId);
           const currentLastMessage = messages[messages.length - 1];
-          const incomingLastMessage = session.messages[session.messages.length - 1];
-          const hasNewMessages = session.messages.length !== messages.length
-            || session.title !== sessionTitle
-            || incomingLastMessage?.timestamp !== currentLastMessage?.timestamp
-            || incomingLastMessage?.content !== currentLastMessage?.content;
+          const incomingLastMessage =
+            session.messages[session.messages.length - 1];
+          const hasNewMessages =
+            session.messages.length !== messages.length ||
+            session.title !== sessionTitle ||
+            incomingLastMessage?.timestamp !== currentLastMessage?.timestamp ||
+            incomingLastMessage?.content !== currentLastMessage?.content;
 
           if (!hasNewMessages) {
             return;
@@ -206,7 +279,10 @@ export function useSession({ onError, refreshSessions }: UseSessionOptions = {})
           applySessionState(session);
           await refreshSessions?.();
         } catch (error) {
-          console.error('Failed to poll active conversation for updates:', error);
+          console.error(
+            'Failed to poll active conversation for updates:',
+            error
+          );
         }
       })();
     }, 3000);
@@ -214,7 +290,16 @@ export function useSession({ onError, refreshSessions }: UseSessionOptions = {})
     return () => {
       window.clearInterval(intervalId);
     };
-  }, [applySessionState, currentSessionId, isEndingSession, isProcessingMessage, isSessionBusy, messages, refreshSessions, sessionTitle]);
+  }, [
+    applySessionState,
+    currentSessionId,
+    isEndingSession,
+    isProcessingMessage,
+    isSessionBusy,
+    messages,
+    refreshSessions,
+    sessionTitle,
+  ]);
 
   return {
     currentSessionId,
@@ -225,11 +310,21 @@ export function useSession({ onError, refreshSessions }: UseSessionOptions = {})
     isEndingSession,
     pendingMessageKey,
     lastReadMessageKey,
-    showWelcome: currentSessionId === null && messages.length === 0 && !isSessionBusy,
+    showWelcome:
+      currentSessionId === null && messages.length === 0 && !isSessionBusy,
     showDeleteSession: currentSessionId !== null,
-    canDeleteSession: currentSessionId !== null && !isSessionBusy && !isProcessingMessage && !isEndingSession,
-    canSubmitMessage: currentSessionId !== null && !isSessionBusy && !isProcessingMessage && !isEndingSession,
-    isInputDisabled: currentSessionId === null || isSessionBusy || isEndingSession,
+    canDeleteSession:
+      currentSessionId !== null &&
+      !isSessionBusy &&
+      !isProcessingMessage &&
+      !isEndingSession,
+    canSubmitMessage:
+      currentSessionId !== null &&
+      !isSessionBusy &&
+      !isProcessingMessage &&
+      !isEndingSession,
+    isInputDisabled:
+      currentSessionId === null || isSessionBusy || isEndingSession,
     inputPlaceholder,
     loadSession,
     handleNewChat,

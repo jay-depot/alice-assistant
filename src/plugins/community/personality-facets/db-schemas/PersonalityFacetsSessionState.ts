@@ -8,10 +8,12 @@ const PersonalityFacetsSessionStateSchema = defineEntity({
     activeFacetName: p.string(),
     createdAt: p.datetime(),
     updatedAt: p.datetime(),
-  }
+  },
 });
 
-export class PersonalityFacetsSessionState extends PersonalityFacetsSessionStateSchema.class {
+export class PersonalityFacetsSessionState
+  extends PersonalityFacetsSessionStateSchema.class
+{
   declare id: number;
   declare sessionId: number;
   declare activeFacetName: string;

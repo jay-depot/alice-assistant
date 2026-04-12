@@ -1,9 +1,5 @@
 {
-  "allowedRoots": [
-    "~/Documents",
-    "~/Downloads",
-    "~/Desktop"
-  ],
+  "allowedFilePaths": ["~/Documents", "~/Downloads", "~/Desktop"],
   "maxDepth": 10,
   "maxResults": 100
 }

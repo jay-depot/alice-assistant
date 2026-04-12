@@ -38,8 +38,11 @@ export const scenarioHeaderPrompt: DynamicPrompt = {
     systemPromptChunks.push(
       substituteScenarioTemplate(
         conversationTypeDefinition.scenarioPrompt ??
-          buildGenericScenarioPrompt(conversationTypeDefinition.name, conversationTypeDefinition.description),
-      ),
+          buildGenericScenarioPrompt(
+            conversationTypeDefinition.name,
+            conversationTypeDefinition.description
+          )
+      )
     );
 
     switch (conversationTypeDefinition.baseType) {
@@ -47,34 +50,44 @@ export const scenarioHeaderPrompt: DynamicPrompt = {
         systemPromptChunks.push(
           canUseTools
             ? ' - If you are making a tool call, make it now. OTHERWISE, RESPOND IN CHARACTER NOW.'
-            : ' - Respond in character.',
+            : ' - Respond in character.'
         );
         break;
       case 'chat':
         systemPromptChunks.push(
           canUseTools
             ? ' - If you are making a tool call, make it now. OTHERWISE, GREET THE USER IN CHARACTER NOW.'
-            : ' - Greet the user in character.',
+            : ' - Greet the user in character.'
         );
         break;
       case 'startup':
         if (canUseTools) {
-          systemPromptChunks.push(' - Feel free to make a tool call if you feel it would help you make a better startup message, or set a mood.');
-          systemPromptChunks.push(' - If you are making a tool call, make it now. OTHERWISE, INTRODUCE YOURSELF IN CHARACTER NOW.');
+          systemPromptChunks.push(
+            ' - Feel free to make a tool call if you feel it would help you make a better startup message, or set a mood.'
+          );
+          systemPromptChunks.push(
+            ' - If you are making a tool call, make it now. OTHERWISE, INTRODUCE YOURSELF IN CHARACTER NOW.'
+          );
         } else {
           systemPromptChunks.push(' - Introduce yourself in character.');
         }
         break;
       case 'autonomy':
         if (canUseTools) {
-          systemPromptChunks.push(' - You are acting within a limited-autonomy workflow. Use only the tools available in this mode.');
-          systemPromptChunks.push(' - If a tool call would help you complete the task safely, make it now. Otherwise, continue the workflow in character.');
+          systemPromptChunks.push(
+            ' - You are acting within a limited-autonomy workflow. Use only the tools available in this mode.'
+          );
+          systemPromptChunks.push(
+            ' - If a tool call would help you complete the task safely, make it now. Otherwise, continue the workflow in character.'
+          );
         } else {
-          systemPromptChunks.push(' - You are acting within a limited-autonomy workflow. Continue the task safely and concisely in character.');
+          systemPromptChunks.push(
+            ' - You are acting within a limited-autonomy workflow. Continue the task safely and concisely in character.'
+          );
         }
         break;
     }
 
     return systemPromptChunks.join('\n');
-  }
+  },
 };

@@ -1,4 +1,7 @@
-export async function apiFetch<T>(urlPath: string, options: RequestInit = {}): Promise<T> {
+export async function apiFetch<T>(
+  urlPath: string,
+  options: RequestInit = {}
+): Promise<T> {
   const response = await fetch(urlPath, {
     ...options,
     headers: {

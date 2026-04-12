@@ -1,6 +1,6 @@
-import * as os from "os";
-import * as path from "path";
-import * as fs from "fs";
+import * as os from 'os';
+import * as path from 'path';
+import * as fs from 'fs';
 import * as childProcess from 'child_process';
 
 export const getSystemInfo = (() => {
@@ -17,13 +17,13 @@ export const getSystemInfo = (() => {
         sunos: 'Solaris',
         win32: 'Windows',
         darwin: 'macOS',
-        linux: 'Linux'
+        linux: 'Linux',
       };
       const platform = os.platform();
       sysInfoCache.os = lookupTable[platform] || 'Unknown';
     }
 
-    if(!sysInfoCache.distribution) {
+    if (!sysInfoCache.distribution) {
       // We're going to use the term "distribution" here in the usual sense for linux, and to mean the version of MacOS or Windows
       // So Windows 10 is a "distribution" of Windows, and MacOS Sonoma is a "distribution" of MacOS.
       // Hopefully the LLM catches on to this slight abuse of terminology without help. Or maybe it'll just tell the user they should switch to Linux.
@@ -44,7 +44,9 @@ export const getSystemInfo = (() => {
             const lines = osReleaseData.split('\n');
             for (const line of lines) {
               if (line.startsWith('PRETTY_NAME=')) {
-                sysInfoCache.distribution = line.split('=')[1].replace(/"/g, ''); // Remove the quotes around the value
+                sysInfoCache.distribution = line
+                  .split('=')[1]
+                  .replace(/"/g, ''); // Remove the quotes around the value
                 break;
               }
             }
@@ -55,7 +57,7 @@ export const getSystemInfo = (() => {
         }
         default:
           sysInfoCache.distribution = 'Unknown';
-      } 
+      }
     }
 
     if (!sysInfoCache.packageManager) {
@@ -83,14 +85,16 @@ export const getSystemInfo = (() => {
       }
       const deduplicatedPackageManagers = new Set(detectedPackageManagers);
       if (Array.from(deduplicatedPackageManagers).length > 0) {
-        sysInfoCache.packageManager = Array.from(deduplicatedPackageManagers).join(', ');
+        sysInfoCache.packageManager = Array.from(
+          deduplicatedPackageManagers
+        ).join(', ');
       } else {
         sysInfoCache.packageManager = 'Unknown';
       }
     }
 
     if (!sysInfoCache.gpuModel) {
-      // We can get the GPU model on Linux by reading the /proc/driver/nvidia/gpus/ directory for Nvidia GPUs, and using lspci for AMD and Intel GPUs. 
+      // We can get the GPU model on Linux by reading the /proc/driver/nvidia/gpus/ directory for Nvidia GPUs, and using lspci for AMD and Intel GPUs.
       // On Windows and macOS, we won't bother, for now.
       // We also want to get the vram size if possible
       if (sysInfoCache.os === 'Linux') {
@@ -98,7 +102,11 @@ export const getSystemInfo = (() => {
         if (fs.existsSync(nvidiaGpuPath)) {
           const gpuDirs = fs.readdirSync(nvidiaGpuPath);
           if (gpuDirs.length > 0) {
-            const gpuInfoPath = path.join(nvidiaGpuPath, gpuDirs[0], 'information');
+            const gpuInfoPath = path.join(
+              nvidiaGpuPath,
+              gpuDirs[0],
+              'information'
+            );
             if (fs.existsSync(gpuInfoPath)) {
               const gpuInfoData = fs.readFileSync(gpuInfoPath, 'utf-8');
               const lines = gpuInfoData.split('\n');
@@ -123,7 +131,10 @@ export const getSystemInfo = (() => {
             const lspciData = childProcess.execSync('lspci -nnk').toString();
             const lines = lspciData.split('\n');
             for (const line of lines) {
-              if (line.toLowerCase().includes('vga compatible controller') || line.toLowerCase().includes('3d controller')) {
+              if (
+                line.toLowerCase().includes('vga compatible controller') ||
+                line.toLowerCase().includes('3d controller')
+              ) {
                 const gpuModelMatch = line.match(/\[R\S+\s+(.+?)\]/);
                 if (gpuModelMatch) {
                   sysInfoCache.gpuModel = gpuModelMatch[0].trim().substring(1);
@@ -136,7 +147,7 @@ export const getSystemInfo = (() => {
       }
     }
 
-    return { 
+    return {
       ...sysInfoCache,
       arch: os.arch(),
       cpu: os.cpus()[0].model,
@@ -148,7 +159,10 @@ export const getSystemInfo = (() => {
       totalMemoryUnit: 'bytes',
       uptime: os.uptime(),
       uptimeUnit: 'seconds',
-      desktopEnvironment: process.env.XDG_CURRENT_DESKTOP || process.env.DESKTOP_SESSION || 'Unknown',
+      desktopEnvironment:
+        process.env.XDG_CURRENT_DESKTOP ||
+        process.env.DESKTOP_SESSION ||
+        'Unknown',
       windowManager: process.env.XDG_SESSION_DESKTOP || 'Unknown',
       graphicalServer: process.env.XDG_SESSION_TYPE || 'Unknown',
       displaySize: process.env.DISPLAY || 'Unknown',
@@ -158,7 +172,7 @@ export const getSystemInfo = (() => {
       homeDirectory: os.homedir(),
       hostname: os.hostname(),
       locale: Intl.DateTimeFormat().resolvedOptions().locale,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     } as Record<string, string | number | boolean | null>;
   };
 })();

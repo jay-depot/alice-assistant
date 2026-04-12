@@ -1,12 +1,17 @@
 import { AlicePlugin } from '../../../lib.js';
-import { buildFallbackChatNotification, buildNotificationChatTitle, renderChatNotificationInVoice } from '../../../lib/render-chat-notification.js';
+import {
+  buildFallbackChatNotification,
+  buildNotificationChatTitle,
+  renderChatNotificationInVoice,
+} from '../../../lib/render-chat-notification.js';
 
 const notificationsChatInterruptionPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'notifications-chat-interruption',
     name: 'Notifications Chat Interruption Plugin',
-    description: 'A plugin that inserts active notifications into the middle of the ' +
-      'assistant\'s most recently active chat session as they are received. This *should* ' +
+    description:
+      'A plugin that inserts active notifications into the middle of the ' +
+      "assistant's most recently active chat session as they are received. This *should* " +
       'cause the assistant to proactively mention these reminders right away.',
     version: 'LATEST',
     dependencies: [
@@ -15,21 +20,26 @@ const notificationsChatInterruptionPlugin: AlicePlugin = {
     ],
     required: false,
   },
-  
+
   async registerPlugin(pluginInterface) {
     const plugin = await pluginInterface.registerPlugin();
-    const { registerNotificationSink } = plugin.request('notifications-broker')!;
-    const { resolveTargetChatSession, queueAssistantMessageToSession } = plugin.request('web-ui')!;
+    const { registerNotificationSink } = plugin.request(
+      'notifications-broker'
+    )!;
+    const { resolveTargetChatSession, queueAssistantMessageToSession } =
+      plugin.request('web-ui')!;
 
     await registerNotificationSink('notifications-chat-interruption', {
-      sendNotification: async (notification) => {
+      sendNotification: async notification => {
         const sessionId = await resolveTargetChatSession({
           title: buildNotificationChatTitle(notification),
           openNewChatIfNone: true,
         });
 
         if (sessionId === null) {
-          console.warn('Notifications Chat Interruption: Could not resolve a target chat session for notification delivery.');
+          console.warn(
+            'Notifications Chat Interruption: Could not resolve a target chat session for notification delivery.'
+          );
           return;
         }
 
@@ -39,13 +49,16 @@ const notificationsChatInterruptionPlugin: AlicePlugin = {
           const renderedInterruption = await renderChatNotificationInVoice(
             notification,
             'You are inserting a brief interruption into an already-active text chat with the user.',
-            sessionId,
+            sessionId
           );
           if (renderedInterruption.length > 0) {
             interruptionText = renderedInterruption;
           }
         } catch (error) {
-          console.error('Notifications Chat Interruption: Failed to render interruption in assistant voice. Falling back to plain notification text.', error);
+          console.error(
+            'Notifications Chat Interruption: Failed to render interruption in assistant voice. Falling back to plain notification text.',
+            error
+          );
         }
 
         await queueAssistantMessageToSession(sessionId, {
@@ -53,10 +66,12 @@ const notificationsChatInterruptionPlugin: AlicePlugin = {
           messageKind: 'notification',
         });
 
-        console.log(`Notifications Chat Interruption: Delivered notification into chat session ${sessionId}.`);
+        console.log(
+          `Notifications Chat Interruption: Delivered notification into chat session ${sessionId}.`
+        );
       },
     });
-  }
+  },
 };
 
 export default notificationsChatInterruptionPlugin;

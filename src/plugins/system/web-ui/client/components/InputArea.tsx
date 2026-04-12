@@ -41,8 +41,8 @@ export function InputArea({
           rows={1}
           disabled={inputDisabled}
           value={value}
-          onChange={(event) => onChange(event.target.value)}
-          onKeyDown={(event) => {
+          onChange={event => onChange(event.target.value)}
+          onKeyDown={event => {
             if (event.key === 'Enter' && !event.shiftKey) {
               event.preventDefault();
               if (!submitDisabled) {
@@ -51,7 +51,12 @@ export function InputArea({
             }
           }}
         ></textarea>
-        <button id="send-btn" disabled={submitDisabled} title="Send message (Enter)" onClick={onSubmit}>
+        <button
+          id="send-btn"
+          disabled={submitDisabled}
+          title="Send message (Enter)"
+          onClick={onSubmit}
+        >
           &#9650;
         </button>
       </footer>

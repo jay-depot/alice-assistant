@@ -6,7 +6,6 @@ Agents are useful, but they are also an easy way to accidentally create systems 
 
 The goal is not to make ALICE as "agentic" as possible. The goal is to add agent support in a way that remains understandable to plugin authors and controllable by end users.
 
-
 ## Definitions
 
 ### Agents are not transports
@@ -19,13 +18,11 @@ A transport is a communication medium through which assistant sessions are condu
 
 Agents may use transports, report into transports, or hand off work into assistant sessions conducted through transports. They are not themselves the transport abstraction.
 
-
 ### Sessions and handoffs
 
 An assistant session is an interactive conversation context with the user.
 
 A handoff is the act of transferring context gathered by an agent into an assistant session so the assistant can continue interactively with the user.
-
 
 ## Agent Types
 
@@ -40,7 +37,6 @@ We will generally categorize agents into three types based on their lifecycle an
 3. Independent agents
    These agents are not expected to interact with an assistant session as part of their normal operation. They may still create or request a handoff when needed, but they are designed to keep functioning outside of any one user conversation.
 
-
 ## Core Philosophy
 
 ### Most agents should be session-linked
@@ -49,20 +45,17 @@ Session-linked agents are the safest and easiest model to reason about. They hav
 
 When a plugin author is unsure which model to use, the default answer should be session-linked.
 
-
 ### Scheduled-session agents should not perform destructive actions directly
 
 Scheduled-session agents should not be given destructive tools. If they determine that a destructive action might be appropriate, they should hand off into an assistant session and let the user review the gathered context before approving anything.
 
 This keeps the user in control and prevents scheduled work from silently crossing the line into unsupervised action.
 
-
 ### Independent agents should be rare in an assistant-focused system
 
 ALICE is primarily an assistant. Most useful agent behavior in that context fits better into the session-linked model.
 
 Independent agents should be reserved for cases where a plugin is deliberately extending ALICE beyond ordinary assistant behavior and the design still makes operational sense without a continuously attached conversation.
-
 
 ### Every agent should have the minimum tools required for its task
 
@@ -72,13 +65,11 @@ Do not hand an agent a raw shell if a specific capability can be exposed as a co
 
 Do not allow agents to read sensitive files unless the tool is explicitly designed for that purpose, and if such a tool is unavoidable, redact secrets in code before returning results. An agent cannot leak secrets it cannot read.
 
-
 ### Reuse existing capabilities where possible
 
 When defining an agent context, prefer reusing existing tool definitions and plugin capabilities over inventing one-off replacements.
 
 If scratch files, memory recall, web access, or other features already exist elsewhere in the system, the agent model should make it easy to reuse them safely instead of encouraging duplicate implementations.
-
 
 ## V1 Scope
 
@@ -92,7 +83,6 @@ The recommended first implementation scope is:
 
 This scope keeps the initial implementation aligned with the strongest existing architectural model in the codebase: persistent chat sessions and plugin-managed background work.
 
-
 ## Hard Invariants For V1
 
 These are the constraints the implementation should assume unless this document is revised:
@@ -102,7 +92,6 @@ These are the constraints the implementation should assume unless this document 
 3. Scheduled-session agents do not perform destructive actions directly.
 4. Agent tool access is explicit and minimal.
 5. Plugins must not be allowed to register undeclared agents at runtime.
-
 
 ## Open Questions And Current Answers
 
@@ -119,25 +108,26 @@ Current answers so far:
 3. Independent agents are identified by agent ID and are created by plugin code.
 4. Persistence and lifecycle expectations differ by agent type and should be treated as part of the runtime contract, not as incidental implementation details.
 
-Agent Type        | Identified By          | Created by      | Persistent State                            | Lifecycle States
-------------------|------------------------|-----------------|---------------------------------------------|-----------------
-Session-linked    | Agent ID + Session ID  | Assistant makes | Saves state to database, lives across       | Running, Needs Input
-                  |                        | tool call       | restarts until task completion,             | Cancelled, Erroring
-                  |                        |                 | cancellation, or linked chat                | Stuck, Completed
-                  |                        |                 | session closure                             | 
-------------------|------------------------|-----------------|---------------------------------------------|-----------------                  
-Scheduled-session | Agent ID + Schedule ID | Plugin code     | Outstanding tasks are given some time to    | Running, Handoff Pending
-                  |                        |                 | complete at shutdown. No provisions to      | Cancelled, Erroring,
-                  |                        |                 | resume built in.                            | Stuck, Completed,
-                  |                        |                 |                                             | Armed
-------------------|------------------------|-----------------|---------------------------------------------|-----------------
-Independent       | Agent ID               | Plugin code     | Core provides a single, long-running        | Hatching, Running, 
-                  |                        |                 | context that persists across restarts. No   | Freezing, Thawing,
-                  |                        |                 | built-in expiration or cancellation         | Erroring, Stuck,
-                  |                        |                 | condition. Plugin must manage lifecycle     | Paused, Sleeping
-                  |                        |                 | explicitly.                                 | Forking to Chat
+| Agent Type         | Identified By            | Created by                                | Persistent State                              | Lifecycle States         |
+| ------------------ | ------------------------ | ----------------------------------------- | --------------------------------------------- | ------------------------ |
+| Session-linked     | Agent ID + Session ID    | Assistant makes                           | Saves state to database, lives across         | Running, Needs Input     |
+|                    | tool call                | restarts until task completion,           | Cancelled, Erroring                           |
+|                    |                          | cancellation, or linked chat              | Stuck, Completed                              |
+|                    |                          | session closure                           |
+| ------------------ | ------------------------ | -----------------                         | --------------------------------------------- | -----------------        |
+| Scheduled-session  | Agent ID + Schedule ID   | Plugin code                               | Outstanding tasks are given some time to      | Running, Handoff Pending |
+|                    |                          | complete at shutdown. No provisions to    | Cancelled, Erroring,                          |
+|                    |                          | resume built in.                          | Stuck, Completed,                             |
+|                    |                          |                                           | Armed                                         |
+| ------------------ | ------------------------ | -----------------                         | --------------------------------------------- | -----------------        |
+| Independent        | Agent ID                 | Plugin code                               | Core provides a single, long-running          | Hatching, Running,       |
+|                    |                          | context that persists across restarts. No | Freezing, Thawing,                            |
+|                    |                          | built-in expiration or cancellation       | Erroring, Stuck,                              |
+|                    |                          | condition. Plugin must manage lifecycle   | Paused, Sleeping                              |
+|                    |                          | explicitly.                               | Forking to Chat                               |
 
 **Lifecycle state definitions:**
+
 - Hatching: The independent agent is starting for the first time, and has not indicated that it is fully operational yet. It may be doing setup work, gathering initial context, or trying to inform the user of settings that need to be configured before it can run properly.
 - Running: The agent is fully operational and performing its task.
 - Needs Input: The session-linked agent is waiting for the assistant to solicit user input on its behalf before it can continue.
@@ -177,7 +167,6 @@ Remaining questions:
 2. How much time, if any, should plugins get for cleanup before core forcefully cancels the loop?
 3. What guarantees should core make about partially completed tool calls during cancellation? Tentative Answer: We should allow them to return (up to a reasonable timeout) and we can pass their results into the agent LLM as a final request before shutting down the agent. In this request, the agent shouldn't be given any tool access anymore, and it should be informed that it is shutting down and to report whatever progress it can directly into a chat response so it can be summarized and passed back into the chat history for the assistant's memory. This allows the agent to report any progress it made before cancellation, but prevents it from trying to continue working.
 
-
 ### 3. Context inheritance and return path
 
 We need to define how an agent receives context and how it communicates results back.
@@ -199,7 +188,6 @@ Remaining questions:
 1. How should the clean summarization path be implemented so it stays faithful without pulling in irrelevant prompt context? Answer: There is a patttern for this in the current conversation summarization code we can base this on.
 2. Should any agent-to-session messages be hidden from the assistant-facing history while still appearing in the UI?
 
-
 ### 4. Tool boundaries and conversation-type strategy
 
 We need to decide how agent execution contexts relate to the existing conversation and tool model.
@@ -208,7 +196,7 @@ Current answers so far:
 
 1. Agents may reuse the existing autonomy conversation type, which is restricted to read-only tools and tools that modify internal assistant state (and is therefore a "safe" set of tools), when its default tool set and prompt behavior, are sufficient, and the assistant's personality being included won't cause problems. Otherwise, plugins may register custom conversation types for agent use.
 2. Tool access is determined by the conversation type the agent runs under.
-3. A tool should generally be considered unsafe for agent use if it can delete or overwrite user data or communicate publicly in the user's name without an approval path. The preferred pattern is for the agent to gather context and then hand off into an assistant session for user review and approval. 
+3. A tool should generally be considered unsafe for agent use if it can delete or overwrite user data or communicate publicly in the user's name without an approval path. The preferred pattern is for the agent to gather context and then hand off into an assistant session for user review and approval.
 4. Tools are considered "safe" for agent use if they are read-only AND include guardrails to prevent accidentally leaking sensitive data; or if they only modify internal assistant state and data, such as scratch files or proficiencies.
 5. Unsafe plugin authors cannot be fully prevented in a Node environment, so the design goal should be to make the official path easy, well-documented, and metadata-enforced enough that safe behavior is the default path for normal plugin development.
 
@@ -220,7 +208,6 @@ Remaining questions:
 
 1. What should the official quick-confirmation path look like at the API level?
 2. Should conversation types be allowed to expose both full handoff and quick-confirmation patterns at the same time? Answer: This is worth discouraging in documentation, and examples, but I'm not sure it's worth the effort to enforce. Also there are probably a small number of legitimate cases where an agent type might need access to both patterns, though hopefully not in the same session.
-
 
 ### 5. Metadata and registration rules
 
@@ -241,7 +228,6 @@ Remaining questions:
 2. What precise metadata shape should core require at registration time?
 3. Which capability and trigger declarations are realistically enforceable in the first implementation?
 
-
 ### 6. Runtime supervision and shutdown
 
 We need predictable rules for stopping agents and surfacing failures.
@@ -257,7 +243,6 @@ Remaining questions:
 2. What cleanup guarantees exist when an agent is cancelled?
 3. How are failures surfaced to users, plugin authors, and logs?
 
-
 ### 7. UI implications
 
 UI should follow the runtime contract, not define it, but there are still implementation-facing questions to answer later.
@@ -271,7 +256,6 @@ Remaining questions:
 1. How should session-linked agents appear in a chat session while running?
 2. What should an agent management dashboard show for scheduled-session and independent agents?
 3. How should the UI communicate agent capabilities and safety posture to users without relying on self-declared risk levels?
-
 
 ### 8. Future transport integration
 
@@ -287,7 +271,6 @@ Remaining questions:
 1. What transport abstraction should eventually exist for chat, voice, and plugin-provided channels?
 2. What, if anything, must be designed now so that future transports can integrate cleanly later?
 
-
 ## Implementation Implications
 
 Several practical consequences already follow from the decisions above.
@@ -297,7 +280,6 @@ Several practical consequences already follow from the decisions above.
 3. Logging needs to become structured enough to handle multiple concurrent agent lifecycles without devolving into unreadable console output.
 4. The agent creation API must be simple enough that plugin authors are not tempted to route around it.
 5. Voice support should be treated as future transport work, not as a blocker for the first implementation.
-
 
 ## Recommended Next Step
 

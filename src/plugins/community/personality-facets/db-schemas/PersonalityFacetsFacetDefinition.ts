@@ -10,10 +10,12 @@ const PersonalityFacetsFacetDefinitionSchema = defineEntity({
     createdAt: p.datetime(),
     updatedAt: p.datetime(),
     lastEmbodiedAt: p.datetime().nullable(),
-  }
+  },
 });
 
-export class PersonalityFacetsFacetDefinition extends PersonalityFacetsFacetDefinitionSchema.class {
+export class PersonalityFacetsFacetDefinition
+  extends PersonalityFacetsFacetDefinitionSchema.class
+{
   declare id: number;
   declare name: string;
   declare embodyWhen: string;
@@ -23,4 +25,6 @@ export class PersonalityFacetsFacetDefinition extends PersonalityFacetsFacetDefi
   declare lastEmbodiedAt: Date | null;
 }
 
-PersonalityFacetsFacetDefinitionSchema.setClass(PersonalityFacetsFacetDefinition);
+PersonalityFacetsFacetDefinitionSchema.setClass(
+  PersonalityFacetsFacetDefinition
+);

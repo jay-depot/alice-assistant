@@ -90,6 +90,12 @@
     "required": true
   },
   {
+    "id": "troubleshooting",
+    "name": "Troubleshooting",
+    "category": "system",
+    "required": false
+  },
+  {
     "id": "skills",
     "name": "Skills",
     "category": "system",
@@ -218,6 +224,12 @@
   {
     "id": "personality-facets",
     "name": "Personality Facets",
+    "category": "community",
+    "required": false
+  },
+  {
+    "id": "brainstorm",
+    "name": "Brainstorm",
     "category": "community",
     "required": false
   }

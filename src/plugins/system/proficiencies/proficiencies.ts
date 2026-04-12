@@ -4,36 +4,65 @@ import path from 'node:path';
 import { AlicePlugin } from '../../../lib.js';
 import { ProficienciesEntry } from './db-schemas/ProficienciesEntry.js';
 
-const DAYS = (1000 * 60 * 60 * 24);
+const DAYS = 1000 * 60 * 60 * 24;
 
 const ProficienciesPluginConfigSchema = Type.Object({
   maxProficiencies: Type.Number({ default: 30, minimum: 1, maximum: 1000 }),
 });
 
-type ProficienciesPluginConfigSchema = Static<typeof ProficienciesPluginConfigSchema>;
+type ProficienciesPluginConfigSchema = Static<
+  typeof ProficienciesPluginConfigSchema
+>;
 
 const RecallProficiencyParametersSchema = Type.Object({
-  proficiencyName: Type.String({ description: 'The PascalCase name of the proficiency to recall.' }),
+  proficiencyName: Type.String({
+    description: 'The PascalCase name of the proficiency to recall.',
+  }),
 });
 
-type RecallProficiencyParameters = Static<typeof RecallProficiencyParametersSchema>;
+type RecallProficiencyParameters = Static<
+  typeof RecallProficiencyParametersSchema
+>;
 
 const CreateProficiencyParametersSchema = Type.Object({
-  proficiencyName: Type.String({ description: 'The PascalCase name of the proficiency to create.' }),
-  recallWhen: Type.String({ description: 'A short fragment describing when this proficiency should be recalled.' }),
-  contents: Type.String({ description: 'The proficiency contents. This may be empty if you are creating a placeholder to update later.' }),
+  proficiencyName: Type.String({
+    description: 'The PascalCase name of the proficiency to create.',
+  }),
+  recallWhen: Type.String({
+    description:
+      'A short fragment describing when this proficiency should be recalled.',
+  }),
+  contents: Type.String({
+    description:
+      'The proficiency contents. This may be empty if you are creating a placeholder to update later.',
+  }),
 });
 
-type CreateProficiencyParameters = Static<typeof CreateProficiencyParametersSchema>;
+type CreateProficiencyParameters = Static<
+  typeof CreateProficiencyParametersSchema
+>;
 
 const UpdateProficiencyParametersSchema = Type.Object({
-  proficiencyName: Type.String({ description: 'The PascalCase name of the proficiency to update.' }),
-  recallWhen: Type.Optional(Type.String({ description: 'Updated recall trigger for the proficiency.' })),
-  contents: Type.Optional(Type.String({ description: 'Updated proficiency contents.' })),
-  append: Type.Optional(Type.Boolean({ description: 'Whether to append the provided contents to the existing contents instead of replacing them. Defaults to false.' })),
+  proficiencyName: Type.String({
+    description: 'The PascalCase name of the proficiency to update.',
+  }),
+  recallWhen: Type.Optional(
+    Type.String({ description: 'Updated recall trigger for the proficiency.' })
+  ),
+  contents: Type.Optional(
+    Type.String({ description: 'Updated proficiency contents.' })
+  ),
+  append: Type.Optional(
+    Type.Boolean({
+      description:
+        'Whether to append the provided contents to the existing contents instead of replacing them. Defaults to false.',
+    })
+  ),
 });
 
-type UpdateProficiencyParameters = Static<typeof UpdateProficiencyParametersSchema>;
+type UpdateProficiencyParameters = Static<
+  typeof UpdateProficiencyParametersSchema
+>;
 
 function normalizeProficiencyName(name: string) {
   return name.trim().toLowerCase();
@@ -50,8 +79,10 @@ function validateRecallWhen(recallWhen: string) {
 function sortLeastUsefulFirst(entries: ProficienciesEntry[]) {
   return [...entries].sort((left, right) => {
     const now = Date.now();
-    const leftNormalizedUsageCount = left.usageCount / (1 + (now - left.createdAt.getTime()) / DAYS);
-    const rightNormalizedUsageCount = right.usageCount / (1 + (now - right.createdAt.getTime()) / DAYS);
+    const leftNormalizedUsageCount =
+      left.usageCount / (1 + (now - left.createdAt.getTime()) / DAYS);
+    const rightNormalizedUsageCount =
+      right.usageCount / (1 + (now - right.createdAt.getTime()) / DAYS);
     if (leftNormalizedUsageCount !== rightNormalizedUsageCount) {
       return leftNormalizedUsageCount - rightNormalizedUsageCount;
     }
@@ -75,7 +106,10 @@ function formatProficiency(entry: ProficienciesEntry) {
   ].join('\n');
 }
 
-async function enforceProficiencyLimit(orm: MikroORM, maxProficiencies: number) {
+async function enforceProficiencyLimit(
+  orm: MikroORM,
+  maxProficiencies: number
+) {
   const em = orm.em.fork();
   const proficiencies = await em.find(ProficienciesEntry, {});
 
@@ -97,7 +131,8 @@ const proficienciesPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'proficiencies',
     name: 'Proficiencies Plugin',
-    description: 'Proficiencies are skills the assistant can create and maintain for itself. ' +
+    description:
+      'Proficiencies are skills the assistant can create and maintain for itself. ' +
       'They are primarily a way for the assistant to maintain organized banks of knowledge ' +
       'about specific, important, frequently referenced topics or tasks. Includes built in ' +
       'limits for the total number of proficiencies the assistant may have, and manages LFU ' +
@@ -112,22 +147,31 @@ const proficienciesPlugin: AlicePlugin = {
 
   async registerPlugin(pluginInterface) {
     const plugin = await pluginInterface.registerPlugin();
-    const config = await plugin.config<ProficienciesPluginConfigSchema>(ProficienciesPluginConfigSchema, {
-      maxProficiencies: 30,
-    });
+    const config = await plugin.config<ProficienciesPluginConfigSchema>(
+      ProficienciesPluginConfigSchema,
+      {
+        maxProficiencies: 30,
+      }
+    );
 
     const memoryApi = plugin.request('memory');
     if (!memoryApi) {
-      throw new Error('Proficiencies plugin could not access the memory plugin API. Disable proficiencies or memory to recover, or fix the plugin dependency wiring.');
+      throw new Error(
+        'Proficiencies plugin could not access the memory plugin API. Disable proficiencies or memory to recover, or fix the plugin dependency wiring.'
+      );
     }
 
     const skillsApi = plugin.request('skills');
     if (!skillsApi) {
-      throw new Error('Proficiencies plugin could not access the skills plugin API. Disable proficiencies or enable skills to recover.');
+      throw new Error(
+        'Proficiencies plugin could not access the skills plugin API. Disable proficiencies or enable skills to recover.'
+      );
     }
 
     memoryApi.registerDatabaseModels([ProficienciesEntry]);
-    skillsApi.registerSkillFile(path.join(import.meta.dirname, 'skills', 'Proficiencies.md'));
+    skillsApi.registerSkillFile(
+      path.join(import.meta.dirname, 'skills', 'Proficiencies.md')
+    );
 
     const withDatabase = async <T>(callback: (orm: MikroORM) => Promise<T>) => {
       return memoryApi.onDatabaseReady(callback);
@@ -136,7 +180,8 @@ const proficienciesPlugin: AlicePlugin = {
     plugin.registerTool({
       name: 'recallProficiency',
       availableFor: ['chat', 'voice', 'autonomy'],
-      description: 'Recall one of your stored proficiencies by name so you can apply it to the current task.',
+      description:
+        'Recall one of your stored proficiencies by name so you can apply it to the current task.',
       systemPromptFragment: '',
       toolResultPromptIntro: '',
       toolResultPromptOutro: '',
@@ -147,7 +192,7 @@ const proficienciesPlugin: AlicePlugin = {
           return 'Provide a non-empty proficiency name when calling recallProficiency.';
         }
 
-        return withDatabase(async (orm) => {
+        return withDatabase(async orm => {
           const em = orm.em.fork();
           const entry = await em.findOne(ProficienciesEntry, {
             normalizedName: normalizeProficiencyName(proficiencyName),
@@ -163,16 +208,17 @@ const proficienciesPlugin: AlicePlugin = {
 
           return formatProficiency(entry);
         });
-      }
+      },
     });
 
     plugin.registerTool({
       name: 'createProficiency',
       availableFor: ['chat', 'voice', 'autonomy'],
-      description: 'Create a new proficiency with a name, recall trigger, and reusable ' +
-                   'contents whenever you want to start a place to keep knowledge you ' +
-                   'accumulate over time about a specific task or topic. Recall your ' +
-                   '"Proficiencies" skill for details on how to manage your proficiencies.',
+      description:
+        'Create a new proficiency with a name, recall trigger, and reusable ' +
+        'contents whenever you want to start a place to keep knowledge you ' +
+        'accumulate over time about a specific task or topic. Recall your ' +
+        '"Proficiencies" skill for details on how to manage your proficiencies.',
       systemPromptFragment: '',
       toolResultPromptIntro: '',
       toolResultPromptOutro: '',
@@ -189,10 +235,12 @@ const proficienciesPlugin: AlicePlugin = {
           return 'Provide a non-empty recall trigger when calling createProficiency.';
         }
 
-        return withDatabase(async (orm) => {
+        return withDatabase(async orm => {
           const em = orm.em.fork();
           const normalizedName = normalizeProficiencyName(proficiencyName);
-          const existing = await em.findOne(ProficienciesEntry, { normalizedName });
+          const existing = await em.findOne(ProficienciesEntry, {
+            normalizedName,
+          });
           if (existing) {
             return `A proficiency named ${existing.name} already exists. Use updateProficiency to change it.`;
           }
@@ -212,7 +260,10 @@ const proficienciesPlugin: AlicePlugin = {
           em.persist(entry);
           await em.flush();
 
-          const removedEntry = await enforceProficiencyLimit(orm, config.getPluginConfig().maxProficiencies);
+          const removedEntry = await enforceProficiencyLimit(
+            orm,
+            config.getPluginConfig().maxProficiencies
+          );
           if (removedEntry && removedEntry.normalizedName === normalizedName) {
             return `Created ${proficiencyName}, but it was immediately removed because it was the least-used proficiency after enforcing the configured storage limit.`;
           }
@@ -223,13 +274,14 @@ const proficienciesPlugin: AlicePlugin = {
 
           return `Created proficiency ${proficiencyName}. Recall it when ${recallWhen}.`;
         });
-      }
+      },
     });
 
     plugin.registerTool({
       name: 'updateProficiency',
       availableFor: ['chat', 'voice', 'autonomy'],
-      description: 'Update the recall trigger and or contents of an existing proficiency.',
+      description:
+        'Update the recall trigger and or contents of an existing proficiency.',
       systemPromptFragment: '',
       toolResultPromptIntro: '',
       toolResultPromptOutro: '',
@@ -244,7 +296,7 @@ const proficienciesPlugin: AlicePlugin = {
           return 'Provide recallWhen, contents, or both when calling updateProficiency.';
         }
 
-        return withDatabase(async (orm) => {
+        return withDatabase(async orm => {
           const em = orm.em.fork();
           const entry = await em.findOne(ProficienciesEntry, {
             normalizedName: normalizeProficiencyName(proficiencyName),
@@ -277,22 +329,26 @@ const proficienciesPlugin: AlicePlugin = {
 
           return `Updated proficiency ${entry.name}.`;
         });
-      }
+      },
     });
 
     plugin.registerHeaderSystemPrompt({
       name: 'proficiencies',
       weight: 60,
-      getPrompt: async (context) => {
+      getPrompt: async context => {
         if (context.conversationType === 'startup') {
           return false;
         }
 
-        return withDatabase(async (orm) => {
+        return withDatabase(async orm => {
           const em = orm.em.fork();
-          const proficiencies = await em.find(ProficienciesEntry, {}, {
-            orderBy: { name: 'ASC' },
-          });
+          const proficiencies = await em.find(
+            ProficienciesEntry,
+            {},
+            {
+              orderBy: { name: 'ASC' },
+            }
+          );
 
           if (proficiencies.length === 0) {
             return false;
@@ -301,29 +357,34 @@ const proficienciesPlugin: AlicePlugin = {
           return [
             `# Proficiencies\n`,
             `Proficiencies are skills you have created for yourself to help you with specific ` +
-            `tasks or topics. Create and update them at your discretion after recalling the ` +
-            `"Proficiencies" skill for details on how to manage them. Recall appropriate proficiencies ` +
-            `proactively whenever you judge them relevant to the current task or topic.\n`,
+              `tasks or topics. Create and update them at your discretion after recalling the ` +
+              `"Proficiencies" skill for details on how to manage them. Recall appropriate proficiencies ` +
+              `proactively whenever you judge them relevant to the current task or topic.\n`,
             'You have the following proficiencies available for recall:\n',
-            ...proficiencies.map((entry) => `- **${entry.name}:** recall ${entry.name} when ${entry.recallWhen}`),
+            ...proficiencies.map(
+              entry =>
+                `- **${entry.name}:** recall ${entry.name} when ${entry.recallWhen}`
+            ),
           ].join('\n');
         });
       },
     });
-    
+
     plugin.registerFooterSystemPrompt({
       name: 'proficiencies',
       weight: 11000,
-      getPrompt: async (context) => {
+      getPrompt: async context => {
         if (context.conversationType === 'startup') {
           return false;
         }
 
-        return `Don't forget to update any applicable proficiencies if you've just discovered ` +
-          `any new information relevant to them.`;
+        return (
+          `Don't forget to update any applicable proficiencies if you've just discovered ` +
+          `any new information relevant to them.`
+        );
       },
     });
-  }
+  },
 };
 
 export default proficienciesPlugin;

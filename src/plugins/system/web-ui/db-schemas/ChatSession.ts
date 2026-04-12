@@ -8,10 +8,15 @@ const ChatSessionSchema = defineEntity({
     title: p.string(),
     createdAt: p.datetime(),
     updatedAt: p.datetime(),
-    rounds: () => p.oneToMany(ChatSessionRound).fieldName('chatSession').mappedBy('chatSession').orphanRemoval(true),
-  }
+    rounds: () =>
+      p
+        .oneToMany(ChatSessionRound)
+        .fieldName('chatSession')
+        .mappedBy('chatSession')
+        .orphanRemoval(true),
+  },
 });
 
-export class ChatSession extends ChatSessionSchema.class {};
+export class ChatSession extends ChatSessionSchema.class {}
 
 ChatSessionSchema.setClass(ChatSession);

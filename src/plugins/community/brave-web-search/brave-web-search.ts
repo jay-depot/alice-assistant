@@ -5,11 +5,12 @@ const braveWebSearchPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'brave-web-search',
     name: 'Brave Web Search Plugin',
-    description: 'Provides an API for performing web searches using Brave Search. This plugin does not perform any web searches itself, but rather serves as a wrapper around the Brave Search API that other plugins can utilize to perform web searches and retrieve results.',
+    description:
+      'Provides an API for performing web searches using Brave Search. This plugin does not perform any web searches itself, but rather serves as a wrapper around the Brave Search API that other plugins can utilize to perform web searches and retrieve results.',
     version: 'LATEST',
     dependencies: [
       { id: 'brave-search-api', version: 'LATEST' },
-      { id: 'web-search-broker', version: 'LATEST' }
+      { id: 'web-search-broker', version: 'LATEST' },
     ],
     required: false,
   },
@@ -21,15 +22,17 @@ const braveWebSearchPlugin: AlicePlugin = {
 
     const braveSearch = getBraveSearchApiClient();
     if (!braveSearch) {
-      console.warn('Brave Web Search Plugin: Brave Search API client is not available. Please ensure the Brave Search API plugin is correctly configured.');
+      console.warn(
+        'Brave Web Search Plugin: Brave Search API client is not available. Please ensure the Brave Search API plugin is correctly configured.'
+      );
       return;
     }
 
-    registerWebSearchProvider('brave-web-search', async (query) => {
-      const apiResponse = await braveSearch.webSearch(query, { 
-        count: 5, 
+    registerWebSearchProvider('brave-web-search', async query => {
+      const apiResponse = await braveSearch.webSearch(query, {
+        count: 5,
         safesearch: SafeSearchLevel.Off,
-        spellcheck: false, 
+        spellcheck: false,
       });
 
       const results = apiResponse.web.results || [];
@@ -40,7 +43,7 @@ const braveWebSearchPlugin: AlicePlugin = {
         url: result.url,
       }));
     });
-  }
+  },
 };
 
 export default braveWebSearchPlugin;

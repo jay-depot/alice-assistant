@@ -4,41 +4,38 @@
 
 **DONE WOO!**
 
-
 ## Second. Personality plugin migration
 
 **DONE WOO!**
 
-
 ## Third. Voice interaction finalized
-- This thing is supposed to be voice-first, and voice support is more of a rough idea than even a draft. Just on principle, this should be a high priority for that reason alone.
-- It turns out, Node's audio pipeline is like the Easter Bunny: Small, cute, fuzzy, and doesn't exist.
-- Current plan is to split this into a client and server side, so the client can just be Python, which lets us handle wake word detection, STT processing, and TTS processing in a language that actually *has* first class bindings for OWW, Whisper, and Piper-tts.
-- Maybe consider finding a way to bundle the python client into the node module somehow, so it can be started and stopped automatically at the same time. IDK, this isn't a blocker.
-- Let's just make it RESTful for now.
-- Open question: New API endpoints for voice, or generalize the existing ones?
-- We should securely generate a random token the voice client needs to present to the service, then set it as an environment variable before the voice plugin fires off the client.
-- Follow up on this later: Actually secure the web-ui connection as well, ideally with the same token-based system. This one is *slightly* more annoying, simply because there needs to be a way to get the token to the user, so they can enter it into the web UI login screen. Option 1: print token to console with instructions. Option 2: have the assistant core launch the user's preferred browser (just `xdg-open` is fine for now) with the token already appended to the URL as a query parameter whenever a new token needs to be generated. Keep token in cookie or local-storage, so it syncs across multiple browser tabs properly.
+
+**GOOD ENOUGH FOR NOW!**
 
 ## Next. Subconversations, "Task Assistants" and the `brainstorm` plugin.
-- Design philosophy note: As a purely non-technical matter, I want to avoid task assistants that try to do the "creative" work for the user. For example, a "writing assistant" that tries to write the user's novel for them is not really in the spirit of what I'm trying to build here. Instead, task assistants should support creative tasks by being as uncreative as possible, themselves, and focused instead on helping the user get their own ideas sorted out, keeping them on track, and the occasional fact-check backed by a source, without trying to take over the creative process. The goal is to empower the user by having the LLM do the tasks that leverage the inherent structure and predictability of language, which are their optimal use cases, while leaving the creative, intuitive, and personal work to the human user, who is (at least with practice eventually going to be) better at that part an LLM can ever be. That said, for "creative" applications where AI kind of does do it better (like corporate memorandums, work emails, or other dry writing), a task assistant that takes a more active role in the actual writing process is probably still within the spirit of this position.
+
+- Design philosophy note: As a purely non-technical matter, I want to avoid task assistants that try to do the "creative" work for the user. For example, a "writing assistant" that tries to write the user's novel for them is not really in the spirit of what I'm trying to build here. Instead, task assistants should support creative tasks by being as uncreative as possible, themselves, and focused instead on helping the user get their own ideas sorted out, keeping them on track, and the occasional fact-check backed by a source, without trying to take over the creative process. The goal is to empower the user by having the LLM do the tasks that leverage the inherent structure and predictability of language, which are their optimal use cases, while leaving the creative, intuitive, and personal work to the human user, who is (at least with practice eventually going to be) better at that part than an LLM can ever be. That said, for "creative" applications where AI kind of does do it better (like corporate memorandums, work emails, or other dry writing), a task assistant that takes a more active role in the actual writing process is probably still within the spirit of this position.
 - "Interactive agents" under Alice, which are NOT detailed in `agent-dispatch.md`, and considered separate from it, are going to be referred to as "Task Assistants" in documentation and code, and will be handled very differently from what we are calling "agents" elsewhere. The idea is that a Task assistant initiates a "subconversation" within the context of a main assistant conversation. Think of it like the assistant forwarding a phone call to a specialized mini-assistant that has a more focused personality and toolset for handling a specific task.
 - The planned `brainstorm` plugin is going to be the first example of this pattern. When the user asks for help brainstorming, the assistant would create a new "brainstorming assistant" whose entire job is to capture a stream of consciousness style brainstorming ramble from the user, without inserting any analysis or ideas of its own, but encouraging the user to continue after each take. Once the user says the session is over, or it times out from a long silence, the brainstorm assistant's job is to organize the raw output into something more structured with category headings and bullet points, while preserving as much original wording as possible, before writing that to a file in the user's home directory, and handing it back to the main assistant to pick the conversation back up while including that result in the context.
 - Other examples of Task Assistants could include things like a "planning assistant" that helps the user break down a complex project into steps, or a "writing assistant" that helps the user organize their thoughts in a way similar to brainstorm, but with instructions to move anything "off topic" into a separate "parking lot" section at the end, and everything else organized into a clean outline the user can then use for the actual creative writing work themselves. The key is that task assistants are meant to be more focused and have a narrower scope than the main assistant, and are designed to be short-lived and disposable after their specific task is complete.
-- More advanced task assistants might even be able to run commands on the system on behalf of the user, but with a much more limited toolset and a personality that is optimized for safety and clarity about what it can and cannot do. For example, a "troubleshooting assistant" might be able to read the user's configuration files and logs to help them debug an issue, but its web access would be strictly read-only (so it can't accidentally leak credentials or PII) and the session log would be filtered through a automated redaction tool before being stored or used in other prompts, to prevent any other agents or assistants that *can* send information from accidentally leaking sensitive information.
-
+- More advanced task assistants might even be able to run commands on the system on behalf of the user, but with a much more limited toolset and a personality that is optimized for safety and clarity about what it can and cannot do. For example, a "troubleshooting assistant" might be able to read the user's configuration files and logs to help them debug an issue, but its web access would be strictly read-only (so it can't accidentally leak credentials or PII) and the session log would be filtered through a automated redaction tool before being stored or used in other prompts, to prevent any other agents or assistants that _can_ send information from accidentally leaking sensitive information.
 
 ## Everything else, in no particular order
+
 ### Agent dispatching
+
 - see `plans/agent-dispatching.md` for the detailed plan. The high level summary is to create a clean architecture for agent handoff and multi-agent sessions, then use that architecture to give the assistant the power to do things in the background (within the bounds the user wishes to allow).
 
 ### MCP
+
 - This could be a powerful feature for advanced users. Create an MCP client plugin that the user can connect to as many, or as few MCP servers as they want, as well as allowing plugins to register specific MCP servers they need the model to have access to in order to function properly.
 
 ### ACP/MCP
+
 - ACP = "Alice Coordination Protocol" (it's on the nose, but I kinda like that). This would be a light layer on top of MCP that defines some standards for how multiple Alice instances on the same network (or that are authorized to connect to a common ACP/MCP server on the internet or on the same tailscale network) can coordinate with each other, share resources, and delegate tasks to each other. This should also include support for automatically discovering ACP/MCP servers on the local network, and asking whether to connect to them (Both the assistant's user and the server's owner would have to consent to this). While this could potentially enable use cases like load balancing across multiple instances, shared memory or personality state in some future version of the protocol, it's primarily meant for task-handoffs and general message delivery between distinct, independent Alice instances with their own personalities. It would also be a fun, slightly over-engineered way for Alice users to send each other messages through their assistants.
 - Nice to have: Some way to use this to have Alice instances be able to send instructions or delegate tasks to non-alice agents. Think something along the lines of "Alice, I got some notes for you to send about [PROJECT] to send to Claude Code. Ready?" And then the assistant can confirm the note, then send it off to an ACP/MCP server that also exposes non-ACP tools for other agents to read instructions from a "team" of Alice assistants from a single repository without needing to connect each directly.
 
 ### Random web UI improvements
+
 - Show tool calls in the output somehow
 - Split mood plugin into mood tracking, and mood displays. Make a few other mood display plugins. These generally shouldn't conflict, so enabling more than one should be allowed.

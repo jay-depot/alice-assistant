@@ -9,14 +9,17 @@ interface SessionItemProps {
 }
 
 export function SessionItem({ session, isActive, onClick }: SessionItemProps) {
-  const preview = session.lastAssistantMessage || session.lastUserMessage || 'No messages yet';
+  const preview =
+    session.lastAssistantMessage ||
+    session.lastUserMessage ||
+    'No messages yet';
 
   return (
     <div
       className={classNames('session-item', isActive && 'session-item--active')}
       data-id={String(session.id)}
       onClick={() => onClick(session.id)}
-      onKeyDown={(event) => {
+      onKeyDown={event => {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
           onClick(session.id);
@@ -27,7 +30,9 @@ export function SessionItem({ session, isActive, onClick }: SessionItemProps) {
     >
       <div className="session-item__title">{session.title}</div>
       <div className="session-item__preview">{preview}</div>
-      <div className="session-item__time">{formatRelativeTime(session.lastMessageAt)}</div>
+      <div className="session-item__time">
+        {formatRelativeTime(session.lastMessageAt)}
+      </div>
     </div>
   );
 }

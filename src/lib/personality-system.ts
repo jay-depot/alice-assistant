@@ -34,11 +34,14 @@ let activePersonalityProviderOverrideOwner: string | undefined;
 
 export function registerFallbackPersonalityProvider(
   pluginId: string,
-  provider: PersonalityProvider,
+  provider: PersonalityProvider
 ): void {
-  if (fallbackPersonalityProviderOwner && fallbackPersonalityProviderOwner !== pluginId) {
+  if (
+    fallbackPersonalityProviderOwner &&
+    fallbackPersonalityProviderOwner !== pluginId
+  ) {
     throw new Error(
-      `Plugin ${pluginId} attempted to register the fallback personality provider, but that provider is already registered by ${fallbackPersonalityProviderOwner}. Disable one of these plugins to fix your assistant.`,
+      `Plugin ${pluginId} attempted to register the fallback personality provider, but that provider is already registered by ${fallbackPersonalityProviderOwner}. Disable one of these plugins to fix your assistant.`
     );
   }
 
@@ -48,11 +51,14 @@ export function registerFallbackPersonalityProvider(
 
 export function registerPersonalityProvider(
   pluginId: string,
-  provider: PersonalityProvider,
+  provider: PersonalityProvider
 ): void {
-  if (activePersonalityProviderOverrideOwner && activePersonalityProviderOverrideOwner !== pluginId) {
+  if (
+    activePersonalityProviderOverrideOwner &&
+    activePersonalityProviderOverrideOwner !== pluginId
+  ) {
     throw new Error(
-      `Plugin ${pluginId} attempted to register the active personality provider, but that provider is already registered by ${activePersonalityProviderOverrideOwner}. Disable one of these plugins to fix your assistant.`,
+      `Plugin ${pluginId} attempted to register the active personality provider, but that provider is already registered by ${activePersonalityProviderOverrideOwner}. Disable one of these plugins to fix your assistant.`
     );
   }
 
@@ -60,9 +66,13 @@ export function registerPersonalityProvider(
   activePersonalityProviderOverrideOwner = pluginId;
 }
 
-export async function renderPersonalityPrompt(context: PersonalityRenderContext): Promise<string> {
-  const provider = activePersonalityProviderOverride ?? fallbackPersonalityProvider;
-  const providerOwner = activePersonalityProviderOverrideOwner ?? fallbackPersonalityProviderOwner;
+export async function renderPersonalityPrompt(
+  context: PersonalityRenderContext
+): Promise<string> {
+  const provider =
+    activePersonalityProviderOverride ?? fallbackPersonalityProvider;
+  const providerOwner =
+    activePersonalityProviderOverrideOwner ?? fallbackPersonalityProviderOwner;
 
   if (!provider || !providerOwner) {
     return context.purpose === 'notification'
@@ -74,13 +84,17 @@ export async function renderPersonalityPrompt(context: PersonalityRenderContext)
 }
 
 export function getActivePersonalityProviderOwner(): string | undefined {
-  return activePersonalityProviderOverrideOwner ?? fallbackPersonalityProviderOwner;
+  return (
+    activePersonalityProviderOverrideOwner ?? fallbackPersonalityProviderOwner
+  );
 }
 
 export function getFallbackPersonalityProviderOwner(): string | undefined {
   return fallbackPersonalityProviderOwner;
 }
 
-export function getActivePersonalityProviderOverrideOwner(): string | undefined {
+export function getActivePersonalityProviderOverrideOwner():
+  | string
+  | undefined {
   return activePersonalityProviderOverrideOwner;
 }

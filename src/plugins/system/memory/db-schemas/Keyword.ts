@@ -7,9 +7,9 @@ const KeywordSchema = defineEntity({
     id: p.integer().primary(),
     keyword: p.string(),
     memories: () => p.manyToMany(Memory),
-  }
+  },
 });
 
-export class Keyword extends KeywordSchema.class {};
+export class Keyword extends KeywordSchema.class {}
 
 KeywordSchema.setClass(Keyword);

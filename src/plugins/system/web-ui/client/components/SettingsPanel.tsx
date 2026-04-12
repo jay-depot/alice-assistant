@@ -8,10 +8,17 @@ interface SettingsPanelProps {
 
 export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
   return (
-    <aside className={classNames('settings-panel', isOpen && 'settings-panel--open')}>
+    <aside
+      className={classNames('settings-panel', isOpen && 'settings-panel--open')}
+    >
       <div className="settings-panel__header">
         <h2>Interface Settings</h2>
-        <button type="button" className="icon-btn" onClick={onClose} title="Close settings panel">
+        <button
+          type="button"
+          className="icon-btn"
+          onClick={onClose}
+          title="Close settings panel"
+        >
           ✕
         </button>
       </div>

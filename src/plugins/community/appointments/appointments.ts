@@ -4,8 +4,9 @@ const appointmentsPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'appointments',
     name: 'Appointments Plugin',
-    description: 'Provides the assistant with an internal storage for appointments, and ' +
-      'tools to manage it. Use this if you don\'t want to use a third-party calendar ' +
+    description:
+      'Provides the assistant with an internal storage for appointments, and ' +
+      "tools to manage it. Use this if you don't want to use a third-party calendar " +
       'service or share data with a desktop application.',
     version: 'LATEST',
     dependencies: [
@@ -17,8 +18,9 @@ const appointmentsPlugin: AlicePlugin = {
   },
 
   async registerPlugin(pluginInterface) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const plugin = await pluginInterface.registerPlugin();
-  }
+  },
 };
 
 export default appointmentsPlugin;

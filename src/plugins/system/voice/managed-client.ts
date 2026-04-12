@@ -13,7 +13,9 @@ export function createManagedVoiceClientState(): ManagedVoiceClientState {
   };
 }
 
-export function isManagedVoiceClientRunning(state: ManagedVoiceClientState): boolean {
+export function isManagedVoiceClientRunning(
+  state: ManagedVoiceClientState
+): boolean {
   return !!state.childProcess && !state.childProcess.killed;
 }
 
@@ -33,17 +35,22 @@ export function startManagedVoiceClient(options: {
   }
 
   if (state.childProcess && !state.childProcess.killed) {
-    console.log('voice plugin: managed client already running, skipping duplicate launch.');
+    console.log(
+      'voice plugin: managed client already running, skipping duplicate launch.'
+    );
     return;
   }
 
   if (!fs.existsSync(clientScriptPath)) {
-    throw new Error(`voice plugin could not find bundled client script at ${clientScriptPath}. Rebuild the project and try again.`);
+    throw new Error(
+      `voice plugin could not find bundled client script at ${clientScriptPath}. Rebuild the project and try again.`
+    );
   }
 
   const command = config.managedClientCommand.trim() || 'python3';
   const commandBasename = path.basename(command).toLowerCase();
-  const looksLikePython = commandBasename.includes('python') || commandBasename.includes('pypy');
+  const looksLikePython =
+    commandBasename.includes('python') || commandBasename.includes('pypy');
   const args = looksLikePython
     ? ['-u', clientScriptPath, ...config.managedClientArgs]
     : config.managedClientCommand.trim()
@@ -62,35 +69,41 @@ export function startManagedVoiceClient(options: {
   });
 
   if (config.logManagedClientOutput) {
-    child.stdout.on('data', (chunk) => {
+    child.stdout.on('data', chunk => {
       process.stdout.write(`[voice-client stdout] ${String(chunk)}`);
     });
-    child.stderr.on('data', (chunk) => {
+    child.stderr.on('data', chunk => {
       process.stderr.write(`[voice-client stderr] ${String(chunk)}`);
     });
   }
 
   child.on('exit', (code, signal) => {
     state.childProcess = null;
-    console.log(`voice plugin: managed client exited with code ${code ?? 'null'} signal ${signal ?? 'null'}.`);
+    console.log(
+      `voice plugin: managed client exited with code ${code ?? 'null'} signal ${signal ?? 'null'}.`
+    );
   });
 
-  child.on('error', (error) => {
+  child.on('error', error => {
     state.childProcess = null;
     console.error('voice plugin: managed client failed to start:', error);
   });
 
   state.childProcess = child;
-  console.log(`voice plugin: started managed client using command ${command} ${args.join(' ')}.`);
+  console.log(
+    `voice plugin: started managed client using command ${command} ${args.join(' ')}.`
+  );
 }
 
-export async function stopManagedVoiceClient(state: ManagedVoiceClientState): Promise<void> {
+export async function stopManagedVoiceClient(
+  state: ManagedVoiceClientState
+): Promise<void> {
   const child = state.childProcess;
   if (!child) {
     return;
   }
 
-  await new Promise<void>((resolve) => {
+  await new Promise<void>(resolve => {
     const finish = () => {
       state.childProcess = null;
       resolve();

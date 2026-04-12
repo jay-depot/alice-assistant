@@ -1,11 +1,12 @@
 import { Type } from 'typebox';
 import { Tool } from '../../../../lib/tool-system.js';
 
-const systemHealthCheckTool: (config) => Tool = (config) => ({
+const systemHealthCheckTool: (config) => Tool = config => ({
   name: 'systemHealthCheck',
   availableFor: ['chat', 'voice', 'autonomy'],
   description: 'Performs a health check on the system and returns a report.',
-  systemPromptFragment: `Call systemHealthCheck ONLY for questions about the status of the computer you are running on. ` +
+  systemPromptFragment:
+    `Call systemHealthCheck ONLY for questions about the status of the computer you are running on. ` +
     `This includes general questions about how you are doing, as you ARE the computer. systemHealthCheck takes no parameters.`,
   callSignature: 'systemHealthCheck',
   parameters: Type.Object({}),
@@ -16,7 +17,8 @@ const systemHealthCheckTool: (config) => Tool = (config) => ({
     }
     return '';
   },
-  execute: async () => { // systemHealthCheck takes no parameters, so we can ignore the args.
+  execute: async () => {
+    // systemHealthCheck takes no parameters, so we can ignore the args.
     // TODO: Fetch real data. Some of these might be complicated
     const dummyData = {
       cpuUsage: 45,
@@ -49,7 +51,7 @@ const systemHealthCheckTool: (config) => Tool = (config) => ({
           totalSpaceUnit: 'MB',
           type: 'btrfs',
           usage: 34,
-          usageUnit: '%'
+          usageUnit: '%',
         },
         {
           device: '/dev/nvme0n1p2 subvolumeid=257',
@@ -58,7 +60,7 @@ const systemHealthCheckTool: (config) => Tool = (config) => ({
           totalSpaceUnit: 'MB',
           type: 'btrfs',
           usage: 34,
-          usageUnit: '%'
+          usageUnit: '%',
         },
         {
           device: '//nas/personal',
@@ -68,7 +70,7 @@ const systemHealthCheckTool: (config) => Tool = (config) => ({
           type: 'smb',
           usage: null, // Unknown because not mounted yet.
           usageUnit: '%',
-          removable: true
+          removable: true,
         },
         {
           device: '/dev/nvme0n2p1',
@@ -77,7 +79,7 @@ const systemHealthCheckTool: (config) => Tool = (config) => ({
           totalSpaceUnit: 'MB',
           type: 'ext4',
           usage: 92,
-          usageUnit: '%'
+          usageUnit: '%',
         },
         {
           device: '/dev/sda1',
@@ -87,13 +89,13 @@ const systemHealthCheckTool: (config) => Tool = (config) => ({
           type: 'fat32',
           usage: 45,
           usageUnit: '%',
-          removable: true
-        }
+          removable: true,
+        },
       ],
-      networkConnectivity: 'connected'
+      networkConnectivity: 'connected',
     };
     return JSON.stringify(dummyData);
-  }
+  },
 });
 
 export default systemHealthCheckTool;

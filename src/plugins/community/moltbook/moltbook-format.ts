@@ -1,7 +1,7 @@
 type JsonRecord = Record<string, unknown>;
 
 function asRecord(value: unknown) {
-  return value && typeof value === 'object' ? value as JsonRecord : undefined;
+  return value && typeof value === 'object' ? (value as JsonRecord) : undefined;
 }
 
 function asArray(value: unknown) {
@@ -26,13 +26,21 @@ function formatPreview(text: unknown, maxLength = 240) {
     return 'No preview available.';
   }
 
-  return value.length <= maxLength ? value : `${value.slice(0, maxLength - 3)}...`;
+  return value.length <= maxLength
+    ? value
+    : `${value.slice(0, maxLength - 3)}...`;
 }
 
 function formatPostLine(item: unknown) {
   const record = asRecord(item) ?? {};
-  const authorName = getString(asRecord(record.author)?.name, getString(record.author_name));
-  const submoltName = getString(asRecord(record.submolt)?.name, getString(record.submolt_name, 'unknown'));
+  const authorName = getString(
+    asRecord(record.author)?.name,
+    getString(record.author_name)
+  );
+  const submoltName = getString(
+    asRecord(record.submolt)?.name,
+    getString(record.submolt_name, 'unknown')
+  );
   return [
     `- ${getString(record.title)} by ${authorName} in m/${submoltName}`,
     `  Upvotes: ${getNumber(record.upvotes)} | Comments: ${getNumber(record.comment_count)} | Created: ${getString(record.created_at)}`,
@@ -51,7 +59,7 @@ function formatCommentTree(comment: unknown, depth = 0): string[] {
   ];
 
   const replies = asArray(record.replies);
-  replies.forEach((reply) => lines.push(...formatCommentTree(reply, depth + 1)));
+  replies.forEach(reply => lines.push(...formatCommentTree(reply, depth + 1)));
   return lines;
 }
 
@@ -66,37 +74,68 @@ export function formatProfile(payload: JsonRecord) {
     `Followers: ${getNumber(agent.follower_count)} | Following: ${getNumber(agent.following_count)}`,
     `Claimed: ${getBoolean(agent.is_claimed)} | Active: ${getBoolean(agent.is_active)}`,
     `Created: ${getString(agent.created_at)} | Last active: ${getString(agent.last_active)}`,
-    owner ? `Owner X: ${getString(owner.x_handle, 'unknown')} (${getString(owner.x_name, 'unknown')})` : 'Owner details: unavailable.',
+    owner
+      ? `Owner X: ${getString(owner.x_handle, 'unknown')} (${getString(owner.x_name, 'unknown')})`
+      : 'Owner details: unavailable.',
   ].join('\n');
 }
 
 export function formatHome(payload: JsonRecord) {
   const account = asRecord(payload.your_account);
-  const actions = asArray(payload.what_to_do_next).map((item) => `- ${getString(item)}`).join('\n');
-  const activity = asArray(payload.activity_on_your_posts).map((item) => {
-    const record = asRecord(item) ?? {};
-    const commenters = asArray(record.latest_commenters).map((commenter) => getString(commenter)).filter((commenter) => commenter !== 'unknown');
-    const suggestedActions = asArray(record.suggested_actions).map((action) => `  - ${getString(action)}`).join('\n');
-    return [
-      `- ${getString(record.post_title)} (${getString(record.post_id)}) in m/${getString(record.submolt_name, 'unknown')}`,
-      `  New notifications: ${getNumber(record.new_notification_count)} | Latest at: ${getString(record.latest_at)}`,
-      commenters.length > 0 ? `  Recent commenters: ${commenters.join(', ')}` : undefined,
-      `  ${formatPreview(record.preview, 120)}`,
-      suggestedActions ? `  Suggested actions:\n${suggestedActions}` : undefined,
-    ].filter(Boolean).join('\n');
-  }).join('\n');
+  const actions = asArray(payload.what_to_do_next)
+    .map(item => `- ${getString(item)}`)
+    .join('\n');
+  const activity = asArray(payload.activity_on_your_posts)
+    .map(item => {
+      const record = asRecord(item) ?? {};
+      const commenters = asArray(record.latest_commenters)
+        .map(commenter => getString(commenter))
+        .filter(commenter => commenter !== 'unknown');
+      const suggestedActions = asArray(record.suggested_actions)
+        .map(action => `  - ${getString(action)}`)
+        .join('\n');
+      return [
+        `- ${getString(record.post_title)} (${getString(record.post_id)}) in m/${getString(record.submolt_name, 'unknown')}`,
+        `  New notifications: ${getNumber(record.new_notification_count)} | Latest at: ${getString(record.latest_at)}`,
+        commenters.length > 0
+          ? `  Recent commenters: ${commenters.join(', ')}`
+          : undefined,
+        `  ${formatPreview(record.preview, 120)}`,
+        suggestedActions
+          ? `  Suggested actions:\n${suggestedActions}`
+          : undefined,
+      ]
+        .filter(Boolean)
+        .join('\n');
+    })
+    .join('\n');
   const directMessages = asRecord(payload.your_direct_messages);
   const announcement = asRecord(payload.latest_moltbook_announcement);
   const following = asRecord(payload.posts_from_accounts_you_follow);
-  const followingPosts = asArray(following?.posts).slice(0, 3).map((item) => formatPostLine(item)).join('\n\n');
+  const followingPosts = asArray(following?.posts)
+    .slice(0, 3)
+    .map(item => formatPostLine(item))
+    .join('\n\n');
 
   return [
-    account ? `Account: ${getString(account.name)} | Karma: ${getNumber(account.karma)} | Unread notifications: ${getNumber(account.unread_notification_count)}` : 'Account summary unavailable.',
-    activity ? `Activity on your posts:\n${activity}` : 'No recent activity on your posts.',
-    directMessages ? `Direct messages: ${getNumber(directMessages.pending_request_count)} pending requests | ${getNumber(directMessages.unread_message_count)} unread messages.` : 'Direct message summary unavailable.',
-    announcement ? `Latest announcement: ${getString(announcement.title)} (${getString(announcement.post_id)})\n${formatPreview(announcement.preview, 120)}` : 'No announcement summary returned.',
-    followingPosts ? `Recent posts from followed accounts:\n${followingPosts}` : 'No recent followed-account posts returned.',
-    actions ? `Suggested next actions:\n${actions}` : 'No suggested actions were returned.',
+    account
+      ? `Account: ${getString(account.name)} | Karma: ${getNumber(account.karma)} | Unread notifications: ${getNumber(account.unread_notification_count)}`
+      : 'Account summary unavailable.',
+    activity
+      ? `Activity on your posts:\n${activity}`
+      : 'No recent activity on your posts.',
+    directMessages
+      ? `Direct messages: ${getNumber(directMessages.pending_request_count)} pending requests | ${getNumber(directMessages.unread_message_count)} unread messages.`
+      : 'Direct message summary unavailable.',
+    announcement
+      ? `Latest announcement: ${getString(announcement.title)} (${getString(announcement.post_id)})\n${formatPreview(announcement.preview, 120)}`
+      : 'No announcement summary returned.',
+    followingPosts
+      ? `Recent posts from followed accounts:\n${followingPosts}`
+      : 'No recent followed-account posts returned.',
+    actions
+      ? `Suggested next actions:\n${actions}`
+      : 'No suggested actions were returned.',
   ].join('\n\n');
 }
 
@@ -109,28 +148,40 @@ export function formatNotificationSummary(payload: JsonRecord) {
     return 'Moltbook reports no unread notifications right now.';
   }
 
-  const formattedActivity = activityItems.length > 0
-    ? activityItems.map((item) => {
-      const record = asRecord(item) ?? {};
-      return [
-        `- ${getString(record.post_title)} (${getString(record.post_id)}) has ${getNumber(record.new_notification_count)} unread notification(s).`,
-        `  ${formatPreview(record.preview, 140)}`,
-        `  Use getMoltbookComments with postId ${getString(record.post_id)} to read the thread, then mark it read when done.`,
-      ].join('\n');
-    }).join('\n\n')
-    : 'No per-post notification details were returned.';
+  const formattedActivity =
+    activityItems.length > 0
+      ? activityItems
+          .map(item => {
+            const record = asRecord(item) ?? {};
+            return [
+              `- ${getString(record.post_title)} (${getString(record.post_id)}) has ${getNumber(record.new_notification_count)} unread notification(s).`,
+              `  ${formatPreview(record.preview, 140)}`,
+              `  Use getMoltbookComments with postId ${getString(record.post_id)} to read the thread, then mark it read when done.`,
+            ].join('\n');
+          })
+          .join('\n\n')
+      : 'No per-post notification details were returned.';
 
-  return [
-    `Unread notifications: ${unreadCount}`,
-    formattedActivity,
-  ].join('\n\n');
+  return [`Unread notifications: ${unreadCount}`, formattedActivity].join(
+    '\n\n'
+  );
 }
 
 export function formatFeedItems(payload: JsonRecord) {
   const posts = asArray(payload.posts);
-  const formattedPosts = posts.length > 0 ? posts.map((post, index) => `${index + 1}.\n${formatPostLine(post)}`).join('\n\n') : 'No posts returned.';
-  const cursorSummary = payload.has_more ? `More results are available. Next cursor: ${getString(payload.next_cursor)}` : 'No additional pages reported.';
-  const total = typeof payload.count === 'number' ? `Returned ${payload.count} item(s).` : undefined;
+  const formattedPosts =
+    posts.length > 0
+      ? posts
+          .map((post, index) => `${index + 1}.\n${formatPostLine(post)}`)
+          .join('\n\n')
+      : 'No posts returned.';
+  const cursorSummary = payload.has_more
+    ? `More results are available. Next cursor: ${getString(payload.next_cursor)}`
+    : 'No additional pages reported.';
+  const total =
+    typeof payload.count === 'number'
+      ? `Returned ${payload.count} item(s).`
+      : undefined;
 
   return [formattedPosts, total, cursorSummary].filter(Boolean).join('\n\n');
 }
@@ -145,26 +196,43 @@ export function formatPost(payload: JsonRecord) {
     '',
     formatPreview(post.content, 40000),
     typeof post.url === 'string' && post.url ? `\nURL: ${post.url}` : '',
-  ].filter(Boolean).join('\n');
+  ]
+    .filter(Boolean)
+    .join('\n');
 }
 
 export function formatComments(payload: JsonRecord) {
   const comments = asArray(payload.comments);
-  const formatted = comments.length > 0 ? comments.flatMap((comment, index) => [`Thread ${index + 1}:`, ...formatCommentTree(comment)]).join('\n') : 'No comments returned.';
-  const cursorSummary = payload.has_more ? `\n\nMore comment pages are available. Next cursor: ${getString(payload.next_cursor)}` : '';
+  const formatted =
+    comments.length > 0
+      ? comments
+          .flatMap((comment, index) => [
+            `Thread ${index + 1}:`,
+            ...formatCommentTree(comment),
+          ])
+          .join('\n')
+      : 'No comments returned.';
+  const cursorSummary = payload.has_more
+    ? `\n\nMore comment pages are available. Next cursor: ${getString(payload.next_cursor)}`
+    : '';
   return `${formatted}${cursorSummary}`;
 }
 
 export function formatSubmoltList(payload: JsonRecord) {
-  const submolts = asArray(payload.submolts).length > 0 ? asArray(payload.submolts) : asArray(payload);
+  const submolts =
+    asArray(payload.submolts).length > 0
+      ? asArray(payload.submolts)
+      : asArray(payload);
   if (submolts.length === 0) {
     return 'No submolts were returned.';
   }
 
-  return submolts.map((item) => {
-    const record = asRecord(item) ?? {};
-    return `- m/${getString(record.name)} (${getString(record.display_name)}) | Members: ${getNumber(record.member_count)} | Allow crypto: ${getBoolean(record.allow_crypto)}\n  ${getString(record.description, 'No description provided.')}`;
-  }).join('\n\n');
+  return submolts
+    .map(item => {
+      const record = asRecord(item) ?? {};
+      return `- m/${getString(record.name)} (${getString(record.display_name)}) | Members: ${getNumber(record.member_count)} | Allow crypto: ${getBoolean(record.allow_crypto)}\n  ${getString(record.description, 'No description provided.')}`;
+    })
+    .join('\n\n');
 }
 
 export function formatSubmolt(payload: JsonRecord) {
@@ -183,18 +251,25 @@ export function formatSearchResults(payload: JsonRecord) {
     return 'No matching Moltbook search results were returned.';
   }
 
-  const formatted = results.map((item, index) => {
-    const record = asRecord(item) ?? {};
-    const author = getString(asRecord(record.author)?.name);
-    const submolt = getString(asRecord(record.submolt)?.name, getString(asRecord(record.post)?.title, 'n/a'));
-    return [
-      `${index + 1}. ${getString(record.type)} result ${getString(record.id)} by ${author}`,
-      `  Similarity: ${typeof record.similarity === 'number' ? record.similarity.toFixed(2) : getString(record.similarity, 'n/a')} | Submolt/Post: ${submolt}`,
-      `  Post ID: ${getString(record.post_id, 'n/a')}`,
-      `  ${record.title ? `Title: ${getString(record.title)}\n  ` : ''}${formatPreview(record.content, 200)}`,
-    ].join('\n');
-  }).join('\n\n');
+  const formatted = results
+    .map((item, index) => {
+      const record = asRecord(item) ?? {};
+      const author = getString(asRecord(record.author)?.name);
+      const submolt = getString(
+        asRecord(record.submolt)?.name,
+        getString(asRecord(record.post)?.title, 'n/a')
+      );
+      return [
+        `${index + 1}. ${getString(record.type)} result ${getString(record.id)} by ${author}`,
+        `  Similarity: ${typeof record.similarity === 'number' ? record.similarity.toFixed(2) : getString(record.similarity, 'n/a')} | Submolt/Post: ${submolt}`,
+        `  Post ID: ${getString(record.post_id, 'n/a')}`,
+        `  ${record.title ? `Title: ${getString(record.title)}\n  ` : ''}${formatPreview(record.content, 200)}`,
+      ].join('\n');
+    })
+    .join('\n\n');
 
-  const cursorSummary = payload.has_more ? `\n\nMore search results are available. Next cursor: ${getString(payload.next_cursor)}` : '';
+  const cursorSummary = payload.has_more
+    ? `\n\nMore search results are available. Next cursor: ${getString(payload.next_cursor)}`
+    : '';
   return `${formatted}${cursorSummary}`;
 }

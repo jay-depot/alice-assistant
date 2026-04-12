@@ -1,10 +1,12 @@
-type VerificationResult = {
-  success: true;
-  answer: string;
-} | {
-  success: false;
-  error: string;
-};
+type VerificationResult =
+  | {
+      success: true;
+      answer: string;
+    }
+  | {
+      success: false;
+      error: string;
+    };
 
 const canonicalNumbers: Record<string, number> = {
   zero: 0,
@@ -39,14 +41,47 @@ const canonicalNumbers: Record<string, number> = {
 };
 
 const operationKeywords = {
-  add: ['add', 'plus', 'gain', 'gains', 'gained', 'increases', 'increase', 'faster', 'more'],
-  subtract: ['subtract', 'minus', 'lose', 'loses', 'lost', 'slows', 'slower', 'decrease', 'decreases', 'drops', 'drop', 'less'],
-  multiply: ['times', 'multiply', 'multiplies', 'doubles', 'double', 'triples', 'triple'],
+  add: [
+    'add',
+    'plus',
+    'gain',
+    'gains',
+    'gained',
+    'increases',
+    'increase',
+    'faster',
+    'more',
+  ],
+  subtract: [
+    'subtract',
+    'minus',
+    'lose',
+    'loses',
+    'lost',
+    'slows',
+    'slower',
+    'decrease',
+    'decreases',
+    'drops',
+    'drop',
+    'less',
+  ],
+  multiply: [
+    'times',
+    'multiply',
+    'multiplies',
+    'doubles',
+    'double',
+    'triples',
+    'triple',
+  ],
   divide: ['divide', 'divides', 'divided', 'split', 'splits', 'per', 'each'],
 };
 
 function editDistance(left: string, right: string) {
-  const matrix = Array.from({ length: left.length + 1 }, () => Array(right.length + 1).fill(0));
+  const matrix = Array.from({ length: left.length + 1 }, () =>
+    Array(right.length + 1).fill(0)
+  );
 
   for (let i = 0; i <= left.length; i += 1) {
     matrix[i][0] = i;
@@ -61,7 +96,7 @@ function editDistance(left: string, right: string) {
       matrix[i][j] = Math.min(
         matrix[i - 1][j] + 1,
         matrix[i][j - 1] + 1,
-        matrix[i - 1][j - 1] + cost,
+        matrix[i - 1][j - 1] + cost
       );
     }
   }
@@ -77,7 +112,7 @@ function canonicalizeWord(word: string) {
 
   let bestMatch = lower;
   let bestDistance = Number.POSITIVE_INFINITY;
-  Object.keys(canonicalNumbers).forEach((candidate) => {
+  Object.keys(canonicalNumbers).forEach(candidate => {
     const distance = editDistance(lower, candidate);
     if (distance < bestDistance) {
       bestDistance = distance;
@@ -142,22 +177,24 @@ function parseNumbers(tokens: string[]) {
 }
 
 function parseOperation(tokens: string[]) {
-  if (tokens.some((token) => operationKeywords.multiply.includes(token))) {
+  if (tokens.some(token => operationKeywords.multiply.includes(token))) {
     return '*';
   }
-  if (tokens.some((token) => operationKeywords.divide.includes(token))) {
+  if (tokens.some(token => operationKeywords.divide.includes(token))) {
     return '/';
   }
-  if (tokens.some((token) => operationKeywords.subtract.includes(token))) {
+  if (tokens.some(token => operationKeywords.subtract.includes(token))) {
     return '-';
   }
-  if (tokens.some((token) => operationKeywords.add.includes(token))) {
+  if (tokens.some(token => operationKeywords.add.includes(token))) {
     return '+';
   }
   return undefined;
 }
 
-export function solveMoltbookVerificationChallenge(challengeText: string): VerificationResult {
+export function solveMoltbookVerificationChallenge(
+  challengeText: string
+): VerificationResult {
   const tokens = normalizeChallenge(challengeText);
   const numbers = parseNumbers(tokens);
   const operation = parseOperation(tokens);
@@ -165,7 +202,8 @@ export function solveMoltbookVerificationChallenge(challengeText: string): Verif
   if (numbers.length < 2 || !operation) {
     return {
       success: false,
-      error: 'Could not parse the numbers and operation from the Moltbook challenge.',
+      error:
+        'Could not parse the numbers and operation from the Moltbook challenge.',
     };
   }
 

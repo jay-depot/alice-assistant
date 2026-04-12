@@ -88,7 +88,8 @@ function PluginRoutePage({
   onOpenSettings: () => void;
 }) {
   const RouteComponent = route.component;
-  const pageTitle = route.title?.trim() || route.path.replace(/^\//, '') || 'Plugin Page';
+  const pageTitle =
+    route.title?.trim() || route.path.replace(/^\//, '') || 'Plugin Page';
 
   return (
     <main id="main">
@@ -136,7 +137,7 @@ export function App() {
     refreshSessions,
   });
 
-  const pluginRoutes = routes.filter((route) => route.path !== '/');
+  const pluginRoutes = routes.filter(route => route.path !== '/');
 
   const submitDraft = useCallback(async () => {
     const trimmedDraft = draft.trim();
@@ -154,7 +155,7 @@ export function App() {
         sessions={sessions}
         routes={pluginRoutes}
         currentSessionId={currentSessionId}
-        onSelectSession={(id) => {
+        onSelectSession={id => {
           void loadSession(id);
         }}
         onNewChat={() => {
@@ -191,18 +192,29 @@ export function App() {
             />
           }
         />
-        {pluginRoutes.map((route) => (
+        {pluginRoutes.map(route => (
           <Route
             key={route.path}
             path={route.path}
-            element={<PluginRoutePage route={route} onOpenSettings={() => setIsSettingsOpen(true)} />}
+            element={
+              <PluginRoutePage
+                route={route}
+                onOpenSettings={() => setIsSettingsOpen(true)}
+              />
+            }
           />
         ))}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
 
-      <SettingsPanel isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
-      <ErrorToast message={errorMessage} onClear={() => setErrorMessage(null)} />
+      <SettingsPanel
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+      />
+      <ErrorToast
+        message={errorMessage}
+        onClear={() => setErrorMessage(null)}
+      />
     </BrowserRouter>
   );
 }

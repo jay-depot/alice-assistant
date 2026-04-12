@@ -16,7 +16,8 @@ import {
 import { STARTER_FACET_DEFINITIONS } from './seed-facets.js';
 
 const DEFAULT_FACET_NAME = 'Neutral';
-const DEFAULT_FACET_EMBODY_WHEN = 'you do not have a more specific situational facet active';
+const DEFAULT_FACET_EMBODY_WHEN =
+  'you do not have a more specific situational facet active';
 const DEFAULT_FACET_INSTRUCTIONS = [
   'Stay grounded, practical, and collaborative.',
   'Do not force a heightened tone when the situation does not call for it.',
@@ -44,36 +45,45 @@ function getCorePrinciplesFilePath(): string {
     UserConfig.getConfigPath(),
     'plugin-settings',
     'personality-facets',
-    'core-principles.md',
+    'core-principles.md'
   );
 }
 
 const UpdatePersonalityFacetToolParametersSchema = Type.Object({
   facetName: Type.String({
-    description: 'The name of the personality facet to create or update. If a facet with this name already exists, it will be updated with the new instructions. If not, a new facet will be created with these instructions.',
+    description:
+      'The name of the personality facet to create or update. If a facet with this name already exists, it will be updated with the new instructions. If not, a new facet will be created with these instructions.',
   }),
   embodyWhen: Type.String({
-    description: 'A description of the situations in which you want to embody this facet. This should be a fragment that completes the sentence "Embody your [facetName] personality facet when...". For example, if you are creating a "Playful" facet, you might say "Embody your Playful facet when the user is engaging in lighthearted conversation or asks you to tell a joke." This will help you decide when to switch to embodying this facet.',
+    description:
+      'A description of the situations in which you want to embody this facet. This should be a fragment that completes the sentence "Embody your [facetName] personality facet when...". For example, if you are creating a "Playful" facet, you might say "Embody your Playful facet when the user is engaging in lighthearted conversation or asks you to tell a joke." This will help you decide when to switch to embodying this facet.',
   }),
   instructions: Type.String({
-    description: 'The instructions for this personality facet. These should be written in markdown and should include any information about the facet that the assistant should know when embodying it, such as its tone, style of speaking, attitudes, and any other relevant information.',
+    description:
+      'The instructions for this personality facet. These should be written in markdown and should include any information about the facet that the assistant should know when embodying it, such as its tone, style of speaking, attitudes, and any other relevant information.',
   }),
 });
 
 const EmbodyFacetToolParametersSchema = Type.Object({
   facetName: Type.String({
-    description: 'The name of the personality facet to embody. If you want to create a new facet instead, use the updatePersonalityFacet tool.',
+    description:
+      'The name of the personality facet to embody. If you want to create a new facet instead, use the updatePersonalityFacet tool.',
   }),
 });
 
-type EmbodyFacetToolParameters = Type.Static<typeof EmbodyFacetToolParametersSchema>;
-type UpdatePersonalityFacetToolParameters = Type.Static<typeof UpdatePersonalityFacetToolParametersSchema>;
+type EmbodyFacetToolParameters = Type.Static<
+  typeof EmbodyFacetToolParametersSchema
+>;
+type UpdatePersonalityFacetToolParameters = Type.Static<
+  typeof UpdatePersonalityFacetToolParametersSchema
+>;
 
 const personalityFacetsPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'personality-facets',
     name: 'Personality Facets Plugin',
-    description: 'An alternative personality engine for ALICE that provides the assistant with ' +
+    description:
+      'An alternative personality engine for ALICE that provides the assistant with ' +
       'a small core set of immutable principles, and a set of situational "facets" that it can ' +
       'manage and activate itself.',
     version: 'LATEST',
@@ -89,7 +99,9 @@ const personalityFacetsPlugin: AlicePlugin = {
     const memory = plugin.request('memory');
     const skill = plugin.request('skills');
 
-    skill.registerSkillFile(path.join(import.meta.dirname, 'skills', 'PersonalityFacets.md'));
+    skill.registerSkillFile(
+      path.join(import.meta.dirname, 'skills', 'PersonalityFacets.md')
+    );
 
     let corePersonalityPrinciples = DEFAULT_CORE_PERSONALITY_PRINCIPLES;
     memory.registerDatabaseModels([
@@ -97,11 +109,14 @@ const personalityFacetsPlugin: AlicePlugin = {
       PersonalityFacetsSessionState,
     ]);
 
-    const getORM = memory.onDatabaseReady(async (orm) => orm);
+    const getORM = memory.onDatabaseReady(async orm => orm);
 
     async function loadCorePersonalityPrinciples(): Promise<string> {
       try {
-        const fileContents = await readFile(getCorePrinciplesFilePath(), 'utf-8');
+        const fileContents = await readFile(
+          getCorePrinciplesFilePath(),
+          'utf-8'
+        );
         const trimmedContents = fileContents.trim();
         return trimmedContents || DEFAULT_CORE_PERSONALITY_PRINCIPLES;
       } catch {
@@ -111,7 +126,9 @@ const personalityFacetsPlugin: AlicePlugin = {
 
     corePersonalityPrinciples = await loadCorePersonalityPrinciples();
 
-    async function getFacetDefinition(name: string): Promise<PersonalityFacetsFacetDefinition | null> {
+    async function getFacetDefinition(
+      name: string
+    ): Promise<PersonalityFacetsFacetDefinition | null> {
       if (name === DEFAULT_FACET_NAME) {
         return null;
       }
@@ -121,14 +138,19 @@ const personalityFacetsPlugin: AlicePlugin = {
       return await em.findOne(PersonalityFacetsFacetDefinition, { name });
     }
 
-    async function getActiveFacetForConversation(_conversationType: string, sessionId?: number): Promise<string | null> {
+    async function getActiveFacetForConversation(
+      _conversationType: string,
+      sessionId?: number
+    ): Promise<string | null> {
       if (!sessionId) {
         return null;
       }
 
       const orm = await getORM;
       const em = orm.em.fork();
-      const state = await em.findOne(PersonalityFacetsSessionState, { sessionId });
+      const state = await em.findOne(PersonalityFacetsSessionState, {
+        sessionId,
+      });
 
       return state?.activeFacetName ?? null;
     }
@@ -154,7 +176,7 @@ const personalityFacetsPlugin: AlicePlugin = {
     }
 
     async function createOrUpdateFacetDefinition(
-      params: UpdatePersonalityFacetToolParameters,
+      params: UpdatePersonalityFacetToolParameters
     ): Promise<'created' | 'updated'> {
       const facetName = params.facetName.trim();
       const embodyWhen = params.embodyWhen.trim();
@@ -165,7 +187,9 @@ const personalityFacetsPlugin: AlicePlugin = {
       }
 
       if (facetName === DEFAULT_FACET_NAME) {
-        throw new Error(`The "${DEFAULT_FACET_NAME}" facet is reserved as the built-in fallback and cannot be modified.`);
+        throw new Error(
+          `The "${DEFAULT_FACET_NAME}" facet is reserved as the built-in fallback and cannot be modified.`
+        );
       }
 
       if (!embodyWhen) {
@@ -224,13 +248,19 @@ const personalityFacetsPlugin: AlicePlugin = {
 
       await em.flush();
     }
-    
-    async function renderPersonalityPrompt(context: PersonalityRenderContext): Promise<string> {
+
+    async function renderPersonalityPrompt(
+      context: PersonalityRenderContext
+    ): Promise<string> {
       const { conversationType, sessionId } = context;
 
-      const activeFacetName = (await getActiveFacetForConversation(conversationType, sessionId)) ?? 'Neutral';
-      const activeFacetInstructions = await getFacetInstructions(activeFacetName);
-      const activeFacetEmbodyingSituations = await getFacetEmbodyingSituations(activeFacetName);
+      const activeFacetName =
+        (await getActiveFacetForConversation(conversationType, sessionId)) ??
+        'Neutral';
+      const activeFacetInstructions =
+        await getFacetInstructions(activeFacetName);
+      const activeFacetEmbodyingSituations =
+        await getFacetEmbodyingSituations(activeFacetName);
       const principles = await getCorePersonalityPrinciples();
 
       const promptSections: string[] = [];
@@ -240,17 +270,29 @@ const personalityFacetsPlugin: AlicePlugin = {
       promptSections.push(principles);
 
       promptSections.push(`## ACTIVE PERSONALITY FACET`);
-      promptSections.push(`You are currently embodying the "${activeFacetName}" personality facet.`);
-      promptSections.push(`You typically embody this facet when ${activeFacetEmbodyingSituations}.`);
-      promptSections.push(`Here are the instructions for embodying this facet:\n${activeFacetInstructions}`);
+      promptSections.push(
+        `You are currently embodying the "${activeFacetName}" personality facet.`
+      );
+      promptSections.push(
+        `You typically embody this facet when ${activeFacetEmbodyingSituations}.`
+      );
+      promptSections.push(
+        `Here are the instructions for embodying this facet:\n${activeFacetInstructions}`
+      );
 
       promptSections.push('## OTHER AVAILABLE PERSONALITY FACETS');
-      promptSections.push(`**${DEFAULT_FACET_NAME}* (built-in fallback facet): Embody Neutral when ${DEFAULT_FACET_EMBODY_WHEN}.`);
-      (await getAllFacets()).map(facet => 
-        `- **${facet.name}** (Last embodied: ${formatFacetLastUsed(facet.lastEmbodiedAt)}): Embody ${facet.name} when ${facet.embodyWhen}.
-      `).forEach(facetInfo => {
-        promptSections.push(facetInfo);
-      });
+      promptSections.push(
+        `**${DEFAULT_FACET_NAME}* (built-in fallback facet): Embody Neutral when ${DEFAULT_FACET_EMBODY_WHEN}.`
+      );
+      (await getAllFacets())
+        .map(
+          facet =>
+            `- **${facet.name}** (Last embodied: ${formatFacetLastUsed(facet.lastEmbodiedAt)}): Embody ${facet.name} when ${facet.embodyWhen}.
+      `
+        )
+        .forEach(facetInfo => {
+          promptSections.push(facetInfo);
+        });
 
       return promptSections.join('\n\n');
     }
@@ -262,8 +304,10 @@ const personalityFacetsPlugin: AlicePlugin = {
     plugin.registerHeaderSystemPrompt({
       name: 'personality-facets',
       weight: -9999,
-      getPrompt: async (context) => {
-        const conversationTypeDefinition = getConversationTypeDefinition(context.conversationType);
+      getPrompt: async context => {
+        const conversationTypeDefinition = getConversationTypeDefinition(
+          context.conversationType
+        );
         if (conversationTypeDefinition?.includePersonality === false) {
           return false;
         }
@@ -283,7 +327,8 @@ const personalityFacetsPlugin: AlicePlugin = {
     plugin.registerTool({
       name: 'updatePersonalityFacet',
       availableFor: ['autonomy', 'chat', 'voice'],
-      description: 'Create a new personality facet or update an existing one when you need a reusable situational mode with specific tone, style, or behavioral guidance.',
+      description:
+        'Create a new personality facet or update an existing one when you need a reusable situational mode with specific tone, style, or behavioral guidance.',
       parameters: UpdatePersonalityFacetToolParametersSchema,
       systemPromptFragment: '',
       toolResultPromptIntro: '',
@@ -303,7 +348,8 @@ const personalityFacetsPlugin: AlicePlugin = {
     plugin.registerTool({
       name: 'embodyPersonalityFacet',
       availableFor: ['autonomy', 'chat', 'voice'],
-      description: 'Call embodyFacet when a different facet than you are currently embodying ' +
+      description:
+        'Call embodyFacet when a different facet than you are currently embodying ' +
         'would be more appropriate for the current situation. For example, if you are currently ' +
         'embodying a "Professional" facet and the user just asked you to tell a joke, you might ' +
         'decide to switch to a "Playful" facet to better match the tone of the interaction.',
@@ -311,7 +357,10 @@ const personalityFacetsPlugin: AlicePlugin = {
       systemPromptFragment: '',
       toolResultPromptIntro: '',
       toolResultPromptOutro: '',
-      execute: async (params: EmbodyFacetToolParameters, context: ToolExecutionContext) => {
+      execute: async (
+        params: EmbodyFacetToolParameters,
+        context: ToolExecutionContext
+      ) => {
         if (!context.sessionId) {
           return `You cannot switch personality facets right now because this conversation does not have a persistent session.`;
         }
@@ -348,7 +397,7 @@ const personalityFacetsPlugin: AlicePlugin = {
         return `You have successfully switched to embodying the "${params.facetName}" personality facet.`;
       },
     });
-  }
+  },
 };
 
 export default personalityFacetsPlugin;
@@ -360,12 +409,14 @@ export default personalityFacetsPlugin;
  */
 function formatFacetLastUsed(lastEmbodiedAt: Date) {
   const now = new Date();
-  
+
   if (!lastEmbodiedAt) {
     return 'never';
   }
 
-  const secondsSinceLastEmbodying = Math.floor((now.getTime() - lastEmbodiedAt.getTime()) / 1000);
+  const secondsSinceLastEmbodying = Math.floor(
+    (now.getTime() - lastEmbodiedAt.getTime()) / 1000
+  );
 
   if (secondsSinceLastEmbodying < 5) {
     return 'just now';
@@ -385,5 +436,5 @@ function formatFacetLastUsed(lastEmbodiedAt: Date) {
     return `months ago`;
   } else {
     return `over a year ago`;
-  } 
+  }
 }

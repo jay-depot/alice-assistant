@@ -18,13 +18,16 @@ export const ScratchFilesPluginConfigSchema = Type.Object({
   allowOverwrite: Type.Boolean({ default: true }),
 });
 
-export type ScratchFilesPluginConfigSchema = Type.Static<typeof ScratchFilesPluginConfigSchema>;
+export type ScratchFilesPluginConfigSchema = Type.Static<
+  typeof ScratchFilesPluginConfigSchema
+>;
 
 const scratchFilesPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'scratch-files',
     name: 'Scratch Files Plugin',
-    description: 'Provides the assistant with the ability to create and manage scratch files. ' +
+    description:
+      'Provides the assistant with the ability to create and manage scratch files. ' +
       'These are temporary files that it uses internally to save information between interactions. ' +
       'The assistant can create, read, update, and delete these files as needed.',
     version: 'LATEST',
@@ -49,7 +52,9 @@ const scratchFilesPlugin: AlicePlugin = {
     plugin.registerTool(writeScratchFileTool(config.getPluginConfig()));
 
     plugin.hooks.onAllPluginsLoaded(async () => {
-      const scratchDir = simpleExpandTilde(config.getPluginConfig().scratchDirectory);
+      const scratchDir = simpleExpandTilde(
+        config.getPluginConfig().scratchDirectory
+      );
       const indexFilePath = path.join(scratchDir, '.index');
 
       if (await exists(indexFilePath)) {
@@ -66,13 +71,21 @@ const scratchFilesPlugin: AlicePlugin = {
       name: 'scratch-files-header',
       weight: 10000,
       async getPrompt(context) {
-        const conversationTypeDefinition = getConversationTypeDefinition(context.conversationType);
-        if (!conversationTypeDefinition || conversationTypeDefinition.baseType === 'startup') {
+        const conversationTypeDefinition = getConversationTypeDefinition(
+          context.conversationType
+        );
+        if (
+          !conversationTypeDefinition ||
+          conversationTypeDefinition.baseType === 'startup'
+        ) {
           return false;
         }
 
-        const indexFilePath = path.join(config.getPluginConfig().scratchDirectory, '.index');
-        let indexContent : string;
+        const indexFilePath = path.join(
+          config.getPluginConfig().scratchDirectory,
+          '.index'
+        );
+        let indexContent: string;
 
         if (await exists(indexFilePath)) {
           const rawIndex = JSON.parse(await readFile(indexFilePath, 'utf-8'));
@@ -85,7 +98,7 @@ const scratchFilesPlugin: AlicePlugin = {
         return false;
       },
     });
-  }
+  },
 };
 
 export default scratchFilesPlugin;
