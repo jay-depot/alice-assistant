@@ -80,12 +80,16 @@ const moodPlugin: AlicePlugin = {
     description:
       'Allows the assistant to set a "mood" that is included in the system prompt and used to influence the assistant\'s responses as well as other aspects of how the assistant is presented, including an expression sprite in the web UI.',
     version: 'LATEST',
-    dependencies: [{ id: 'web-ui', version: 'LATEST' }],
+    dependencies: [
+      { id: 'rest-serve', version: 'LATEST' },
+      { id: 'web-ui', version: 'LATEST' },
+    ],
     required: false,
   },
 
   async registerPlugin(pluginInterface) {
     const plugin = await pluginInterface.registerPlugin();
+    const restServe = plugin.request('rest-serve');
     const webUi = plugin.request('web-ui');
     const currentMood: { mood: string; reason: string } = {
       mood: 'neutral',
@@ -117,15 +121,17 @@ const moodPlugin: AlicePlugin = {
       );
     }
 
-    if (webUi) {
-      webUi.express.get('/api/mood', async (_req, res) => {
+    if (restServe) {
+      restServe.express.get('/api/mood', async (_req, res) => {
         res.setHeader('Cache-Control', 'no-store');
         res.json({
           mood: currentMood.mood,
           face: getMoodFace(currentMood.mood),
         });
       });
+    }
 
+    if (webUi) {
       // Register the browser bundle built from `mood-web-ui.ts`.
       webUi.registerStylesheet(path.join(currentDir, 'mood-web-ui.css'));
       webUi.registerScript(path.join(currentDir, 'mood-web-ui.js'));

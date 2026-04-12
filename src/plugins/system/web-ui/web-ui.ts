@@ -7,12 +7,11 @@ import {
   TaskAssistants,
   AgentSystem,
 } from '../../../lib.js';
-import express, { Express } from 'express';
+import { Express, static as serveStatic } from 'express';
 import * as fs from 'fs';
 import * as path from 'path';
 import { createHash } from 'crypto';
 import { fileURLToPath } from 'url';
-import { type Server } from 'http';
 import type { MikroORM } from '@mikro-orm/sqlite';
 import { UserConfig } from '../../../lib/user-config.js';
 import { ChatSession, ChatSessionRound } from './db-schemas/index.js';
@@ -61,7 +60,10 @@ const webUiPlugin: AlicePlugin = {
       'Provides the web interface for the assistant, and manages all interactions ' +
       'between the assistant and the web interface.',
     version: 'LATEST',
-    dependencies: [{ id: 'memory', version: 'LATEST' }], // probably no plugins should depend on this one, since it's so core to the assistant's functionality. Should we enforce that somehow?
+    dependencies: [
+      { id: 'memory', version: 'LATEST' },
+      { id: 'rest-serve', version: 'LATEST' },
+    ], // probably no plugins should depend on this one, since it's so core to the assistant's functionality. Should we enforce that somehow?
     required: true,
   },
 
@@ -69,8 +71,13 @@ const webUiPlugin: AlicePlugin = {
     const plugin = await pluginInterface.registerPlugin();
     const { onDatabaseReady } = plugin.request('memory');
 
-    const PORT = UserConfig.getConfig().webInterface.port;
-    const HOST = UserConfig.getConfig().webInterface.bindToAddress;
+    const restServe = plugin.request('rest-serve');
+    if (!restServe) {
+      throw new Error(
+        'web-ui plugin could not access the rest-serve plugin capabilities. Disable web-ui or fix the rest-serve plugin to continue.'
+      );
+    }
+
     const userWebInterfaceDir = path.join(
       UserConfig.getConfigPath(),
       'web-interface'
@@ -79,7 +86,7 @@ const webUiPlugin: AlicePlugin = {
 
     fs.mkdirSync(userWebInterfaceDir, { recursive: true });
 
-    const app = express();
+    const app = restServe.express;
     type RegisteredUiExtension = AliceUiScriptRegistration & {
       groupKey: string;
     };
@@ -461,8 +468,6 @@ const webUiPlugin: AlicePlugin = {
       );
     };
 
-    app.use(express.json());
-
     app.get('/user-style.css', (_req, res) => {
       console.log(`Serving user style from ${userStylePath}`);
       res.setHeader('Cache-Control', 'no-store');
@@ -478,7 +483,7 @@ const webUiPlugin: AlicePlugin = {
     });
 
     app.use(
-      express.static(path.join(currentDir, 'client'), { fallthrough: true })
+      serveStatic(path.join(currentDir, 'client'), { fallthrough: true })
     );
 
     plugin.offer<'web-ui'>({
@@ -497,7 +502,7 @@ const webUiPlugin: AlicePlugin = {
     plugin.hooks.onAssistantAcceptsRequests(async () => {
       // TODO: Organize this crap into files.
       console.log(
-        `Starting web UI on ${UserConfig.getConfig().webInterface.bindToAddress}:${UserConfig.getConfig().webInterface.port}...`
+        `Registering web UI routes on ${UserConfig.getConfig().webInterface.bindToAddress}:${UserConfig.getConfig().webInterface.port}...`
       );
       const orm = await onDatabaseReady(async orm => orm);
 
@@ -886,25 +891,11 @@ const webUiPlugin: AlicePlugin = {
         }
       );
 
-      const server: Server = app.listen(PORT, HOST, err => {
-        if (err) {
-          console.error('Error starting web UI server:', err);
-          process.exit(1);
-        }
-        console.log(`Server running at http://${HOST}:${PORT}/`);
-      });
-
       plugin.hooks.onAssistantWillStopAcceptingRequests(async () => {
         console.log(
-          'Assistant will stop accepting requests. Shutting down web UI server...'
+          'Assistant will stop accepting requests. Flushing web UI chat session cache...'
         );
         await flushAndEvictAllCachedConversations();
-        server.close(async (serverErr?: Error) => {
-          if (serverErr) {
-            console.error('Error shutting down web UI server:', serverErr);
-            return;
-          }
-        });
       });
     });
   },

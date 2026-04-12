@@ -1,3 +1,4 @@
+import Type from 'typebox';
 import {
   AlicePlugin,
   getConversationTypeOwner,
@@ -25,7 +26,7 @@ const troubleshootingPlugin: AlicePlugin = {
         'Call getAssistantDebugInfo to get a dump of debug information about yourself, ' +
         'including loaded plugins, and conversation types. This is intended to be used for ' +
         'troubleshooting when something goes wrong.',
-      parameters: [],
+      parameters: Type.Object({}),
       systemPromptFragment: '',
       toolResultPromptIntro: '',
       toolResultPromptOutro: '',

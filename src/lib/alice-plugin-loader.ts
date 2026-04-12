@@ -36,6 +36,7 @@ const defaultEnabledPlugins: EnabledPluginsConfig = {
     'notifications-chat-interruption': false,
     'notifications-chat-initiate': false,
     'reminders-broker': true,
+    'rest-serve': true,
     'web-ui': true,
     voice: true,
     'web-search-broker': true,

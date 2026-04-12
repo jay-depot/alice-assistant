@@ -78,6 +78,12 @@
     "required": true
   },
   {
+    "id": "rest-serve",
+    "name": "REST Serve",
+    "category": "system",
+    "required": true
+  },
+  {
     "id": "web-ui",
     "name": "Web UI",
     "category": "system",

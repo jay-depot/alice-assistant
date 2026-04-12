@@ -26,7 +26,7 @@ const voicePlugin: AlicePlugin = {
     description:
       'Provides token-protected local voice endpoints and supervises the managed local voice client.',
     version: 'LATEST',
-    dependencies: [{ id: 'web-ui', version: 'LATEST' }],
+    dependencies: [{ id: 'rest-serve', version: 'LATEST' }],
     required: true,
   },
 
@@ -36,11 +36,11 @@ const voicePlugin: AlicePlugin = {
       VoicePluginConfigSchema,
       defaultVoicePluginConfig
     );
-    const webUi = plugin.request('web-ui');
+    const restServe = plugin.request('rest-serve');
 
-    if (!webUi) {
+    if (!restServe) {
       throw new Error(
-        'voice plugin could not access the web-ui plugin capabilities. Disable voice or fix the web-ui plugin to continue.'
+        'voice plugin could not access the rest-serve plugin capabilities. Disable voice or fix the rest-serve plugin to continue.'
       );
     }
 
@@ -88,7 +88,7 @@ const voicePlugin: AlicePlugin = {
       },
     });
 
-    registerVoiceRoutes(webUi.express, runtimeState);
+    registerVoiceRoutes(restServe.express, runtimeState);
 
     const closeVoiceRuntime = async () => {
       console.log('voice plugin: shutting down voice runtime.');

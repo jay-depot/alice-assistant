@@ -97,7 +97,10 @@ describe('troubleshootingPlugin', () => {
     expect(tool).toBeDefined();
     expect(tool.availableFor).toContain('chat');
     expect(tool.availableFor).toContain('voice');
-    expect(tool.parameters).toEqual([]);
+    expect(tool.parameters).toEqual({
+      type: 'object',
+      properties: {},
+    });
   });
 
   it('getAssistantDebugInfo returns loaded plugins and conversation types', async () => {

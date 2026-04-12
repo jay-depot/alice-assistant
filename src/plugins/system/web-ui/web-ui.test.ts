@@ -75,6 +75,7 @@ vi.mock('express', () => {
   });
   return {
     default: expressExport,
+    static: mockExpressStatic,
   };
 });
 
@@ -231,6 +232,11 @@ function createMockPluginInterface(initialSessions: ChatSessionRecord[] = []) {
             registerDatabaseModels: mockRegisterDatabaseModels,
           };
         }
+        if (pluginId === 'rest-serve') {
+          return {
+            express: mockApp,
+          };
+        }
         return undefined;
       },
     }),
@@ -307,6 +313,7 @@ describe('webUiPlugin', () => {
   it('declares dependency on memory', () => {
     const depIds = webUiPlugin.pluginMetadata.dependencies!.map(d => d.id);
     expect(depIds).toContain('memory');
+    expect(depIds).toContain('rest-serve');
   });
 
   it('offers expected web-ui capabilities', async () => {

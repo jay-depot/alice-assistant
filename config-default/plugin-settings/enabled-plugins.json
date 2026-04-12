@@ -17,6 +17,7 @@
     "skills": false,
     "proficiencies": false,
     "reminders-broker": true,
+    "rest-serve": true,
     "application": false,
     "mood": true,
     "news-broker": true,
