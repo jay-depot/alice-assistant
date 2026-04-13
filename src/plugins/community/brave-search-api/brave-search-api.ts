@@ -26,6 +26,7 @@ const braveSearchApiPlugin: AlicePlugin = {
       'Provides a common instance of the Brave search API client for other plugins to use.',
     id: 'brave-search-api',
     name: 'Brave Search API Plugin',
+    brandColor: '#7e15d6',
     required: false,
     version: 'LATEST',
     dependencies: [],
@@ -43,7 +44,7 @@ const braveSearchApiPlugin: AlicePlugin = {
     plugin.offer<'brave-search-api'>({
       getBraveSearchApiClient: () => {
         if (!apiKey) {
-          console.warn(
+          plugin.logger.warn(
             'Brave Search API Plugin: No API key provided, Brave Search API client will not work. Please provide an API key in the plugin configuration to enable Brave Search API functionality.'
           );
           return null;

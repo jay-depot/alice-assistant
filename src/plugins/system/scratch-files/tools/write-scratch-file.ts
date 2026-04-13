@@ -5,6 +5,9 @@ import { Static, Type } from 'typebox';
 import { simpleExpandTilde } from '../../../../lib/simple-tilde-expansion.js';
 import { ScratchFilesPluginConfigSchema } from '../scratch-files.js';
 import { freshenScratchFilesIndex } from '../scratch-files-index.js';
+import { createPluginLogger } from '../../../../lib/plugin-logger.js';
+
+const logger = createPluginLogger('scratch-files');
 
 const parameters = Type.Object({
   filename: Type.String(),
@@ -71,7 +74,7 @@ const writeScratchFileTool: (
       return `Error: File already exists and overwriting is not allowed.`;
     }
 
-    console.log(`Writing file: ${filename}`);
+    logger.log(`Writing file: ${filename}`);
     fs.writeFileSync(filePath, contents);
 
     await freshenScratchFilesIndex(config);

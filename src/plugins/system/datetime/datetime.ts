@@ -5,6 +5,7 @@ const datetimePlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'datetime',
     name: 'Date and Time Plugin',
+    brandColor: '#dfeaae',
     description: 'Provides the current date and time to the assistant.',
     version: 'LATEST',
     dependencies: [],

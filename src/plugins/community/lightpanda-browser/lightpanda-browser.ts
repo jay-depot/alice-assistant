@@ -99,6 +99,7 @@ const lightpandaBrowserPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'lightpanda-browser',
     name: 'LightPanda Browser Plugin',
+    brandColor: '#3f4884',
     description:
       'Lets your assistant fetch web pages using the lightpanda browser with support for chunked reading and caching',
     version: 'LATEST',
@@ -150,7 +151,7 @@ const lightpandaBrowserPlugin: AlicePlugin = {
             };
             lightpandaCache.set(cacheKey, cachedEntry);
           } catch (error) {
-            console.error('Error fetching URL with lightpanda:', error);
+            plugin.logger.error('Error fetching URL with lightpanda:', error);
             return `There was an error while trying to fetch the page at ${url}`;
           }
         }

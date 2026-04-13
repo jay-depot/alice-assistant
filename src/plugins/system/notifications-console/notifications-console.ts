@@ -4,6 +4,7 @@ const notificationsConsolePlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'notifications-console',
     name: 'Notifications Console Plugin',
+    brandColor: '#a92503',
     description:
       'A fallback notification sink that logs notifications to the console so ' +
       'the assistant has a default delivery path even when no richer notification sinks are enabled.',
@@ -20,10 +21,10 @@ const notificationsConsolePlugin: AlicePlugin = {
 
     await registerNotificationSink('notifications-console', {
       sendNotification: async notification => {
-        console.log('ALICE Notification');
-        console.log(`  Title: ${notification.title}`);
-        console.log(`  Source: ${notification.source}`);
-        console.log(`  Message: ${notification.message}`);
+        plugin.logger.log('ALICE Notification');
+        plugin.logger.log(`  Title: ${notification.title}`);
+        plugin.logger.log(`  Source: ${notification.source}`);
+        plugin.logger.log(`  Message: ${notification.message}`);
       },
     });
   },

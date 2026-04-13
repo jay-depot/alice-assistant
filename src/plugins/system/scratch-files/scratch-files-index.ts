@@ -9,6 +9,9 @@ import {
 import { Conversation, Message } from '../../../lib/conversation.js';
 import { ScratchFilesPluginConfigSchema } from './scratch-files.js';
 import { simpleExpandTilde } from '../../../lib/simple-tilde-expansion.js';
+import { createPluginLogger } from '../../../lib/plugin-logger.js';
+
+const logger = createPluginLogger('scratch-files');
 
 export async function freshenScratchFilesIndex(
   config: ScratchFilesPluginConfigSchema
@@ -16,7 +19,7 @@ export async function freshenScratchFilesIndex(
   const scratchDirectory = simpleExpandTilde(config.scratchDirectory);
   const indexFilePath = path.join(scratchDirectory, '.index');
 
-  console.log('Freshening scratch files index...');
+  logger.log('Freshening scratch files index...');
 
   const indexLastModified = (await exists(indexFilePath))
     ? (await stat(indexFilePath)).mtime
@@ -31,7 +34,7 @@ export async function freshenScratchFilesIndex(
       path.extname(file).substring(1)
     );
     if (isHidden || !isAllowedType) {
-      console.log(
+      logger.log(
         `Skipping file ${file} (hidden: ${isHidden}, allowed type: ${isAllowedType})`
       );
       continue;
@@ -46,7 +49,7 @@ export async function freshenScratchFilesIndex(
         !indexLastModified ||
         lastModified > indexLastModified
       ) {
-        console.log(`Updating index for modified file: ${file}`);
+        logger.log(`Updating index for modified file: ${file}`);
         const content = await readFile(filePath, 'utf-8');
         const summary = await summarizeFileContent(file, content);
         index[file] = summary;
@@ -56,13 +59,13 @@ export async function freshenScratchFilesIndex(
 
   for (const indexedFile in index) {
     if (!files.includes(indexedFile)) {
-      console.log(`Removing deleted file from index: ${indexedFile}`);
+      logger.log(`Removing deleted file from index: ${indexedFile}`);
       delete index[indexedFile];
     }
   }
 
   await writeFile(indexFilePath, JSON.stringify(index, null, 2), 'utf-8');
-  console.log('Scratch files index freshened.');
+  logger.log('Scratch files index freshened.');
 }
 
 export async function reindexScratchFiles(
@@ -75,13 +78,13 @@ export async function reindexScratchFiles(
   if (await exists(scratchDirectory)) {
     const files = await readdir(scratchDirectory);
     for (const file of files) {
-      console.log(`Processing scratch file: ${file}`);
+      logger.log(`Processing scratch file: ${file}`);
       const isHidden = file.startsWith('.');
       const isAllowedType = config.allowedFileTypes.includes(
         path.extname(file).substring(1)
       );
       if (isHidden || !isAllowedType) {
-        console.log(
+        logger.log(
           `Skipping file ${file} (hidden: ${isHidden}, allowed type: ${isAllowedType})`
         );
         continue;
@@ -93,13 +96,13 @@ export async function reindexScratchFiles(
         const content = await readFile(filePath, 'utf-8');
         const summary = await summarizeFileContent(file, content);
         index[file] = summary;
-        console.log(`Indexed file: ${file} - Summary: ${summary}`);
+        logger.log(`Indexed file: ${file} - Summary: ${summary}`);
       }
     }
   }
 
   await writeFile(indexFilePath, JSON.stringify(index, null, 2), 'utf-8');
-  console.log('Scratch files indexing complete.');
+  logger.log('Scratch files indexing complete.');
 }
 
 function summarizeFileContent(file: string, content: string) {

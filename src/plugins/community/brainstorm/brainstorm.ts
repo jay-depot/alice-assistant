@@ -8,6 +8,7 @@ const brainstormPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'brainstorm',
     name: 'Brainstorm',
+    brandColor: '#ab1d9c',
     version: 'LATEST',
     description:
       "Provides a focused Brainstorm Assistant that captures the user's stream-of-consciousness " +
@@ -96,7 +97,7 @@ const brainstormPlugin: AlicePlugin = {
             await writeFile(expandedPath, fileContent, 'utf-8');
             savedPath = expandedPath;
           } catch (writeError) {
-            console.error(
+            plugin.logger.error(
               'Brainstorm plugin: Failed to write notes file:',
               writeError
             );

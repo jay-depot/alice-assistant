@@ -19,6 +19,7 @@ const systemInfoPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'system-info',
     name: 'System Info Plugin',
+    brandColor: '#691d29',
     description:
       'Provides the assistant with information about the system it is running on, ' +
       'including but not limited to: system resources (CPU, memory, disk usage), operating ' +

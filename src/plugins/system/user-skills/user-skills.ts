@@ -10,6 +10,7 @@ const userSkillsPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'user-skills',
     name: 'User Skills Plugin',
+    brandColor: '#73a265',
     description:
       'Allows users to define custom skills for the assistant. This plugin provides an ' +
       'interface for users to create, manage, and delete their own skills, which are discrete pieces ' +

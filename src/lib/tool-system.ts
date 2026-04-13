@@ -39,6 +39,54 @@ export type Tool = {
     args: Record<string, unknown>,
     context: ToolExecutionContext
   ) => Promise<string>;
+  /** If true, this tool requires user approval before execution. Not enforced yet — flag only. */
+  requiresApproval?: boolean;
+};
+
+// ---------------------------------------------------------------------------
+// Tool Call Events
+// ---------------------------------------------------------------------------
+
+type ToolCallEventBase = {
+  conversationType: ConversationTypeId;
+  sessionId?: number;
+  taskAssistantId?: string;
+  agentInstanceId?: string;
+  timestamp: string; // ISO 8601
+};
+
+type ToolCallProgressEvent = ToolCallEventBase & {
+  type: 'tool_call_started' | 'tool_call_completed' | 'tool_call_error';
+  /** UUID — groups tool calls from the same Promise.all batch. */
+  callBatchId: string;
+  toolName: string;
+  toolArgs: Record<string, unknown>;
+  /** Populated on completed/error: truncated result summary (first ~200 chars). */
+  resultSummary?: string;
+  /** Populated on error. */
+  error?: string;
+  /** Whether this tool requires approval (mirrors the Tool flag). */
+  requiresApproval?: boolean;
+};
+
+type AssistantTurnStartedEvent = ToolCallEventBase & {
+  type: 'assistant_turn_started';
+  assistantContent: string;
+};
+
+export type ToolCallEvent = ToolCallProgressEvent | AssistantTurnStartedEvent;
+
+type ToolCallEventCallback = (event: ToolCallEvent) => Promise<void>;
+
+const toolCallEventCallbacks: ToolCallEventCallback[] = [];
+
+export const ToolCallEvents = {
+  onToolCallEvent(callback: ToolCallEventCallback): void {
+    toolCallEventCallbacks.push(callback);
+  },
+  async dispatchToolCallEvent(event: ToolCallEvent): Promise<void> {
+    await Promise.all(toolCallEventCallbacks.map(callback => callback(event)));
+  },
 };
 
 export function buildOllamaToolDescriptionObject(

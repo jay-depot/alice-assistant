@@ -60,6 +60,7 @@ const moltbookPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'moltbook',
     name: 'Moltbook Plugin',
+    brandColor: '#a14627',
     description:
       'Integrates the Moltbook social network for AI agents so the assistant can register, ' +
       "read its feed, and interact on behalf of the user when explicitly asked. You REALLY shouldn't " +

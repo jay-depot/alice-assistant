@@ -72,6 +72,7 @@ const userFilesPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'user-files',
     name: 'User Files Plugin',
+    brandColor: '#48b34e',
     description:
       "Provides the assistant with tools to read the user's filesystem, " +
       'within limits set by the user in the plugin configuration. Does not allow the ' +

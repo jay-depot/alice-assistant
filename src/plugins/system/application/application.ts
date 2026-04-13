@@ -21,6 +21,7 @@ const applicationPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'application',
     name: 'Application Plugin',
+    brandColor: '#3676d5',
     description:
       'Provides the assistant with tools to launch applications on behalf ' +
       'of the user on their system.',

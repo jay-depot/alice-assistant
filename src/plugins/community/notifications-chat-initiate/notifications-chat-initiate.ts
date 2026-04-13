@@ -9,6 +9,7 @@ const notificationsConversationInitiatePlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'notifications-chat-initiate',
     name: 'Notifications Chat Initiate Plugin',
+    brandColor: '#f76b23',
     description:
       'A plugin that initiates a chat session with the assistant when new notifications ' +
       'are received. It is similar to the notifications-chat-segue plugin but instead of just adding ' +
@@ -41,7 +42,7 @@ const notificationsConversationInitiatePlugin: AlicePlugin = {
         });
 
         if (sessionId === null) {
-          console.warn(
+          plugin.logger.warn(
             'Notifications Chat Initiate: Could not resolve a target chat session for notification delivery.'
           );
           return;
@@ -59,7 +60,7 @@ const notificationsConversationInitiatePlugin: AlicePlugin = {
             messageText = renderedMessage;
           }
         } catch (error) {
-          console.error(
+          plugin.logger.error(
             'Notifications Chat Initiate: Failed to render notification in assistant voice. Falling back to plain notification text.',
             error
           );
@@ -70,7 +71,7 @@ const notificationsConversationInitiatePlugin: AlicePlugin = {
           messageKind: 'notification',
         });
 
-        console.log(
+        plugin.logger.log(
           `Notifications Chat Initiate: Delivered notification into chat session ${sessionId}.`
         );
       },

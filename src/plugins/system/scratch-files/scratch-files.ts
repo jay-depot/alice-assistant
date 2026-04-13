@@ -26,6 +26,7 @@ const scratchFilesPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'scratch-files',
     name: 'Scratch Files Plugin',
+    brandColor: '#8b45d3',
     description:
       'Provides the assistant with the ability to create and manage scratch files. ' +
       'These are temporary files that it uses internally to save information between interactions. ' +
@@ -52,19 +53,30 @@ const scratchFilesPlugin: AlicePlugin = {
     plugin.registerTool(writeScratchFileTool(config.getPluginConfig()));
 
     plugin.hooks.onAllPluginsLoaded(async () => {
+      plugin.logger.log(
+        'onAllPluginsLoaded: Starting scratch index validation.'
+      );
       const scratchDir = simpleExpandTilde(
         config.getPluginConfig().scratchDirectory
       );
       const indexFilePath = path.join(scratchDir, '.index');
 
       if (await exists(indexFilePath)) {
-        console.log('Scratch files index already exists, skipping indexing.');
+        plugin.logger.log(
+          'Scratch files index already exists, skipping indexing.'
+        );
+        plugin.logger.log(
+          'onAllPluginsLoaded: Completed scratch index validation.'
+        );
         return;
       }
 
-      console.log('Indexing scratch files...');
+      plugin.logger.log('Indexing scratch files...');
       await reindexScratchFiles(config.getPluginConfig());
-      console.log('Scratch files indexing complete.');
+      plugin.logger.log('Scratch files indexing complete.');
+      plugin.logger.log(
+        'onAllPluginsLoaded: Completed scratch index validation.'
+      );
     });
 
     plugin.registerHeaderSystemPrompt({

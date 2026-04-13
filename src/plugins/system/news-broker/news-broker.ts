@@ -40,6 +40,7 @@ const newsBrokerPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'news-broker',
     name: 'News Broker Plugin',
+    brandColor: '#a1e117',
     description:
       'Provides an API for other plugins to offer news data to the assistant, ' +
       'and for other plugins to request news data from any plugin that offers it.',

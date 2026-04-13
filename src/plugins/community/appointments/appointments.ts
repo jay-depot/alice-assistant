@@ -4,6 +4,7 @@ const appointmentsPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'appointments',
     name: 'Appointments Plugin',
+    brandColor: '#2417b5',
     description:
       'Provides the assistant with an internal storage for appointments, and ' +
       "tools to manage it. Use this if you don't want to use a third-party calendar " +

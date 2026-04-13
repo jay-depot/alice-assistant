@@ -72,6 +72,7 @@ const personalityPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'personality',
     name: 'Personality',
+    brandColor: '#389c96',
     description:
       'Provides the assistant personality prompt by reading the configured personality markdown files and rendering them into the system prompt.',
     version: 'LATEST',

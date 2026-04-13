@@ -28,6 +28,13 @@ function createMockPluginInterface() {
   return {
     offeredCapabilities,
     registerPlugin: async () => ({
+      logger: {
+        log: vi.fn(),
+        info: vi.fn(),
+        warn: vi.fn(),
+        error: vi.fn(),
+        debug: vi.fn(),
+      },
       registerTool: vi.fn(),
       registerHeaderSystemPrompt: vi.fn(),
       registerFooterSystemPrompt: vi.fn(),

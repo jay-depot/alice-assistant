@@ -10,6 +10,7 @@ const troubleshootingPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'troubleshooting',
     name: 'Troubleshooting Plugin',
+    brandColor: '#e09245',
     description:
       'Provides tools to help troubleshoot and debug your assistant when things go wrong.',
     version: 'LATEST',

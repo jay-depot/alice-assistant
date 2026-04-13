@@ -7,6 +7,9 @@ import {
   type ManagedVoiceClientState,
 } from './managed-client.js';
 import { markdownToTts } from './markdown-to-tts.js';
+import { createPluginLogger } from '../../../lib/plugin-logger.js';
+
+const logger = createPluginLogger('voice');
 
 type ActiveVoiceSession = {
   conversation: Conversation;
@@ -223,7 +226,7 @@ function finalizeDeferredVoiceSessionClose(
   }
 
   deferredClose.closePromise = (async () => {
-    console.log(
+    logger.log(
       'voice plugin: finalizing voice conversation and archiving immediately.'
     );
     enqueueVoiceClientEvent(runtimeState, 'archiving-started');
@@ -234,7 +237,7 @@ function finalizeDeferredVoiceSessionClose(
     await deferredClose.conversation.closeConversation();
   })()
     .catch(error => {
-      console.error('voice plugin: voice session cleanup failed:', error);
+      logger.error('voice plugin: voice session cleanup failed:', error);
     })
     .finally(() => {
       enqueueVoiceClientEvent(runtimeState, 'archiving-completed');
@@ -254,7 +257,7 @@ function scheduleDeferredVoiceSessionClose(
   };
 
   runtimeState.pendingVoiceSessionCloses.add(deferredClose);
-  console.log(
+  logger.log(
     'voice plugin: closing stale voice session without deferred archival delay.'
   );
   void finalizeDeferredVoiceSessionClose(runtimeState, deferredClose);
@@ -300,7 +303,7 @@ async function getOrCreateActiveVoiceConversation(
   runtimeState: VoicePluginRuntimeState
 ): Promise<Conversation> {
   if (hasActiveVoiceSessionExpired(runtimeState)) {
-    console.log(
+    logger.log(
       'voice plugin: active voice session expired, closing it immediately before starting a fresh conversation.'
     );
     await closeActiveVoiceSession(runtimeState);
@@ -312,7 +315,7 @@ async function getOrCreateActiveVoiceConversation(
   }
 
   const conversation = startConversation('voice');
-  console.log('voice plugin: started a new voice conversation.');
+  logger.log('voice plugin: started a new voice conversation.');
   await PluginHookInvocations.invokeOnUserConversationWillBegin(
     conversation,
     'voice'
@@ -393,7 +396,7 @@ export function registerVoiceRoutes(
     const closedConversation = !!runtimeState.activeVoiceSession;
 
     if (closedConversation) {
-      console.log(
+      logger.log(
         'voice plugin: continuation turn ended in silence, closing voice conversation immediately.'
       );
       await closeActiveVoiceSession(runtimeState, { deferFinalization: true });
@@ -432,7 +435,7 @@ export function registerVoiceRoutes(
           : false;
 
       if (endConversation) {
-        console.log(
+        logger.log(
           'voice plugin: assistant requested the current voice conversation to end after this reply.'
         );
         await closeActiveVoiceSession(runtimeState, {

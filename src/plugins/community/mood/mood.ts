@@ -77,6 +77,7 @@ const moodPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'mood',
     name: 'Mood Plugin',
+    brandColor: '#dc27c0',
     description:
       'Allows the assistant to set a "mood" that is included in the system prompt and used to influence the assistant\'s responses as well as other aspects of how the assistant is presented, including an expression sprite in the web UI.',
     version: 'LATEST',
@@ -107,7 +108,7 @@ const moodPlugin: AlicePlugin = {
         currentMood.mood = lastMoodData.mood || currentMood.mood;
         currentMood.reason = lastMoodData.reason || currentMood.reason;
       } catch (error) {
-        console.warn('Error reading last mood data:', error);
+        plugin.logger.warn('Error reading last mood data:', error);
       }
     }
 

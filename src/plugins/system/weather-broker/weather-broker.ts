@@ -50,6 +50,7 @@ const weatherBrokerPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'weather-broker',
     name: 'Weather Broker Plugin',
+    brandColor: '#aa0107',
     description:
       'Provides an API for other plugins to offer weather data to the assistant, ' +
       'and for other plugins to request weather data from any plugin that offers it.',

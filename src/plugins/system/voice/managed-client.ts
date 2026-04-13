@@ -2,6 +2,7 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import type { VoicePluginConfig } from './config.js';
+import type { PluginLogger } from '../../../lib/plugin-logger.js';
 
 export type ManagedVoiceClientState = {
   childProcess: ChildProcess | null;
@@ -26,16 +27,18 @@ export function startManagedVoiceClient(options: {
   wakeWord: string;
   clientScriptPath: string;
   state: ManagedVoiceClientState;
+  logger: PluginLogger;
 }): void {
-  const { config, token, baseUrl, wakeWord, clientScriptPath, state } = options;
+  const { config, token, baseUrl, wakeWord, clientScriptPath, state, logger } =
+    options;
 
   if (!config.launchManagedClient) {
-    console.log('voice plugin: managed client launch disabled by config.');
+    logger.log('voice plugin: managed client launch disabled by config.');
     return;
   }
 
   if (state.childProcess && !state.childProcess.killed) {
-    console.log(
+    logger.log(
       'voice plugin: managed client already running, skipping duplicate launch.'
     );
     return;
@@ -70,27 +73,27 @@ export function startManagedVoiceClient(options: {
 
   if (config.logManagedClientOutput) {
     child.stdout.on('data', chunk => {
-      process.stdout.write(`[voice-client stdout] ${String(chunk)}`);
+      logger.log(`[voice-client stdout] ${String(chunk)}`);
     });
     child.stderr.on('data', chunk => {
-      process.stderr.write(`[voice-client stderr] ${String(chunk)}`);
+      logger.warn(`[voice-client stderr] ${String(chunk)}`);
     });
   }
 
   child.on('exit', (code, signal) => {
     state.childProcess = null;
-    console.log(
+    logger.log(
       `voice plugin: managed client exited with code ${code ?? 'null'} signal ${signal ?? 'null'}.`
     );
   });
 
   child.on('error', error => {
     state.childProcess = null;
-    console.error('voice plugin: managed client failed to start:', error);
+    logger.error('voice plugin: managed client failed to start:', error);
   });
 
   state.childProcess = child;
-  console.log(
+  logger.log(
     `voice plugin: started managed client using command ${command} ${args.join(' ')}.`
   );
 }

@@ -23,6 +23,7 @@ const voicePlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'voice',
     name: 'Voice',
+    brandColor: '#b95677',
     description:
       'Provides token-protected local voice endpoints and supervises the managed local voice client.',
     version: 'LATEST',
@@ -91,10 +92,10 @@ const voicePlugin: AlicePlugin = {
     registerVoiceRoutes(restServe.express, runtimeState);
 
     const closeVoiceRuntime = async () => {
-      console.log('voice plugin: shutting down voice runtime.');
+      plugin.logger.log('voice plugin: shutting down voice runtime.');
 
       if (runtimeState.activeVoiceSession) {
-        console.log(
+        plugin.logger.log(
           'voice plugin: closing final active voice conversation during shutdown.'
         );
       }
@@ -102,27 +103,36 @@ const voicePlugin: AlicePlugin = {
       await closeActiveVoiceSession(runtimeState);
 
       if (runtimeState.pendingVoiceSessionCloses.size > 0) {
-        console.log(
+        plugin.logger.log(
           `voice plugin: waiting for ${runtimeState.pendingVoiceSessionCloses.size} deferred voice conversation cleanup task(s) to finish.`
         );
       }
 
       await flushDeferredVoiceSessionCloses(runtimeState);
 
-      console.log('voice plugin: stopping managed voice client.');
+      plugin.logger.log('voice plugin: stopping managed voice client.');
       await stopManagedVoiceClient(runtimeState.managedClientState);
       runtimeState.accessToken = null;
-      console.log('voice plugin: voice runtime shutdown complete.');
+      plugin.logger.log('voice plugin: voice runtime shutdown complete.');
     };
 
     plugin.hooks.onAssistantWillAcceptRequests(async () => {
+      plugin.logger.log(
+        'onAssistantWillAcceptRequests: Starting managed voice access token initialization.'
+      );
       runtimeState.accessToken = createVoiceAccessToken();
-      console.log(
+      plugin.logger.log(
         'voice plugin: generated local access token for managed voice client.'
+      );
+      plugin.logger.log(
+        'onAssistantWillAcceptRequests: Completed managed voice access token initialization.'
       );
     });
 
     plugin.hooks.onAssistantAcceptsRequests(async () => {
+      plugin.logger.log(
+        'onAssistantAcceptsRequests: Starting managed voice client startup.'
+      );
       if (!runtimeState.accessToken) {
         throw new Error(
           'voice plugin could not launch the managed voice client because no access token was initialized.'
@@ -143,15 +153,31 @@ const voicePlugin: AlicePlugin = {
           'alice-voice-client.py'
         ),
         state: runtimeState.managedClientState,
+        logger: plugin.logger,
       });
+      plugin.logger.log(
+        'onAssistantAcceptsRequests: Completed managed voice client startup request.'
+      );
     });
 
     plugin.hooks.onAssistantWillStopAcceptingRequests(async () => {
+      plugin.logger.log(
+        'onAssistantWillStopAcceptingRequests: Starting voice runtime shutdown.'
+      );
       await closeVoiceRuntime();
+      plugin.logger.log(
+        'onAssistantWillStopAcceptingRequests: Completed voice runtime shutdown.'
+      );
     });
 
     plugin.hooks.onPluginsWillUnload(async () => {
+      plugin.logger.log(
+        'onPluginsWillUnload: Starting final voice runtime shutdown.'
+      );
       await closeVoiceRuntime();
+      plugin.logger.log(
+        'onPluginsWillUnload: Completed final voice runtime shutdown.'
+      );
     });
   },
 };

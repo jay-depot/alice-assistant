@@ -6,8 +6,9 @@ import {
   startConversation,
   TaskAssistants,
   AgentSystem,
+  ToolCallEvents,
 } from '../../../lib.js';
-import { Express, static as serveStatic } from 'express';
+import { Express, static as serveStatic, Response } from 'express';
 import * as fs from 'fs';
 import * as path from 'path';
 import { createHash } from 'crypto';
@@ -60,6 +61,7 @@ const webUiPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'web-ui',
     name: 'Web UI Plugin',
+    brandColor: '#c32a3a',
     description:
       'Provides the web interface for the assistant, and manages all interactions ' +
       'between the assistant and the web interface.',
@@ -102,13 +104,42 @@ const webUiPlugin: AlicePlugin = {
     const sessionOperationQueues = new Map<number, Promise<void>>();
     const cachedChatConversations = new Map<number, Conversation>();
 
+    // SSE connection management: Map<sessionId, Set<Response>>
+    const sseConnections = new Map<number, Set<Response>>();
+
+    const addSseConnection = (sessionId: number, res: Response): void => {
+      if (!sseConnections.has(sessionId)) {
+        sseConnections.set(sessionId, new Set());
+      }
+      sseConnections.get(sessionId)!.add(res);
+    };
+
+    const removeSseConnection = (sessionId: number, res: Response): void => {
+      sseConnections.get(sessionId)?.delete(res);
+      if (sseConnections.get(sessionId)?.size === 0) {
+        sseConnections.delete(sessionId);
+      }
+    };
+
+    const closeSseConnectionsForSession = (sessionId: number): void => {
+      const connections = sseConnections.get(sessionId);
+      if (connections) {
+        for (const res of connections) {
+          res.end();
+        }
+        sseConnections.delete(sessionId);
+      }
+    };
+
     const restoreConversationMessages = (
       rounds: ChatSessionRound[]
     ): Message[] => {
-      return rounds.map(round => ({
-        role: round.role,
-        content: round.content,
-      }));
+      return rounds
+        .filter(round => round.messageKind !== 'tool_call')
+        .map(round => ({
+          role: round.role,
+          content: round.content,
+        }));
     };
 
     const serializeRound = (round: ChatSessionRound) => ({
@@ -117,6 +148,7 @@ const webUiPlugin: AlicePlugin = {
       content: round.content,
       timestamp: round.timestamp,
       senderName: round.senderName,
+      toolCallData: round.toolCallData,
     });
 
     const getActiveAgentsForSession = (sessionId: number) =>
@@ -398,6 +430,81 @@ const webUiPlugin: AlicePlugin = {
       });
     });
 
+    // Subscribe to tool call events and broadcast to SSE connections
+    ToolCallEvents.onToolCallEvent(async event => {
+      const sessionId = event.sessionId;
+      if (sessionId === undefined) {
+        return;
+      }
+
+      const connections = sseConnections.get(sessionId);
+      if (!connections || connections.size === 0) {
+        return;
+      }
+
+      const sseData = JSON.stringify(event);
+      for (const res of connections) {
+        res.write(`event: ${event.type}\ndata: ${sseData}\n\n`);
+      }
+    });
+
+    // Persist tool_call_completed and tool_call_error events as DB messages
+    ToolCallEvents.onToolCallEvent(async event => {
+      const sessionId = event.sessionId;
+      if (sessionId === undefined) {
+        return;
+      }
+
+      // Only persist completed and error events (started is transient)
+      if (
+        event.type !== 'tool_call_completed' &&
+        event.type !== 'tool_call_error'
+      ) {
+        return;
+      }
+
+      await runSessionOperation(sessionId, async () => {
+        const orm = await onDatabaseReady(async databaseOrm => databaseOrm);
+        const em = orm.em.fork();
+        const session = await em.findOne(
+          ChatSession,
+          { id: sessionId },
+          { populate: ['rounds'] }
+        );
+        if (!session) {
+          return;
+        }
+
+        const toolCallData = {
+          callBatchId: event.callBatchId,
+          toolName: event.toolName,
+          status: event.type === 'tool_call_completed' ? 'completed' : 'error',
+          resultSummary: event.resultSummary,
+          error: event.error,
+          requiresApproval: event.requiresApproval,
+        };
+
+        const content =
+          event.type === 'tool_call_completed'
+            ? `Called ${event.toolName} with ${JSON.stringify(event.toolArgs)}`
+            : `Error calling ${event.toolName}: ${event.error}`;
+
+        const round = em.create(ChatSessionRound, {
+          chatSession: session,
+          role: 'assistant',
+          messageKind: 'tool_call',
+          content,
+          timestamp: new Date(),
+          senderName: null,
+          toolCallData,
+        });
+
+        session.rounds.add(round);
+        session.updatedAt = round.timestamp;
+        await em.flush();
+      });
+    });
+
     const registerScript = (scriptPath: string): void => {
       const resolvedPath = path.resolve(scriptPath);
       const groupKey = path.dirname(resolvedPath);
@@ -441,7 +548,7 @@ const webUiPlugin: AlicePlugin = {
         res.sendFile(resolvedPath);
       });
 
-      console.log(
+      plugin.logger.log(
         `Registered web UI client script ${resolvedPath} at ${scriptUrl}`
       );
     };
@@ -496,13 +603,13 @@ const webUiPlugin: AlicePlugin = {
         res.sendFile(resolvedPath);
       });
 
-      console.log(
+      plugin.logger.log(
         `Registered web UI stylesheet ${resolvedPath} at ${styleUrl}`
       );
     };
 
     app.get('/user-style.css', (_req, res) => {
-      console.log(`Serving user style from ${userStylePath}`);
+      plugin.logger.log(`Serving user style from ${userStylePath}`);
       res.setHeader('Cache-Control', 'no-store');
       if (!fs.existsSync(userStylePath)) {
         res.status(204).end();
@@ -533,8 +640,11 @@ const webUiPlugin: AlicePlugin = {
     registerDatabaseModels([ChatSession, ChatSessionRound]);
 
     plugin.hooks.onAssistantAcceptsRequests(async () => {
+      plugin.logger.log(
+        'onAssistantAcceptsRequests: Starting web UI route and handler registration.'
+      );
       // TODO: Organize this crap into files.
-      console.log(
+      plugin.logger.log(
         `Registering web UI routes on ${UserConfig.getConfig().webInterface.bindToAddress}:${UserConfig.getConfig().webInterface.port}...`
       );
       const orm = await onDatabaseReady(async orm => orm);
@@ -676,6 +786,17 @@ const webUiPlugin: AlicePlugin = {
             ]);
 
             if (processingOutcome === 'suspended') {
+              await responsePromise;
+            }
+
+            if (processingOutcome === 'suspended') {
+              await persistUnsynchronizedMessages(
+                em,
+                queuedSession,
+                llmTransaction,
+                'chat'
+              );
+
               const suspendedTaskAssistant = TaskAssistants.getActiveInstance(
                 session.id
               );
@@ -690,42 +811,11 @@ const webUiPlugin: AlicePlugin = {
               }
               await em.flush();
 
-              void responsePromise
-                .then(async () => {
-                  await runSessionOperation(session.id, async () => {
-                    const em = orm.em.fork();
-                    const resumedSession = await em.findOne(
-                      ChatSession,
-                      { id: session.id },
-                      { populate: ['rounds'] }
-                    );
-                    if (!resumedSession) {
-                      return;
-                    }
-
-                    await persistUnsynchronizedMessages(
-                      em,
-                      resumedSession,
-                      llmTransaction,
-                      'chat'
-                    );
-
-                    const resumedTitleSummary =
-                      await llmTransaction.requestTitle();
-                    resumedSession.title =
-                      resumedTitleSummary.length > 0
-                        ? resumedTitleSummary
-                        : 'New Conversation';
-
-                    await em.flush();
-                  });
-                })
-                .catch(error => {
-                  console.error(
-                    `Failed to finalize suspended task assistant parent turn for session ${session.id}:`,
-                    error
-                  );
-                });
+              const resumedTitleSummary = await llmTransaction.requestTitle();
+              queuedSession.title =
+                resumedTitleSummary.length > 0
+                  ? resumedTitleSummary
+                  : 'New Conversation';
 
               return queuedSession;
             }
@@ -837,6 +927,29 @@ const webUiPlugin: AlicePlugin = {
         });
       });
 
+      // SSE endpoint for real-time tool call events
+      app.get('/api/chat/:id/events', (req, res) => {
+        const sessionId = parseInt(req.params.id);
+
+        // Set SSE headers
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
+        res.flushHeaders();
+
+        // Track this connection
+        addSseConnection(sessionId, res);
+
+        // Send a comment to keep the connection alive immediately
+        res.write(': connected\n\n');
+
+        // Clean up on client disconnect
+        req.on('close', () => {
+          removeSseConnection(sessionId, res);
+        });
+      });
+
       app.delete('/api/chat/:id', async (req, res) => {
         const { id } = req.params;
         // TODO: wire up to Alice assistant logic.
@@ -870,11 +983,14 @@ const webUiPlugin: AlicePlugin = {
             );
           }
 
+          // Close any SSE connections for this session
+          closeSseConnectionsForSession(parsedId);
+
           const userMessages = queuedSession.rounds
             .getItems()
             .filter(round => round.role === 'user');
           if (userMessages.length > 0) {
-            console.log(
+            plugin.logger.log(
               `Requesting conversation summary for chat session ${id} before deletion...`
             );
             getOrCreateCachedConversation(queuedSession);
@@ -889,7 +1005,7 @@ const webUiPlugin: AlicePlugin = {
         });
 
         res.json({ reply: `Chat session with id ${id} deleted successfully` });
-        console.log(`Chat session ${id} deleted successfully.`);
+        plugin.logger.log(`Chat session ${id} deleted successfully.`);
         return;
       });
 
@@ -935,11 +1051,18 @@ const webUiPlugin: AlicePlugin = {
       );
 
       plugin.hooks.onAssistantWillStopAcceptingRequests(async () => {
-        console.log(
-          'Assistant will stop accepting requests. Flushing web UI chat session cache...'
+        plugin.logger.log(
+          'onAssistantWillStopAcceptingRequests: Starting web UI chat session cache flush.'
         );
         await flushAndEvictAllCachedConversations();
+        plugin.logger.log(
+          'onAssistantWillStopAcceptingRequests: Completed web UI chat session cache flush.'
+        );
       });
+
+      plugin.logger.log(
+        'onAssistantAcceptsRequests: Completed web UI route and handler registration.'
+      );
     });
   },
 };

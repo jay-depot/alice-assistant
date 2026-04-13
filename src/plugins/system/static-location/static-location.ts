@@ -33,6 +33,7 @@ const StaticLocationPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'static-location',
     name: 'Static Location Plugin',
+    brandColor: '#389595',
     description:
       'A location provider plugin for location-broker that provides a static ' +
       "location to the assistant from the user's configuration settings. This is useful for " +

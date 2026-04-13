@@ -4,6 +4,7 @@ const credentialClapbackPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'credential-clapback',
     name: 'Credential Clapback Plugin',
+    brandColor: '#c164ad',
     description:
       `ALICE's architecture is designed so the LLM never sees any of its own API keys, so ` +
       'it cannot be tricked into revealing them. This plugin makes the response to anyone who ' +

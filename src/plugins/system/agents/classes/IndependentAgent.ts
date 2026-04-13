@@ -6,24 +6,24 @@ type OnAgentFreezingCallback = () => void;
 type OnAgentThawingCallback = () => void;
 type OnAgentPausedCallback = () => void;
 type OnAgentSleepingCallback = () => void;
-type OnAgentForkingToAssistantCallback = (assistantConversationType: ConversationTypeId) => void;
+type OnAgentForkingToAssistantCallback = (
+  assistantConversationType: ConversationTypeId
+) => void;
 
-type IndependentAgentStatus = 
-  | 'hatching' 
-  | 'running'  
-  | 'freezing' 
-  | 'frozen' 
-  | 'thawing' 
-  | 'erroring' 
-  | 'stuck' 
-  | 'paused' 
-  | 'sleeping' 
+type IndependentAgentStatus =
+  | 'hatching'
+  | 'running'
+  | 'freezing'
+  | 'frozen'
+  | 'thawing'
+  | 'erroring'
+  | 'stuck'
+  | 'paused'
+  | 'sleeping'
   | 'forkingToAssistant';
 
 export abstract class IndependentAgent extends AliceAgent {
-  constructor(
-    public conversationType: ConversationTypeId,
-  ) {
+  constructor(public conversationType: ConversationTypeId) {
     super(conversationType);
   }
 
@@ -33,5 +33,7 @@ export abstract class IndependentAgent extends AliceAgent {
   public abstract onAgentThawing(callback: OnAgentThawingCallback): void;
   public abstract onAgentPaused(callback: OnAgentPausedCallback): void;
   public abstract onAgentSleeping(callback: OnAgentSleepingCallback): void;
-  public abstract onAgentForkingToAssistant(callback: OnAgentForkingToAssistantCallback): void;
+  public abstract onAgentForkingToAssistant(
+    callback: OnAgentForkingToAssistantCallback
+  ): void;
 }

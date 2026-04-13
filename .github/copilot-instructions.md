@@ -196,6 +196,8 @@ hooks.onTaskAssistantWillEnd(async (instance, result) => {
 });
 ```
 
+**EMIT LOG MESSAGES AROUND ALL LIFECYCLE HOOKS!** Use console.log with a clear prefix, e.g. `plugin.logger.log('[MyPlugin] <hook name>: Starting adorable pug delivery service...'); [HOOK BODY] plugin.logger.log('[MyPlugin] <hook name>: ...adorable pug delivery service started.');` so that when a plugin breaks the startup or shutdown process, it's easier to identify which plugin is responsible and what the last successful step was.
+
 ### Event Hooks
 
 Additional event-style hooks currently exposed to plugins:

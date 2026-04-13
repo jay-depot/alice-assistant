@@ -5,6 +5,7 @@ import { UserConfig } from './user-config.js';
 import { AlicePluginEngine } from './alice-plugin-engine.js';
 import { satisfies } from 'semver';
 import type { BuiltInPluginCategory } from './types/alice-plugin-interface.js';
+import { systemLogger } from './system-logger.js';
 
 type BuiltInPluginDefinition = {
   id: string;
@@ -181,7 +182,7 @@ export async function loadPlugins() {
   }
 
   const existingUserPluginDirs = await readdir(userPluginsPath).catch(() => {
-    console.log(
+    systemLogger.log(
       'No user plugins directory found, skipping user plugin loading.'
     );
     return [];

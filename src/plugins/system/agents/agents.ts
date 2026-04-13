@@ -6,6 +6,7 @@ const agentsPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'agents',
     name: 'Agent Engine',
+    brandColor: '#76ee4a',
     version: 'LATEST',
     builtInCategory: 'system',
     description:

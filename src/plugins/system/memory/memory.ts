@@ -163,6 +163,7 @@ const memoryPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'memory',
     name: 'Memory Plugin',
+    brandColor: '#cd69b4',
     version: 'LATEST', // This is a magic version string only built-in shipped plugins are allowed to use. It matches the assistant package version at runtime.
     description:
       'A plugin that allows the assistant to recall summaries of finished ' +
@@ -350,10 +351,13 @@ const memoryPlugin: AlicePlugin = {
     });
 
     plugin.hooks.onAllPluginsLoaded(async () => {
-      console.log(
+      plugin.logger.log(
+        'onAllPluginsLoaded: Starting memory database initialization.'
+      );
+      plugin.logger.log(
         'All plugins loaded, initializing memory plugin database with the following entities:'
       );
-      console.log(entities.map(e => `  - ${e.name}`).join('\n'));
+      plugin.logger.log(entities.map(e => `  - ${e.name}`).join('\n'));
       const orm = (await MikroORM.init({
         // TODO: UserConfig is going to be deprecated as soon as a plugin-clean alternative
         // is designed.
@@ -366,13 +370,19 @@ const memoryPlugin: AlicePlugin = {
       await orm.schema.update();
 
       waitForDatabaseReady(orm);
-      console.log('Memory plugin database is ready to use.');
+      plugin.logger.log('Memory plugin database is ready to use.');
+      plugin.logger.log(
+        'onAllPluginsLoaded: Completed memory database initialization.'
+      );
 
       plugin.hooks.onAssistantWillStopAcceptingRequests(async () => {
-        console.log(
-          'Assistant will stop accepting requests. Closing database connection...'
+        plugin.logger.log(
+          'onAssistantWillStopAcceptingRequests: Starting database connection shutdown.'
         );
         await orm.close();
+        plugin.logger.log(
+          'onAssistantWillStopAcceptingRequests: Completed database connection shutdown.'
+        );
       });
     });
   },

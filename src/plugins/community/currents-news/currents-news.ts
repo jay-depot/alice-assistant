@@ -52,6 +52,7 @@ const currentsNewsPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'currents-news',
     name: 'Currents News Plugin',
+    brandColor: '#3f75f4',
     description:
       'Uses Currents News API to provide a news source for the news broker plugin.',
     version: 'LATEST',
@@ -71,7 +72,7 @@ const currentsNewsPlugin: AlicePlugin = {
     const { apiKey } = config.getPluginConfig();
 
     if (!apiKey) {
-      console.warn(
+      plugin.logger.warn(
         'Currents News Plugin: No API key provided in config, news provider will not be registered.'
       );
       return;
@@ -85,7 +86,7 @@ const currentsNewsPlugin: AlicePlugin = {
       try {
         const response = await fetch(url);
         if (!response.ok) {
-          console.error(
+          plugin.logger.error(
             `Currents News Plugin: Failed to fetch news data, status ${response.status}`
           );
           return [];
@@ -99,7 +100,7 @@ const currentsNewsPlugin: AlicePlugin = {
           age: item.published,
         }));
       } catch (error) {
-        console.error(
+        plugin.logger.error(
           `Currents News Plugin: Error fetching news data: ${error}`
         );
         return [];

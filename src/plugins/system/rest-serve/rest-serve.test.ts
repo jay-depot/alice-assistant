@@ -6,7 +6,12 @@ const { mockApp, mockExpress, mockExpressJson, mockServerClose, mockListen } =
     const serverClose = vi.fn((callback?: (err?: Error) => void) => {
       callback?.();
     });
-    const listen = vi.fn(() => ({ close: serverClose }));
+    const listen = vi.fn(() => ({
+      close: serverClose,
+      on: vi.fn(),
+      closeIdleConnections: vi.fn(),
+      closeAllConnections: vi.fn(),
+    }));
     const app = {
       use: vi.fn(),
       listen,
@@ -60,6 +65,13 @@ function createMockPluginInterface() {
       }
     },
     registerPlugin: async () => ({
+      logger: {
+        log: vi.fn(),
+        info: vi.fn(),
+        warn: vi.fn(),
+        error: vi.fn(),
+        debug: vi.fn(),
+      },
       registerTool: vi.fn(),
       registerHeaderSystemPrompt: vi.fn(),
       registerFooterSystemPrompt: vi.fn(),

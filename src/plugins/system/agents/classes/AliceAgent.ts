@@ -4,13 +4,10 @@ type OnAgentRunningCallback = () => void;
 type OnErrorCallback = (error: Error) => void;
 type OnStuckCallback = (lastAction: string) => void;
 
-
 export abstract class AliceAgent {
   protected conversation: Conversation;
 
-  constructor(
-    public conversationType: ConversationTypeId,
-  ) {
+  constructor(public conversationType: ConversationTypeId) {
     this.conversation = new Conversation(conversationType);
   }
 

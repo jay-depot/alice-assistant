@@ -20,6 +20,7 @@ const testAgentsPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'test-agents',
     name: 'Test Agents',
+    brandColor: '#ddbd7c',
     version: 'LATEST',
     builtInCategory: 'community',
     description:

@@ -69,6 +69,7 @@ const deepDivePlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'deep-dive',
     name: 'Deep-Dive Research Agent',
+    brandColor: '#b0b0b0',
     version: 'LATEST',
     builtInCategory: 'community',
     description:
@@ -245,7 +246,7 @@ const deepDivePlugin: AlicePlugin = {
           await writeFile(expandedPath, fileContent, 'utf-8');
           savedPath = expandedPath;
         } catch (writeError) {
-          console.error(
+          plugin.logger.error(
             'Deep-dive plugin: Failed to write research report:',
             writeError
           );

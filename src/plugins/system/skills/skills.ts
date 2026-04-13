@@ -31,6 +31,7 @@ const SkillsPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'skills',
     name: 'Skills Plugin',
+    brandColor: '#a65827',
     description:
       'Allows plugins to register discrete skills that the assistant can ' +
       'invoke in response to user requests. Skills are text or markdown snippets with ' +

@@ -17,6 +17,13 @@ function createMockPluginInterface() {
     registeredFooterPrompts,
     registerPlugin: async () => {
       return {
+        logger: {
+          log: vi.fn(),
+          info: vi.fn(),
+          warn: vi.fn(),
+          error: vi.fn(),
+          debug: vi.fn(),
+        },
         registerTool: vi.fn(),
         registerHeaderSystemPrompt: vi.fn(),
         registerFooterSystemPrompt: (def: {
@@ -66,6 +73,7 @@ describe('datetimePlugin', () => {
     expect(datetimePlugin.pluginMetadata).toEqual({
       id: 'datetime',
       name: 'Date and Time Plugin',
+      brandColor: '#dfeaae',
       description: 'Provides the current date and time to the assistant.',
       version: 'LATEST',
       dependencies: [],

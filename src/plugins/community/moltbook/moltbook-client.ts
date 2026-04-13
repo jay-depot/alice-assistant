@@ -19,6 +19,9 @@ import {
   formatSubmoltList,
 } from './moltbook-format.js';
 import { solveMoltbookVerificationChallenge } from './moltbook-verification.js';
+import { createPluginLogger } from '../../../lib/plugin-logger.js';
+
+const logger = createPluginLogger('moltbook');
 
 export const MOLTBOOK_BASE_URL = 'https://www.moltbook.com/api/v1';
 
@@ -285,7 +288,7 @@ export function createMoltbookClient({
       typeof verificationRecord.challenge_text === 'string'
         ? verificationRecord.challenge_text
         : undefined;
-    console.log('Moltbook API', { challengeText });
+    logger.log('Moltbook API', { challengeText });
 
     if (!verificationCode || !challengeText) {
       return {

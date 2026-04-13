@@ -1,6 +1,7 @@
 import Type from 'typebox';
 import { AlicePlugin } from '../../../lib.js';
 import { cookieJar } from './cookie-jar.js';
+import { createPluginLogger } from '../../../lib/plugin-logger.js';
 
 const MINUTES = 60 * 1000;
 const MAX_CHUNK_SIZE = 160000;
@@ -126,6 +127,8 @@ const postResponseCache = new Map<
   }
 >();
 
+const logger = createPluginLogger('web-simple-fetch');
+
 function getIndex(
   args: {
     startReadingFrom?: number;
@@ -169,7 +172,7 @@ async function recursiveFetchWithAllCookiesCaptured(
   });
 
   const cookies = response.headers.getSetCookie();
-  console.log({ cookies });
+  logger.log({ cookies });
 
   if (cookies && cookies.length > 0) {
     cookieJar.setCookies(new URL(url).hostname, cookies);
@@ -194,6 +197,7 @@ const webSimpleFetchPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'web-simple-fetch',
     name: 'Web Simple Fetch Plugin',
+    brandColor: '#53024f',
     description:
       'Provides the assistant a tool for making HTTP requests to fetch ' +
       'data from the web for use when fetching anything other than HTML.',

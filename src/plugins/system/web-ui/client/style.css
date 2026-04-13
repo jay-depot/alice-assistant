@@ -954,3 +954,182 @@ body {
   font-size: 12px;
   color: var(--text-muted);
 }
+
+/* ── Tool call batch ────────────────────────────────────────────────── */
+.tool-call-batch {
+  margin: 6px 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--border);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: color-mix(in srgb, var(--bg-bubble-bot) 80%, transparent);
+}
+
+.tool-call-batch--running {
+  border-left-color: color-mix(
+    in srgb,
+    var(--accent) 60%,
+    var(--text-muted) 40%
+  );
+}
+
+.tool-call-batch--completed {
+  border-left-color: color-mix(in srgb, var(--accent) 70%, transparent);
+}
+
+.tool-call-batch--error {
+  border-left-color: #cc4444;
+}
+
+.tool-call-batch__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+}
+
+.tool-call-batch__spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+.tool-call-batch__check {
+  color: var(--accent);
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.tool-call-batch__warning {
+  color: #cc4444;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.tool-call-batch__label {
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+}
+
+.tool-call-batch__calls {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* ── Tool call indicator ────────────────────────────────────────────── */
+.tool-call-indicator {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-main) 60%, transparent);
+  border: 1px solid var(--border);
+}
+
+.tool-call-indicator--running {
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+}
+
+.tool-call-indicator--completed {
+  border-color: color-mix(in srgb, var(--accent) 20%, var(--border));
+}
+
+.tool-call-indicator--error {
+  border-color: color-mix(in srgb, #cc4444 30%, var(--border));
+}
+
+.tool-call-indicator__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.tool-call-indicator__spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+.tool-call-indicator__check {
+  color: var(--accent);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.tool-call-indicator__error-icon {
+  color: #cc4444;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.tool-call-indicator__name {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.tool-call-indicator__approval-badge {
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.tool-call-indicator__toggle {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 0 2px;
+  line-height: 1;
+}
+
+.tool-call-indicator__toggle:hover {
+  color: var(--text-secondary);
+}
+
+.tool-call-indicator__details {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.tool-call-indicator__result {
+  color: var(--text-secondary);
+  word-break: break-word;
+}
+
+.tool-call-indicator__error {
+  color: #cc6666;
+  word-break: break-word;
+}
+
+/* ── Tool call message (history mode) ──────────────────────────────── */
+.message--tool-call {
+  align-self: flex-start;
+  max-width: 85%;
+  margin: 4px 0;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

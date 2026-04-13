@@ -52,8 +52,7 @@ function isAllowedExtension(
 const readUserTextFileTool: (config) => Tool = config => ({
   name: 'readUserTextFile',
   availableFor: ['chat', 'voice', 'autonomy'],
-  description:
-    `Reads the contents of a text file from the user's filesystem in chunks, with optional offset and size limits.`,
+  description: `Reads the contents of a text file from the user's filesystem in chunks, with optional offset and size limits.`,
   systemPromptFragment:
     `Call readUserTextFile when the user asks you to read the full contents of a text file, summarize ` +
     `a document, or extract information from it. Provide the "path" argument with the file to read. Optionally use "maxBytes" ` +

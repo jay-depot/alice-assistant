@@ -1,6 +1,7 @@
 import { formatTime } from '../utils.js';
 import { classNames } from '../utils.js';
 import { normalizeCssToken } from '../utils.js';
+import { humanizeToolName } from '../utils/tool-call-batch.js';
 import type { Message } from '../types/index.js';
 import { useEffect, useState } from 'react';
 import { MarkdownHooks } from 'react-markdown';
@@ -46,6 +47,62 @@ export function MessageBubble({
       window.removeEventListener('keydown', onKeyDown);
     };
   }, [isExpanded]);
+
+  // Tool call messages render as a compact inline indicator
+  if (message.messageKind === 'tool_call' && message.toolCallData) {
+    const { toolCallData } = message;
+    const statusIcon =
+      toolCallData.status === 'completed' ? (
+        <span className="tool-call-indicator__check" aria-label="Completed">
+          ✓
+        </span>
+      ) : toolCallData.status === 'error' ? (
+        <span className="tool-call-indicator__error-icon" aria-label="Error">
+          ✗
+        </span>
+      ) : (
+        <span className="tool-call-indicator__spinner" aria-label="Running" />
+      );
+
+    return (
+      <div
+        className={classNames(
+          'message',
+          'message--tool-call',
+          `message--${message.role}`,
+          `tool-call-indicator`,
+          `tool-call-indicator--${toolCallData.status}`
+        )}
+      >
+        <div className="tool-call-indicator__header">
+          {statusIcon}
+          <span className="tool-call-indicator__name">
+            {humanizeToolName(toolCallData.toolName)}
+          </span>
+          {toolCallData.requiresApproval ? (
+            <span
+              className="tool-call-indicator__approval-badge"
+              aria-label="Requires approval"
+              title="Requires approval"
+            >
+              🔒
+            </span>
+          ) : null}
+        </div>
+        {toolCallData.status === 'completed' && toolCallData.resultSummary ? (
+          <div className="tool-call-indicator__result">
+            {toolCallData.resultSummary}
+          </div>
+        ) : null}
+        {toolCallData.status === 'error' && toolCallData.error ? (
+          <div className="tool-call-indicator__error">{toolCallData.error}</div>
+        ) : null}
+        <div className="message__meta">
+          <span>{formatTime(message.timestamp)}</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

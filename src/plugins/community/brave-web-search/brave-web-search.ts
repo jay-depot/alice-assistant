@@ -5,6 +5,7 @@ const braveWebSearchPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'brave-web-search',
     name: 'Brave Web Search Plugin',
+    brandColor: '#eb24d6',
     description:
       'Provides an API for performing web searches using Brave Search. This plugin does not perform any web searches itself, but rather serves as a wrapper around the Brave Search API that other plugins can utilize to perform web searches and retrieve results.',
     version: 'LATEST',
@@ -22,7 +23,7 @@ const braveWebSearchPlugin: AlicePlugin = {
 
     const braveSearch = getBraveSearchApiClient();
     if (!braveSearch) {
-      console.warn(
+      plugin.logger.warn(
         'Brave Web Search Plugin: Brave Search API client is not available. Please ensure the Brave Search API plugin is correctly configured.'
       );
       return;

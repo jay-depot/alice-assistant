@@ -13,9 +13,7 @@ type ScheduledSessionAgentStatus =
 type OnAgentHandoffCallback = (toConversationType: ConversationTypeId) => void;
 
 export abstract class ScheduledSessionAgent extends AliceAgent {
-  constructor(
-    public conversationType: ConversationTypeId,
-  ) {
+  constructor(public conversationType: ConversationTypeId) {
     super(conversationType);
   }
 

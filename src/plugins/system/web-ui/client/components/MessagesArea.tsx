@@ -4,7 +4,12 @@ import { ActiveAgentsPanel } from './ActiveAgentsPanel.js';
 import { ProcessingStatus } from './ProcessingStatus.js';
 import { RegionSlot } from './RegionSlot.js';
 import { WelcomeScreen } from './WelcomeScreen.js';
-import type { ActiveSessionAgent, Message } from '../types/index.js';
+import { ToolCallBatch } from './ToolCallBatch.js';
+import type {
+  ActiveSessionAgent,
+  Message,
+  ToolCallData,
+} from '../types/index.js';
 import { getMessageKey, isDisplayableMessage } from '../utils.js';
 
 interface MessagesAreaProps {
@@ -15,6 +20,60 @@ interface MessagesAreaProps {
   isEndingSession: boolean;
   pendingMessageKey: string | null;
   lastReadMessageKey: string | null;
+  toolCallBatches: Map<string, ToolCallData[]>;
+}
+
+/** Group consecutive tool_call messages by callBatchId into batched segments. */
+function groupToolCallMessages(
+  messages: Message[]
+): Array<
+  | { type: 'messages'; items: Message[] }
+  | { type: 'tool-batch'; calls: ToolCallData[] }
+> {
+  const segments: Array<
+    | { type: 'messages'; items: Message[] }
+    | { type: 'tool-batch'; calls: ToolCallData[] }
+  > = [];
+  let currentMessages: Message[] = [];
+  let currentBatch: ToolCallData[] = [];
+  let currentBatchId: string | null = null;
+
+  const flushBatch = () => {
+    if (currentBatch.length > 0) {
+      segments.push({ type: 'tool-batch', calls: currentBatch });
+      currentBatch = [];
+      currentBatchId = null;
+    }
+  };
+
+  const flushMessages = () => {
+    if (currentMessages.length > 0) {
+      segments.push({ type: 'messages', items: currentMessages });
+      currentMessages = [];
+    }
+  };
+
+  for (const message of messages) {
+    if (message.messageKind === 'tool_call' && message.toolCallData) {
+      const batchId = message.toolCallData.callBatchId;
+      if (batchId !== currentBatchId) {
+        flushMessages();
+        flushBatch();
+      }
+      currentBatchId = batchId;
+      currentBatch.push(message.toolCallData);
+    } else {
+      if (currentBatch.length > 0) {
+        flushBatch();
+      }
+      currentMessages.push(message);
+    }
+  }
+
+  flushMessages();
+  flushBatch();
+
+  return segments;
 }
 
 export function MessagesArea({
@@ -25,6 +84,7 @@ export function MessagesArea({
   isEndingSession,
   pendingMessageKey,
   lastReadMessageKey,
+  toolCallBatches,
 }: MessagesAreaProps) {
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const visibleMessages = useMemo(
@@ -35,6 +95,17 @@ export function MessagesArea({
     visibleMessages.length > 0
       ? getMessageKey(visibleMessages[visibleMessages.length - 1])
       : null;
+
+  const groupedSegments = useMemo(
+    () => groupToolCallMessages(visibleMessages),
+    [visibleMessages]
+  );
+
+  // Collect real-time tool call batches as an array for rendering
+  const realtimeBatches = useMemo(
+    () => [...toolCallBatches.entries()],
+    [toolCallBatches]
+  );
 
   useLayoutEffect(() => {
     const container = messagesRef.current;
@@ -59,6 +130,7 @@ export function MessagesArea({
     lastVisibleMessageKey,
     showWelcome,
     visibleMessages.length,
+    toolCallBatches.size,
   ]);
 
   return (
@@ -72,21 +144,39 @@ export function MessagesArea({
       {showWelcome ? (
         <WelcomeScreen />
       ) : (
-        visibleMessages.map((message, index) => (
-          <MessageBubble
-            key={`${message.timestamp}-${index}`}
-            message={message}
-            receiptStatus={
-              message.role === 'user'
-                ? getMessageKey(message) === lastReadMessageKey
-                  ? 'read'
-                  : getMessageKey(message) === pendingMessageKey
-                    ? 'sent'
-                    : null
-                : null
+        <>
+          {groupedSegments.map((segment, segmentIndex) => {
+            if (segment.type === 'tool-batch') {
+              return (
+                <ToolCallBatch
+                  key={`batch-${segmentIndex}`}
+                  calls={segment.calls}
+                />
+              );
             }
-          />
-        ))
+
+            return segment.items.map((message, messageIndex) => (
+              <MessageBubble
+                key={`${message.timestamp}-${segmentIndex}-${messageIndex}`}
+                message={message}
+                receiptStatus={
+                  message.role === 'user'
+                    ? getMessageKey(message) === lastReadMessageKey
+                      ? 'read'
+                      : getMessageKey(message) === pendingMessageKey
+                        ? 'sent'
+                        : null
+                    : null
+                }
+              />
+            ));
+          })}
+
+          {/* Real-time tool call batches (shown during processing) */}
+          {realtimeBatches.map(([batchId, calls]) => (
+            <ToolCallBatch key={`realtime-${batchId}`} calls={calls} />
+          ))}
+        </>
       )}
 
       {isProcessing ? <ProcessingStatus /> : null}

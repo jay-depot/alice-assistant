@@ -48,6 +48,7 @@ const remindersBrokerPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'reminders-broker',
     name: 'Reminders Broker Plugin',
+    brandColor: '#d3384d',
     description:
       'Provides an API for other plugins to create, manage, and receive reminders. This ' +
       'plugin does not implement any reminder storage or notification mechanism itself, but rather ' +
@@ -92,14 +93,14 @@ const remindersBrokerPlugin: AlicePlugin = {
 
       if (dueReminders.length === 0) {
         if (process.env.ALICE_DEBUG) {
-          console.log(
+          plugin.logger.log(
             `Reminders Broker: No due reminders found during ${reason} cycle.`
           );
         }
         return;
       }
 
-      console.log(
+      plugin.logger.log(
         `Reminders Broker: Processing ${dueReminders.length} due reminder(s) during ${reason} cycle.`
       );
 
@@ -116,7 +117,7 @@ const remindersBrokerPlugin: AlicePlugin = {
           await notificationPromise;
           await em.remove(reminder).flush();
         } catch (error) {
-          console.error(
+          plugin.logger.error(
             `Reminders Broker: Failed to deliver reminder ${reminder.id}.`,
             error
           );
@@ -135,7 +136,7 @@ const remindersBrokerPlugin: AlicePlugin = {
 
       if (activePollingCycle) {
         if (process.env.ALICE_DEBUG) {
-          console.log(
+          plugin.logger.log(
             `Reminders Broker: Skipping overlapping ${reason} cycle.`
           );
         }
@@ -144,7 +145,10 @@ const remindersBrokerPlugin: AlicePlugin = {
 
       const cyclePromise = pollDueReminders(reason)
         .catch(error => {
-          console.error(`Reminders Broker: ${reason} cycle failed.`, error);
+          plugin.logger.error(
+            `Reminders Broker: ${reason} cycle failed.`,
+            error
+          );
         })
         .finally(() => {
           if (activePollingCycle === cyclePromise) {
@@ -217,19 +221,33 @@ const remindersBrokerPlugin: AlicePlugin = {
     });
 
     plugin.hooks.onAssistantAcceptsRequests(async () => {
+      plugin.logger.log(
+        'onAssistantAcceptsRequests: Starting reminder polling loop startup.'
+      );
       if (pollingInterval) {
+        plugin.logger.log(
+          'onAssistantAcceptsRequests: Skipping reminder polling loop startup because it is already active.'
+        );
         return;
       }
 
-      console.log('Reminders Broker: Starting due-reminder polling loop.');
+      plugin.logger.log(
+        'Reminders Broker: Starting due-reminder polling loop.'
+      );
       pollingInterval = setInterval(() => {
         void runPollingCycle('interval');
       }, 60 * 1000);
 
       void runPollingCycle('startup');
+      plugin.logger.log(
+        'onAssistantAcceptsRequests: Completed reminder polling loop startup.'
+      );
     });
 
     plugin.hooks.onAssistantWillStopAcceptingRequests(async () => {
+      plugin.logger.log(
+        'onAssistantWillStopAcceptingRequests: Starting reminder polling loop shutdown.'
+      );
       isShuttingDown = true;
 
       if (pollingInterval) {
@@ -237,20 +255,25 @@ const remindersBrokerPlugin: AlicePlugin = {
         pollingInterval = null;
       }
 
-      console.log('Reminders Broker: Stopping due-reminder polling loop.');
+      plugin.logger.log(
+        'Reminders Broker: Stopping due-reminder polling loop.'
+      );
 
       if (activePollingCycle) {
         await activePollingCycle;
       }
 
       if (inFlightNotificationPromises.size > 0) {
-        console.log(
+        plugin.logger.log(
           `Reminders Broker: Waiting for ${inFlightNotificationPromises.size} in-flight reminder notification(s).`
         );
         await Promise.allSettled([...inFlightNotificationPromises]);
       }
 
       await runPollingCycle('shutdown-final');
+      plugin.logger.log(
+        'onAssistantWillStopAcceptingRequests: Completed reminder polling loop shutdown.'
+      );
     });
   },
 };

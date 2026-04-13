@@ -24,6 +24,8 @@ import {
 } from './conversation-types.js';
 import { TaskAssistants } from './task-assistant.js';
 import { AgentSystem } from './agent-system.js';
+import { createPluginLogger } from './plugin-logger.js';
+import { systemLogger } from './system-logger.js';
 
 const loadedPlugins: AlicePlugin[] = [];
 const registeredPlugins: Record<string, AlicePlugin> = {};
@@ -78,6 +80,10 @@ function createPluginInterface(
   pluginMetadata: AlicePluginMetadata
 ): EnginePluginInterface {
   let registrationClosed = false;
+  const pluginLogger = createPluginLogger(
+    pluginMetadata.id,
+    pluginMetadata.brandColor
+  );
 
   function isBuiltInPlugin(): boolean {
     return !!pluginMetadata.builtInCategory;
@@ -102,6 +108,8 @@ function createPluginInterface(
       await Promise.all(dependencyPromises);
 
       return {
+        logger: pluginLogger,
+
         registerTool: (toolDefinition: Tool) => {
           assertRegistrationOpen(`tool ${toolDefinition.name}`);
 
@@ -378,13 +386,13 @@ export const AlicePluginEngine = {
     });
     await Promise.all(
       loadedPlugins.map(async plugin => {
-        console.log(`Registering plugin: ${plugin.pluginMetadata.id}...`);
+        systemLogger.log(`Registering plugin: ${plugin.pluginMetadata.id}...`);
         const pluginInterface = createPluginInterface(plugin.pluginMetadata);
 
         try {
           await plugin.registerPlugin(pluginInterface);
         } catch (error) {
-          console.error(
+          systemLogger.error(
             `Error registering plugin ${plugin.pluginMetadata.id}:`,
             error
           );
@@ -400,7 +408,7 @@ export const AlicePluginEngine = {
 
         loadingPromises[plugin.pluginMetadata.id].resolve();
         registeredPlugins[plugin.pluginMetadata.id] = plugin;
-        console.log(`Plugin registered: ${plugin.pluginMetadata.id}`);
+        systemLogger.log(`Plugin registered: ${plugin.pluginMetadata.id}`);
       })
     );
 

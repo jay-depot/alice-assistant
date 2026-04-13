@@ -37,6 +37,7 @@ const notificationsBrokerPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'notifications-broker',
     name: 'Notifications Broker Plugin',
+    brandColor: '#459fa4',
     description:
       'Provides an API for other plugins to send notifications to the user. This plugin ' +
       'serves as a central hub for all notifications from any plugins that wish to send them, and ' +
@@ -70,7 +71,7 @@ const notificationsBrokerPlugin: AlicePlugin = {
           Object.keys(notificationSinks).map(async name => {
             const send = notificationSinks[name];
             if (process.env.ALICE_DEBUG) {
-              console.log(
+              plugin.logger.log(
                 'Notifications Broker: Forwarding notification to sink:',
                 name,
                 JSON.stringify(notification, null, 2)
@@ -86,7 +87,7 @@ const notificationsBrokerPlugin: AlicePlugin = {
 
         notificationSinks[name] = sink.sendNotification;
 
-        console.log(
+        plugin.logger.log(
           'Notifications Broker: Registered new notification sink:',
           name
         );

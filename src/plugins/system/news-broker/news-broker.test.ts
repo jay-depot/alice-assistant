@@ -16,6 +16,13 @@ function createMockPluginInterface() {
     registeredTools,
     registerPlugin: async () => {
       return {
+        logger: {
+          log: vi.fn(),
+          info: vi.fn(),
+          warn: vi.fn(),
+          error: vi.fn(),
+          debug: vi.fn(),
+        },
         registerTool: (tool: Tool) => {
           registeredTools.push(tool);
         },
@@ -59,6 +66,7 @@ describe('newsBrokerPlugin', () => {
     expect(newsBrokerPlugin.pluginMetadata).toEqual({
       id: 'news-broker',
       name: 'News Broker Plugin',
+      brandColor: '#a1e117',
       description:
         'Provides an API for other plugins to offer news data to the assistant, ' +
         'and for other plugins to request news data from any plugin that offers it.',

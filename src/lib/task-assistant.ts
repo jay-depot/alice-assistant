@@ -4,6 +4,7 @@ import {
   type Conversation,
   type Message,
 } from './conversation.js';
+import { systemLogger } from './system-logger.js';
 import type { ConversationTypeId } from './conversation-types.js';
 import type { Tool, ToolExecutionContext } from './tool-system.js';
 import type { TSchema } from 'typebox';
@@ -240,10 +241,10 @@ function logTaskAssistantLifecycle(
   details?: Record<string, unknown>
 ): void {
   if (details) {
-    console.log(`${TASK_ASSISTANT_LOG_PREFIX} ${event}`, details);
+    systemLogger.log(`${TASK_ASSISTANT_LOG_PREFIX} ${event}`, details);
     return;
   }
-  console.log(`${TASK_ASSISTANT_LOG_PREFIX} ${event}`);
+  systemLogger.log(`${TASK_ASSISTANT_LOG_PREFIX} ${event}`);
 }
 
 function getElapsedMilliseconds(instance: ActiveTaskAssistantInstance): number {

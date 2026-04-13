@@ -2,11 +2,12 @@ import { UserConfig } from './user-config.js';
 import { startConversation } from './conversation.js';
 import { loadPlugins } from './alice-plugin-loader.js';
 import { PluginHookInvocations } from './plugin-hooks.js';
+import { systemLogger } from './system-logger.js';
 
 export const AliceCore = {
   waitForShutdownSignal: () => {
     return new Promise<void>(resolve => {
-      console.log('Entering main loop. Press Ctrl+C to exit.');
+      systemLogger.log('Entering main loop. Press Ctrl+C to exit.');
       let shuttingDown = false;
       const cleanupSignalHandlers = () => {
         process.off('SIGINT', shutdown);
@@ -17,13 +18,18 @@ export const AliceCore = {
         if (shuttingDown) {
           return;
         }
+        // Print a single newline to separate the shutdown logs from the ^C in the console.
+        // This should be the only console.log left in the code, outside of the logging helpers.
+        console.log();
         shuttingDown = true;
-        console.log(`\nReceived ${signal}, shutting down gracefully...`);
+        systemLogger.log(`\nReceived ${signal}, shutting down gracefully...`);
         cleanupSignalHandlers();
         await PluginHookInvocations.invokeOnAssistantWillStopAcceptingRequests();
         await PluginHookInvocations.invokeOnAssistantStoppedAcceptingRequests();
         await PluginHookInvocations.invokeOnPluginsWillUnload();
-        console.log('All plugins have been notified of shutdown. Exiting now.');
+        systemLogger.log(
+          'All plugins have been notified of shutdown. Exiting now.'
+        );
         resolve();
       };
 
@@ -34,25 +40,27 @@ export const AliceCore = {
 
   start: async () => {
     const configPath = UserConfig.getConfigPath(); // I'm probably going to pass this into the LLM context at some point? IDK, might be fun.
-    console.log(`ALICE Assistant starting with config path: ${configPath}`);
+    systemLogger.log(
+      `ALICE Assistant starting with config path: ${configPath}`
+    );
     UserConfig.load();
     const config = UserConfig.getConfig();
 
     if (config.assistantName !== 'ALICE') {
-      console.log(`Oh! I'm actually named ${config.assistantName}.`);
+      systemLogger.log(`Oh! I'm actually named ${config.assistantName}.`);
     }
 
-    console.log('Config loaded successfully.');
+    systemLogger.log('Config loaded successfully.');
     await loadPlugins();
-    console.log(`Trying talk to ${config.ollama.model} in Ollama...\n`);
+    systemLogger.log(`Trying talk to ${config.ollama.model} in Ollama...\n`);
     await PluginHookInvocations.invokeOnAssistantWillAcceptRequests();
     await (async () => {
       const testConversation = startConversation('startup');
-      console.log(` -> Welcome back, ${config.assistantName}`);
+      systemLogger.log(` -> Welcome back, ${config.assistantName}`);
       const reply = await testConversation.sendUserMessage();
-      console.log(` <- ${reply}`);
+      systemLogger.log(` <- ${reply}`);
     })();
-    console.log(`\nTalking to ${config.ollama.model} in Ollama works.`);
+    systemLogger.log(`\nTalking to ${config.ollama.model} in Ollama works.`);
 
     await PluginHookInvocations.invokeOnAssistantAcceptsRequests();
 

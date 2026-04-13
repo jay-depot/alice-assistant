@@ -23,6 +23,8 @@ export type AlicePluginMetadata = {
   id: string;
   // The plugin's human-friendly name, used in the UI and error messages. Does not have to be unique, but it should be.
   name: string;
+  // Hex color for this plugin's log prefix (for example: #4f46e5).
+  brandColor: string;
   // semver enforced. Built-in shipped plugins may use the magic version string "LATEST"
   // to always match the assistant's version. External user plugins may not.
   version: string;
@@ -61,6 +63,14 @@ declare module './alice-plugin-interface.js' {
 
 export type AlicePluginInterface = {
   registerPlugin: () => Promise<{
+    logger: {
+      log: (...args: unknown[]) => void;
+      info: (...args: unknown[]) => void;
+      warn: (...args: unknown[]) => void;
+      error: (...args: unknown[]) => void;
+      debug: (...args: unknown[]) => void;
+    };
+
     registerTool: (toolDefinition: Tool) => void;
 
     // Let's limit non-built-in plugins to only being able to give their system prompts

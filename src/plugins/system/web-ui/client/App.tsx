@@ -9,7 +9,8 @@ import { Sidebar } from './components/Sidebar.js';
 import { useExtensionContext } from './context/ExtensionContext.js';
 import { useSession } from './hooks/useSession.js';
 import { useSessions } from './hooks/useSessions.js';
-import type { PluginClientRoute } from './types/index.js';
+import { useToolCallEvents } from './hooks/useToolCallEvents.js';
+import type { PluginClientRoute, ToolCallData } from './types/index.js';
 
 interface ChatWorkspaceProps {
   title: string;
@@ -24,6 +25,7 @@ interface ChatWorkspaceProps {
   isProcessing: boolean;
   pendingMessageKey: string | null;
   lastReadMessageKey: string | null;
+  toolCallBatches: Map<string, ToolCallData[]>;
   draft: string;
   setDraft: (value: string) => void;
   submitDraft: () => void;
@@ -45,6 +47,7 @@ function ChatWorkspace({
   isProcessing,
   pendingMessageKey,
   lastReadMessageKey,
+  toolCallBatches,
   draft,
   setDraft,
   submitDraft,
@@ -70,6 +73,7 @@ function ChatWorkspace({
         isEndingSession={isEndingSession}
         pendingMessageKey={pendingMessageKey}
         lastReadMessageKey={lastReadMessageKey}
+        toolCallBatches={toolCallBatches}
       />
       <InputArea
         value={draft}
@@ -141,6 +145,11 @@ export function App() {
     refreshSessions,
   });
 
+  const { toolCallBatches } = useToolCallEvents(
+    currentSessionId,
+    isProcessingMessage
+  );
+
   const pluginRoutes = routes.filter(route => route.path !== '/');
 
   const submitDraft = useCallback(async () => {
@@ -186,6 +195,7 @@ export function App() {
               isProcessing={isProcessingMessage}
               pendingMessageKey={pendingMessageKey}
               lastReadMessageKey={lastReadMessageKey}
+              toolCallBatches={toolCallBatches}
               draft={draft}
               setDraft={setDraft}
               submitDraft={() => {

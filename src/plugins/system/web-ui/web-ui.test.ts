@@ -103,6 +103,10 @@ vi.mock('../../../lib.js', () => ({
   startConversation: mockStartConversation,
   TaskAssistants: mockTaskAssistants,
   AgentSystem: mockAgentSystem,
+  ToolCallEvents: {
+    onToolCallEvent: vi.fn(),
+    dispatchToolCallEvent: vi.fn().mockResolvedValue(undefined),
+  },
 }));
 
 import type { AlicePluginInterface } from '../../../lib.js';
@@ -207,6 +211,13 @@ function createMockPluginInterface(initialSessions: ChatSessionRecord[] = []) {
       }
     },
     registerPlugin: async () => ({
+      logger: {
+        log: vi.fn(),
+        info: vi.fn(),
+        warn: vi.fn(),
+        error: vi.fn(),
+        debug: vi.fn(),
+      },
       registerTool: vi.fn(),
       registerHeaderSystemPrompt: vi.fn(),
       registerFooterSystemPrompt: vi.fn(),
@@ -250,6 +261,16 @@ function createMockPluginInterface(initialSessions: ChatSessionRecord[] = []) {
       },
     }),
   };
+}
+
+function createDeferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((innerResolve, innerReject) => {
+    resolve = innerResolve;
+    reject = innerReject;
+  });
+  return { promise, resolve, reject };
 }
 
 describe('webUiPlugin', () => {
@@ -601,6 +622,81 @@ describe('webUiPlugin', () => {
     expect(res.status).toHaveBeenCalledWith(404);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({ error: 'Chat session not found' })
+    );
+  });
+
+  it('PATCH /api/chat/:id waits for parent response when suspension triggers', async () => {
+    const now = new Date('2026-04-12T00:00:00Z');
+    const mockInterface = createMockPluginInterface([
+      {
+        id: 11,
+        title: 'Suspended Session',
+        rounds: makeRounds([]),
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+
+    const unsynchronizedMessages: Array<{ role: string; content: string }> = [];
+    const parentReply = createDeferred<void>();
+    const sendUserMessageSpy = vi.fn(() => parentReply.promise);
+
+    mockStartConversation.mockReset().mockReturnValue({
+      restoreContext: vi.fn().mockReturnThis(),
+      getUnsynchronizedMessages: vi.fn(() => [...unsynchronizedMessages]),
+      markUnsynchronizedMessagesSynchronized: vi.fn(() => {
+        unsynchronizedMessages.splice(0, unsynchronizedMessages.length);
+      }),
+      appendExternalMessage: vi.fn(
+        async (message: { role: string; content: string }) => {
+          unsynchronizedMessages.push({
+            role: message.role,
+            content: message.content,
+          });
+        }
+      ),
+      closeConversation: vi.fn(),
+      sendUserMessage: sendUserMessageSpy,
+      requestTitle: vi.fn(async () => 'Suspended Session Updated'),
+    });
+
+    mockTaskAssistants.getSuspensionSignal
+      .mockReset()
+      .mockReturnValue(Promise.resolve());
+    mockTaskAssistants.getActiveInstance.mockReset().mockReturnValue(null);
+
+    await webUiPlugin.registerPlugin(
+      mockInterface as unknown as AlicePluginInterface
+    );
+    await mockInterface.runHook('onAssistantAcceptsRequests');
+
+    const handler = getRegisteredRouteHandler('patch', '/api/chat/:id');
+    expect(handler).toBeDefined();
+    const res = createMockResponse();
+
+    const responsePromise = handler!(
+      { params: { id: '11' }, body: { message: 'hello' } },
+      res
+    );
+
+    await Promise.resolve();
+    expect(res.json).not.toHaveBeenCalled();
+
+    unsynchronizedMessages.push({
+      role: 'assistant',
+      content: 'Final assistant reply after suspension',
+    });
+    parentReply.resolve();
+
+    await responsePromise;
+
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        session: expect.objectContaining({
+          id: '11',
+          title: 'Suspended Session Updated',
+        }),
+      })
     );
   });
 

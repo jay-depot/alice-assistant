@@ -9,6 +9,7 @@ import type {
   ActiveTaskAssistantInstance,
   TaskAssistantResult,
 } from '../lib.js';
+import { systemLogger } from './system-logger.js';
 
 const registeredHooks: {
   onUserConversationWillBegin: Array<
@@ -203,47 +204,89 @@ export const PluginHookInvocations = {
   },
   invokeOnAllPluginsLoaded: async () => {
     isRegistrationOpenForHook.onAllPluginsLoaded = false;
+    systemLogger.log(
+      `[plugin-hooks] invokeOnAllPluginsLoaded: Starting callback dispatch (${registeredHooks.onAllPluginsLoaded.length} callback(s)).`
+    );
     for (const callback of registeredHooks.onAllPluginsLoaded) {
       await callback();
     }
+    systemLogger.log(
+      '[plugin-hooks] invokeOnAllPluginsLoaded: Completed callback dispatch.'
+    );
   },
   invokeOnAssistantWillAcceptRequests: async () => {
     isRegistrationOpenForHook.onAssistantWillAcceptRequests = false;
+    systemLogger.log(
+      `[plugin-hooks] invokeOnAssistantWillAcceptRequests: Starting callback dispatch (${registeredHooks.onAssistantWillAcceptRequests.length} callback(s)).`
+    );
     for (const callback of registeredHooks.onAssistantWillAcceptRequests) {
       await callback();
     }
+    systemLogger.log(
+      '[plugin-hooks] invokeOnAssistantWillAcceptRequests: Completed callback dispatch.'
+    );
   },
   invokeOnAssistantAcceptsRequests: async () => {
     isRegistrationOpenForHook.onAssistantAcceptsRequests = false;
+    systemLogger.log(
+      `[plugin-hooks] invokeOnAssistantAcceptsRequests: Starting callback dispatch (${registeredHooks.onAssistantAcceptsRequests.length} callback(s)).`
+    );
     for (const callback of registeredHooks.onAssistantAcceptsRequests) {
       await callback();
     }
+    systemLogger.log(
+      '[plugin-hooks] invokeOnAssistantAcceptsRequests: Completed callback dispatch.'
+    );
   },
   invokeOnAssistantWillStopAcceptingRequests: async () => {
     isRegistrationOpenForHook.onAssistantWillStopAcceptingRequests = false;
+    systemLogger.log(
+      `[plugin-hooks] invokeOnAssistantWillStopAcceptingRequests: Starting callback dispatch (${registeredHooks.onAssistantWillStopAcceptingRequests.length} callback(s)).`
+    );
     for (const callback of registeredHooks.onAssistantWillStopAcceptingRequests) {
       await callback();
     }
+    systemLogger.log(
+      '[plugin-hooks] invokeOnAssistantWillStopAcceptingRequests: Completed callback dispatch.'
+    );
   },
   invokeOnAssistantStoppedAcceptingRequests: async () => {
     isRegistrationOpenForHook.onAssistantStoppedAcceptingRequests = false;
+    systemLogger.log(
+      `[plugin-hooks] invokeOnAssistantStoppedAcceptingRequests: Starting callback dispatch (${registeredHooks.onAssistantStoppedAcceptingRequests.length} callback(s)).`
+    );
     for (const callback of registeredHooks.onAssistantStoppedAcceptingRequests) {
       await callback();
     }
+    systemLogger.log(
+      '[plugin-hooks] invokeOnAssistantStoppedAcceptingRequests: Completed callback dispatch.'
+    );
   },
   invokeOnPluginsWillUnload: async () => {
     isRegistrationOpenForHook.onPluginsWillUnload = false;
+    systemLogger.log(
+      `[plugin-hooks] invokeOnPluginsWillUnload: Starting callback dispatch (${registeredHooks.onPluginsWillUnload.length} callback(s)).`
+    );
     for (const callback of registeredHooks.onPluginsWillUnload) {
       await callback();
     }
+    systemLogger.log(
+      '[plugin-hooks] invokeOnPluginsWillUnload: Completed callback dispatch.'
+    );
   },
 };
 
 // Wire TaskAssistantEvents so that task assistant lifecycle events fan out to registered plugin hooks.
 TaskAssistantEvents.onBegin(async (instance: ActiveTaskAssistantInstance) => {
+  systemLogger.log(
+    `[plugin-hooks] onTaskAssistantWillBegin: Starting callback dispatch (${registeredHooks.onTaskAssistantWillBegin.length} callback(s)) for session ${instance.parentSessionId}.`
+  );
   for (const callback of registeredHooks.onTaskAssistantWillBegin) {
     await callback(instance);
   }
+  systemLogger.log(
+    `[plugin-hooks] onTaskAssistantWillBegin: Completed callback dispatch for session ${instance.parentSessionId}.`
+  );
 });
 
 TaskAssistantEvents.onEnd(
@@ -251,8 +294,14 @@ TaskAssistantEvents.onEnd(
     instance: ActiveTaskAssistantInstance,
     result: TaskAssistantResult
   ) => {
+    systemLogger.log(
+      `[plugin-hooks] onTaskAssistantWillEnd: Starting callback dispatch (${registeredHooks.onTaskAssistantWillEnd.length} callback(s)) for session ${instance.parentSessionId} with status ${result.status}.`
+    );
     for (const callback of registeredHooks.onTaskAssistantWillEnd) {
       await callback(instance, result);
     }
+    systemLogger.log(
+      `[plugin-hooks] onTaskAssistantWillEnd: Completed callback dispatch for session ${instance.parentSessionId} with status ${result.status}.`
+    );
   }
 );

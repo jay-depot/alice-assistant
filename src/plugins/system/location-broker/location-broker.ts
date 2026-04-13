@@ -28,6 +28,7 @@ const locationBrokerPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'location-broker',
     name: 'Location Broker Plugin',
+    brandColor: '#4be5be',
     description:
       'Provides an API for other plugins to offer location data to the assistant, ' +
       'and for other plugins to request location data from any plugin that offers it. Note: Only ' +
@@ -76,12 +77,18 @@ const locationBrokerPlugin: AlicePlugin = {
     });
 
     plugin.hooks.onAllPluginsLoaded(async () => {
+      plugin.logger.log(
+        'onAllPluginsLoaded: Starting location provider registration finalization.'
+      );
       if (locationProviderConflict) {
         throw new Error(
           `Multiple plugins attempted to register as location providers: ${locationProviderNames.join(', ')}. Please disable all but one of these plugins and try starting your assistant again.`
         );
       }
       locationProviderRegistrationClosed = true;
+      plugin.logger.log(
+        'onAllPluginsLoaded: Completed location provider registration finalization.'
+      );
     });
 
     plugin.registerFooterSystemPrompt({

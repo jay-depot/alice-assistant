@@ -33,6 +33,13 @@ function createMockPluginInterface() {
     configValues,
     registerPlugin: async () => {
       return {
+        logger: {
+          log: vi.fn(),
+          info: vi.fn(),
+          warn: vi.fn(),
+          error: vi.fn(),
+          debug: vi.fn(),
+        },
         registerTool: (tool: Tool) => {
           registeredTools.push(tool);
         },
@@ -86,6 +93,7 @@ describe('memoryPlugin', () => {
     expect(memoryPlugin.pluginMetadata).toEqual({
       id: 'memory',
       name: 'Memory Plugin',
+      brandColor: '#cd69b4',
       version: 'LATEST',
       description:
         'A plugin that allows the assistant to recall summaries of finished ' +

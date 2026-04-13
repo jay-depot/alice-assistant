@@ -41,6 +41,7 @@ const notificationsLibnotifyPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'notifications-libnotify',
     name: 'Notifications Libnotify Plugin',
+    brandColor: '#425548',
     description:
       'A notification sink plugin that uses libnotify via notify-send to send ' +
       'desktop notifications directly to the user without involving the LLM.',

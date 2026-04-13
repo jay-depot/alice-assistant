@@ -3,6 +3,7 @@ import { startConversation, type Conversation } from './conversation.js';
 import type { ConversationTypeId } from './conversation-types.js';
 import type { Tool } from './tool-system.js';
 import type { TSchema } from 'typebox';
+import { systemLogger } from './system-logger.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -145,7 +146,7 @@ async function runAgentLoop(
     if (instance.status === 'running') {
       instance.status = 'erroring';
     }
-    console.error(
+    systemLogger.error(
       `Agent ${instance.agentId} (instance ${instance.instanceId}) encountered an error:`,
       error
     );
@@ -258,7 +259,7 @@ export const AgentSystem = {
           })
           .catch(error => {
             instance.status = 'erroring';
-            console.error(
+            systemLogger.error(
               `Agent ${definition.id} failed to build startup context:`,
               error
             );
@@ -300,7 +301,7 @@ export const AgentSystem = {
         );
       }
     } catch (error) {
-      console.error(
+      systemLogger.error(
         `Failed to deliver progress update for agent ${instance.agentId} (${instance.instanceId}):`,
         error
       );
@@ -360,7 +361,7 @@ export const AgentSystem = {
         removeInstanceFromMaps(instance);
       }
     } catch (error) {
-      console.error(
+      systemLogger.error(
         `Failed to deliver final result for agent ${instance.agentId} (${instance.instanceId}):`,
         error
       );

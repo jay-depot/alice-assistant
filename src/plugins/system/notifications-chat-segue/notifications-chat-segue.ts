@@ -13,6 +13,7 @@ const notificationsConversationPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'notifications-chat-segue',
     name: 'Notifications Chat Segue Plugin',
+    brandColor: '#157619',
     description:
       'A notifications provider for the notifications-broker system plugin. Adds any ' +
       'active notifications to the system prompts for text chat for the assistant to work into ' +

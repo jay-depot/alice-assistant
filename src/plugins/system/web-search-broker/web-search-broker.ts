@@ -57,6 +57,7 @@ const webSearchBrokerPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'web-search-broker',
     name: 'Web Search Broker Plugin',
+    brandColor: '#d5ec79',
     description:
       'Provides an API for other plugins to offer web search data to ' +
       'the assistant, and for other plugins to request general purpose web search ' +

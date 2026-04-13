@@ -16,10 +16,19 @@ import notificationsConsolePlugin from './notifications-console.js';
 
 function createMockPluginInterface() {
   const registerNotificationSink = vi.fn().mockResolvedValue(undefined);
+  const logger = {
+    log: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  };
 
   return {
     registerNotificationSink,
+    logger,
     registerPlugin: async () => ({
+      logger,
       request: (pluginId: string) => {
         if (pluginId === 'notifications-broker') {
           return { registerNotificationSink };
@@ -52,14 +61,12 @@ function createMockPluginInterface() {
 }
 
 describe('notificationsConsolePlugin', () => {
-  const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
-
   beforeEach(() => {
-    logSpy.mockClear();
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
-    logSpy.mockClear();
+    vi.clearAllMocks();
   });
 
   it('has correct plugin metadata', () => {
@@ -111,9 +118,15 @@ describe('notificationsConsolePlugin', () => {
       message: 'Standup in 10 minutes',
     });
 
-    expect(logSpy).toHaveBeenCalledWith('ALICE Notification');
-    expect(logSpy).toHaveBeenCalledWith('  Title: Meeting Reminder');
-    expect(logSpy).toHaveBeenCalledWith('  Source: reminders-broker');
-    expect(logSpy).toHaveBeenCalledWith('  Message: Standup in 10 minutes');
+    expect(mockInterface.logger.log).toHaveBeenCalledWith('ALICE Notification');
+    expect(mockInterface.logger.log).toHaveBeenCalledWith(
+      '  Title: Meeting Reminder'
+    );
+    expect(mockInterface.logger.log).toHaveBeenCalledWith(
+      '  Source: reminders-broker'
+    );
+    expect(mockInterface.logger.log).toHaveBeenCalledWith(
+      '  Message: Standup in 10 minutes'
+    );
   });
 });

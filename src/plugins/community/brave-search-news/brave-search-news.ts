@@ -5,6 +5,7 @@ const braveSearchNewsPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'brave-search-news',
     name: 'Brave Search News Plugin',
+    brandColor: '#1904ef',
     description:
       'Uses Brave Search API to provide a news source for the news broker plugin.',
     version: 'LATEST',
@@ -22,7 +23,7 @@ const braveSearchNewsPlugin: AlicePlugin = {
 
     const braveSearch = getBraveSearchApiClient();
     if (!braveSearch) {
-      console.warn(
+      plugin.logger.warn(
         'Brave Search News Plugin: Brave Search API client is not available. Please ensure the Brave Search API plugin is correctly configured.'
       );
       return;

@@ -4,6 +4,7 @@ const dailyGoalsPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'daily-goals',
     name: 'Daily Goals Plugin',
+    brandColor: '#0395cb',
     description:
       'Allows the assistant to track any daily goals the user requests to ' +
       'set. The assistant should then check in occasionally to see how the user is doing ' +

@@ -7,6 +7,10 @@ type CookieRecord = {
   httpOnly?: boolean;
 };
 
+import { createPluginLogger } from '../../../lib/plugin-logger.js';
+
+const logger = createPluginLogger('web-simple-fetch');
+
 class SiteCookieJar {
   private cookies: Record<string, CookieRecord> = {};
 
@@ -109,7 +113,7 @@ export const cookieJar = {
         }
       }
     }
-    console.log(
+    logger.log(
       `Getting cookies for domain ${hostname} (path: ${pathname}, secure: ${protocol === 'https:'}). Found cookie headers: ${cookieHeaders.join(' | ')}`
     );
     return cookieHeaders.join('; ');
@@ -121,7 +125,7 @@ export const cookieJar = {
     // "another.sub.example.com", etc.
     for (const site of Object.keys(siteCookieJars)) {
       if (site.endsWith(domain)) {
-        console.log(`Clearing cookies for site ${site}`);
+        logger.log(`Clearing cookies for site ${site}`);
         siteCookieJars[site].clearCookies();
       }
     }

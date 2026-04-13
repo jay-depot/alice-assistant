@@ -12,7 +12,7 @@ type SessionLinkedAgentStatus =
 export abstract class SessionLinkedAgent extends AliceAgent {
   constructor(
     public conversationType: ConversationTypeId,
-    public linkedSessionId: string,
+    public linkedSessionId: string
   ) {
     super(conversationType);
   }

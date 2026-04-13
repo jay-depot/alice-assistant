@@ -1,6 +1,10 @@
 import OllamaClient, { ChatResponse, ToolCall } from 'ollama';
+import { randomUUID } from 'node:crypto';
 import { UserConfig } from './user-config.js';
-import { buildOllamaToolDescriptionObject } from './tool-system.js';
+import {
+  buildOllamaToolDescriptionObject,
+  ToolCallEvents,
+} from './tool-system.js';
 import { getTools } from './tools.js';
 import { DynamicPromptConversationType } from './dynamic-prompt.js';
 import { getHeaderPrompts } from './header-prompts.js';
@@ -11,6 +15,7 @@ import {
   getConversationTypeDefinition,
   hasConversationType,
 } from './conversation-types.js';
+import { systemLogger } from './system-logger.js';
 
 export const SUMMARY_HEADER = '# Summary of earlier conversation:\n';
 const SUMMARY_PROMPT =
@@ -46,7 +51,7 @@ export function checkLLMResponseForDegeneracy(response: string) {
   // - Long chains of the same repeating pattern.
   // - Broken tool calls.
   if (/(\b\w+\b)(?:\s+\1\b){20,}/.test(response)) {
-    console.warn(
+    systemLogger.warn(
       'LLM response appears to be degenerate (repeating pattern detected). Response:',
       response
     );
@@ -59,7 +64,7 @@ export function checkLLMResponseForDegeneracy(response: string) {
     !response.includes('"function_calls": []') &&
     !response.includes('"function_calls":[')
   ) {
-    console.warn(
+    systemLogger.warn(
       'LLM response appears to be degenerate (broken tool call formatting). Response:',
       response
     );
@@ -73,7 +78,7 @@ export function checkLLMResponseForDegeneracy(response: string) {
   // The pattern is something like this: TOOLNAME [GARBAGE_CHARACTERS] {JSON-STRINGIFIED-ARGUMENTS}
   // eslint-disable-next-line no-control-regex
   if (/([A-Za-z0-9_]+)\s*[\u0000-\u001F\u007F-\uFFFF]+({.*})/.test(response)) {
-    console.warn(
+    systemLogger.warn(
       'LLM response appears to be degenerate (tool call appears to be dumped in content field with garbage characters). Response:',
       response
     );
@@ -309,13 +314,6 @@ export class Conversation {
       ...footerPrompts.map(prompt => ({ role: 'system', content: prompt })),
     ];
 
-    if (process.env.ALICE_DEBUG) {
-      console.log(
-        'DEBUG: Full context being sent to LLM:',
-        JSON.stringify(fullContext, null, 2)
-      );
-    }
-
     const response = await retry(
       async () => {
         const res = await OllamaClient.chat({
@@ -332,6 +330,15 @@ export class Conversation {
       }
     );
 
+    systemLogger.log(
+      'LLM response to user message:',
+      response.message.content,
+      '\nTool calls:',
+      response.message.tool_calls
+        ?.map(toolCall => `${toolCall.function.name}`)
+        .join(', ')
+    );
+
     const toolCalls = response.message.tool_calls;
     await this.appendToContext({
       role: 'assistant',
@@ -340,6 +347,15 @@ export class Conversation {
     });
 
     if (toolCalls && toolCalls.length > 0) {
+      void ToolCallEvents.dispatchToolCallEvent({
+        type: 'assistant_turn_started',
+        conversationType: this.type,
+        sessionId: this.sessionId,
+        taskAssistantId: this.taskAssistantId,
+        agentInstanceId: this.agentInstanceId,
+        assistantContent: response.message.content,
+        timestamp: new Date().toISOString(),
+      });
       return this.handleToolCalls(response);
     }
 
@@ -374,6 +390,10 @@ export class Conversation {
       ? promptIfCallsAvailable
       : promptIfNoCallsAvailable;
     const toolCalls = response.message.tool_calls;
+
+    // Generate a callBatchId for this depth iteration — all tool calls in the same
+    // Promise.all batch share the same callBatchId.
+    const callBatchId = randomUUID();
 
     const headerPrompts = await getHeaderPrompts({
       conversationType: this.type,
@@ -434,13 +454,28 @@ export class Conversation {
         toolCalls.map(async toolCall => {
           const toolName = toolCall.function.name;
           const toolArgs = toolCall.function.arguments;
-          console.log(JSON.stringify({ toolName, toolArgs }));
+          systemLogger.log(JSON.stringify({ toolName, toolArgs }));
           // Double check the tool is actually enabled in the config, and that it actually exists.
           const tools = getTools(this.type);
           const tool = tools.find(t => t.name === toolName);
           if (!tool) {
             return `Tool ${toolName} is not recognized.`;
           }
+
+          // Dispatch tool_call_started event
+          void ToolCallEvents.dispatchToolCallEvent({
+            type: 'tool_call_started',
+            callBatchId,
+            toolName,
+            toolArgs,
+            conversationType: this.type,
+            sessionId: this.sessionId,
+            taskAssistantId: this.taskAssistantId,
+            agentInstanceId: this.agentInstanceId,
+            requiresApproval: tool.requiresApproval,
+            timestamp: new Date().toISOString(),
+          });
+
           try {
             const callResult = await tool.execute(toolArgs, {
               toolName,
@@ -462,9 +497,45 @@ export class Conversation {
               callResult
             }${toolResultOutro ? '\n' + toolResultOutro : ''}`;
 
+            // Dispatch tool_call_completed event with truncated result summary
+            const resultSummary =
+              callResult.length > 200
+                ? callResult.slice(0, 200) + '…'
+                : callResult;
+            void ToolCallEvents.dispatchToolCallEvent({
+              type: 'tool_call_completed',
+              callBatchId,
+              toolName,
+              toolArgs,
+              conversationType: this.type,
+              sessionId: this.sessionId,
+              taskAssistantId: this.taskAssistantId,
+              agentInstanceId: this.agentInstanceId,
+              resultSummary,
+              requiresApproval: tool.requiresApproval,
+              timestamp: new Date().toISOString(),
+            });
+
             return `Result of calling tool ${toolName} with arguments ${JSON.stringify(toolArgs)}:\n${result}`;
           } catch (e) {
-            return `Error calling tool ${toolName} with arguments ${JSON.stringify(toolArgs)}: ${e instanceof Error ? e.message : String(e)}`;
+            const errorMessage = e instanceof Error ? e.message : String(e);
+
+            // Dispatch tool_call_error event
+            void ToolCallEvents.dispatchToolCallEvent({
+              type: 'tool_call_error',
+              callBatchId,
+              toolName,
+              toolArgs,
+              conversationType: this.type,
+              sessionId: this.sessionId,
+              taskAssistantId: this.taskAssistantId,
+              agentInstanceId: this.agentInstanceId,
+              error: errorMessage,
+              requiresApproval: tool.requiresApproval,
+              timestamp: new Date().toISOString(),
+            });
+
+            return `Error calling tool ${toolName} with arguments ${JSON.stringify(toolArgs)}: ${errorMessage}`;
           }
         })
       );
@@ -478,27 +549,6 @@ export class Conversation {
         role: 'system',
         content: continuationPromptWithResults,
       });
-
-      if (process.env.ALICE_DEBUG) {
-        console.log(
-          'DEBUG: Full context being sent to LLM for tool call continuation:',
-          JSON.stringify(
-            [
-              ...headerPrompts.map(prompt => ({
-                role: 'system',
-                content: prompt,
-              })),
-              ...this.compactedContext,
-              ...footerPrompts.map(prompt => ({
-                role: 'system',
-                content: prompt,
-              })),
-            ],
-            null,
-            2
-          )
-        );
-      }
 
       const nextResponse = await retry(
         async () => {
@@ -528,6 +578,36 @@ export class Conversation {
           timeout: TIMEOUT,
         }
       );
+
+      systemLogger.log(
+        `LLM response after tool call at depth ${depth}:`,
+        nextResponse.message.content,
+        '\nTool calls:',
+        nextResponse.message.tool_calls
+          ?.map(toolCall => `${toolCall.function.name}`)
+          .join(', ')
+      );
+
+      await this.appendToContext({
+        role: 'assistant',
+        content: nextResponse.message.content,
+        tool_calls: nextResponse.message.tool_calls,
+      });
+
+      if (
+        nextResponse.message.tool_calls &&
+        nextResponse.message.tool_calls.length > 0
+      ) {
+        void ToolCallEvents.dispatchToolCallEvent({
+          type: 'assistant_turn_started',
+          conversationType: this.type,
+          sessionId: this.sessionId,
+          taskAssistantId: this.taskAssistantId,
+          agentInstanceId: this.agentInstanceId,
+          assistantContent: nextResponse.message.content,
+          timestamp: new Date().toISOString(),
+        });
+      }
 
       return this.handleToolCalls(nextResponse, depth + 1);
     }

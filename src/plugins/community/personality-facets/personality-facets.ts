@@ -82,6 +82,7 @@ const personalityFacetsPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'personality-facets',
     name: 'Personality Facets Plugin',
+    brandColor: '#614bbd',
     description:
       'An alternative personality engine for ALICE that provides the assistant with ' +
       'a small core set of immutable principles, and a set of situational "facets" that it can ' +
@@ -321,7 +322,13 @@ const personalityFacetsPlugin: AlicePlugin = {
     });
 
     plugin.hooks.onAssistantWillAcceptRequests(async () => {
+      plugin.logger.log(
+        'onAssistantWillAcceptRequests: Starting starter facet definition initialization.'
+      );
       await ensureStarterFacetDefinitions();
+      plugin.logger.log(
+        'onAssistantWillAcceptRequests: Completed starter facet definition initialization.'
+      );
     });
 
     plugin.registerTool({

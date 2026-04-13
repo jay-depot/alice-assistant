@@ -165,6 +165,7 @@ const proficienciesPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'proficiencies',
     name: 'Proficiencies Plugin',
+    brandColor: '#4abd12',
     description:
       'Proficiencies are skills the assistant can create and maintain for itself. ' +
       'They are primarily a way for the assistant to maintain organized banks of knowledge ' +
@@ -214,7 +215,7 @@ const proficienciesPlugin: AlicePlugin = {
     void withDatabase(async orm => {
       await ensureAtLeastOneProficiencyExists(orm);
     }).catch(seedError => {
-      console.error(
+      plugin.logger.error(
         'Proficiencies plugin: failed to seed default proficiency:',
         seedError
       );

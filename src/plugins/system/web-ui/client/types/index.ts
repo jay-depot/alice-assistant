@@ -1,7 +1,17 @@
 import type { ComponentType } from 'react';
 
 export type MessageRole = 'user' | 'assistant';
-export type MessageKind = 'chat' | 'notification';
+export type MessageKind = 'chat' | 'notification' | 'tool_call';
+
+export interface ToolCallData {
+  /** UUID — groups tool calls from the same Promise.all batch. */
+  callBatchId: string;
+  toolName: string;
+  status: 'running' | 'completed' | 'error';
+  resultSummary?: string;
+  error?: string;
+  requiresApproval?: boolean;
+}
 
 export interface Message {
   role: MessageRole;
@@ -9,6 +19,7 @@ export interface Message {
   content: string;
   timestamp: string;
   senderName?: string | null;
+  toolCallData?: ToolCallData; // present when messageKind === 'tool_call'
 }
 
 export interface ActiveSessionAgent {

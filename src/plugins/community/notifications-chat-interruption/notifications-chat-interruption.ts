@@ -9,6 +9,7 @@ const notificationsChatInterruptionPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'notifications-chat-interruption',
     name: 'Notifications Chat Interruption Plugin',
+    brandColor: '#7a4d6e',
     description:
       'A plugin that inserts active notifications into the middle of the ' +
       "assistant's most recently active chat session as they are received. This *should* " +
@@ -37,7 +38,7 @@ const notificationsChatInterruptionPlugin: AlicePlugin = {
         });
 
         if (sessionId === null) {
-          console.warn(
+          plugin.logger.warn(
             'Notifications Chat Interruption: Could not resolve a target chat session for notification delivery.'
           );
           return;
@@ -55,7 +56,7 @@ const notificationsChatInterruptionPlugin: AlicePlugin = {
             interruptionText = renderedInterruption;
           }
         } catch (error) {
-          console.error(
+          plugin.logger.error(
             'Notifications Chat Interruption: Failed to render interruption in assistant voice. Falling back to plain notification text.',
             error
           );
@@ -66,7 +67,7 @@ const notificationsChatInterruptionPlugin: AlicePlugin = {
           messageKind: 'notification',
         });
 
-        console.log(
+        plugin.logger.log(
           `Notifications Chat Interruption: Delivered notification into chat session ${sessionId}.`
         );
       },

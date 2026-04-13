@@ -44,6 +44,7 @@ const remindMePlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'remind-me',
     name: 'Remind Me Plugin',
+    brandColor: '#d6966c',
     description:
       'A plugin that allows the assistant to directly create reminders on behalf ' +
       'of the user. It is basically a simple front-end to reminders-broker for one-shot ' +
