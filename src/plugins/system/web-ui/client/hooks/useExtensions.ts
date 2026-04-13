@@ -80,6 +80,10 @@ export function useExtensions() {
             ensureStylesheet(styleUrl);
           }
 
+          if (!extension.scriptUrl) {
+            continue;
+          }
+
           const module = await import(/* @vite-ignore */ extension.scriptUrl);
           const exportedExtension = (module.default ??
             module) as PluginClientExport;

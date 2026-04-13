@@ -1,0 +1,29 @@
+.sender--agent--deep-dive-research-agent {
+  background-color: #aaa;
+  color: #222;
+  outline: 1px solid #222;
+  box-shadow: 0px 0px 10px #aaa;
+}
+
+.message__bubble.agent--deep-dive-research-agent {
+  background-color: #aaa;
+  color: #222;
+  outline: 1px solid #222;
+  box-shadow: 0px 0px 10px #aaa;
+}
+
+.message-modal__panel.agent--deep-dive-research-agent {
+  border: 1px solid #222;
+  background: #aaa;
+  color: #222;
+}
+
+.message-modal__panel.agent--deep-dive-research-agent .message-modal__title,
+.message-modal__panel.agent--deep-dive-research-agent .message-modal__close {
+  color: #222;
+}
+
+.message-modal__panel.agent--deep-dive-research-agent a,
+.message__bubble.agent--deep-dive-research-agent a {
+  color: #224;
+}

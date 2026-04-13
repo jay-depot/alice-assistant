@@ -414,8 +414,49 @@ describe('proficienciesPlugin', () => {
       contents: 'New content.',
     });
 
-    expect(result).toMatch(/removed least-used proficiency/i);
+    expect(result).toMatch(/removed proficiency/i);
     expect(result).toContain('OldProficiency');
+  });
+
+  it('createProficiency keeps the newly created proficiency when trimming to maxProficiencies', async () => {
+    const now = new Date('2026-04-12T00:00:00Z');
+    mockInterface = createMockPluginInterface({
+      maxProficiencies: 1,
+      initialRows: [
+        {
+          name: 'HighValueExisting',
+          normalizedName: 'highvalueexisting',
+          recallWhen: 'important recurring tasks',
+          contents: 'Existing high-value notes.',
+          usageCount: 999,
+          createdAt: now,
+          updatedAt: now,
+          lastAccessedAt: now,
+        },
+      ],
+    });
+    await proficienciesPlugin.registerPlugin(
+      mockInterface as unknown as AlicePluginInterface
+    );
+
+    const tool = mockInterface.registeredTools.find(
+      t => t.name === 'createProficiency'
+    );
+    await tool.execute({
+      proficiencyName: 'KeepMe',
+      recallWhen: 'new workflow',
+      contents: 'Fresh notes.',
+    });
+
+    const newEntry = mockInterface.orm.rows.find(
+      r => r.normalizedName === 'keepme'
+    );
+    const oldEntry = mockInterface.orm.rows.find(
+      r => r.normalizedName === 'highvalueexisting'
+    );
+
+    expect(newEntry?._deleted).not.toBe(true);
+    expect(oldEntry?._deleted).toBe(true);
   });
 
   // -------------------------------------------------------------------------
@@ -564,7 +605,7 @@ describe('proficienciesPlugin', () => {
     expect(result).toBe(false);
   });
 
-  it('header prompt returns false when no proficiencies exist', async () => {
+  it('header prompt seeds and returns the default proficiency when none exist', async () => {
     const header = mockInterface.registeredHeaderPrompts.find(
       p => p.name === 'proficiencies'
     );
@@ -572,7 +613,9 @@ describe('proficienciesPlugin', () => {
       conversationType: 'chat',
       sessionId: 'x',
     });
-    expect(result).toBe(false);
+    expect(typeof result).toBe('string');
+    expect(result).toContain('ProficienciesWelcome');
+    expect(result).toContain('quick refresher');
   });
 
   it('header prompt includes proficiency names and recallWhen when entries exist', async () => {

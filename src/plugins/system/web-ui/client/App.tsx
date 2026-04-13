@@ -19,6 +19,7 @@ interface ChatWorkspaceProps {
   onDelete: () => void;
   onOpenSettings: () => void;
   messages: Parameters<typeof MessagesArea>[0]['messages'];
+  activeAgents: Parameters<typeof MessagesArea>[0]['activeAgents'];
   showWelcome: boolean;
   isProcessing: boolean;
   pendingMessageKey: string | null;
@@ -39,6 +40,7 @@ function ChatWorkspace({
   onDelete,
   onOpenSettings,
   messages,
+  activeAgents,
   showWelcome,
   isProcessing,
   pendingMessageKey,
@@ -62,6 +64,7 @@ function ChatWorkspace({
       />
       <MessagesArea
         messages={messages}
+        activeAgents={activeAgents}
         showWelcome={showWelcome}
         isProcessing={isProcessing}
         isEndingSession={isEndingSession}
@@ -117,6 +120,7 @@ export function App() {
   const {
     currentSessionId,
     messages,
+    activeAgents,
     sessionTitle,
     isEndingSession,
     isProcessingMessage,
@@ -177,6 +181,7 @@ export function App() {
               }}
               onOpenSettings={() => setIsSettingsOpen(true)}
               messages={messages}
+              activeAgents={activeAgents}
               showWelcome={showWelcome}
               isProcessing={isProcessingMessage}
               pendingMessageKey={pendingMessageKey}

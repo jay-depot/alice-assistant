@@ -75,6 +75,16 @@ export function normalizeMoodClass(mood: string): string {
   return normalizedMood || 'neutral';
 }
 
+export function normalizeCssToken(value: string): string {
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  return normalized || 'unknown';
+}
+
 export function classNames(
   ...names: Array<string | false | null | undefined>
 ): string {

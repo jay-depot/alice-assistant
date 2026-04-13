@@ -2,6 +2,7 @@ import type { AlicePlugin } from '../../../lib.js';
 import { Type } from 'typebox';
 import { writeFile } from 'node:fs/promises';
 import { simpleExpandTilde } from '../../../lib/simple-tilde-expansion.js';
+import path from 'node:path';
 
 declare module '../../../lib.js' {
   export interface PluginCapabilities {
@@ -9,21 +10,38 @@ declare module '../../../lib.js' {
   }
 }
 
+const DeepDiveManageSourceToolParameterSchema = Type.Object({
+  url: Type.String({
+    format: 'uri',
+    description: 'The URL of the source to manage.',
+  }),
+  status: Type.Enum(['to-visit', 'visited', 'blocked'], {
+    description: 'The status to assign to this source.',
+  }),
+});
+
+type DeepDiveManageSourceToolParameters = Type.Static<
+  typeof DeepDiveManageSourceToolParameterSchema
+>;
+
 const DEEP_DIVE_SCENARIO_PROMPT =
   'You are an autonomous deep-dive research agent. Your only job is to research a ' +
-  'question thoroughly using the tools available to you.\n\n' +
+  'question or topic thoroughly using the tools available to you.\n\n' +
   'RESEARCH PROCESS:\n' +
   '1. Start by searching for the topic using webSearch.\n' +
-  '2. For each promising result, use simpleFetch to read the page content in full.\n' +
-  '3. After each significant finding or completed search batch, call agentReportProgress ' +
-  'with a brief summary of what you found.\n' +
-  '4. Repeat searches with refined queries to dig deeper. Follow the most relevant links.\n' +
-  '5. When you have built a complete picture — or after exhausting the most useful leads — ' +
-  'call agentReturnResult with your full findings.\n\n' +
+  '2. Use your deepDiveManageSource tool to keep track of promising sources, marking them as "to-visit".\n' +
+  '3. For each source on your tracker, use simpleFetch or an alternative tool to read the page content in full.\n' +
+  '4. If you find more sources to explore while reading, add those URLs to your source tracker for processing in subsequent research steps.\n' +
+  '5. After each significant finding or completed search batch, call agentReportProgress with a brief summary of what you found.\n' +
+  '6. When you have exhausted a source, use deepDiveManageSource to mark it as "visited" on your tracker to avoid redundant work.\n' +
+  '7. Repeat searches with refined queries to dig deeper. Follow the most relevant links.\n' +
+  '8. When you have built a complete picture — or after exhausting the most useful leads — call agentReturnResult with your full findings.\n' +
+  '9. If you have access to skills or proficiencies that could help you evaluate sources or provide alternative ways to access a source, use recallSkill and/or recallProficiency to leverage that knowledge.\n' +
+  '10. When all else fails, if you are unable to access a source on your list, use updateProficiency to note that you are "blocked" on that source, and move on to the next most promising lead.\n\n' +
   'RULES:\n' +
   '- Do NOT address the user or ask questions. You are operating autonomously.\n' +
   '- Do NOT generate content from memory alone. Ground every claim in sources you fetched.\n' +
-  '- If a fetch fails, try the next most relevant URL rather than stopping.\n' +
+  '- If a fetch fails, check your skills, proficiencies, and alternative tools for a work-around before trying the next most relevant URL rather than stopping.\n' +
   '- Aim for depth over breadth: fewer thorough reads beat many shallow ones.\n\n' +
   'OUTPUT FORMAT for agentReturnResult.report (markdown):\n' +
   '## Key Findings\n' +
@@ -31,9 +49,21 @@ const DEEP_DIVE_SCENARIO_PROMPT =
   '## Details\n' +
   'Expanded narrative with supporting evidence and citations.\n\n' +
   '## Sources\n' +
-  'List of URLs actually read, one per line.\n\n' +
+  '### Sources Consulted:\n' +
+  'Numbered list of URLs actually read, one per line.' +
+  '### Sources Attempted but Inaccessible:\n' +
+  'Numbered list of URLs you were unable to access, one per line, with a brief note on why each source was inaccessible and what you tried.\n\n' +
   '## Gaps\n' +
   'What would further research benefit from that you were unable to cover.';
+
+type SourceCache = {
+  [sessionId: string]: {
+    url: string;
+    status: 'to-visit' | 'visited' | 'blocked';
+  }[];
+};
+
+const sourceCache: SourceCache = {};
 
 const deepDivePlugin: AlicePlugin = {
   pluginMetadata: {
@@ -46,6 +76,7 @@ const deepDivePlugin: AlicePlugin = {
       'to do in-depth autonomous web research on a topic, reporting findings back into ' +
       'the chat as it goes.',
     dependencies: [
+      { id: 'web-ui', version: 'LATEST' },
       { id: 'agents', version: 'LATEST' },
       { id: 'web-search-broker', version: 'LATEST' },
       { id: 'web-simple-fetch', version: 'LATEST' },
@@ -54,6 +85,10 @@ const deepDivePlugin: AlicePlugin = {
 
   registerPlugin: async api => {
     const plugin = await api.registerPlugin();
+
+    const webUi = plugin.request('web-ui');
+
+    webUi.registerStylesheet(path.join(import.meta.dirname, 'deep-dive.css'));
 
     plugin.registerConversationType({
       id: 'deep-dive-research',
@@ -98,13 +133,31 @@ const deepDivePlugin: AlicePlugin = {
       'lightpandaFetch'
     );
 
+    // Wire in skills and proficiencies if they're enabled
+    // Wire lightpanda if it is enabled (optional)
+    plugin.addToolToConversationType(
+      'deep-dive-research',
+      'skills',
+      'recallSkill'
+    );
+    plugin.addToolToConversationType(
+      'deep-dive-research',
+      'proficiencies',
+      'recallProficiency'
+    );
+    plugin.addToolToConversationType(
+      'deep-dive-research',
+      'proficiencies',
+      'updateProficiency'
+    );
+
     const { autoStartTool } = plugin.registerSessionLinkedAgent({
       id: 'deep-dive',
       name: 'Deep-Dive Research Agent',
       conversationType: 'deep-dive-research',
       continuationPrompt:
         'Keep researching. Run refined searches, fetch high-value sources, and report major findings with agentReportProgress. ' +
-        'Call agentReturnResult once coverage is strong enough to answer the question with evidence.',
+        'Call agentReturnResult once coverage is strong enough to answer the question or fully explain the topic with evidence.',
       forceReturnPrompt:
         'Research loop budget is exhausted. Call agentReturnResult now with the best complete report you can produce from gathered evidence, including uncertainties and gaps.',
 
@@ -114,7 +167,8 @@ const deepDivePlugin: AlicePlugin = {
         'Use startDeepDiveResearch when the user wants an in-depth investigation of a ' +
         'topic that would require many web searches and page reads — more than the assistant ' +
         'can reasonably handle in a single turn. The agent will research autonomously and ' +
-        'report its findings back into the conversation.',
+        'report its findings back into the conversation. Also use startDeepDiveResearch if ' +
+        'the user specifically asks for a "deep dive" or "deep research" on a topic.',
       startToolParameters: Type.Object({
         researchQuestion: Type.String({
           description:
@@ -208,6 +262,71 @@ const deepDivePlugin: AlicePlugin = {
     });
 
     plugin.registerTool(autoStartTool);
+
+    plugin.registerTool({
+      name: 'deepDiveManageSource',
+      description:
+        'Call deepDiveManageSource when you want to track a source for your research, to mark it as "to visit" or "visited". Use this proactively to help keep your research organized.',
+      systemPromptFragment: '',
+      toolResultPromptIntro: '',
+      toolResultPromptOutro: '',
+      parameters: DeepDiveManageSourceToolParameterSchema,
+      availableFor: ['deep-dive-research'],
+      execute: async (
+        parameters: DeepDiveManageSourceToolParameters,
+        context
+      ) => {
+        const { agentInstanceId, sessionId } = context;
+
+        if (!agentInstanceId) {
+          return 'No active agent instance found. Source status not recorded.';
+        }
+
+        if (!sourceCache[sessionId]) {
+          sourceCache[sessionId] = [];
+        }
+
+        const existingIndex = sourceCache[sessionId].findIndex(
+          entry => entry.url === parameters.url
+        );
+
+        if (existingIndex !== -1) {
+          sourceCache[sessionId][existingIndex].status = parameters.status;
+        } else {
+          sourceCache[sessionId].push({
+            url: parameters.url,
+            status: parameters.status,
+          });
+        }
+
+        return `Source ${parameters.url} marked as ${parameters.status}.`;
+      },
+    });
+
+    plugin.registerFooterSystemPrompt({
+      name: 'Deep-Dive Research Agent Source Tracker',
+      weight: 10,
+      getPrompt(context) {
+        if (context.conversationType !== 'deep-dive-research') {
+          return false;
+        }
+
+        const { sessionId } = context;
+        if (!sessionId || !sourceCache[sessionId]) {
+          return 'No sources tracked yet.';
+        }
+
+        const sources = sourceCache[sessionId];
+        if (sources.length === 0) {
+          return 'No sources tracked yet.';
+        }
+
+        const lines = sources.map(
+          entry => `- [${entry.status === 'visited' ? 'x' : ' '}] ${entry.url}`
+        );
+        return `## Tracked Sources\n${lines.join('\n')}`;
+      },
+    });
   },
 };
 

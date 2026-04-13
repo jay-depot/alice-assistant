@@ -19,6 +19,15 @@ export type PendingAgentMessage = {
   content: string;
 };
 
+export type SessionLinkedAgentUpdate = {
+  linkedSessionId: number;
+  agentInstanceId: string;
+  agentName: string;
+  kind: 'progress' | 'result';
+  heading: string;
+  content: string;
+};
+
 export type SessionLinkedAgentResult = {
   summary: string;
   report: string;
@@ -83,6 +92,9 @@ const definitions = new Map<
 >();
 const activeInstancesById = new Map<string, SessionLinkedAgentInstance>();
 const activeInstancesBySession = new Map<number, Set<string>>();
+const agentUpdateCallbacks: Array<
+  (update: SessionLinkedAgentUpdate) => Promise<void>
+> = [];
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -150,11 +162,41 @@ function addInstanceToMaps(instance: SessionLinkedAgentInstance): void {
   sessionSet.add(instance.instanceId);
 }
 
+function removeInstanceFromMaps(instance: SessionLinkedAgentInstance): void {
+  activeInstancesById.delete(instance.instanceId);
+  const sessionSet = activeInstancesBySession.get(instance.linkedSessionId);
+  if (!sessionSet) {
+    return;
+  }
+
+  sessionSet.delete(instance.instanceId);
+  if (sessionSet.size === 0) {
+    activeInstancesBySession.delete(instance.linkedSessionId);
+  }
+}
+
+async function dispatchAgentUpdate(
+  update: SessionLinkedAgentUpdate
+): Promise<boolean> {
+  if (agentUpdateCallbacks.length === 0) {
+    return false;
+  }
+
+  await Promise.all(agentUpdateCallbacks.map(callback => callback(update)));
+  return true;
+}
+
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
 export const AgentSystem = {
+  onUpdate(
+    callback: (update: SessionLinkedAgentUpdate) => Promise<void>
+  ): void {
+    agentUpdateCallbacks.push(callback);
+  },
+
   registerDefinition(
     pluginId: string,
     definition: SessionLinkedAgentDefinition
@@ -230,15 +272,39 @@ export const AgentSystem = {
     };
   },
 
-  reportProgress(instanceId: string, message: string): void {
+  async reportProgress(instanceId: string, message: string): Promise<void> {
     const instance = activeInstancesById.get(instanceId);
     if (!instance || instance.status !== 'running') {
       return;
     }
-    instance.pendingMessages.push({
+
+    const pendingMessage = {
       heading: `Progress Update from ${instance.agentName}`,
       content: message,
-    });
+    };
+    instance.pendingMessages.push(pendingMessage);
+
+    try {
+      const delivered = await dispatchAgentUpdate({
+        linkedSessionId: instance.linkedSessionId,
+        agentInstanceId: instance.instanceId,
+        agentName: instance.agentName,
+        kind: 'progress',
+        heading: pendingMessage.heading,
+        content: pendingMessage.content,
+      });
+
+      if (delivered) {
+        instance.pendingMessages = instance.pendingMessages.filter(
+          queuedMessage => queuedMessage !== pendingMessage
+        );
+      }
+    } catch (error) {
+      console.error(
+        `Failed to deliver progress update for agent ${instance.agentId} (${instance.instanceId}):`,
+        error
+      );
+    }
   },
 
   async returnResult(
@@ -262,6 +328,8 @@ export const AgentSystem = {
     );
 
     const resultLines = [
+      built.handbackMessage,
+      '',
       `**Summary:** ${rawResult.summary}`,
       '',
       rawResult.report,
@@ -270,13 +338,33 @@ export const AgentSystem = {
       resultLines.push('', `**Saved to:** ${built.outputArtifacts.join(', ')}`);
     }
 
-    instance.pendingMessages.push({
+    const pendingMessage = {
       heading: `Final Result from ${instance.agentName}`,
       content: resultLines.join('\n'),
-    });
+    };
+    instance.pendingMessages.push(pendingMessage);
 
     instance.status = 'completed';
-    // Instance remains in maps until pending messages are drained by getAndClearPendingMessages
+
+    try {
+      const delivered = await dispatchAgentUpdate({
+        linkedSessionId: instance.linkedSessionId,
+        agentInstanceId: instance.instanceId,
+        agentName: instance.agentName,
+        kind: 'result',
+        heading: pendingMessage.heading,
+        content: pendingMessage.content,
+      });
+
+      if (delivered) {
+        removeInstanceFromMaps(instance);
+      }
+    } catch (error) {
+      console.error(
+        `Failed to deliver final result for agent ${instance.agentId} (${instance.instanceId}):`,
+        error
+      );
+    }
   },
 
   getAndClearPendingMessages(sessionId: number): PendingAgentMessage[] {
@@ -330,6 +418,9 @@ export const AgentSystem = {
     if (!instanceIds) return [];
     return [...instanceIds]
       .map(id => activeInstancesById.get(id))
-      .filter((i): i is SessionLinkedAgentInstance => i !== undefined);
+      .filter(
+        (instance): instance is SessionLinkedAgentInstance =>
+          instance !== undefined && instance.status === 'running'
+      );
   },
 };

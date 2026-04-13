@@ -76,6 +76,14 @@ function validateRecallWhen(recallWhen: string) {
   return recallWhen.trim();
 }
 
+const DEFAULT_PROFICIENCY = {
+  name: 'ProficienciesWelcome',
+  recallWhen:
+    'you need a quick refresher on how to use your proficiencies effectively',
+  contents:
+    'Proficiencies are self-managed, reusable notes for tasks and topics you handle repeatedly. Create them, keep them current, and proactively recall the ones that match the current work.',
+} as const;
+
 function sortLeastUsefulFirst(entries: ProficienciesEntry[]) {
   return [...entries].sort((left, right) => {
     const now = Date.now();
@@ -108,7 +116,8 @@ function formatProficiency(entry: ProficienciesEntry) {
 
 async function enforceProficiencyLimit(
   orm: MikroORM,
-  maxProficiencies: number
+  maxProficiencies: number,
+  protectedNormalizedName?: string
 ) {
   const em = orm.em.fork();
   const proficiencies = await em.find(ProficienciesEntry, {});
@@ -117,7 +126,9 @@ async function enforceProficiencyLimit(
     return null;
   }
 
-  const [entryToRemove] = sortLeastUsefulFirst(proficiencies);
+  const entryToRemove = sortLeastUsefulFirst(proficiencies).find(
+    entry => entry.normalizedName !== protectedNormalizedName
+  );
   if (!entryToRemove) {
     return null;
   }
@@ -125,6 +136,29 @@ async function enforceProficiencyLimit(
   em.remove(entryToRemove);
   await em.flush();
   return entryToRemove;
+}
+
+async function ensureAtLeastOneProficiencyExists(orm: MikroORM): Promise<void> {
+  const em = orm.em.fork();
+  const existingProficiencies = await em.find(ProficienciesEntry, {});
+  if (existingProficiencies.length > 0) {
+    return;
+  }
+
+  const now = new Date();
+  const entry = em.create(ProficienciesEntry, {
+    name: DEFAULT_PROFICIENCY.name,
+    normalizedName: normalizeProficiencyName(DEFAULT_PROFICIENCY.name),
+    recallWhen: DEFAULT_PROFICIENCY.recallWhen,
+    contents: DEFAULT_PROFICIENCY.contents,
+    usageCount: 0,
+    createdAt: now,
+    updatedAt: now,
+    lastAccessedAt: now,
+  });
+
+  em.persist(entry);
+  await em.flush();
 }
 
 const proficienciesPlugin: AlicePlugin = {
@@ -176,6 +210,15 @@ const proficienciesPlugin: AlicePlugin = {
     const withDatabase = async <T>(callback: (orm: MikroORM) => Promise<T>) => {
       return memoryApi.onDatabaseReady(callback);
     };
+
+    void withDatabase(async orm => {
+      await ensureAtLeastOneProficiencyExists(orm);
+    }).catch(seedError => {
+      console.error(
+        'Proficiencies plugin: failed to seed default proficiency:',
+        seedError
+      );
+    });
 
     plugin.registerTool({
       name: 'recallProficiency',
@@ -262,14 +305,11 @@ const proficienciesPlugin: AlicePlugin = {
 
           const removedEntry = await enforceProficiencyLimit(
             orm,
-            config.getPluginConfig().maxProficiencies
+            config.getPluginConfig().maxProficiencies,
+            normalizedName
           );
-          if (removedEntry && removedEntry.normalizedName === normalizedName) {
-            return `Created ${proficiencyName}, but it was immediately removed because it was the least-used proficiency after enforcing the configured storage limit.`;
-          }
-
           if (removedEntry) {
-            return `Created ${proficiencyName}. Removed least-used proficiency ${removedEntry.name} to stay within the configured limit of ${config.getPluginConfig().maxProficiencies}.`;
+            return `Created ${proficiencyName}. Removed proficiency ${removedEntry.name} to stay within the configured limit of ${config.getPluginConfig().maxProficiencies}.`;
           }
 
           return `Created proficiency ${proficiencyName}. Recall it when ${recallWhen}.`;
@@ -341,6 +381,7 @@ const proficienciesPlugin: AlicePlugin = {
         }
 
         return withDatabase(async orm => {
+          await ensureAtLeastOneProficiencyExists(orm);
           const em = orm.em.fork();
           const proficiencies = await em.find(
             ProficienciesEntry,

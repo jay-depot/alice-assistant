@@ -37,7 +37,10 @@ const agentsPlugin: AlicePlugin = {
         if (!context.agentInstanceId) {
           return 'No active agent instance found. Progress not recorded.';
         }
-        AgentSystem.reportProgress(context.agentInstanceId, typedArgs.message);
+        await AgentSystem.reportProgress(
+          context.agentInstanceId,
+          typedArgs.message
+        );
         return 'Progress update recorded.';
       },
     });

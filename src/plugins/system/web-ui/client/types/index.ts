@@ -11,12 +11,22 @@ export interface Message {
   senderName?: string | null;
 }
 
+export interface ActiveSessionAgent {
+  instanceId: string;
+  agentId: string;
+  agentName: string;
+  status: 'running' | 'cancelled' | 'erroring' | 'completed';
+  startedAt: string;
+  pendingMessageCount: number;
+}
+
 export interface Session {
   id: number | string;
   title: string;
   createdAt: string;
   updatedAt: string;
   messages: Message[];
+  activeAgents: ActiveSessionAgent[];
 }
 
 export interface SessionSummary {
@@ -44,7 +54,7 @@ export interface ExtensionRouteDefinition {
 
 export interface ExtensionRegistration {
   id?: string;
-  scriptUrl: string;
+  scriptUrl?: string;
   styleUrls: string[];
   regions?: UIRegion[];
   routes?: ExtensionRouteDefinition[];

@@ -19,6 +19,7 @@ const {
   mockReadFileSync,
   mockStartConversation,
   mockTaskAssistants,
+  mockAgentSystem,
   mockRegisterDatabaseModels,
   mockOnDatabaseReady,
   mockApp,
@@ -45,6 +46,12 @@ const {
     clearSuspensionSignal: vi.fn(),
   };
 
+  const agentSystem = {
+    onUpdate: vi.fn(),
+    getInstancesBySession: vi.fn(() => []),
+    getAndClearPendingMessages: vi.fn(() => []),
+  };
+
   return {
     mockExistsSync: vi.fn(),
     mockStatSync: vi.fn(),
@@ -52,6 +59,7 @@ const {
     mockReadFileSync: vi.fn(),
     mockStartConversation: vi.fn(),
     mockTaskAssistants: taskAssistants,
+    mockAgentSystem: agentSystem,
     mockRegisterDatabaseModels: vi.fn(),
     mockOnDatabaseReady: vi.fn(),
     mockApp: app,
@@ -94,6 +102,7 @@ vi.mock('../../../lib/user-config.js', () => ({
 vi.mock('../../../lib.js', () => ({
   startConversation: mockStartConversation,
   TaskAssistants: mockTaskAssistants,
+  AgentSystem: mockAgentSystem,
 }));
 
 import type { AlicePluginInterface } from '../../../lib.js';
@@ -263,6 +272,9 @@ describe('webUiPlugin', () => {
       .mockReset()
       .mockReturnValue(new Promise<void>(() => undefined));
     mockTaskAssistants.clearSuspensionSignal.mockReset();
+    mockAgentSystem.onUpdate.mockReset();
+    mockAgentSystem.getInstancesBySession.mockReset().mockReturnValue([]);
+    mockAgentSystem.getAndClearPendingMessages.mockReset().mockReturnValue([]);
     mockRegisterDatabaseModels.mockReset();
     mockOnDatabaseReady.mockReset();
     mockApp.get.mockReset();
@@ -762,6 +774,36 @@ describe('webUiPlugin', () => {
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         extensions: expect.any(Array),
+      })
+    );
+  });
+
+  it('GET /api/extensions includes stylesheet-only registrations', async () => {
+    const mockInterface = createMockPluginInterface([]);
+    await webUiPlugin.registerPlugin(
+      mockInterface as unknown as AlicePluginInterface
+    );
+
+    const api = mockInterface.offeredCapabilities['web-ui'];
+    mockExistsSync.mockReturnValue(true);
+    mockStatSync.mockReturnValue({ isFile: () => true });
+    api.registerStylesheet('/tmp/deep-dive.css');
+
+    await mockInterface.runHook('onAssistantAcceptsRequests');
+
+    const handler = getRegisteredRouteHandler('get', '/api/extensions');
+    const res = createMockResponse();
+    await handler?.({}, res);
+
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        extensions: expect.arrayContaining([
+          expect.objectContaining({
+            styleUrls: expect.arrayContaining([
+              expect.stringMatching(/^\/plugin-styles\//),
+            ]),
+          }),
+        ]),
       })
     );
   });

@@ -36,7 +36,11 @@ declare module '../../../lib.js' {
       }) => Promise<number | null>;
       queueAssistantMessageToSession: (
         sessionId: number,
-        message: { content: string; messageKind?: 'chat' | 'notification' }
+        message: {
+          content: string;
+          messageKind?: 'chat' | 'notification';
+          senderName?: string;
+        }
       ) => Promise<void>;
       queueAssistantMessage: (message: {
         content: string;
@@ -107,6 +111,24 @@ const webUiPlugin: AlicePlugin = {
       }));
     };
 
+    const serializeRound = (round: ChatSessionRound) => ({
+      role: round.role,
+      messageKind: round.messageKind,
+      content: round.content,
+      timestamp: round.timestamp,
+      senderName: round.senderName,
+    });
+
+    const getActiveAgentsForSession = (sessionId: number) =>
+      AgentSystem.getInstancesBySession(sessionId).map(instance => ({
+        instanceId: instance.instanceId,
+        agentId: instance.agentId,
+        agentName: instance.agentName,
+        status: instance.status,
+        startedAt: instance.startedAt,
+        pendingMessageCount: instance.pendingMessages.length,
+      }));
+
     const evictCachedConversation = (sessionId: number): void => {
       cachedChatConversations.delete(sessionId);
     };
@@ -136,9 +158,7 @@ const webUiPlugin: AlicePlugin = {
     ): Promise<void> => {
       const unsynchronizedMessages = conversation.getUnsynchronizedMessages();
       const persistableMessages = unsynchronizedMessages.filter(
-        message =>
-          message.role !== 'system' &&
-          (message.role !== 'assistant' || message.content.trim().length > 0)
+        message => message.role !== 'system'
       );
 
       if (persistableMessages.length === 0) {
@@ -241,7 +261,11 @@ const webUiPlugin: AlicePlugin = {
 
     const queueAssistantMessageToSession = async (
       sessionId: number,
-      message: { content: string; messageKind?: 'chat' | 'notification' }
+      message: {
+        content: string;
+        messageKind?: 'chat' | 'notification';
+        senderName?: string;
+      }
     ): Promise<void> => {
       await runSessionOperation(sessionId, async () => {
         const orm = await onDatabaseReady(async databaseOrm => databaseOrm);
@@ -266,7 +290,8 @@ const webUiPlugin: AlicePlugin = {
           em,
           session,
           conversation,
-          message.messageKind || 'chat'
+          message.messageKind || 'chat',
+          message.senderName
         );
       });
     };
@@ -364,6 +389,14 @@ const webUiPlugin: AlicePlugin = {
         openNewChatIfNone: false,
       });
     };
+
+    AgentSystem.onUpdate(async update => {
+      await queueAssistantMessageToSession(update.linkedSessionId, {
+        content: update.content,
+        messageKind: 'chat',
+        senderName: update.agentName,
+      });
+    });
 
     const registerScript = (scriptPath: string): void => {
       const resolvedPath = path.resolve(scriptPath);
@@ -542,12 +575,8 @@ const webUiPlugin: AlicePlugin = {
             messages: conversationRecord.rounds
               .getItems()
               .filter(round => round.role !== 'system')
-              .map(round => ({
-                role: round.role,
-                messageKind: round.messageKind,
-                content: round.content,
-                timestamp: round.timestamp,
-              })),
+              .map(serializeRound),
+            activeAgents: getActiveAgentsForSession(conversationRecord.id),
           },
         });
       });
@@ -729,13 +758,8 @@ const webUiPlugin: AlicePlugin = {
             messages: updatedSession.rounds
               .getItems()
               .filter(round => round.role !== 'system')
-              .map(round => ({
-                role: round.role,
-                messageKind: round.messageKind,
-                content: round.content,
-                timestamp: round.timestamp,
-                senderName: round.senderName,
-              })),
+              .map(serializeRound),
+            activeAgents: getActiveAgentsForSession(updatedSession.id),
           },
         });
       });
@@ -807,13 +831,8 @@ const webUiPlugin: AlicePlugin = {
             messages: session.rounds
               .getItems()
               .filter(round => round.role !== 'system')
-              .map(round => ({
-                role: round.role,
-                messageKind: round.messageKind,
-                content: round.content,
-                timestamp: round.timestamp,
-                senderName: round.senderName,
-              })),
+              .map(serializeRound),
+            activeAgents: getActiveAgentsForSession(session.id),
           },
         });
       });
@@ -875,12 +894,36 @@ const webUiPlugin: AlicePlugin = {
       });
 
       app.get('/api/extensions', async (_req, res) => {
+        const groupsWithScripts = new Set(
+          registeredScripts.map(registration => registration.groupKey)
+        );
+        const styleOnlyExtensions: AliceUiScriptRegistration[] = [];
+
+        stylesheetUrlsByGroup.forEach((styleUrls, groupKey) => {
+          if (styleUrls.length === 0 || groupsWithScripts.has(groupKey)) {
+            return;
+          }
+
+          const styleOnlyId = createHash('sha1')
+            .update(`style-only:${groupKey}`)
+            .digest('hex')
+            .slice(0, 12);
+
+          styleOnlyExtensions.push({
+            id: styleOnlyId,
+            styleUrls: [...styleUrls],
+          });
+        });
+
         res.setHeader('Cache-Control', 'no-store');
         res.json({
-          extensions: registeredScripts.map(
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            ({ groupKey: _groupKey, ...registration }) => registration
-          ),
+          extensions: [
+            ...registeredScripts.map(
+              // eslint-disable-next-line @typescript-eslint/no-unused-vars
+              ({ groupKey: _groupKey, ...registration }) => registration
+            ),
+            ...styleOnlyExtensions,
+          ],
         });
       });
 

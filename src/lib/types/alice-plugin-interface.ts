@@ -50,7 +50,7 @@ export type UIRegion =
 
 export type AliceUiScriptRegistration = {
   id: string;
-  scriptUrl: string;
+  scriptUrl?: string;
   styleUrls: string[];
 };
 

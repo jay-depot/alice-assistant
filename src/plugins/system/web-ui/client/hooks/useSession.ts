@@ -5,7 +5,7 @@ import {
   fetchSession,
   patchSession,
 } from '../api/sessions.js';
-import type { Message, Session } from '../types/index.js';
+import type { ActiveSessionAgent, Message, Session } from '../types/index.js';
 import { getMessageKey } from '../utils.js';
 
 interface UseSessionOptions {
@@ -14,6 +14,19 @@ interface UseSessionOptions {
 }
 
 const DEFAULT_TITLE = 'A.L.I.C.E.';
+
+function getActiveAgentsStateKey(activeAgents: ActiveSessionAgent[]): string {
+  return activeAgents
+    .map(agent =>
+      [
+        agent.instanceId,
+        agent.status,
+        agent.pendingMessageCount,
+        agent.startedAt,
+      ].join(':')
+    )
+    .join('|');
+}
 
 function getLastReadMessageKey(messages: Message[]): string | null {
   let hasTrailingAssistantMessage = false;
@@ -51,6 +64,7 @@ export function useSession({
   const [lastReadMessageKey, setLastReadMessageKey] = useState<string | null>(
     null
   );
+  const [activeAgents, setActiveAgents] = useState<ActiveSessionAgent[]>([]);
 
   const reportError = useCallback(
     (message: string, error: unknown) => {
@@ -64,6 +78,7 @@ export function useSession({
     setCurrentSessionId(session.id);
     setMessages(session.messages);
     setSessionTitle(session.title);
+    setActiveAgents(session.activeAgents);
     setLastReadMessageKey(getLastReadMessageKey(session.messages));
   }, []);
 
@@ -110,6 +125,7 @@ export function useSession({
     setSessionTitle('Starting...');
     setPendingMessageKey(null);
     setLastReadMessageKey(null);
+    setActiveAgents([]);
     setIsSessionBusy(true);
 
     try {
@@ -121,6 +137,7 @@ export function useSession({
       setSessionTitle(DEFAULT_TITLE);
       setPendingMessageKey(null);
       setLastReadMessageKey(null);
+      setActiveAgents([]);
       reportError('Failed to start new conversation.', error);
     } finally {
       setIsSessionBusy(false);
@@ -214,6 +231,7 @@ export function useSession({
       setSessionTitle(DEFAULT_TITLE);
       setPendingMessageKey(null);
       setLastReadMessageKey(null);
+      setActiveAgents([]);
       await refreshSessions?.();
     } catch (error) {
       reportError('Failed to end session.', error);
@@ -235,6 +253,7 @@ export function useSession({
     setSessionTitle(DEFAULT_TITLE);
     setPendingMessageKey(null);
     setLastReadMessageKey(null);
+    setActiveAgents([]);
   }, []);
 
   const inputPlaceholder = useMemo(() => {
@@ -272,7 +291,11 @@ export function useSession({
             incomingLastMessage?.timestamp !== currentLastMessage?.timestamp ||
             incomingLastMessage?.content !== currentLastMessage?.content;
 
-          if (!hasNewMessages) {
+          const hasAgentUpdates =
+            getActiveAgentsStateKey(session.activeAgents) !==
+            getActiveAgentsStateKey(activeAgents);
+
+          if (!hasNewMessages && !hasAgentUpdates) {
             return;
           }
 
@@ -297,6 +320,7 @@ export function useSession({
     isProcessingMessage,
     isSessionBusy,
     messages,
+    activeAgents,
     refreshSessions,
     sessionTitle,
   ]);
@@ -310,6 +334,7 @@ export function useSession({
     isEndingSession,
     pendingMessageKey,
     lastReadMessageKey,
+    activeAgents,
     showWelcome:
       currentSessionId === null && messages.length === 0 && !isSessionBusy,
     showDeleteSession: currentSessionId !== null,

@@ -1,13 +1,15 @@
 import { useLayoutEffect, useMemo, useRef } from 'react';
 import { MessageBubble } from './MessageBubble.js';
+import { ActiveAgentsPanel } from './ActiveAgentsPanel.js';
 import { ProcessingStatus } from './ProcessingStatus.js';
 import { RegionSlot } from './RegionSlot.js';
 import { WelcomeScreen } from './WelcomeScreen.js';
-import type { Message } from '../types/index.js';
+import type { ActiveSessionAgent, Message } from '../types/index.js';
 import { getMessageKey, isDisplayableMessage } from '../utils.js';
 
 interface MessagesAreaProps {
   messages: Message[];
+  activeAgents: ActiveSessionAgent[];
   showWelcome: boolean;
   isProcessing: boolean;
   isEndingSession: boolean;
@@ -17,6 +19,7 @@ interface MessagesAreaProps {
 
 export function MessagesArea({
   messages,
+  activeAgents,
   showWelcome,
   isProcessing,
   isEndingSession,
@@ -61,6 +64,10 @@ export function MessagesArea({
   return (
     <div id="messages-area" ref={messagesRef}>
       <RegionSlot region="message-prefix" />
+
+      {activeAgents.length > 0 ? (
+        <ActiveAgentsPanel activeAgents={activeAgents} />
+      ) : null}
 
       {showWelcome ? (
         <WelcomeScreen />
