@@ -27,6 +27,8 @@ export type ToolExecutionContext = {
   agentInstanceId?: string;
 };
 
+export type ToolSecurityTaintStatus = 'tainted' | 'clean' | 'secure';
+
 export type Tool = {
   name: string;
   availableFor: ConversationTypeId[];
@@ -35,6 +37,22 @@ export type Tool = {
   parameters: TSchema;
   toolResultPromptIntro: ToolPromptFragmentFunction;
   toolResultPromptOutro: ToolPromptFragmentFunction;
+  /**
+   * Defaults to clean if not provided. Tainted tools taint the conversation context
+   * and prevent secure tools from running. Secure tools can only run in
+   * conversations with no tainted tools in their history. This is primarily used
+   * to provide otherwise unsafe tools (like home automation with no confirmations)
+   * for voice control. Web/TUI interactions should avoid using secure tools at all,
+   * and instead rely on "clean" tools that require explicit user confirmation for
+   * sensitive actions.
+   * Clean tools should only return data that will not contain potential
+   * prompt-injection vectors. This does not depend on format, but source. For
+   * example, a web page fetch tool, that can access any web page on the internet should be
+   * tainted, but a tool that reads from the API of a verified. trustworthy provider can be
+   * marked clean. Social media content is *always* tainted.
+   */
+
+  taintStatus?: ToolSecurityTaintStatus;
   execute: (
     args: Record<string, unknown>,
     context: ToolExecutionContext
@@ -90,15 +108,22 @@ export const ToolCallEvents = {
 };
 
 export function buildOllamaToolDescriptionObject(
-  conversationType: DynamicPromptConversationType
+  conversationType: DynamicPromptConversationType,
+  isConversationTainted = false
 ): OllamaRequestToolsPropItem[] {
   const tools = getTools(conversationType);
-  return tools.map(tool => ({
-    type: 'function',
-    function: {
-      name: tool.name,
-      parameters: tool.parameters,
-      description: tool.description,
-    },
-  }));
+  return tools
+    .filter(tool => {
+      // Secure tools must not be offered to the LLM when the conversation is tainted.
+      const effectiveTaint = tool.taintStatus ?? 'clean';
+      return !(isConversationTainted && effectiveTaint === 'secure');
+    })
+    .map(tool => ({
+      type: 'function',
+      function: {
+        name: tool.name,
+        parameters: tool.parameters,
+        description: tool.description,
+      },
+    }));
 }

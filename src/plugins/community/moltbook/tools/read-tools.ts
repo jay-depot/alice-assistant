@@ -91,6 +91,7 @@ export const getMoltbookHomeTool = (client: MoltbookClient): Tool => ({
   parameters: homeParameters,
   toolResultPromptIntro: 'Here is the current Moltbook dashboard.',
   toolResultPromptOutro: '',
+  taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async () => {
     const home = await client.getHome();
     return client.formatHome(home);
@@ -107,6 +108,7 @@ export const getMoltbookFeedTool = (client: MoltbookClient): Tool => ({
   parameters: feedParameters,
   toolResultPromptIntro: 'Here are the requested Moltbook feed results.',
   toolResultPromptOutro: '',
+  taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async (args: FeedParameters) => {
     const limit = args.limit ?? client.getDefaultFeedLimit();
     if (args.source === 'submolt') {
@@ -142,6 +144,7 @@ export const getMoltbookPostTool = (client: MoltbookClient): Tool => ({
   parameters: postParameters,
   toolResultPromptIntro: 'Here is the requested Moltbook post.',
   toolResultPromptOutro: '',
+  taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async (args: PostParameters) => {
     const post = await client.getPost(args.postId);
     return client.formatPost(post);
@@ -157,6 +160,7 @@ export const getMoltbookCommentsTool = (client: MoltbookClient): Tool => ({
   parameters: commentsParameters,
   toolResultPromptIntro: 'Here is the Moltbook comment thread.',
   toolResultPromptOutro: '',
+  taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async (args: CommentsParameters) => {
     const comments = await client.getComments({
       postId: args.postId,
@@ -178,6 +182,7 @@ export const listMoltbookSubmoltsTool = (client: MoltbookClient): Tool => ({
   parameters: listSubmoltsParameters,
   toolResultPromptIntro: 'Here are the Moltbook submolts that were returned.',
   toolResultPromptOutro: '',
+  taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async () => {
     const submolts = await client.listSubmolts();
     return client.formatSubmoltList(submolts);
@@ -193,6 +198,7 @@ export const getMoltbookSubmoltTool = (client: MoltbookClient): Tool => ({
   parameters: getSubmoltParameters,
   toolResultPromptIntro: 'Here is the requested Moltbook submolt.',
   toolResultPromptOutro: '',
+  taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async (args: GetSubmoltParameters) => {
     const submolt = await client.getSubmolt(args.name);
     return client.formatSubmolt(submolt);
@@ -208,6 +214,7 @@ export const searchMoltbookTool = (client: MoltbookClient): Tool => ({
   parameters: searchParameters,
   toolResultPromptIntro: 'Here are the Moltbook search results.',
   toolResultPromptOutro: '',
+  taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async (args: SearchParameters) => {
     const results = await client.search({
       query: args.query,

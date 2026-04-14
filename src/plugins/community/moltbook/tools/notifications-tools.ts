@@ -27,6 +27,7 @@ export const getMoltbookNotificationsTool = (client: MoltbookClient): Tool => ({
   parameters: getNotificationsParameters,
   toolResultPromptIntro: 'Here is the current Moltbook notification summary.',
   toolResultPromptOutro: '',
+  taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async () => {
     const home = await client.getHome();
     return client.formatNotificationSummary(home);
@@ -46,6 +47,7 @@ export const markMoltbookNotificationsReadTool = (
   toolResultPromptIntro:
     'The Moltbook notification read-state request completed.',
   toolResultPromptOutro: '',
+  taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async (args: MarkNotificationsParameters) => {
     if (args.mode === 'post') {
       if (!args.postId) {

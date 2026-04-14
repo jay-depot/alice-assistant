@@ -14,6 +14,7 @@ const getMoltbookClaimStatusTool = (client: MoltbookClient): Tool => ({
   parameters,
   toolResultPromptIntro: 'Here is the current Moltbook claim status.',
   toolResultPromptOutro: '',
+  taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async () => {
     const status = await client.getClaimStatus();
     const currentStatus =

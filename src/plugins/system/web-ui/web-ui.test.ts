@@ -26,6 +26,8 @@ const {
   mockExpress,
   mockExpressJson,
   mockExpressStatic,
+  mockWss,
+  mockWebSocketServer,
 } = vi.hoisted(() => {
   const app = {
     use: vi.fn(),
@@ -51,6 +53,18 @@ const {
     getAndClearPendingMessages: vi.fn(() => []),
   };
 
+  const wss = {
+    on: vi.fn(),
+    close: vi.fn(function (cb?: () => void) {
+      cb?.();
+    }),
+  };
+  // Must be a regular function (not arrow) so `new WebSocketServer(...)` works.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const webSocketServer = vi.fn(function (_opts: unknown) {
+    return wss;
+  });
+
   return {
     mockExistsSync: vi.fn(),
     mockStatSync: vi.fn(),
@@ -65,8 +79,15 @@ const {
     mockExpress: expressFn,
     mockExpressJson: expressJson,
     mockExpressStatic: expressStatic,
+    mockWss: wss,
+    mockWebSocketServer: webSocketServer,
   };
 });
+
+vi.mock('ws', () => ({
+  WebSocketServer: mockWebSocketServer,
+  WebSocket: { OPEN: 1 },
+}));
 
 vi.mock('fs', () => ({
   existsSync: mockExistsSync,
@@ -163,14 +184,15 @@ function createMockOrm(initialSessions: ChatSessionRecord[] = []) {
       return null;
     }),
     create: vi.fn((_entity: any, data: any) => {
-      const record: ChatSessionRecord = {
+      const record: any = {
         id: nextId++,
-        title: data.title,
-        rounds: makeRounds([]),
-        createdAt: data.createdAt,
-        updatedAt: data.updatedAt,
+        ...data,
       };
-      sessions.push(record);
+      if (data.title !== undefined) {
+        // It's a ChatSession — give it a rounds collection and track it.
+        record.rounds = makeRounds([]);
+        sessions.push(record as ChatSessionRecord);
+      }
       return record;
     }),
     remove: vi.fn((record: ChatSessionRecord) => {
@@ -254,6 +276,7 @@ function createMockPluginInterface(initialSessions: ChatSessionRecord[] = []) {
         if (pluginId === 'rest-serve') {
           return {
             express: mockApp,
+            server: {},
           };
         }
         return undefined;
@@ -295,6 +318,9 @@ describe('webUiPlugin', () => {
     mockExpress.mockClear();
     mockExpressJson.mockClear();
     mockExpressStatic.mockClear();
+    mockWebSocketServer.mockClear();
+    mockWss.on.mockClear();
+    mockWss.close.mockClear();
   });
 
   const getRegisteredRouteHandler = (

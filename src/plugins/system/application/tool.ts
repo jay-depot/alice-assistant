@@ -23,6 +23,39 @@ const parameters = Type.Optional(
   })
 );
 
+/**
+ * Characters that are dangerous in argument values passed to child processes.
+ * These could enable shell injection, path traversal, or argument manipulation
+ * even when using spawn() (which avoids shell interpretation) — because the
+ * commandLine config itself may contain shell-like syntax, and parameter values
+ * are interpolated into argument templates before splitting.
+ *
+ * This is intentionally conservative: if a legitimate parameter needs any of
+ * these characters, the user should configure the application entry with a more
+ * specific argument template that doesn't require raw user input.
+ */
+const DANGEROUS_ARG_CHARS = /[`$\\|;&<>(){}!\n\r\t\0]/;
+
+/**
+ * Validate that a parameter value does not contain characters that could be
+ * used for shell injection or argument manipulation. Returns a sanitized
+ * error message if the value is dangerous, or null if it's safe.
+ */
+function validateParameterValue(key: string, value: string): string | null {
+  if (typeof value !== 'string') {
+    return `Parameter "${key}" must be a string, got ${typeof value}.`;
+  }
+  if (DANGEROUS_ARG_CHARS.test(value)) {
+    return (
+      `Parameter "${key}" contains disallowed characters. ` +
+      `For security, the following characters are not permitted in application parameters: ` +
+      `\` $ \\ | ; & < > ( ) { } ! and control characters. ` +
+      `If you need to open a URL or file with special characters, configure the application alias directly.`
+    );
+  }
+  return null;
+}
+
 export const openApplicationTool: (
   config: ApplicationPluginConfigSchema
 ) => Tool = config => ({
@@ -43,6 +76,9 @@ export const openApplicationTool: (
   parameters,
   toolResultPromptIntro: '',
   toolResultPromptOutro: '',
+  // For now. Because this is gated behind a very explicit, narrow list of application
+  // *aliases* that can be launched, this is not marked "secure".
+  taintStatus: 'clean',
   execute: async (args: Static<typeof parameters>) => {
     if (!args || !args.application) {
       const availableApplications = config.availableApplications.map(
@@ -64,6 +100,16 @@ export const openApplicationTool: (
     );
     if (!appConfig) {
       return `Error: Application "${application}" not found in available applications.`;
+    }
+
+    // Validate all parameter values for shell injection safety before
+    // interpolating them into the command template.
+    for (const [key, value] of Object.entries(appParameters)) {
+      const strValue = String(value);
+      const validationError = validateParameterValue(key, strValue);
+      if (validationError) {
+        return `Error: ${validationError}`;
+      }
     }
 
     try {

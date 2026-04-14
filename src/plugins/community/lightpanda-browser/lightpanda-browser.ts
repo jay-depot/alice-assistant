@@ -123,6 +123,7 @@ const lightpandaBrowserPlugin: AlicePlugin = {
       systemPromptFragment: '',
       toolResultPromptIntro: '',
       toolResultPromptOutro: '',
+      taintStatus: 'tainted', // Arbitrary web content, literally anything. Always taint.
       execute: async (parameters: LightpandaFetchToolParameters) => {
         const { url, bypassCache = false } = parameters;
         const cacheKey = getCacheKey(url);

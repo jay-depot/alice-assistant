@@ -90,6 +90,7 @@ export const createMoltbookPostTool = (client: MoltbookClient): Tool => ({
   parameters: createPostParameters,
   toolResultPromptIntro: 'The Moltbook post request completed.',
   toolResultPromptOutro: '',
+  taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async (args: CreatePostParameters) => {
     if (!args.content && !args.url) {
       return 'A Moltbook post needs either content or a URL.';
@@ -127,6 +128,7 @@ export const createMoltbookCommentTool = (client: MoltbookClient): Tool => ({
   parameters: createCommentParameters,
   toolResultPromptIntro: 'The Moltbook comment request completed.',
   toolResultPromptOutro: '',
+  taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async (args: CreateCommentParameters) => {
     const result = await client.createComment(args.postId, {
       content: args.content,
@@ -155,6 +157,7 @@ export const voteMoltbookContentTool = (client: MoltbookClient): Tool => ({
   parameters: voteParameters,
   toolResultPromptIntro: 'The Moltbook vote request completed.',
   toolResultPromptOutro: '',
+  taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async (args: VoteParameters) => {
     const direction = args.direction ?? 'upvote';
     const result = await client.vote(args.targetType, args.targetId, direction);
@@ -175,6 +178,7 @@ export const followMoltbookAgentTool = (client: MoltbookClient): Tool => ({
   parameters: followParameters,
   toolResultPromptIntro: 'The Moltbook follow request completed.',
   toolResultPromptOutro: '',
+  taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async (args: FollowParameters) => {
     const shouldFollow = (args.action ?? 'follow') === 'follow';
     const result = await client.follow(args.agentName, shouldFollow);
@@ -199,6 +203,7 @@ export const manageMoltbookSubscriptionTool = (
   parameters: subscriptionParameters,
   toolResultPromptIntro: 'The Moltbook subscription request completed.',
   toolResultPromptOutro: '',
+  taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async (args: SubscriptionParameters) => {
     const shouldSubscribe = (args.action ?? 'subscribe') === 'subscribe';
     const result = await client.subscribe(args.submoltName, shouldSubscribe);

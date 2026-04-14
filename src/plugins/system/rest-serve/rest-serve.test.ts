@@ -1,30 +1,48 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { mockApp, mockExpress, mockExpressJson, mockServerClose, mockListen } =
-  vi.hoisted(() => {
-    const serverClose = vi.fn((callback?: (err?: Error) => void) => {
-      callback?.();
-    });
-    const listen = vi.fn(() => ({
-      close: serverClose,
-      on: vi.fn(),
-      closeIdleConnections: vi.fn(),
-      closeAllConnections: vi.fn(),
-    }));
-    const app = {
-      use: vi.fn(),
-      listen,
-    };
-
-    return {
-      mockApp: app,
-      mockExpress: vi.fn(() => app),
-      mockExpressJson: vi.fn(() => 'json-middleware'),
-      mockServerClose: serverClose,
-      mockListen: listen,
-    };
+const {
+  mockApp,
+  mockExpress,
+  mockExpressJson,
+  mockServerClose,
+  mockListen,
+  mockCreateServer,
+} = vi.hoisted(() => {
+  const serverClose = vi.fn((callback?: (err?: Error) => void) => {
+    callback?.();
   });
+  const listen = vi.fn(
+    (_port: number, _host: string, callback?: () => void) => {
+      callback?.();
+    }
+  );
+  const server = {
+    listen,
+    close: serverClose,
+    on: vi.fn(),
+    once: vi.fn(),
+    closeIdleConnections: vi.fn(),
+    closeAllConnections: vi.fn(),
+  };
+  const createServer = vi.fn(() => server);
+  const app = {
+    use: vi.fn(),
+  };
+
+  return {
+    mockApp: app,
+    mockExpress: vi.fn(() => app),
+    mockExpressJson: vi.fn(() => 'json-middleware'),
+    mockServerClose: serverClose,
+    mockListen: listen,
+    mockCreateServer: createServer,
+  };
+});
+
+vi.mock('node:http', () => ({
+  createServer: mockCreateServer,
+}));
 
 vi.mock('express', () => {
   const expressExport = Object.assign(mockExpress, {

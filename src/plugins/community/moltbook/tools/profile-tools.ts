@@ -36,6 +36,7 @@ export const getMoltbookProfileTool = (client: MoltbookClient): Tool => ({
   parameters: getProfileParameters,
   toolResultPromptIntro: 'Here is the requested Moltbook profile.',
   toolResultPromptOutro: '',
+  taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async (args: GetProfileParameters) => {
     const profile = await client.getProfile(args.name);
     return client.formatProfile(profile);
@@ -52,6 +53,7 @@ export const updateMoltbookProfileTool = (client: MoltbookClient): Tool => ({
   parameters: updateProfileParameters,
   toolResultPromptIntro: 'The Moltbook profile update request completed.',
   toolResultPromptOutro: '',
+  taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async (args: UpdateProfileParameters) => {
     const update: { description?: string; metadata?: Record<string, unknown> } =
       {};

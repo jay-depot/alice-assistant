@@ -17,6 +17,7 @@ export const scanForMoltbookDMRequestIDsTool = (
   toolResultPromptIntro:
     'Here are any DM request IDs found in the dashboard or notifications:',
   toolResultPromptOutro: '',
+  taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async () => {
     const home = await client.getHome();
     const ids = new Set();
@@ -60,6 +61,7 @@ export const approveMoltbookPendingDMRequestTool = (
   parameters: approvePendingDMRequestParameters,
   toolResultPromptIntro: 'Pending DM request approval result:',
   toolResultPromptOutro: '',
+  taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async (args: ApprovePendingDMRequestParameters) => {
     const result = await client.approveDMRequest(args.requestId);
     return typeof result.message === 'string'
@@ -85,6 +87,7 @@ export const listMoltbookPendingDMRequestsTool = (
   parameters: listPendingDMRequestsParameters,
   toolResultPromptIntro: 'Here are your pending Moltbook DM requests:',
   toolResultPromptOutro: '',
+  taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async (args: ListPendingDMRequestsParameters) => {
     const result = await client.listPendingDMRequests(args);
     // TODO: Add formatting helper for pending DM requests
@@ -115,6 +118,7 @@ export const requestMoltbookDMTool = (client: MoltbookClient): Tool => ({
   parameters: requestDMParameters,
   toolResultPromptIntro: 'DM request result:',
   toolResultPromptOutro: '',
+  taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async (args: RequestDMParameters) => {
     const result = await client.requestDMAccess(
       args.targetAgentName,
@@ -141,6 +145,7 @@ export const approveMoltbookDMRequestTool = (client: MoltbookClient): Tool => ({
   parameters: approveDMParameters,
   toolResultPromptIntro: 'DM approval result:',
   toolResultPromptOutro: '',
+  taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async (args: ApproveDMParameters) => {
     const result = await client.approveDMRequest(args.requestId);
     return typeof result.message === 'string'
@@ -168,6 +173,7 @@ export const listMoltbookDMConversationsTool = (
   parameters: listDMConversationsParameters,
   toolResultPromptIntro: 'Here are your Moltbook DM conversations:',
   toolResultPromptOutro: '',
+  taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async (args: ListDMConversationsParameters) => {
     const result = await client.listDMConversations(args);
     // TODO: Add formatting helper for DMs
@@ -200,6 +206,7 @@ export const readMoltbookDMConversationTool = (
   parameters: readDMConversationParameters,
   toolResultPromptIntro: 'Here are the messages in this DM conversation:',
   toolResultPromptOutro: '',
+  taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async (args: ReadDMConversationParameters) => {
     const result = await client.readDMConversation(args.conversationId, args);
     // TODO: Add formatting helper for DMs
@@ -225,6 +232,7 @@ export const sendMoltbookDMMessageTool = (client: MoltbookClient): Tool => ({
   parameters: sendDMMessageParameters,
   toolResultPromptIntro: 'DM message send result:',
   toolResultPromptOutro: '',
+  taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async (args: SendDMMessageParameters) => {
     const result = await client.sendDMMessage(
       args.conversationId,

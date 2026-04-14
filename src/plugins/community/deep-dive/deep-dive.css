@@ -1,11 +1,10 @@
+.active-agents-panel__list
+  .active-agents-panel__item.agent--deep-dive-research-agent,
+.active-agents-panel__list
+  .active-agents-panel__item.agent--deep-dive-research-agent
+  *,
 .tool-call-batch.agent--deep-dive-research-agent,
-.tool-call-batch.agent--deep-dive-research-agent .tool-call-batch__label,
-.tool-call-batch.agent--deep-dive-research-agent .tool-call-batch__check,
-.tool-call-batch.agent--deep-dive-research-agent .tool-call-indicator,
-.tool-call-batch.agent--deep-dive-research-agent .tool-call-indicator__toggle,
-.tool-call-batch.agent--deep-dive-research-agent .tool-call-indicator__check,
-.tool-call-batch.agent--deep-dive-research-agent .tool-call-indicator__name,
-.tool-call-batch.agent--deep-dive-research-agent .tool-call-indicator__result {
+.tool-call-batch.agent--deep-dive-research-agent * {
   background-color: #aaa;
   color: #222;
   border-color: #222;
@@ -25,6 +24,10 @@
   background: #aaa;
   color: #222;
   font-family: var(--font-serif);
+}
+
+.message-modal__body.agent--deep-dive-research-agent {
+  padding: 0, 10%;
 }
 
 .message-modal__panel.agent--deep-dive-research-agent .message-modal__title,

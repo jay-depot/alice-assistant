@@ -225,6 +225,7 @@ const webSimpleFetchPlugin: AlicePlugin = {
       parameters: SimpleFetchToolParametersSchema,
       toolResultPromptIntro: '',
       toolResultPromptOutro: '',
+      taintStatus: 'tainted', // Arbitrary internet content. Always taint.
       execute: async function (
         args: SimpleFetchToolParameters
       ): Promise<string> {
@@ -291,6 +292,7 @@ const webSimpleFetchPlugin: AlicePlugin = {
       parameters: SimplePostToolParametersSchema,
       toolResultPromptIntro: '',
       toolResultPromptOutro: '',
+      taintStatus: 'tainted', // Arbitrary internet content. Always taint.
       execute: async function (
         args: SimplePostToolParameters
       ): Promise<string> {

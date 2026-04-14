@@ -130,6 +130,7 @@ const newsBrokerPlugin: AlicePlugin = {
         type === 'chat'
           ? 'IMPORTANT: ALWAYS INCLUDE LINKS TO THE ARTICLES YOU ARE REFERENCING IN YOUR REPLY!'
           : '',
+      taintStatus: 'tainted', // Arbitrary news results from the web. Always taint.
       execute: async (parameters: NewsToolParametersSchema) => {
         const newsData = await requestNewsData(parameters.query);
         const formattedResults = Object.entries(newsData)

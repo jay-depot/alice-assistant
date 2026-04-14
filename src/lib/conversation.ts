@@ -140,6 +140,18 @@ export class Conversation {
   public compactedContext: Message[] = [];
   private synchronizedRawMessageCount = 0;
 
+  /**
+   * Tracks which tainted tools have been called in this conversation.
+   * Once a tainted tool runs, the conversation is considered tainted for its
+   * entire lifetime — secure tools will be blocked from that point on.
+   */
+  public taintedToolNames: Set<string> = new Set();
+
+  /** True once any tainted tool has been called in this conversation. */
+  get isTainted(): boolean {
+    return this.taintedToolNames.size > 0;
+  }
+
   constructor(
     public type: DynamicPromptConversationType,
     public sessionId?: number,
@@ -319,7 +331,7 @@ export class Conversation {
         const res = await OllamaClient.chat({
           ...this.llmConnection,
           messages: fullContext,
-          tools: buildOllamaToolDescriptionObject(this.type),
+          tools: buildOllamaToolDescriptionObject(this.type, this.isTainted),
         });
         checkLLMResponseForDegeneracy(res.message.content || '');
         return res;
@@ -462,6 +474,17 @@ export class Conversation {
             return `Tool ${toolName} is not recognized.`;
           }
 
+          // Enforce taint security: secure tools cannot run in a tainted conversation.
+          const effectiveTaint = tool.taintStatus ?? 'clean';
+          if (effectiveTaint === 'secure' && this.isTainted) {
+            return (
+              `Tool ${toolName} is a secure tool and cannot be used in this conversation ` +
+              `because the conversation context has been tainted by a previous tool call ` +
+              `(${[...this.taintedToolNames].join(', ')}). ` +
+              `Inform the user that if they still want to take this action, start a new conversation.`
+            );
+          }
+
           // Dispatch tool_call_started event
           void ToolCallEvents.dispatchToolCallEvent({
             type: 'tool_call_started',
@@ -496,6 +519,11 @@ export class Conversation {
             const result = `${toolResultIntro ? toolResultIntro + '\n' : ''}${
               callResult
             }${toolResultOutro ? '\n' + toolResultOutro : ''}`;
+
+            // Track taint: if this tool is tainted, mark the conversation as tainted.
+            if (effectiveTaint === 'tainted') {
+              this.taintedToolNames.add(toolName);
+            }
 
             // Dispatch tool_call_completed event with truncated result summary
             const resultSummary =
@@ -566,7 +594,7 @@ export class Conversation {
               })),
             ],
             tools: callsStillAllowed
-              ? buildOllamaToolDescriptionObject(this.type)
+              ? buildOllamaToolDescriptionObject(this.type, this.isTainted)
               : undefined,
           });
 
@@ -666,7 +694,7 @@ export class Conversation {
             })),
             { role: 'system', content: titlePrompt },
           ],
-          tools: buildOllamaToolDescriptionObject(this.type),
+          tools: buildOllamaToolDescriptionObject(this.type, this.isTainted),
         });
 
         checkLLMResponseForDegeneracy(res.message.content || '');

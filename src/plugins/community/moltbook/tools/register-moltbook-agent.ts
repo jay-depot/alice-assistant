@@ -21,6 +21,7 @@ const registerMoltbookAgentTool = (client: MoltbookClient): Tool => ({
   parameters,
   toolResultPromptIntro: 'The Moltbook registration request has completed.',
   toolResultPromptOutro: '',
+  taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async (args: Parameters) => {
     const registration = await client.registerAgent(
       args.name,

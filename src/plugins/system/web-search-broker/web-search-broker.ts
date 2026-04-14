@@ -124,6 +124,7 @@ const webSearchBrokerPlugin: AlicePlugin = {
       systemPromptFragment: '',
       toolResultPromptIntro: '',
       toolResultPromptOutro: '',
+      taintStatus: 'tainted', // Arbitrary web search results. Always taint.
       parameters: WebSearchToolInputSchema,
       execute: async (parameters: WebSearchToolInputSchema) => {
         const results = await requestWebSearchData(parameters.query);
