@@ -8,7 +8,13 @@ import {
   AgentSystem,
   ToolCallEvents,
 } from '../../../lib.js';
-import { Express, static as serveStatic, Response } from 'express';
+import { WebSocketServer, WebSocket } from 'ws';
+import type {
+  WsServerMessage,
+  WsToolCallEvent,
+  WsSession,
+} from './ws-types.js';
+import { Express, static as serveStatic } from 'express';
 import * as fs from 'fs';
 import * as path from 'path';
 import { createHash } from 'crypto';
@@ -104,11 +110,11 @@ const webUiPlugin: AlicePlugin = {
     const sessionOperationQueues = new Map<number, Promise<void>>();
     const cachedChatConversations = new Map<number, Conversation>();
 
-    // SSE connection management: Map<sessionId, Set<Response>>
-    const sseConnections = new Map<number, Set<Response>>();
+    // Late-bound WebSocket broadcaster — assigned once the WS server is ready in
+    // onAssistantAcceptsRequests. A no-op until then (no clients can connect anyway).
+    let broadcastWs: (msg: WsServerMessage) => void = () => {};
 
-    // Buffer for tool call rounds collected during sendUserMessage() so they can be flushed
-    // into the DB *before* the final assistant response — ensuring correct display order.
+    // Buffer for tool call rounds collected during sendUserMessage() so they can be flushed    // into the DB *before* the final assistant response — ensuring correct display order.
     type PendingToolCallRound = {
       role: 'assistant';
       messageKind: 'tool_call';
@@ -127,30 +133,6 @@ const webUiPlugin: AlicePlugin = {
       };
     };
     const pendingToolCallRounds = new Map<number, PendingToolCallRound[]>();
-
-    const addSseConnection = (sessionId: number, res: Response): void => {
-      if (!sseConnections.has(sessionId)) {
-        sseConnections.set(sessionId, new Set());
-      }
-      sseConnections.get(sessionId)!.add(res);
-    };
-
-    const removeSseConnection = (sessionId: number, res: Response): void => {
-      sseConnections.get(sessionId)?.delete(res);
-      if (sseConnections.get(sessionId)?.size === 0) {
-        sseConnections.delete(sessionId);
-      }
-    };
-
-    const closeSseConnectionsForSession = (sessionId: number): void => {
-      const connections = sseConnections.get(sessionId);
-      if (connections) {
-        for (const res of connections) {
-          res.end();
-        }
-        sseConnections.delete(sessionId);
-      }
-    };
 
     const restoreConversationMessages = (
       rounds: ChatSessionRound[]
@@ -393,6 +375,21 @@ const webUiPlugin: AlicePlugin = {
           message.messageKind || 'chat',
           message.senderName
         );
+        broadcastWs({
+          type: 'session_updated',
+          sessionId: session.id,
+          session: {
+            id: session.id,
+            title: session.title,
+            createdAt: session.createdAt.toISOString(),
+            updatedAt: session.updatedAt.toISOString(),
+            messages: session.rounds
+              .getItems()
+              .filter(round => round.role !== 'system')
+              .map(serializeRound),
+            activeAgents: getActiveAgentsForSession(session.id),
+          } as unknown as WsSession,
+        });
       });
     };
 
@@ -498,15 +495,10 @@ const webUiPlugin: AlicePlugin = {
       });
     });
 
-    // Subscribe to tool call events and broadcast to SSE connections
+    // Subscribe to tool call events and broadcast over WebSocket
     ToolCallEvents.onToolCallEvent(async event => {
       const sessionId = event.sessionId;
       if (sessionId === undefined) {
-        return;
-      }
-
-      const connections = sseConnections.get(sessionId);
-      if (!connections || connections.size === 0) {
         return;
       }
 
@@ -517,12 +509,16 @@ const webUiPlugin: AlicePlugin = {
             i => i.instanceId === event.agentInstanceId
           )?.agentName
         : undefined;
-      const sseData = JSON.stringify(
-        agentName ? { ...event, agentName } : event
-      );
-      for (const res of connections) {
-        res.write(`event: ${event.type}\ndata: ${sseData}\n\n`);
-      }
+
+      broadcastWs({
+        type: 'tool_call_event',
+        sessionId,
+        event: {
+          ...event,
+          sessionId,
+          ...(agentName !== undefined && { agentName }),
+        } as unknown as WsToolCallEvent,
+      });
     });
 
     // Buffer tool_call_completed and tool_call_error events so they can be
@@ -719,6 +715,123 @@ const webUiPlugin: AlicePlugin = {
       );
       const orm = await onDatabaseReady(async orm => orm);
 
+      // ── WebSocket server ────────────────────────────────────────────────────
+      const wss = new WebSocketServer({
+        server: restServe.server,
+        path: '/ws',
+      });
+      const wsConnections = new Set<WebSocket>();
+
+      broadcastWs = (msg: WsServerMessage): void => {
+        const data = JSON.stringify(msg);
+        for (const ws of wsConnections) {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(data);
+          }
+        }
+      };
+
+      const broadcastSessionsList = async (): Promise<void> => {
+        const listEm = orm.em.fork();
+        const allSessions = await listEm.find(
+          ChatSession,
+          {},
+          { populate: ['rounds'] }
+        );
+        broadcastWs({
+          type: 'sessions_list_updated',
+          sessions: allSessions.map(s => {
+            const rounds = s.rounds.getItems();
+            return {
+              id: s.id,
+              title: s.title,
+              createdAt: s.createdAt.toISOString(),
+              lastMessageAt: (rounds.length > 0
+                ? rounds[rounds.length - 1].timestamp
+                : s.createdAt
+              ).toISOString(),
+              lastUserMessage:
+                rounds.length > 0 ? rounds[rounds.length - 1].content : '',
+              lastAssistantMessage:
+                rounds.length > 1 ? rounds[rounds.length - 2].content : '',
+            };
+          }),
+        });
+      };
+
+      wss.on('connection', ws => {
+        wsConnections.add(ws);
+
+        ws.on('message', (data: Buffer) => {
+          try {
+            const msg = JSON.parse(data.toString()) as { type: string };
+            if (msg.type !== 'pong') {
+              plugin.logger.warn(
+                `[web-ui] Unexpected WS client message type: ${msg.type}`
+              );
+            }
+          } catch {
+            // malformed message — ignore
+          }
+        });
+
+        ws.on('close', () => wsConnections.delete(ws));
+        ws.on('error', () => wsConnections.delete(ws));
+
+        // Send current sessions list immediately so the client has data before
+        // any broadcast arrives — covers the page-reload case and the deep-dive
+        // agent session-reload regression.
+        void (async () => {
+          try {
+            const listEm = orm.em.fork();
+            const allSessions = await listEm.find(
+              ChatSession,
+              {},
+              { populate: ['rounds'] }
+            );
+            if (ws.readyState !== WebSocket.OPEN) {
+              return;
+            }
+            const initMsg: WsServerMessage = {
+              type: 'sessions_list_updated',
+              sessions: allSessions.map(s => {
+                const rounds = s.rounds.getItems();
+                return {
+                  id: s.id,
+                  title: s.title,
+                  createdAt: s.createdAt.toISOString(),
+                  lastMessageAt: (rounds.length > 0
+                    ? rounds[rounds.length - 1].timestamp
+                    : s.createdAt
+                  ).toISOString(),
+                  lastUserMessage:
+                    rounds.length > 0 ? rounds[rounds.length - 1].content : '',
+                  lastAssistantMessage:
+                    rounds.length > 1 ? rounds[rounds.length - 2].content : '',
+                };
+              }),
+            };
+            ws.send(JSON.stringify(initMsg));
+          } catch (err) {
+            plugin.logger.error(
+              '[web-ui] Failed to send initial sessions list over WS:',
+              err
+            );
+          }
+        })();
+      });
+
+      // Heartbeat: ping all connections every 30 s and prune dead ones.
+      const heartbeatInterval = setInterval(() => {
+        for (const ws of [...wsConnections]) {
+          if (ws.readyState !== WebSocket.OPEN) {
+            wsConnections.delete(ws);
+            continue;
+          }
+          ws.send(JSON.stringify({ type: 'ping' } satisfies WsServerMessage));
+        }
+      }, 30_000);
+
       app.post('/api/chat', async (req, res) => {
         // Creates a new chat sessions with the assistant. Sends an initial "You've been
         // activated through an alternative text-based interface. Greet the user" prompt
@@ -759,6 +872,7 @@ const webUiPlugin: AlicePlugin = {
             activeAgents: getActiveAgentsForSession(conversationRecord.id),
           },
         });
+        void broadcastSessionsList();
       });
 
       app.patch('/api/chat/:id', async (req, res) => {
@@ -922,6 +1036,22 @@ const webUiPlugin: AlicePlugin = {
             activeAgents: getActiveAgentsForSession(updatedSession.id),
           },
         });
+        broadcastWs({
+          type: 'session_updated',
+          sessionId: updatedSession.id,
+          session: {
+            id: updatedSession.id,
+            title: updatedSession.title,
+            createdAt: updatedSession.createdAt.toISOString(),
+            updatedAt: updatedSession.updatedAt.toISOString(),
+            messages: updatedSession.rounds
+              .getItems()
+              .filter(round => round.role !== 'system')
+              .map(serializeRound),
+            activeAgents: getActiveAgentsForSession(updatedSession.id),
+          } as unknown as WsSession,
+        });
+        void broadcastSessionsList();
       });
 
       app.get('/api/chat', async (req, res) => {
@@ -997,29 +1127,6 @@ const webUiPlugin: AlicePlugin = {
         });
       });
 
-      // SSE endpoint for real-time tool call events
-      app.get('/api/chat/:id/events', (req, res) => {
-        const sessionId = parseInt(req.params.id);
-
-        // Set SSE headers
-        res.setHeader('Content-Type', 'text/event-stream');
-        res.setHeader('Cache-Control', 'no-cache');
-        res.setHeader('Connection', 'keep-alive');
-        res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
-        res.flushHeaders();
-
-        // Track this connection
-        addSseConnection(sessionId, res);
-
-        // Send a comment to keep the connection alive immediately
-        res.write(': connected\n\n');
-
-        // Clean up on client disconnect
-        req.on('close', () => {
-          removeSseConnection(sessionId, res);
-        });
-      });
-
       app.delete('/api/chat/:id', async (req, res) => {
         const { id } = req.params;
         // TODO: wire up to Alice assistant logic.
@@ -1053,9 +1160,6 @@ const webUiPlugin: AlicePlugin = {
             );
           }
 
-          // Close any SSE connections for this session
-          closeSseConnectionsForSession(parsedId);
-
           const userMessages = queuedSession.rounds
             .getItems()
             .filter(round => round.role === 'user');
@@ -1076,6 +1180,7 @@ const webUiPlugin: AlicePlugin = {
 
         res.json({ reply: `Chat session with id ${id} deleted successfully` });
         plugin.logger.log(`Chat session ${id} deleted successfully.`);
+        void broadcastSessionsList();
         return;
       });
 
@@ -1122,11 +1227,20 @@ const webUiPlugin: AlicePlugin = {
 
       plugin.hooks.onAssistantWillStopAcceptingRequests(async () => {
         plugin.logger.log(
-          'onAssistantWillStopAcceptingRequests: Starting web UI chat session cache flush.'
+          'onAssistantWillStopAcceptingRequests: Starting web UI WS + chat session shutdown.'
         );
+
+        // Stop heartbeat and close all WS connections cleanly.
+        clearInterval(heartbeatInterval);
+        for (const ws of wsConnections) {
+          ws.close();
+        }
+        wsConnections.clear();
+        await new Promise<void>(resolve => wss.close(() => resolve()));
+
         await flushAndEvictAllCachedConversations();
         plugin.logger.log(
-          'onAssistantWillStopAcceptingRequests: Completed web UI chat session cache flush.'
+          'onAssistantWillStopAcceptingRequests: Completed web UI WS + chat session shutdown.'
         );
       });
 

@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { fetchSessions } from '../api/sessions.js';
 import type { SessionSummary } from '../types/index.js';
+import { useWebSocket } from './useWebSocket.js';
 
 export function useSessions(onError?: (message: string) => void) {
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
+  const { subscribe } = useWebSocket();
 
   const refreshSessions = useCallback(async () => {
     try {
@@ -14,19 +16,20 @@ export function useSessions(onError?: (message: string) => void) {
     }
   }, [onError]);
 
+  // Initial load on mount
   useEffect(() => {
     void refreshSessions();
   }, [refreshSessions]);
 
+  // Real-time updates pushed by the server; replaces the previous 10 s poll
   useEffect(() => {
-    const intervalId = window.setInterval(() => {
-      void refreshSessions();
-    }, 10000);
-
-    return () => {
-      window.clearInterval(intervalId);
-    };
-  }, [refreshSessions]);
+    return subscribe(msg => {
+      if (msg.type !== 'sessions_list_updated') {
+        return;
+      }
+      setSessions(msg.sessions as SessionSummary[]);
+    });
+  }, [subscribe, setSessions]);
 
   return {
     sessions,

@@ -51,7 +51,8 @@
     "react-router-dom": "^7.13.2",
     "retry-as-promised": "^7.1.1",
     "semver": "^7.7.4",
-    "typebox": "^1.1.8"
+    "typebox": "^1.1.8",
+    "ws": "^8.20.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.5",
@@ -62,6 +63,7 @@
     "@types/react-dom": "^19.2.3",
     "@types/react-router-dom": "^5.3.3",
     "@types/semver": "^7.7.1",
+    "@types/ws": "^8.18.1",
     "@typescript-eslint/eslint-plugin": "^8.57.1",
     "@typescript-eslint/parser": "^8.57.1",
     "@vitest/coverage-v8": "^4.1.4",

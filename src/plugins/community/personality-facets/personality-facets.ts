@@ -17,11 +17,15 @@ import { STARTER_FACET_DEFINITIONS } from './seed-facets.js';
 
 const DEFAULT_FACET_NAME = 'Neutral';
 const DEFAULT_FACET_EMBODY_WHEN =
-  'you do not have a more specific situational facet active';
+  'you do not have a more specific situational facet or preferred "go-to" facet active';
 const DEFAULT_FACET_INSTRUCTIONS = [
+  'Follow your core principles.',
   'Stay grounded, practical, and collaborative.',
   'Do not force a heightened tone when the situation does not call for it.',
   'Match the user directly and keep the interaction useful.',
+  'Strongly consider switching to a different facet when the situation calls ' +
+    'for it, or even creating a new one to be your "preferred default" or ' +
+    '"go-to" facet.',
 ].join('\n');
 
 const DEFAULT_CORE_PERSONALITY_PRINCIPLES = [
@@ -54,20 +58,27 @@ const UpdatePersonalityFacetToolParametersSchema = Type.Object({
     description:
       'The name of the personality facet to create or update. If a facet with this name already exists, it will be updated with the new instructions. If not, a new facet will be created with these instructions.',
   }),
-  embodyWhen: Type.String({
-    description:
-      'A description of the situations in which you want to embody this facet. This should be a fragment that completes the sentence "Embody your [facetName] personality facet when...". For example, if you are creating a "Playful" facet, you might say "Embody your Playful facet when the user is engaging in lighthearted conversation or asks you to tell a joke." This will help you decide when to switch to embodying this facet.',
-  }),
+  embodyWhen: Type.Optional(
+    Type.String({
+      description:
+        'A description of the situations in which you want to embody this facet. This should be a fragment that completes the sentence "Embody your [facetName] personality facet when...". For example, if you are creating a "Playful" facet, you might say "Embody your Playful facet when the user is engaging in lighthearted conversation or asks you to tell a joke." This will help you decide when to switch to embodying this facet. Mandatory when creating, optional when updating. If not provided when updating, the existing embodyWhen description will be left unchanged.',
+    })
+  ),
   instructions: Type.String({
     description:
       'The instructions for this personality facet. These should be written in markdown and should include any information about the facet that the assistant should know when embodying it, such as its tone, style of speaking, attitudes, and any other relevant information.',
+  }),
+  appendInstructions: Type.Boolean({
+    default: false,
+    description:
+      'If true and a facet with the given name already exists, the provided instructions will be appended to the existing instructions instead of replacing them. This allows you to iteratively build up the contents of a facet over multiple updates.',
   }),
 });
 
 const EmbodyFacetToolParametersSchema = Type.Object({
   facetName: Type.String({
     description:
-      'The name of the personality facet to embody. If you want to create a new facet instead, use the updatePersonalityFacet tool.',
+      'The name of the personality facet to embody/activate. If you want to create a new facet instead, use the updatePersonalityFacet tool.',
   }),
 });
 
@@ -85,8 +96,8 @@ const personalityFacetsPlugin: AlicePlugin = {
     brandColor: '#614bbd',
     description:
       'An alternative personality engine for ALICE that provides the assistant with ' +
-      'a small core set of immutable principles, and a set of situational "facets" that it can ' +
-      'manage and activate itself.',
+      'a small core set of immutable principles under your control, and a set of ' +
+      'situational "facets" that it can manage and activate itself.',
     version: 'LATEST',
     dependencies: [
       { id: 'memory', version: 'LATEST' }, // For storing and recalling facet instructions
@@ -179,9 +190,10 @@ const personalityFacetsPlugin: AlicePlugin = {
     async function createOrUpdateFacetDefinition(
       params: UpdatePersonalityFacetToolParameters
     ): Promise<'created' | 'updated'> {
-      const facetName = params.facetName.trim();
-      const embodyWhen = params.embodyWhen.trim();
-      const instructions = params.instructions.trim();
+      const facetName = params.facetName?.trim();
+      const embodyWhen = params.embodyWhen?.trim();
+      const instructions = params.instructions?.trim();
+      const appendInstructions = params.appendInstructions;
 
       if (!facetName) {
         throw new Error('Facet name cannot be empty.');
@@ -191,10 +203,6 @@ const personalityFacetsPlugin: AlicePlugin = {
         throw new Error(
           `The "${DEFAULT_FACET_NAME}" facet is reserved as the built-in fallback and cannot be modified.`
         );
-      }
-
-      if (!embodyWhen) {
-        throw new Error('Facet embodyWhen cannot be empty.');
       }
 
       if (!instructions) {
@@ -209,11 +217,21 @@ const personalityFacetsPlugin: AlicePlugin = {
       });
 
       if (existingFacet) {
-        existingFacet.embodyWhen = embodyWhen;
-        existingFacet.instructions = instructions;
+        if (embodyWhen) {
+          existingFacet.embodyWhen = embodyWhen;
+        }
+        existingFacet.instructions = appendInstructions
+          ? `${existingFacet.instructions}\n${instructions}`
+          : instructions;
         existingFacet.updatedAt = now;
         await em.flush();
         return 'updated';
+      }
+
+      if (!embodyWhen) {
+        throw new Error(
+          'Facet embodyWhen cannot be empty when creating a new facet.'
+        );
       }
 
       em.create(PersonalityFacetsFacetDefinition, {
@@ -272,7 +290,7 @@ const personalityFacetsPlugin: AlicePlugin = {
 
       promptSections.push(`## ACTIVE PERSONALITY FACET`);
       promptSections.push(
-        `You are currently embodying the "${activeFacetName}" personality facet.`
+        `You are currently embodying your "${activeFacetName}" personality facet.`
       );
       promptSections.push(
         `You typically embody this facet when ${activeFacetEmbodyingSituations}.`
@@ -283,17 +301,33 @@ const personalityFacetsPlugin: AlicePlugin = {
 
       promptSections.push('## OTHER AVAILABLE PERSONALITY FACETS');
       promptSections.push(
-        `**${DEFAULT_FACET_NAME}* (built-in fallback facet): Embody Neutral when ${DEFAULT_FACET_EMBODY_WHEN}.`
+        `**${DEFAULT_FACET_NAME}** (built-in default facet, cannot be modified): Embody Neutral when ${DEFAULT_FACET_EMBODY_WHEN}.`
       );
+
       (await getAllFacets())
         .map(
           facet =>
             `- **${facet.name}** (Last embodied: ${formatFacetLastUsed(facet.lastEmbodiedAt)}): Embody ${facet.name} when ${facet.embodyWhen}.
-      `
+        `
         )
         .forEach(facetInfo => {
           promptSections.push(facetInfo);
         });
+
+      promptSections.push(
+        `Switch personality facets, create new personality facets, and update the contents of ` +
+          `your currently active personality facet proactively and at your discretion as the ` +
+          `situation calls for it, and without mentioning it to the user unless explicitly asked ` +
+          `about it.`
+      );
+      promptSections.push(
+        `Be experimental, try things, play with the system freely, and update your active ` +
+          `facet with notes on what worked, and what ` +
+          `didn't. If your current choice isn't working, just switch again, and maybe update the ` +
+          `\`embodyWhen\` notes for it. "When you notice a recurring interaction mode that ` +
+          `doesn't fit an existing facet, create one for it. Treat missing facet coverage as ` +
+          `a bug. Create facets proactively when you identify unhandled interaction patterns.`
+      );
 
       return promptSections.join('\n\n');
     }

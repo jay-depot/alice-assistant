@@ -9,20 +9,21 @@
 
 :root {
   --bg-base: #0c120c;
-  --bg-sidebar: #111911;
-  --bg-main: #081008;
+  --bg-sidebar: #0c120c;
+  --bg-main: #040804;
   --bg-header: #111911;
   --bg-input: #111911;
-  --bg-bubble-user: #112311;
-  --bg-bubble-bot: #111211;
+  --bg-bubble-user: #111811;
+  --bg-bubble-bot: #111311;
   --bg-session: #1a281a;
   --bg-session-hover: #213a21;
-  --bg-session-active: #2a4828;
+  --bg-session-active: #162416;
 
   --accent: #118811;
   --accent-hover: #11aa11;
   --accent-dim: rgba(17, 136, 17, 0.15);
 
+  --text-brighter: #33f845;
   --text-primary: #33ea33;
   --text-secondary: #339733;
   --text-muted: #338733;
@@ -482,6 +483,7 @@ body {
 .message--user {
   align-self: flex-end;
   align-items: flex-end;
+  color: var(--text-brighter);
 }
 
 .message--assistant {

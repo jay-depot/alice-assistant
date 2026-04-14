@@ -1,5 +1,6 @@
 import { AlicePlugin } from '../../../lib.js';
 import express, { Express } from 'express';
+import { createServer } from 'node:http';
 import type { Server } from 'node:http';
 import type { Socket } from 'node:net';
 import { UserConfig } from '../../../lib/user-config.js';
@@ -8,6 +9,7 @@ declare module '../../../lib.js' {
   export interface PluginCapabilities {
     'rest-serve': {
       express: Express;
+      server: Server;
     };
   }
 }
@@ -30,13 +32,22 @@ const restServePlugin: AlicePlugin = {
     const HOST = UserConfig.getConfig().webInterface.bindToAddress;
 
     const app = express();
-    let server: Server | null = null;
+    const server = createServer(app);
+    let serverListening = false;
     const activeSockets = new Set<Socket>();
 
     app.use(express.json());
 
+    server.on('connection', socket => {
+      activeSockets.add(socket);
+      socket.on('close', () => {
+        activeSockets.delete(socket);
+      });
+    });
+
     plugin.offer<'rest-serve'>({
       express: app,
+      server,
     });
 
     plugin.hooks.onAssistantAcceptsRequests(async () => {
@@ -44,19 +55,12 @@ const restServePlugin: AlicePlugin = {
         `onAssistantAcceptsRequests: Starting REST server startup on ${HOST}:${PORT}.`
       );
 
-      server = app.listen(PORT, HOST, err => {
-        if (err) {
-          plugin.logger.error('Error starting REST server:', err);
-          process.exit(1);
-        }
-
-        plugin.logger.log(`REST server running at http://${HOST}:${PORT}/`);
-      });
-
-      server.on('connection', socket => {
-        activeSockets.add(socket);
-        socket.on('close', () => {
-          activeSockets.delete(socket);
+      await new Promise<void>((resolve, reject) => {
+        server.once('error', reject);
+        server.listen(PORT, HOST, () => {
+          serverListening = true;
+          plugin.logger.log(`REST server running at http://${HOST}:${PORT}/`);
+          resolve();
         });
       });
 
@@ -69,15 +73,15 @@ const restServePlugin: AlicePlugin = {
       plugin.logger.log(
         'onAssistantWillStopAcceptingRequests: Starting REST server shutdown.'
       );
-      if (!server) {
+      if (!serverListening) {
         plugin.logger.log(
-          'onAssistantWillStopAcceptingRequests: Skipping REST server shutdown because no active server was found.'
+          'onAssistantWillStopAcceptingRequests: Skipping REST server shutdown because server is not listening.'
         );
         return;
       }
 
+      serverListening = false;
       const closingServer = server;
-      server = null;
 
       await new Promise<void>(resolve => {
         let finished = false;

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Message, ToolCallData } from '../types/index.js';
+import { useWebSocket } from './useWebSocket.js';
 
 type ToolCallEventType =
   | 'assistant_turn_started'
@@ -37,7 +38,6 @@ export function useToolCallEvents(
     new Map()
   );
   const assistantTurnStartedRef = useRef(false);
-  const eventSourceRef = useRef<EventSource | null>(null);
   const prevIsProcessingRef = useRef(false);
 
   // Clear all batches when processing transitions from true → false
@@ -123,48 +123,27 @@ export function useToolCallEvents(
     });
   }, []);
 
-  // Open/close SSE connection based on session
-  useEffect(() => {
-    // Close existing connection
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-      eventSourceRef.current = null;
-    }
+  const { subscribe } = useWebSocket();
 
+  // Subscribe to WS tool-call events filtered to the current session
+  useEffect(() => {
     if (sessionId === null) {
       return;
     }
 
-    const eventSource = new EventSource(`/api/chat/${sessionId}/events`);
-    eventSourceRef.current = eventSource;
+    const numericSessionId =
+      typeof sessionId === 'string' ? parseInt(sessionId) : sessionId;
 
-    eventSource.addEventListener(
-      'assistant_turn_started',
-      handleEvent as EventListener
-    );
-    eventSource.addEventListener(
-      'tool_call_started',
-      handleEvent as EventListener
-    );
-    eventSource.addEventListener(
-      'tool_call_completed',
-      handleEvent as EventListener
-    );
-    eventSource.addEventListener(
-      'tool_call_error',
-      handleEvent as EventListener
-    );
-
-    eventSource.onerror = () => {
-      // SSE will auto-reconnect; we just log for visibility
-      console.debug('SSE connection error for session', sessionId);
-    };
-
-    return () => {
-      eventSource.close();
-      eventSourceRef.current = null;
-    };
-  }, [sessionId, handleEvent]);
+    return subscribe(msg => {
+      if (
+        msg.type !== 'tool_call_event' ||
+        msg.sessionId !== numericSessionId
+      ) {
+        return;
+      }
+      handleEvent({ data: JSON.stringify(msg.event) } as MessageEvent);
+    });
+  }, [sessionId, handleEvent, subscribe]);
 
   // When messages are refreshed from DB, remove any real-time batches whose
   // callBatchId is already represented in the persisted messages. This prevents

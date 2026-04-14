@@ -7,6 +7,7 @@ import {
 } from '../api/sessions.js';
 import type { ActiveSessionAgent, Message, Session } from '../types/index.js';
 import { getMessageKey } from '../utils.js';
+import { useWebSocket } from './useWebSocket.js';
 
 interface UseSessionOptions {
   onError?: (message: string) => void;
@@ -14,19 +15,6 @@ interface UseSessionOptions {
 }
 
 const DEFAULT_TITLE = 'A.L.I.C.E.';
-
-function getActiveAgentsStateKey(activeAgents: ActiveSessionAgent[]): string {
-  return activeAgents
-    .map(agent =>
-      [
-        agent.instanceId,
-        agent.status,
-        agent.pendingMessageCount,
-        agent.startedAt,
-      ].join(':')
-    )
-    .join('|');
-}
 
 function getLastReadMessageKey(messages: Message[]): string | null {
   let hasTrailingAssistantMessage = false;
@@ -268,62 +256,31 @@ export function useSession({
     return 'Type a message... (Enter to send, Shift+Enter for newline)';
   }, [currentSessionId, isSessionBusy]);
 
+  const { subscribe } = useWebSocket();
+
+  // Real-time session updates pushed by the server over WebSocket.
+  // Covers agent messages, notifications, PATCH completions on other tabs,
+  // and the page-reload / deep-dive agent reload regression.
   useEffect(() => {
-    if (
-      currentSessionId === null ||
-      isSessionBusy ||
-      isProcessingMessage ||
-      isEndingSession
-    ) {
+    if (currentSessionId === null) {
       return;
     }
 
-    const intervalId = window.setInterval(() => {
-      void (async () => {
-        try {
-          const session = await fetchSession(currentSessionId);
-          const currentLastMessage = messages[messages.length - 1];
-          const incomingLastMessage =
-            session.messages[session.messages.length - 1];
-          const hasNewMessages =
-            session.messages.length !== messages.length ||
-            session.title !== sessionTitle ||
-            incomingLastMessage?.timestamp !== currentLastMessage?.timestamp ||
-            incomingLastMessage?.content !== currentLastMessage?.content;
+    const numericSessionId =
+      typeof currentSessionId === 'string'
+        ? parseInt(currentSessionId)
+        : currentSessionId;
 
-          const hasAgentUpdates =
-            getActiveAgentsStateKey(session.activeAgents) !==
-            getActiveAgentsStateKey(activeAgents);
-
-          if (!hasNewMessages && !hasAgentUpdates) {
-            return;
-          }
-
-          applySessionState(session);
-          await refreshSessions?.();
-        } catch (error) {
-          console.error(
-            'Failed to poll active conversation for updates:',
-            error
-          );
-        }
-      })();
-    }, 3000);
-
-    return () => {
-      window.clearInterval(intervalId);
-    };
-  }, [
-    applySessionState,
-    currentSessionId,
-    isEndingSession,
-    isProcessingMessage,
-    isSessionBusy,
-    messages,
-    activeAgents,
-    refreshSessions,
-    sessionTitle,
-  ]);
+    return subscribe(msg => {
+      if (
+        msg.type !== 'session_updated' ||
+        msg.sessionId !== numericSessionId
+      ) {
+        return;
+      }
+      applySessionState(msg.session as unknown as Session);
+    });
+  }, [currentSessionId, subscribe, applySessionState]);
 
   return {
     currentSessionId,
