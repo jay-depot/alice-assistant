@@ -1,29 +1,40 @@
-.sender--agent--deep-dive-research-agent {
+.tool-call-batch.agent--deep-dive-research-agent,
+.tool-call-batch.agent--deep-dive-research-agent .tool-call-batch__label,
+.tool-call-batch.agent--deep-dive-research-agent .tool-call-batch__check,
+.tool-call-batch.agent--deep-dive-research-agent .tool-call-indicator,
+.tool-call-batch.agent--deep-dive-research-agent .tool-call-indicator__toggle,
+.tool-call-batch.agent--deep-dive-research-agent .tool-call-indicator__check,
+.tool-call-batch.agent--deep-dive-research-agent .tool-call-indicator__name,
+.tool-call-batch.agent--deep-dive-research-agent .tool-call-indicator__result {
   background-color: #aaa;
   color: #222;
-  outline: 1px solid #222;
-  box-shadow: 0px 0px 10px #aaa;
+  border-color: #222;
 }
 
+.sender--agent--deep-dive-research-agent,
 .message__bubble.agent--deep-dive-research-agent {
   background-color: #aaa;
   color: #222;
   outline: 1px solid #222;
   box-shadow: 0px 0px 10px #aaa;
+  font-family: var(--font-serif);
 }
 
 .message-modal__panel.agent--deep-dive-research-agent {
   border: 1px solid #222;
   background: #aaa;
   color: #222;
+  font-family: var(--font-serif);
 }
 
 .message-modal__panel.agent--deep-dive-research-agent .message-modal__title,
 .message-modal__panel.agent--deep-dive-research-agent .message-modal__close {
   color: #222;
+  font-family: var(--font-serif);
 }
 
 .message-modal__panel.agent--deep-dive-research-agent a,
 .message__bubble.agent--deep-dive-research-agent a {
   color: #224;
+  font-family: var(--font-serif);
 }

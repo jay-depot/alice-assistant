@@ -10,11 +10,11 @@
 :root {
   --bg-base: #0c120c;
   --bg-sidebar: #111911;
-  --bg-main: #141f14;
+  --bg-main: #081008;
   --bg-header: #111911;
   --bg-input: #111911;
-  --bg-bubble-user: #114411;
-  --bg-bubble-bot: #1b2a1b;
+  --bg-bubble-user: #112311;
+  --bg-bubble-bot: #111211;
   --bg-session: #1a281a;
   --bg-session-hover: #213a21;
   --bg-session-active: #2a4828;
@@ -23,9 +23,9 @@
   --accent-hover: #11aa11;
   --accent-dim: rgba(17, 136, 17, 0.15);
 
-  --text-primary: #dddaea;
-  --text-secondary: #9095b0;
-  --text-muted: #585a70;
+  --text-primary: #33ea33;
+  --text-secondary: #339733;
+  --text-muted: #338733;
 
   --border: #233a23;
   --border-input: #2e4a2e;
@@ -41,6 +41,7 @@
 
   --font-ui: system-ui, -apple-system, sans-serif;
   --font-mono: 'Courier New', monospace;
+  --font-serif: 'Times New Roman', serif;
 
   --shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
 }
@@ -354,7 +355,8 @@ body {
 
 .active-agents-panel {
   align-self: stretch;
-  margin: 0 0 16px;
+  flex-shrink: 0;
+  margin: 0 20px;
   padding: 12px 14px;
   border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--border));
   border-radius: var(--radius-lg);
@@ -409,6 +411,18 @@ body {
   font-weight: 600;
 }
 
+.active-agents-panel__monologue {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .plugin-route-page {
   flex: 1;
   overflow-y: auto;
@@ -458,6 +472,7 @@ body {
 
 /* ── Message bubbles ─────────────────────────────────────────────────── */
 .message {
+  font-family: var(--font-mono);
   display: flex;
   flex-direction: column;
   max-width: 72%;
@@ -962,6 +977,13 @@ body {
   border-left: 3px solid var(--border);
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   background: color-mix(in srgb, var(--bg-bubble-bot) 80%, transparent);
+  transition:
+    width 0.15s,
+    height 0.15s;
+}
+
+.tool-call-batch--collapsed {
+  max-width: 300px;
 }
 
 .tool-call-batch--running {
@@ -980,14 +1002,33 @@ body {
   border-left-color: #cc4444;
 }
 
+.tool-call-batch[class*='task-assistant--'],
+.tool-call-batch[class*='agent--'] {
+  margin-left: 12px;
+  border-left-style: dashed;
+}
+
 .tool-call-batch__header {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 6px;
   font-size: 12px;
   color: var(--text-secondary);
   letter-spacing: 0.02em;
+  /* button reset */
+  background: none;
+  border: none;
+  padding: 0;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tool-call-batch__toggle {
+  color: var(--text-muted);
+  font-size: 11px;
+  flex-shrink: 0;
+  line-height: 1;
 }
 
 .tool-call-batch__spinner {
@@ -1023,6 +1064,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  margin-top: 6px;
 }
 
 /* ── Tool call indicator ────────────────────────────────────────────── */
@@ -1088,7 +1130,6 @@ body {
 }
 
 .tool-call-indicator__toggle {
-  margin-left: auto;
   background: none;
   border: none;
   color: var(--text-muted);
@@ -1096,6 +1137,13 @@ body {
   font-size: 11px;
   padding: 0 2px;
   line-height: 1;
+  flex-shrink: 0;
+}
+
+.tool-call-indicator__toggle-spacer {
+  display: inline-block;
+  width: 15px;
+  flex-shrink: 0;
 }
 
 .tool-call-indicator__toggle:hover {

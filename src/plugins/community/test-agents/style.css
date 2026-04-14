@@ -1,0 +1,18 @@
+.tool-call-batch.task-assistant--test-task-assistant,
+.tool-call-batch.task-assistant--test-task-assistant .tool-call-batch__label,
+.tool-call-batch.task-assistant--test-task-assistant .tool-call-batch__check,
+.tool-call-batch.task-assistant--test-task-assistant .tool-call-indicator,
+.tool-call-batch.task-assistant--test-task-assistant
+  .tool-call-indicator__toggle,
+.tool-call-batch.task-assistant--test-task-assistant
+  .tool-call-indicator__check,
+.tool-call-batch.task-assistant--test-task-assistant .tool-call-indicator__name,
+.tool-call-batch.task-assistant--test-task-assistant
+  .tool-call-indicator__result,
+.message__sender-badge.agent--test-task-assistant,
+.message__sender.sender--agent--test-task-assistant,
+.message__bubble.agent--test-task-assistant {
+  background-color: #112020;
+  color: #119a9a;
+  border-color: #119a9a;
+}

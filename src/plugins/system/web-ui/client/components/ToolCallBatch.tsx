@@ -1,4 +1,5 @@
-import { classNames } from '../utils.js';
+import { useState, useEffect } from 'react';
+import { classNames, normalizeCssToken } from '../utils.js';
 import {
   getBatchStatus,
   getBatchHeaderLabel,
@@ -13,6 +14,18 @@ interface ToolCallBatchProps {
 export function ToolCallBatch({ calls }: ToolCallBatchProps) {
   const status = getBatchStatus(calls);
   const headerLabel = getBatchHeaderLabel(calls, status);
+  const [isExpanded, setIsExpanded] = useState(status === 'running');
+
+  // All calls in a batch share the same taskAssistantId / agentName (or none)
+  const taskAssistantId = calls[0]?.taskAssistantId;
+  const agentName = calls[0]?.agentName;
+
+  // Auto-collapse when the batch finishes
+  useEffect(() => {
+    if (status !== 'running') {
+      setIsExpanded(false);
+    }
+  }, [status]);
 
   const statusIcon =
     status === 'running' ? (
@@ -29,17 +42,35 @@ export function ToolCallBatch({ calls }: ToolCallBatchProps) {
 
   return (
     <div
-      className={classNames('tool-call-batch', `tool-call-batch--${status}`)}
+      className={classNames(
+        'tool-call-batch',
+        `tool-call-batch--${status}`,
+        isExpanded ? 'tool-call-batch--expanded' : 'tool-call-batch--collapsed',
+        taskAssistantId
+          ? `task-assistant--${normalizeCssToken(taskAssistantId)}`
+          : null,
+        agentName ? `agent--${normalizeCssToken(agentName)}` : null
+      )}
     >
-      <div className="tool-call-batch__header">
+      <button
+        type="button"
+        className="tool-call-batch__header"
+        onClick={() => setIsExpanded(!isExpanded)}
+        aria-expanded={isExpanded}
+      >
+        <span className="tool-call-batch__toggle">
+          {isExpanded ? '▾' : '▸'}
+        </span>
         {statusIcon}
         <span className="tool-call-batch__label">{headerLabel}</span>
-      </div>
-      <div className="tool-call-batch__calls">
-        {calls.map(call => (
-          <ToolCallIndicator key={call.toolName} call={call} />
-        ))}
-      </div>
+      </button>
+      {isExpanded ? (
+        <div className="tool-call-batch__calls">
+          {calls.map(call => (
+            <ToolCallIndicator key={call.toolName} call={call} />
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

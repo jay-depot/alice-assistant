@@ -4,13 +4,18 @@ import { ChatHeader } from './components/ChatHeader.js';
 import { ErrorToast } from './components/ErrorToast.js';
 import { InputArea } from './components/InputArea.js';
 import { MessagesArea } from './components/MessagesArea.js';
+import { ActiveAgentsPanel } from './components/ActiveAgentsPanel.js';
 import { SettingsPanel } from './components/SettingsPanel.js';
 import { Sidebar } from './components/Sidebar.js';
 import { useExtensionContext } from './context/ExtensionContext.js';
 import { useSession } from './hooks/useSession.js';
 import { useSessions } from './hooks/useSessions.js';
 import { useToolCallEvents } from './hooks/useToolCallEvents.js';
-import type { PluginClientRoute, ToolCallData } from './types/index.js';
+import type {
+  ActiveSessionAgent,
+  PluginClientRoute,
+  ToolCallData,
+} from './types/index.js';
 
 interface ChatWorkspaceProps {
   title: string;
@@ -20,12 +25,14 @@ interface ChatWorkspaceProps {
   onDelete: () => void;
   onOpenSettings: () => void;
   messages: Parameters<typeof MessagesArea>[0]['messages'];
-  activeAgents: Parameters<typeof MessagesArea>[0]['activeAgents'];
+  activeAgents: ActiveSessionAgent[];
+  agentMonologue: Map<string, string>;
   showWelcome: boolean;
   isProcessing: boolean;
   pendingMessageKey: string | null;
   lastReadMessageKey: string | null;
   toolCallBatches: Map<string, ToolCallData[]>;
+  pendingAssistantMessage: string | null;
   draft: string;
   setDraft: (value: string) => void;
   submitDraft: () => void;
@@ -43,11 +50,13 @@ function ChatWorkspace({
   onOpenSettings,
   messages,
   activeAgents,
+  agentMonologue,
   showWelcome,
   isProcessing,
   pendingMessageKey,
   lastReadMessageKey,
   toolCallBatches,
+  pendingAssistantMessage,
   draft,
   setDraft,
   submitDraft,
@@ -65,15 +74,21 @@ function ChatWorkspace({
         onDelete={onDelete}
         onOpenSettings={onOpenSettings}
       />
+      {activeAgents.length > 0 ? (
+        <ActiveAgentsPanel
+          activeAgents={activeAgents}
+          agentMonologue={agentMonologue}
+        />
+      ) : null}
       <MessagesArea
         messages={messages}
-        activeAgents={activeAgents}
         showWelcome={showWelcome}
         isProcessing={isProcessing}
         isEndingSession={isEndingSession}
         pendingMessageKey={pendingMessageKey}
         lastReadMessageKey={lastReadMessageKey}
         toolCallBatches={toolCallBatches}
+        pendingAssistantMessage={pendingAssistantMessage}
       />
       <InputArea
         value={draft}
@@ -145,10 +160,8 @@ export function App() {
     refreshSessions,
   });
 
-  const { toolCallBatches } = useToolCallEvents(
-    currentSessionId,
-    isProcessingMessage
-  );
+  const { toolCallBatches, pendingAssistantMessage, agentMonologue } =
+    useToolCallEvents(currentSessionId, isProcessingMessage, messages);
 
   const pluginRoutes = routes.filter(route => route.path !== '/');
 
@@ -191,11 +204,13 @@ export function App() {
               onOpenSettings={() => setIsSettingsOpen(true)}
               messages={messages}
               activeAgents={activeAgents}
+              agentMonologue={agentMonologue}
               showWelcome={showWelcome}
               isProcessing={isProcessingMessage}
               pendingMessageKey={pendingMessageKey}
               lastReadMessageKey={lastReadMessageKey}
               toolCallBatches={toolCallBatches}
+              pendingAssistantMessage={pendingAssistantMessage}
               draft={draft}
               setDraft={setDraft}
               submitDraft={() => {

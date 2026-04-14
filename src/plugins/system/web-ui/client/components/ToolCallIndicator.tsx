@@ -31,6 +31,19 @@ export function ToolCallIndicator({ call }: ToolCallIndicatorProps) {
       )}
     >
       <div className="tool-call-indicator__header">
+        {call.status !== 'running' ? (
+          <button
+            type="button"
+            className="tool-call-indicator__toggle"
+            onClick={() => setIsExpanded(!isExpanded)}
+            aria-expanded={isExpanded}
+            aria-label={isExpanded ? 'Collapse details' : 'Expand details'}
+          >
+            {isExpanded ? '▾' : '▸'}
+          </button>
+        ) : (
+          <span className="tool-call-indicator__toggle-spacer" />
+        )}
         {statusIcon}
         <span className="tool-call-indicator__name">
           {humanizeToolName(call.toolName)}
@@ -44,15 +57,6 @@ export function ToolCallIndicator({ call }: ToolCallIndicatorProps) {
             🔒
           </span>
         ) : null}
-        <button
-          type="button"
-          className="tool-call-indicator__toggle"
-          onClick={() => setIsExpanded(!isExpanded)}
-          aria-expanded={isExpanded}
-          aria-label={isExpanded ? 'Collapse details' : 'Expand details'}
-        >
-          {isExpanded ? '▾' : '▸'}
-        </button>
       </div>
       {isExpanded ? (
         <div className="tool-call-indicator__details">

@@ -1,26 +1,21 @@
 import { useLayoutEffect, useMemo, useRef } from 'react';
 import { MessageBubble } from './MessageBubble.js';
-import { ActiveAgentsPanel } from './ActiveAgentsPanel.js';
 import { ProcessingStatus } from './ProcessingStatus.js';
 import { RegionSlot } from './RegionSlot.js';
 import { WelcomeScreen } from './WelcomeScreen.js';
 import { ToolCallBatch } from './ToolCallBatch.js';
-import type {
-  ActiveSessionAgent,
-  Message,
-  ToolCallData,
-} from '../types/index.js';
+import type { Message, ToolCallData } from '../types/index.js';
 import { getMessageKey, isDisplayableMessage } from '../utils.js';
 
 interface MessagesAreaProps {
   messages: Message[];
-  activeAgents: ActiveSessionAgent[];
   showWelcome: boolean;
   isProcessing: boolean;
   isEndingSession: boolean;
   pendingMessageKey: string | null;
   lastReadMessageKey: string | null;
   toolCallBatches: Map<string, ToolCallData[]>;
+  pendingAssistantMessage: string | null;
 }
 
 /** Group consecutive tool_call messages by callBatchId into batched segments. */
@@ -78,13 +73,13 @@ function groupToolCallMessages(
 
 export function MessagesArea({
   messages,
-  activeAgents,
   showWelcome,
   isProcessing,
   isEndingSession,
   pendingMessageKey,
   lastReadMessageKey,
   toolCallBatches,
+  pendingAssistantMessage,
 }: MessagesAreaProps) {
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const visibleMessages = useMemo(
@@ -137,10 +132,6 @@ export function MessagesArea({
     <div id="messages-area" ref={messagesRef}>
       <RegionSlot region="message-prefix" />
 
-      {activeAgents.length > 0 ? (
-        <ActiveAgentsPanel activeAgents={activeAgents} />
-      ) : null}
-
       {showWelcome ? (
         <WelcomeScreen />
       ) : (
@@ -171,6 +162,18 @@ export function MessagesArea({
               />
             ));
           })}
+
+          {/* Real-time pending assistant message (shown before tool calls stream in) */}
+          {pendingAssistantMessage ? (
+            <MessageBubble
+              message={{
+                role: 'assistant',
+                messageKind: 'chat',
+                content: pendingAssistantMessage,
+                timestamp: '',
+              }}
+            />
+          ) : null}
 
           {/* Real-time tool call batches (shown during processing) */}
           {realtimeBatches.map(([batchId, calls]) => (

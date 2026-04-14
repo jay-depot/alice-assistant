@@ -11,6 +11,10 @@ export interface ToolCallData {
   resultSummary?: string;
   error?: string;
   requiresApproval?: boolean;
+  /** Set when the tool call originated from a task assistant sub-conversation. */
+  taskAssistantId?: string;
+  /** Set when the tool call originated from a session-linked agent conversation. */
+  agentName?: string;
 }
 
 export interface Message {

@@ -1,5 +1,6 @@
+import path from 'node:path';
 import type { AlicePlugin } from '../../../lib.js';
-import { TaskAssistants } from '../../../lib.js';
+import { createTaskAssistantToolPair } from '../../../lib.js';
 import { Type } from 'typebox';
 
 declare module '../../../lib.js' {
@@ -9,8 +10,13 @@ declare module '../../../lib.js' {
 }
 
 const TASK_SCENARIO_PROMPT =
-  'You are a no-op task assistant used only for plumbing tests. ' +
-  'Do not ask questions and do not perform any other actions.';
+  'You are an interactive test agent designed to verify that task assistant ' +
+  'subconversations work end-to-end. Your job is simple:\n' +
+  '1. Greet the user warmly and let them know you are the test task assistant.\n' +
+  '2. Have a brief friendly exchange with them.\n' +
+  '3. As soon as the user says anything that indicates they are done — such as ' +
+  '"done", "finish", "end", "goodbye", "that\'s all", "complete", or similar — ' +
+  'immediately call completeTestTaskAssistant. Do not ask for confirmation; just call it.';
 
 const AGENT_SCENARIO_PROMPT =
   'You are a no-op session-linked agent used only for plumbing tests. ' +
@@ -26,18 +32,26 @@ const testAgentsPlugin: AlicePlugin = {
     description:
       'Registers a no-op task assistant and a no-op session-linked agent for ' +
       'agent framework smoke testing.',
-    dependencies: [{ id: 'agents', version: 'LATEST' }],
+    dependencies: [
+      { id: 'agents', version: 'LATEST' },
+      { id: 'web-ui', version: 'LATEST' },
+    ],
   },
 
   registerPlugin: async api => {
     const plugin = await api.registerPlugin();
 
+    const webUI = plugin.request('web-ui');
+    if (webUI) {
+      webUI.registerStylesheet(path.join(import.meta.dirname, 'style.css'));
+    }
+
     plugin.registerConversationType({
       id: 'test-task-assistant',
       name: 'Test Task Assistant Session',
       description:
-        'A minimal task-assistant conversation type that completes immediately.',
-      baseType: 'autonomy',
+        'An interactive task-assistant conversation type for end-to-end testing.',
+      baseType: 'chat',
       includePersonality: false,
       scenarioPrompt: TASK_SCENARIO_PROMPT,
     });
@@ -48,45 +62,47 @@ const testAgentsPlugin: AlicePlugin = {
       conversationType: 'test-task-assistant',
     });
 
-    plugin.registerTool({
-      name: 'startTestTaskAssistant',
-      availableFor: ['chat'],
-      description:
-        'Call startTestTaskAssistant when the user indicates they want to test task assistant dispatch.',
-      parameters: Type.Object({}),
-      systemPromptFragment: '',
-      toolResultPromptIntro: '',
-      toolResultPromptOutro: '',
-      execute: async (_args, context) => {
-        if (!context.sessionId) {
-          throw new Error(
-            'startTestTaskAssistant requires an active chat session.'
-          );
-        }
-
-        const summary = 'No-op task assistant completed successfully.';
-
-        await TaskAssistants.startForToolCall({
-          definitionId: 'test-task-assistant',
-          context,
-          contextHints: 'No-op test task assistant run.',
+    const testTaskAssistantTools = createTaskAssistantToolPair({
+      start: {
+        definitionId: 'test-task-assistant',
+        name: 'startTestTaskAssistant',
+        availableFor: ['chat'],
+        description:
+          'Call startTestTaskAssistant when the user indicates they want to test task assistant dispatch. ' +
+          'This launches an interactive sub-conversation to verify the task assistant workflow end-to-end.',
+        parameters: Type.Object({}),
+        systemPromptFragment: '',
+        buildHandoff: async () => ({
+          contextHints: 'Interactive end-to-end task assistant workflow test.',
           kickoffMessage:
-            'This no-op task assistant is finalized immediately for plumbing tests.',
-        });
-
-        await TaskAssistants.complete(context.sessionId, {
-          taskAssistantId: 'test-task-assistant',
-          taskAssistantName: 'Test Task Assistant',
-          conversationType: 'test-task-assistant',
-          status: 'completed',
-          summary,
-          handbackMessage: summary,
-          outputText: summary,
-        });
-
-        return summary;
+            'Hello! I am the test task assistant. Feel free to say anything — when you are ready to ' +
+            'finish, just say so and I will wrap up.',
+        }),
+      },
+      complete: {
+        name: 'completeTestTaskAssistant',
+        description:
+          'Call completeTestTaskAssistant when the user indicates the test conversation is over.',
+        parameters: Type.Object({
+          summary: Type.String({
+            description: 'Brief summary of the test conversation.',
+          }),
+        }),
+        systemPromptFragment: '',
+        buildCompletion: async args => ({
+          summary: String(args.summary),
+          handbackMessage: `Test task assistant completed. Summary: ${String(args.summary)}`,
+        }),
       },
     });
+
+    plugin.registerTool(testTaskAssistantTools.startTool);
+    plugin.addToolToConversationType(
+      'test-task-assistant',
+      'test-agents',
+      testTaskAssistantTools.completionTool.name
+    );
+    plugin.registerTool(testTaskAssistantTools.completionTool);
 
     plugin.registerConversationType({
       id: 'test-session-linked-agent',

@@ -42,8 +42,7 @@ const {
 
   const taskAssistants = {
     getActiveInstance: vi.fn(() => null),
-    getSuspensionSignal: vi.fn(() => new Promise<void>(() => undefined)),
-    clearSuspensionSignal: vi.fn(),
+    getAndClearCompletedResult: vi.fn(() => undefined),
   };
 
   const agentSystem = {
@@ -263,16 +262,6 @@ function createMockPluginInterface(initialSessions: ChatSessionRecord[] = []) {
   };
 }
 
-function createDeferred<T>() {
-  let resolve!: (value: T | PromiseLike<T>) => void;
-  let reject!: (reason?: unknown) => void;
-  const promise = new Promise<T>((innerResolve, innerReject) => {
-    resolve = innerResolve;
-    reject = innerReject;
-  });
-  return { promise, resolve, reject };
-}
-
 describe('webUiPlugin', () => {
   beforeEach(() => {
     mockExistsSync.mockReset().mockReturnValue(false);
@@ -289,10 +278,9 @@ describe('webUiPlugin', () => {
       requestTitle: vi.fn(async () => 'New Conversation'),
     });
     mockTaskAssistants.getActiveInstance.mockReset().mockReturnValue(null);
-    mockTaskAssistants.getSuspensionSignal
+    mockTaskAssistants.getAndClearCompletedResult
       .mockReset()
-      .mockReturnValue(new Promise<void>(() => undefined));
-    mockTaskAssistants.clearSuspensionSignal.mockReset();
+      .mockReturnValue(undefined);
     mockAgentSystem.onUpdate.mockReset();
     mockAgentSystem.getInstancesBySession.mockReset().mockReturnValue([]);
     mockAgentSystem.getAndClearPendingMessages.mockReset().mockReturnValue([]);
@@ -625,45 +613,76 @@ describe('webUiPlugin', () => {
     );
   });
 
-  it('PATCH /api/chat/:id waits for parent response when suspension triggers', async () => {
+  it('PATCH /api/chat/:id routes to parent LLM with handback when task assistant completes', async () => {
     const now = new Date('2026-04-12T00:00:00Z');
     const mockInterface = createMockPluginInterface([
       {
         id: 11,
-        title: 'Suspended Session',
+        title: 'Task Session',
         rounds: makeRounds([]),
         createdAt: now,
         updatedAt: now,
       },
     ]);
 
-    const unsynchronizedMessages: Array<{ role: string; content: string }> = [];
-    const parentReply = createDeferred<void>();
-    const sendUserMessageSpy = vi.fn(() => parentReply.promise);
+    const taMessages: Array<{ role: string; content: string }> = [];
+    const parentMessages: Array<{ role: string; content: string }> = [];
 
-    mockStartConversation.mockReset().mockReturnValue({
+    const taSendUserMessage = vi.fn().mockResolvedValue(undefined);
+    const parentSendUserMessage = vi.fn().mockResolvedValue(undefined);
+
+    const taConversation = {
       restoreContext: vi.fn().mockReturnThis(),
-      getUnsynchronizedMessages: vi.fn(() => [...unsynchronizedMessages]),
-      markUnsynchronizedMessagesSynchronized: vi.fn(() => {
-        unsynchronizedMessages.splice(0, unsynchronizedMessages.length);
-      }),
+      getUnsynchronizedMessages: vi.fn(() => [...taMessages]),
+      markUnsynchronizedMessagesSynchronized: vi.fn(() => taMessages.splice(0)),
       appendExternalMessage: vi.fn(
-        async (message: { role: string; content: string }) => {
-          unsynchronizedMessages.push({
-            role: message.role,
-            content: message.content,
-          });
-        }
+        async (m: { role: string; content: string }) => taMessages.push(m)
       ),
       closeConversation: vi.fn(),
-      sendUserMessage: sendUserMessageSpy,
-      requestTitle: vi.fn(async () => 'Suspended Session Updated'),
-    });
+      sendUserMessage: taSendUserMessage,
+      requestTitle: vi.fn(async () => 'Task Session'),
+    };
 
-    mockTaskAssistants.getSuspensionSignal
-      .mockReset()
-      .mockReturnValue(Promise.resolve());
-    mockTaskAssistants.getActiveInstance.mockReset().mockReturnValue(null);
+    const parentConversation = {
+      restoreContext: vi.fn().mockReturnThis(),
+      getUnsynchronizedMessages: vi.fn(() => [...parentMessages]),
+      markUnsynchronizedMessagesSynchronized: vi.fn(() =>
+        parentMessages.splice(0)
+      ),
+      appendExternalMessage: vi.fn(
+        async (m: { role: string; content: string }) => parentMessages.push(m)
+      ),
+      closeConversation: vi.fn(),
+      sendUserMessage: parentSendUserMessage,
+      requestTitle: vi.fn(async () => 'Task Session Updated'),
+    };
+
+    // startConversation is only called for the parent conversation in this PATCH path;
+    // the task assistant conversation is accessed via taInstance.conversation directly.
+    mockStartConversation.mockReset().mockReturnValue(parentConversation);
+
+    const taInstance = {
+      definition: { name: 'Test Task Assistant', id: 'test-task-assistant' },
+      conversation: taConversation,
+    };
+
+    const completedResult = {
+      taskAssistantId: 'test-task-assistant',
+      taskAssistantName: 'Test Task Assistant',
+      conversationType: 'test-task-assistant',
+      status: 'completed',
+      summary: 'Test done',
+      handbackMessage: 'The test is complete!',
+    };
+
+    // getActiveInstance returns the TA instance
+    //@ts-expect-error -- testing affordance
+    mockTaskAssistants.getActiveInstance.mockReturnValue(taInstance);
+    // getAndClearCompletedResult returns the result after TA finishes
+    mockTaskAssistants.getAndClearCompletedResult.mockReturnValue(
+      //@ts-expect-error -- testing affordance
+      completedResult
+    );
 
     await webUiPlugin.registerPlugin(
       mockInterface as unknown as AlicePluginInterface
@@ -674,27 +693,28 @@ describe('webUiPlugin', () => {
     expect(handler).toBeDefined();
     const res = createMockResponse();
 
-    const responsePromise = handler!(
-      { params: { id: '11' }, body: { message: 'hello' } },
-      res
-    );
-
-    await Promise.resolve();
-    expect(res.json).not.toHaveBeenCalled();
-
-    unsynchronizedMessages.push({
+    taMessages.push({
       role: 'assistant',
-      content: 'Final assistant reply after suspension',
+      content: 'Wrap-up from task assistant',
     });
-    parentReply.resolve();
+    parentMessages.push({ role: 'assistant', content: 'Parent wrap-up' });
 
-    await responsePromise;
+    await handler!({ params: { id: '11' }, body: { message: 'done' } }, res);
 
+    expect(taSendUserMessage).toHaveBeenCalled();
+    expect(mockTaskAssistants.getAndClearCompletedResult).toHaveBeenCalled();
+    expect(parentConversation.appendExternalMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        role: 'system',
+        content: expect.stringContaining('The test is complete!'),
+      })
+    );
+    expect(parentSendUserMessage).toHaveBeenCalled();
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         session: expect.objectContaining({
           id: '11',
-          title: 'Suspended Session Updated',
+          title: 'Task Session Updated',
         }),
       })
     );

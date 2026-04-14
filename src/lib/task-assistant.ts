@@ -118,7 +118,6 @@ export type TaskAssistantStartToolFactoryOptions = {
   ) =>
     | Promise<Omit<TaskAssistantToolHandoffOptions, 'definitionId' | 'context'>>
     | Omit<TaskAssistantToolHandoffOptions, 'definitionId' | 'context'>;
-  formatResult?: (result: TaskAssistantResult) => string;
 };
 
 export type TaskAssistantCompletionToolFactoryOptions = {
@@ -232,8 +231,7 @@ const definitions = new Map<
   { definition: TaskAssistantDefinition; pluginId: string }
 >();
 const activeInstances = new Map<number, ActiveTaskAssistantInstance>(); // keyed by session id
-const completionWaits = new Map<number, Deferred<TaskAssistantResult>>();
-const suspensionSignals = new Map<number, Deferred<void>>();
+const completedResults = new Map<number, TaskAssistantResult>(); // keyed by session id; populated on completion/cancel
 const TASK_ASSISTANT_LOG_PREFIX = '[TaskAssistants]';
 
 function logTaskAssistantLifecycle(
@@ -374,16 +372,11 @@ export function createTaskAssistantToolPair(
         options.start.toolResultPromptOutro
       ),
       execute: async (args, context) => {
-        const result = await TaskAssistants.runForToolCall({
+        return await TaskAssistants.runForToolCall({
           definitionId: options.start.definitionId,
           context,
           ...(await options.start.buildHandoff(args, context)),
         });
-
-        return (
-          options.start.formatResult?.(result) ??
-          formatTaskAssistantToolResult(result)
-        );
       },
     },
     completionTool: {
@@ -528,8 +521,6 @@ export const TaskAssistants = {
     };
 
     activeInstances.set(sessionId, instance);
-    completionWaits.set(sessionId, createDeferred<TaskAssistantResult>());
-    suspensionSignals.set(sessionId, createDeferred<void>());
 
     logTaskAssistantLifecycle('started', {
       sessionId,
@@ -560,52 +551,19 @@ export const TaskAssistants = {
   },
 
   /**
-   * Returns a promise that resolves when the parent conversation turn becomes suspended
-   * waiting for the task assistant result.
+   * Returns the result stored by the most recent `complete()` or `cancel()` call for the
+   * given session, then removes it. Returns `undefined` if no result is waiting.
+   *
+   * Call this in the PATCH handler after the task assistant's `sendUserMessage()` resolves to
+   * detect whether the task assistant just finished and to retrieve its handback payload.
    */
-  getSuspensionSignal(sessionId: number): Promise<void> {
-    const existing = suspensionSignals.get(sessionId);
-    if (existing) {
-      return existing.promise;
+  getAndClearCompletedResult(
+    sessionId: number
+  ): TaskAssistantResult | undefined {
+    const result = completedResults.get(sessionId);
+    if (result) {
+      completedResults.delete(sessionId);
     }
-
-    const deferred = createDeferred<void>();
-    suspensionSignals.set(sessionId, deferred);
-    return deferred.promise;
-  },
-
-  clearSuspensionSignal(sessionId: number): void {
-    logTaskAssistantLifecycle('suspension signal cleared', { sessionId });
-    suspensionSignals.delete(sessionId);
-  },
-
-  /**
-   * Resolves only when the task assistant has completed or been cancelled. Calling this also
-   * signals that the parent conversation turn is now suspended waiting on the task assistant.
-   */
-  async waitForResult(sessionId: number): Promise<TaskAssistantResult> {
-    const completion = completionWaits.get(sessionId);
-    if (!completion) {
-      logTaskAssistantLifecycle('wait failed: no pending completion', {
-        sessionId,
-      });
-      throw new Error(
-        `Session ${sessionId} is not waiting on a task assistant result.`
-      );
-    }
-
-    logTaskAssistantLifecycle('waiting for result', { sessionId });
-
-    const suspension = suspensionSignals.get(sessionId);
-    suspension?.resolve();
-    suspensionSignals.delete(sessionId);
-
-    const result = await completion.promise;
-    logTaskAssistantLifecycle('result received', {
-      sessionId,
-      taskAssistantId: result.taskAssistantId,
-      status: result.status,
-    });
     return result;
   },
 
@@ -644,36 +602,23 @@ export const TaskAssistants = {
   },
 
   /**
-   * Starts a task assistant from a tool call and resolves only when the task assistant
-   * has completed or been cancelled.
+   * Starts a task assistant from a tool call and returns immediately, handing control of the
+   * conversation over to the task assistant. The calling (parent) tool resolves right away so
+   * the main assistant can make a brief transitional comment before the task assistant takes over.
+   *
+   * When the task assistant eventually calls its completion tool, the result is stored via
+   * `getAndClearCompletedResult()` so the web-ui PATCH handler can retrieve it, inject the
+   * handback message into the parent conversation, and let the main assistant wrap up.
    */
   async runForToolCall(
     options: TaskAssistantToolHandoffOptions
-  ): Promise<TaskAssistantResult> {
-    const sessionId = requireToolContextSessionId(options.context);
-    logTaskAssistantLifecycle('run for tool call started', {
-      sessionId,
-      definitionId: options.definitionId,
-      toolName: options.context.toolName,
-    });
-    await this.startForToolCall(options);
-    const result = await this.waitForResult(sessionId);
-    logTaskAssistantLifecycle('run for tool call finished', {
-      sessionId,
-      taskAssistantId: result.taskAssistantId,
-      status: result.status,
-    });
-    return result;
-  },
-
-  /**
-   * Same as runForToolCall, but formats the final TaskAssistantResult into a tool-result string.
-   */
-  async runForToolCallAndFormat(
-    options: TaskAssistantToolHandoffOptions
   ): Promise<string> {
-    const result = await this.runForToolCall(options);
-    return formatTaskAssistantToolResult(result);
+    const instance = await this.startForToolCall(options);
+    logTaskAssistantLifecycle('run for tool call: task assistant active', {
+      sessionId: instance.parentSessionId,
+      definitionId: instance.definition.id,
+    });
+    return `Task assistant "${instance.definition.name}" is now active and has taken over the conversation.`;
   },
 
   /**
@@ -741,9 +686,7 @@ export const TaskAssistants = {
     });
 
     activeInstances.delete(sessionId);
-    completionWaits.get(sessionId)?.resolve(result);
-    completionWaits.delete(sessionId);
-    suspensionSignals.delete(sessionId);
+    completedResults.set(sessionId, result);
 
     for (const callback of onEndCallbacks) {
       await callback(instance, result);
@@ -788,9 +731,7 @@ export const TaskAssistants = {
       summary: 'Task assistant was cancelled.',
       handbackMessage: 'The task assistant session was cancelled.',
     };
-    completionWaits.get(sessionId)?.resolve(cancelResult);
-    completionWaits.delete(sessionId);
-    suspensionSignals.delete(sessionId);
+    completedResults.set(sessionId, cancelResult);
 
     for (const callback of onEndCallbacks) {
       await callback(instance, cancelResult);

@@ -107,6 +107,27 @@ const webUiPlugin: AlicePlugin = {
     // SSE connection management: Map<sessionId, Set<Response>>
     const sseConnections = new Map<number, Set<Response>>();
 
+    // Buffer for tool call rounds collected during sendUserMessage() so they can be flushed
+    // into the DB *before* the final assistant response — ensuring correct display order.
+    type PendingToolCallRound = {
+      role: 'assistant';
+      messageKind: 'tool_call';
+      content: string;
+      timestamp: Date;
+      senderName: null;
+      toolCallData: {
+        callBatchId: string;
+        toolName: string;
+        status: 'completed' | 'error';
+        resultSummary?: string;
+        error?: string;
+        requiresApproval?: boolean;
+        taskAssistantId?: string;
+        agentName?: string;
+      };
+    };
+    const pendingToolCallRounds = new Map<number, PendingToolCallRound[]>();
+
     const addSseConnection = (sessionId: number, res: Response): void => {
       if (!sseConnections.has(sessionId)) {
         sseConnections.set(sessionId, new Set());
@@ -214,10 +235,54 @@ const webUiPlugin: AlicePlugin = {
 
         session.rounds.add(round);
         session.updatedAt = round.timestamp;
+
+        // After persisting an intermediate assistant message that triggered tool
+        // calls, flush the buffered tool call rows immediately so they receive
+        // DB IDs after this message but before the final response message.
+        if (
+          message.role === 'assistant' &&
+          message.tool_calls &&
+          message.tool_calls.length > 0
+        ) {
+          const pending = pendingToolCallRounds.get(session.id);
+          if (pending && pending.length > 0) {
+            pendingToolCallRounds.delete(session.id);
+            for (const entry of pending) {
+              const toolRound = em.create(ChatSessionRound, {
+                chatSession: session,
+                ...entry,
+              });
+              session.rounds.add(toolRound);
+              session.updatedAt = toolRound.timestamp;
+            }
+          }
+        }
       });
 
       await em.flush();
       conversation.markUnsynchronizedMessagesSynchronized();
+    };
+
+    // Flush buffered tool call rounds into the DB before conversation messages so that
+    // tool calls appear before the final assistant response in the persisted order.
+    const flushPendingToolCallRounds = (
+      em: EntityManager,
+      session: ChatSession
+    ): void => {
+      const pending = pendingToolCallRounds.get(session.id);
+      if (!pending || pending.length === 0) {
+        return;
+      }
+      pendingToolCallRounds.delete(session.id);
+
+      for (const entry of pending) {
+        const round = em.create(ChatSessionRound, {
+          chatSession: session,
+          ...entry,
+        });
+        session.rounds.add(round);
+        session.updatedAt = round.timestamp;
+      }
     };
 
     const flushCachedConversation = async (
@@ -314,6 +379,9 @@ const webUiPlugin: AlicePlugin = {
         }
 
         const conversation = getOrCreateCachedConversation(session);
+        // Flush any buffered agent tool call rounds before the agent's message so
+        // they are persisted with lower DB IDs (i.e. appear above it in the chat).
+        flushPendingToolCallRounds(em, session);
         await conversation.appendExternalMessage({
           role: 'assistant',
           content: message.content,
@@ -442,13 +510,25 @@ const webUiPlugin: AlicePlugin = {
         return;
       }
 
-      const sseData = JSON.stringify(event);
+      // Enrich the event with agentName so the client can apply agent-specific
+      // CSS classes to in-flight tool call batches without a separate lookup.
+      const agentName = event.agentInstanceId
+        ? AgentSystem.getInstancesBySession(sessionId).find(
+            i => i.instanceId === event.agentInstanceId
+          )?.agentName
+        : undefined;
+      const sseData = JSON.stringify(
+        agentName ? { ...event, agentName } : event
+      );
       for (const res of connections) {
         res.write(`event: ${event.type}\ndata: ${sseData}\n\n`);
       }
     });
 
-    // Persist tool_call_completed and tool_call_error events as DB messages
+    // Buffer tool_call_completed and tool_call_error events so they can be
+    // interleaved into the DB at the correct position — after the intermediate
+    // assistant message that triggered them but before the final response.
+    // Actual insertion happens inside persistUnsynchronizedMessages.
     ToolCallEvents.onToolCallEvent(async event => {
       const sessionId = event.sessionId;
       if (sessionId === undefined) {
@@ -463,46 +543,36 @@ const webUiPlugin: AlicePlugin = {
         return;
       }
 
-      await runSessionOperation(sessionId, async () => {
-        const orm = await onDatabaseReady(async databaseOrm => databaseOrm);
-        const em = orm.em.fork();
-        const session = await em.findOne(
-          ChatSession,
-          { id: sessionId },
-          { populate: ['rounds'] }
-        );
-        if (!session) {
-          return;
-        }
+      const content =
+        event.type === 'tool_call_completed'
+          ? `Called ${event.toolName} with ${JSON.stringify(event.toolArgs)}`
+          : `Error calling ${event.toolName}: ${event.error}`;
 
-        const toolCallData = {
+      const agentName = event.agentInstanceId
+        ? AgentSystem.getInstancesBySession(sessionId).find(
+            i => i.instanceId === event.agentInstanceId
+          )?.agentName
+        : undefined;
+
+      const pending = pendingToolCallRounds.get(sessionId) ?? [];
+      pending.push({
+        role: 'assistant',
+        messageKind: 'tool_call',
+        content,
+        timestamp: new Date(),
+        senderName: null,
+        toolCallData: {
           callBatchId: event.callBatchId,
           toolName: event.toolName,
           status: event.type === 'tool_call_completed' ? 'completed' : 'error',
           resultSummary: event.resultSummary,
           error: event.error,
           requiresApproval: event.requiresApproval,
-        };
-
-        const content =
-          event.type === 'tool_call_completed'
-            ? `Called ${event.toolName} with ${JSON.stringify(event.toolArgs)}`
-            : `Error calling ${event.toolName}: ${event.error}`;
-
-        const round = em.create(ChatSessionRound, {
-          chatSession: session,
-          role: 'assistant',
-          messageKind: 'tool_call',
-          content,
-          timestamp: new Date(),
-          senderName: null,
-          toolCallData,
-        });
-
-        session.rounds.add(round);
-        session.updatedAt = round.timestamp;
-        await em.flush();
+          taskAssistantId: event.taskAssistantId,
+          agentName,
+        },
       });
+      pendingToolCallRounds.set(sessionId, pending);
     });
 
     const registerScript = (scriptPath: string): void => {
@@ -747,6 +817,34 @@ const webUiPlugin: AlicePlugin = {
                 'chat',
                 activeInstance.definition.name
               );
+
+              // If sendUserMessage() triggered task assistant completion, inject the
+              // handback into the parent conversation and let the main assistant wrap up.
+              const completedResult = TaskAssistants.getAndClearCompletedResult(
+                session.id
+              );
+              if (completedResult) {
+                const llmTransaction =
+                  getOrCreateCachedConversation(queuedSession);
+                await llmTransaction.appendExternalMessage({
+                  role: 'system',
+                  content:
+                    `Task assistant "${completedResult.taskAssistantName}" has completed.\n\n` +
+                    completedResult.handbackMessage,
+                });
+                await llmTransaction.sendUserMessage();
+                await persistUnsynchronizedMessages(
+                  em,
+                  queuedSession,
+                  llmTransaction,
+                  'chat'
+                );
+
+                const titleSummary = await llmTransaction.requestTitle();
+                queuedSession.title =
+                  titleSummary.length > 0 ? titleSummary : 'New Conversation';
+              }
+
               queuedSession.updatedAt = new Date();
               await em.flush();
               return queuedSession;
@@ -776,51 +874,7 @@ const webUiPlugin: AlicePlugin = {
               });
             }
 
-            const suspensionSignal = TaskAssistants.getSuspensionSignal(
-              session.id
-            );
-            const responsePromise = llmTransaction.sendUserMessage();
-            const processingOutcome = await Promise.race([
-              responsePromise.then(() => 'completed' as const),
-              suspensionSignal.then(() => 'suspended' as const),
-            ]);
-
-            if (processingOutcome === 'suspended') {
-              await responsePromise;
-            }
-
-            if (processingOutcome === 'suspended') {
-              await persistUnsynchronizedMessages(
-                em,
-                queuedSession,
-                llmTransaction,
-                'chat'
-              );
-
-              const suspendedTaskAssistant = TaskAssistants.getActiveInstance(
-                session.id
-              );
-              if (suspendedTaskAssistant) {
-                await persistUnsynchronizedMessages(
-                  em,
-                  queuedSession,
-                  suspendedTaskAssistant.conversation,
-                  'chat',
-                  suspendedTaskAssistant.definition.name
-                );
-              }
-              await em.flush();
-
-              const resumedTitleSummary = await llmTransaction.requestTitle();
-              queuedSession.title =
-                resumedTitleSummary.length > 0
-                  ? resumedTitleSummary
-                  : 'New Conversation';
-
-              return queuedSession;
-            }
-
-            TaskAssistants.clearSuspensionSignal(session.id);
+            await llmTransaction.sendUserMessage();
 
             await persistUnsynchronizedMessages(
               em,
@@ -828,6 +882,22 @@ const webUiPlugin: AlicePlugin = {
               llmTransaction,
               'chat'
             );
+
+            // If the parent LLM called a task assistant start tool during this turn,
+            // also persist the task assistant's seed messages (kickoff greeting etc.)
+            // so they appear immediately in the response.
+            const newTaskAssistant = TaskAssistants.getActiveInstance(
+              session.id
+            );
+            if (newTaskAssistant) {
+              await persistUnsynchronizedMessages(
+                em,
+                queuedSession,
+                newTaskAssistant.conversation,
+                'chat',
+                newTaskAssistant.definition.name
+              );
+            }
 
             const titleSummary = await llmTransaction.requestTitle();
             queuedSession.title =

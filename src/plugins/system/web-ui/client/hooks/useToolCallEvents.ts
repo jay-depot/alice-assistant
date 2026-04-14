@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ToolCallData } from '../types/index.js';
+import type { Message, ToolCallData } from '../types/index.js';
 
 type ToolCallEventType =
   | 'assistant_turn_started'
@@ -16,16 +16,26 @@ interface ToolCallEvent {
   resultSummary?: string;
   error?: string;
   requiresApproval?: boolean;
+  taskAssistantId?: string;
+  agentName?: string;
+  agentInstanceId?: string;
   timestamp: string;
 }
 
 export function useToolCallEvents(
   sessionId: number | string | null,
-  isProcessing: boolean
+  isProcessing: boolean,
+  messages: Message[]
 ) {
   const [toolCallBatches, setToolCallBatches] = useState<
     Map<string, ToolCallData[]>
   >(new Map());
+  const [pendingAssistantMessage, setPendingAssistantMessage] = useState<
+    string | null
+  >(null);
+  const [agentMonologue, setAgentMonologue] = useState<Map<string, string>>(
+    new Map()
+  );
   const assistantTurnStartedRef = useRef(false);
   const eventSourceRef = useRef<EventSource | null>(null);
   const prevIsProcessingRef = useRef(false);
@@ -34,6 +44,7 @@ export function useToolCallEvents(
   useEffect(() => {
     if (prevIsProcessingRef.current && !isProcessing) {
       setToolCallBatches(new Map());
+      setPendingAssistantMessage(null);
       assistantTurnStartedRef.current = false;
     }
     prevIsProcessingRef.current = isProcessing;
@@ -44,6 +55,28 @@ export function useToolCallEvents(
 
     if (data.type === 'assistant_turn_started') {
       assistantTurnStartedRef.current = true;
+      // Don't show agent internal turns as pending messages in the main chat;
+      // instead surface the last line in the ActiveAgentsPanel.
+      if (data.agentInstanceId && data.assistantContent) {
+        const lastLine = data.assistantContent
+          .split('\n')
+          .map(l => l.trim())
+          .filter(Boolean)
+          .at(-1);
+        if (lastLine) {
+          setAgentMonologue(prev => {
+            const next = new Map(prev);
+            next.set(data.agentInstanceId!, lastLine);
+            return next;
+          });
+        }
+      } else if (
+        !data.agentInstanceId &&
+        data.assistantContent &&
+        data.assistantContent.trim().length > 0
+      ) {
+        setPendingAssistantMessage(data.assistantContent);
+      }
       return;
     }
 
@@ -67,6 +100,8 @@ export function useToolCallEvents(
           toolName: data.toolName,
           status: 'running',
           requiresApproval: data.requiresApproval,
+          taskAssistantId: data.taskAssistantId,
+          agentName: data.agentName,
         });
       } else {
         // Find the matching running entry by toolName and update it
@@ -131,5 +166,32 @@ export function useToolCallEvents(
     };
   }, [sessionId, handleEvent]);
 
-  return { toolCallBatches };
+  // When messages are refreshed from DB, remove any real-time batches whose
+  // callBatchId is already represented in the persisted messages. This prevents
+  // agent tool calls (which are never cleared by the isProcessing transition)
+  // from appearing twice once they've been persisted.
+  useEffect(() => {
+    const persistedBatchIds = new Set(
+      messages
+        .filter(
+          m => m.messageKind === 'tool_call' && m.toolCallData?.callBatchId
+        )
+        .map(m => m.toolCallData!.callBatchId)
+    );
+    if (persistedBatchIds.size === 0) return;
+
+    setToolCallBatches(prev => {
+      let changed = false;
+      const next = new Map(prev);
+      for (const batchId of persistedBatchIds) {
+        if (next.has(batchId)) {
+          next.delete(batchId);
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [messages]);
+
+  return { toolCallBatches, pendingAssistantMessage, agentMonologue };
 }
