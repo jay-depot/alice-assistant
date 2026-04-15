@@ -1,5 +1,7 @@
 # ALICE Assistant Agent Dispatching
 
+> **Status (2026-04-14): PARTIALLY IMPLEMENTED.** Session-linked agents are implemented in `src/lib/agent-system.ts` with: registration, `reportProgress`/`returnResult` framework tools, `cancelBySession`, pending message drain, update callbacks, and an `ActiveAgentsPanel` in the web UI. The `agents` system plugin (`src/plugins/system/agents/`) provides the runtime. The `deep-dive` plugin (`src/plugins/community/deep-dive/`) is a working session-linked agent example. What's NOT implemented: scheduled-session agents, independent agents, the full lifecycle state model (only `running`/`cancelled`/`erroring`/`completed` — missing `hatching`, `handoff pending`, `stuck`, `sleeping`, `paused`, `freezing`, `thawing`, `forking to chat`, `needs input`), metadata validation beyond ID uniqueness, the `askUser` framework tool, progress message queuing to the parent session, agent management dashboard, and the V1 invariants about destructive action prevention are not enforced in code.
+
 ## Overview
 
 Agents are useful, but they are also an easy way to accidentally create systems that are difficult to understand, difficult to supervise, and harder than necessary to keep safe. This document lays out the design philosophy for agent support in ALICE and narrows the architectural questions that still need answers before implementation.

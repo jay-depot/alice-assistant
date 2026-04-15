@@ -1,5 +1,7 @@
 # Notifications Chat Segue Next Steps
 
+> **Status (2026-04-14): PARTIALLY COMPLETE.** `notifications-chat-segue` is implemented (`src/plugins/system/notifications-chat-segue/`) with a DB schema for pending notifications, header prompt injection, and mark-delivered logic. What's NOT yet verified/done: explicit e2e testing (action items 1-4), prompt wording tuning (action item 2), and the explicit pending-notifications read tool (action item 3 — currently there's no dedicated tool for users to ask "what's pending?").
+
 ## Goal
 
 Turn the first-pass `notifications-chat-segue` implementation into a tested, usable chat-delivery path for pending notifications.

@@ -1,5 +1,7 @@
 # Plugin Settings UI Brainstorm
 
+> **Status (2026-04-14): NOT STARTED.** No implementation exists yet. The web UI has a `SettingsPanel.tsx` component but it does not include plugin management or configuration functionality. All items in this plan remain future work.
+
 ## Goal
 
 Sketch a future web UI surface for plugin configuration, with room for soft-conflict warnings and plugin-specific guidance before implementation details harden.

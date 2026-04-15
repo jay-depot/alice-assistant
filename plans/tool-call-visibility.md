@@ -1,5 +1,13 @@
 # Plan: Tool Call Visibility in Web UI
 
+> **Status (2026-04-14): ALL 5 PHASES COMPLETE.** Every phase described below has been implemented in the codebase:
+>
+> - Phase 1: `ToolCallEvent` type, `requiresApproval` flag on `Tool`, `ToolCallEvents` dispatch registry, and `callBatchId` generation in `conversation.ts` — all present.
+> - Phase 2: WebSocket push channel (not SSE) with `WsToolCallEvent` types, session-scoped subscription, and event buffering for completed/error events.
+> - Phase 3: `MessageKind` extended with `'tool_call'`, `ToolCallData` type with `callBatchId`, `useToolCallEvents` hook, `ToolCallIndicator` and `ToolCallBatch` components, batch status aggregation utilities with tests.
+> - Phase 4: `ChatSessionRound.messageKind` enum includes `'tool_call'`, `toolCallData` JSON column persisted, completed/error events stored, API serializes `toolCallData`, tool_call messages filtered from LLM context.
+> - Phase 5: `ToolCallEvents` and `ToolCallEvent` re-exported from `lib.ts`.
+
 ## TL;DR
 
 Make tool calls visible in the web UI by introducing a `ToolCallEvent` system in `Conversation.handleToolCalls()`, a new `tool_call` message kind in the web UI, and a real-time push channel (SSE) for streaming events during the synchronous PATCH. Design the event shape to support future permission gating by adding a `requiresApproval` flag on `Tool` definitions — but don't implement the blocking approval flow yet. Tool calls that execute in the same `Promise.all` batch are grouped visually in the UI via a `callBatchId`.

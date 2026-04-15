@@ -1,5 +1,7 @@
 # Future Agent Plugin Ideas
 
+> **Status (2026-04-14): BARELY STARTED.** `deep-dive` at `src/plugins/community/deep-dive/` is a partial implementation of the "Deep-Dive Agent" concept (as a session-linked agent, not as the full concept described here). `test-agents` at `src/plugins/community/test-agents/` exists for development. All other ideas (Email-Agent, Moltbook Agent, System Monitor Agent, KDE Connect) are NOT started.
+
 This file is a parking lot for future agent plugin concepts that could be developed after the agent architecture in `plans/agent-dispatching.md` is in place.
 
 ## Email-Agent

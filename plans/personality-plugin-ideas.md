@@ -1,5 +1,7 @@
 # Personality Plugin Ideas
 
+> **Status (2026-04-14): ONE IDEA PARTIALLY IMPLEMENTED.** "Facets" has a community plugin (`personality-facets` at `src/plugins/community/personality-facets/`) that exists but needs verification. The "Evolving Personality", "Match the User's Energy", "Persona Marketplace", and "Multi-Agent Personality" concepts have NOT been started.
+
 These are follow-on concept notes for personality-provider plugins that could exist after the core personality migration is complete. They are intentionally separate from the migration plan so the phase-one work stays focused on the default plugin extraction and the core integration contract.
 
 ## Shared Assumptions

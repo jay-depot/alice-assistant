@@ -1,5 +1,7 @@
 # Notifications Chat Interruption / Initiate Test Plan
 
+> **Status (2026-04-14): IMPLEMENTATION COMPLETE, TESTING NEEDED.** Both `notifications-chat-interruption` and `notifications-chat-initiate` plugins exist at `src/plugins/community/notifications-chat-interruption/` and `src/plugins/community/notifications-chat-initiate/`. The `web-ui` plugin includes `queueAssistantInterruption` and `queueAssistantMessage` capabilities for these delivery paths. However, the structured test plan described in this document has not been formally executed. All 7 action items still need manual verification.
+
 ## Goal
 
 Validate the current notification-to-chat delivery paths for both `notifications-chat-interruption` and `notifications-chat-initiate`, including their different fallback behaviors and the web UI queueing guarantees.

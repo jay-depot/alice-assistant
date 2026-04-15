@@ -1,5 +1,7 @@
 # Personality Plugin Migration
 
+> **Status (2026-04-14): COMPLETE.** The migration is done. The `personality` plugin at `src/plugins/system/personality/personality.ts` has been extracted from core. It reads `~/.alice-assistant/personality/` markdown files, registers via `registerFallbackPersonalityProvider`, and provides a header system prompt. The core `personality-system.ts` provides `registerFallbackPersonalityProvider`, `registerPersonalityProvider`, and `renderPersonalityPrompt` — exactly the integration surface described in the plan. The `render-chat-notification.ts` uses `renderPersonalityPrompt` with `purpose: 'notification'`. The `includePersonality` flag on conversation types is preserved. The single-provider rule is enforced by throwing on duplicate registration.
+
 Migrate personality prompt generation out of core and into a required system plugin, while keeping prompt injection semantics and the existing user personality directory intact for the first version. The recommended approach is to split the current behavior into two concerns: a plugin-owned personality content loader and renderer, and a small core-owned integration surface that consumes rendered personality text both in normal conversations and in notification voice rendering. The first iteration should explicitly support exactly one active personality provider.
 
 ## Goals
