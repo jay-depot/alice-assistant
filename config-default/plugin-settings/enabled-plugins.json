@@ -38,7 +38,13 @@
     "remind-me": false,
     "lightpanda-browser": false,
     "web-simple-fetch": false,
-    "personality-facets": false
+    "personality-facets": false,
+    "google-apis": false,
+    "google-location": false,
+    "email-broker": false,
+    "calendar-broker": false,
+    "gmail": false,
+    "google-calendar": false
   },
   "user": {
     "enableUserPlugins": false,
