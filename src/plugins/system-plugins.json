@@ -1,5 +1,11 @@
 [
   {
+    "id": "credential-store",
+    "name": "Credential Store",
+    "category": "system",
+    "required": true
+  },
+  {
     "id": "datetime",
     "name": "Date and Time",
     "category": "system",

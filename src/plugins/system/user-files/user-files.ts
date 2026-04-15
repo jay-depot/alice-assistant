@@ -79,7 +79,7 @@ const userFilesPlugin: AlicePlugin = {
       'assistant to access hidden files or folders, and does not allow the assistant to ' +
       'access any files or folders outside of the user-specified allowed folders or file types.',
     version: 'LATEST',
-    dependencies: [],
+    dependencies: [{ id: 'credential-store', version: 'LATEST' }],
     required: false,
   },
 
@@ -139,7 +139,14 @@ const userFilesPlugin: AlicePlugin = {
     // Register tools after that here:
     plugin.registerTool(findUserFilesTool(config.getPluginConfig()));
     plugin.registerTool(getDirectoryListingTool(config.getPluginConfig()));
-    plugin.registerTool(readUserTextFileTool(config.getPluginConfig()));
+
+    // Get the secrets redactor from the credential-store plugin
+    const credentialStore = plugin.request('credential-store');
+    const redactor = await credentialStore.getRedactor();
+
+    plugin.registerTool(
+      readUserTextFileTool(config.getPluginConfig(), redactor)
+    );
     plugin.registerTool(writeUserTextFileTool(config.getPluginConfig()));
   },
 };

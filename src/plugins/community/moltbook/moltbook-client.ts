@@ -7,6 +7,7 @@ import {
 } from '../../../lib/node/fs-promised.js';
 import type { SystemConfigFull } from '../../../lib/types/system-config-full.js';
 import type { MoltbookPluginConfigSchema } from './moltbook.js';
+import type { PluginCapabilities } from '../../../lib/types/alice-plugin-interface.js';
 import {
   formatComments,
   formatFeedItems,
@@ -30,6 +31,7 @@ type JsonRecord = Record<string, unknown>;
 type MoltbookClientOptions = {
   pluginConfig: MoltbookPluginConfigSchema;
   systemConfig: SystemConfigFull;
+  credentialStore?: PluginCapabilities['credential-store'];
 };
 
 type RequestOptions = {
@@ -133,10 +135,8 @@ async function safeJson(response: Response) {
 
 export type MoltbookClient = ReturnType<typeof createMoltbookClient>;
 
-export function createMoltbookClient({
-  pluginConfig,
-  systemConfig,
-}: MoltbookClientOptions) {
+export function createMoltbookClient(options: MoltbookClientOptions) {
+  const { pluginConfig, systemConfig } = options;
   const credentialsFilePath = path.join(
     systemConfig.configDirectory,
     'plugin-settings',
@@ -170,12 +170,30 @@ export function createMoltbookClient({
       return pluginConfig.apiKey;
     }
 
+    // Check the credential vault first
+    if (options.credentialStore) {
+      try {
+        const vaultKey =
+          await options.credentialStore.retrieveSecret('moltbook.api_key');
+        if (vaultKey) {
+          return vaultKey;
+        }
+      } catch {
+        // Vault may not be accessible; fall through to legacy methods
+      }
+    }
+
     const storedCredentials = await readStoredCredentials();
     const storedApiKey =
       typeof storedCredentials?.api_key === 'string'
         ? storedCredentials.api_key
         : undefined;
     if (storedApiKey) {
+      logger.warn(
+        'resolveApiKey: Found plaintext credentials in credentials.json. ' +
+          'These should be migrated to the credential vault. ' +
+          'Please remove plugin-settings/moltbook/credentials.json after migration.'
+      );
       return storedApiKey;
     }
 
@@ -183,6 +201,34 @@ export function createMoltbookClient({
   }
 
   async function saveCredentials(registration: RegistrationResult) {
+    // Store credentials in the vault if available
+    if (options.credentialStore) {
+      try {
+        await options.credentialStore.storeSecret(
+          'moltbook.api_key',
+          registration.apiKey
+        );
+        await options.credentialStore.storeSecret(
+          'moltbook.agent_name',
+          registration.agentName
+        );
+        await options.credentialStore.storeSecret(
+          'moltbook.claim_url',
+          registration.claimUrl
+        );
+        await options.credentialStore.storeSecret(
+          'moltbook.verification_code',
+          registration.verificationCode
+        );
+      } catch (err) {
+        logger.error(
+          'saveCredentials: Failed to store credentials in vault: ' +
+            (err instanceof Error ? err.message : String(err))
+        );
+      }
+    }
+
+    // Also save to the legacy file for backward compatibility
     await ensureCredentialsDirectory();
     await writeFile(
       credentialsFilePath,

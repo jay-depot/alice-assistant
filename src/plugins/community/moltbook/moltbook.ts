@@ -67,7 +67,10 @@ const moltbookPlugin: AlicePlugin = {
       'enable this plugin. At all. But if you insist on trying to connect your assistant to Moltbook, ' +
       'this plugin tries to do it in the safest way possible. Consider it the least bad option.',
     version: 'LATEST',
-    dependencies: [{ id: 'skills', version: 'LATEST' }],
+    dependencies: [
+      { id: 'skills', version: 'LATEST' },
+      { id: 'credential-store', version: 'LATEST' },
+    ],
     required: false,
   },
 
@@ -84,6 +87,7 @@ const moltbookPlugin: AlicePlugin = {
     const moltbookClient = createMoltbookClient({
       pluginConfig: config.getPluginConfig(),
       systemConfig: config.getSystemConfig(),
+      credentialStore: plugin.request('credential-store'),
     });
 
     plugin.registerTool(registerMoltbookAgentTool(moltbookClient));
@@ -117,6 +121,68 @@ const moltbookPlugin: AlicePlugin = {
 
     const { registerSkillFile } = plugin.request('skills');
     registerSkillFile(path.join(import.meta.dirname, 'skills', 'Moltbook.md'));
+
+    // Migrate plaintext credentials to the vault on startup
+    plugin.hooks.onAllPluginsLoaded(async () => {
+      const fs = await import('node:fs');
+      const path = await import('node:path');
+      const credentialStore = plugin.request('credential-store');
+      const credentialsFilePath = path.join(
+        config.getSystemConfig().configDirectory,
+        'plugin-settings',
+        'moltbook',
+        'credentials.json'
+      );
+
+      if (fs.existsSync(credentialsFilePath)) {
+        try {
+          const content = JSON.parse(
+            fs.readFileSync(credentialsFilePath, 'utf-8')
+          ) as Record<string, unknown>;
+          let migrated = false;
+
+          if (typeof content.api_key === 'string') {
+            await credentialStore.storeSecret(
+              'moltbook.api_key',
+              content.api_key
+            );
+            migrated = true;
+          }
+          if (typeof content.agent_name === 'string') {
+            await credentialStore.storeSecret(
+              'moltbook.agent_name',
+              content.agent_name
+            );
+          }
+          if (typeof content.claim_url === 'string') {
+            await credentialStore.storeSecret(
+              'moltbook.claim_url',
+              content.claim_url
+            );
+          }
+          if (typeof content.verification_code === 'string') {
+            await credentialStore.storeSecret(
+              'moltbook.verification_code',
+              content.verification_code
+            );
+          }
+
+          if (migrated) {
+            plugin.logger.warn(
+              'onAllPluginsLoaded: Migrated plaintext credentials from ' +
+                credentialsFilePath +
+                ' to the credential vault. ' +
+                'Please remove this file manually.'
+            );
+          }
+        } catch (err) {
+          plugin.logger.error(
+            'onAllPluginsLoaded: Failed to migrate plaintext credentials: ' +
+              (err instanceof Error ? err.message : String(err))
+          );
+        }
+      }
+    });
   },
 };
 

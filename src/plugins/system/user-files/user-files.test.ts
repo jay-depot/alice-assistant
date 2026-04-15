@@ -17,6 +17,7 @@ vi.mock('../../../lib/plugin-hooks.js', () => ({
 
 import type { AlicePluginInterface } from '../../../lib.js';
 import userFilesPlugin from './user-files.js';
+import { SecretsRedactor } from '../../system/credential-store/redactor.js';
 
 type RegisteredTool = {
   name: string;
@@ -42,7 +43,20 @@ function createMockPluginInterface(configValues: {
       registerConversationType: vi.fn(),
       registerTaskAssistant: vi.fn(),
       addToolToConversationType: vi.fn(),
-      request: vi.fn(),
+      request: vi.fn().mockImplementation((pluginId: string) => {
+        if (pluginId === 'credential-store') {
+          const mockRedactor = new SecretsRedactor();
+          return {
+            storeSecret: vi.fn(),
+            retrieveSecret: vi.fn(),
+            deleteSecret: vi.fn(),
+            listSecretKeys: vi.fn(),
+            hasSecret: vi.fn(),
+            getRedactor: vi.fn().mockResolvedValue(mockRedactor),
+          };
+        }
+        return undefined;
+      }),
       offer: (caps: any) => {
         offeredCapabilities['user-files'] = caps;
       },
@@ -111,7 +125,9 @@ describe('userFilesPlugin', () => {
       version: 'LATEST',
       required: false,
     });
-    expect(userFilesPlugin.pluginMetadata.dependencies).toEqual([]);
+    expect(userFilesPlugin.pluginMetadata.dependencies).toEqual([
+      { id: 'credential-store', version: 'LATEST' },
+    ]);
   });
 
   it('registers the expected tool names', () => {

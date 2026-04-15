@@ -1,5 +1,6 @@
 {
   "system": {
+    "credential-store": true,
     "datetime": true,
     "system-info": true,
     "personality": true,

@@ -57,7 +57,7 @@ export function InputArea({
           title="Send message (Enter)"
           onClick={onSubmit}
         >
-          &#9650;
+          Send
         </button>
       </footer>
     </div>

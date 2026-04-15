@@ -29,7 +29,7 @@ const braveSearchApiPlugin: AlicePlugin = {
     brandColor: '#7e15d6',
     required: false,
     version: 'LATEST',
-    dependencies: [],
+    dependencies: [{ id: 'credential-store', version: 'LATEST' }],
   },
 
   async registerPlugin(pluginInterface) {
@@ -39,18 +39,54 @@ const braveSearchApiPlugin: AlicePlugin = {
       {}
     );
 
-    const apiKey = config.getPluginConfig().apiKey;
+    const credentialStore = plugin.request('credential-store');
+    let resolvedApiKey: string | undefined = config.getPluginConfig().apiKey;
+
+    // Check the credential vault first, then fall back to config
+    if (!resolvedApiKey) {
+      try {
+        const vaultKey = await credentialStore.retrieveSecret(
+          'brave-search-api.apiKey'
+        );
+        if (vaultKey) {
+          resolvedApiKey = vaultKey;
+        }
+      } catch {
+        // Vault may not be accessible; fall through to config
+      }
+    }
+
+    // If the config has a real key (not empty), migrate it to the vault
+    if (
+      config.getPluginConfig().apiKey &&
+      config.getPluginConfig().apiKey !== resolvedApiKey
+    ) {
+      try {
+        await credentialStore.storeSecret(
+          'brave-search-api.apiKey',
+          config.getPluginConfig().apiKey!
+        );
+        plugin.logger.warn(
+          'registerPlugin: Migrated API key from plugin config to the credential vault. ' +
+            'Please remove the apiKey from plugin-settings/brave-search-api/brave-search-api.json.'
+        );
+      } catch {
+        // Best effort migration
+      }
+    }
+
+    const finalApiKey = resolvedApiKey;
 
     plugin.offer<'brave-search-api'>({
       getBraveSearchApiClient: () => {
-        if (!apiKey) {
+        if (!finalApiKey) {
           plugin.logger.warn(
             'Brave Search API Plugin: No API key provided, Brave Search API client will not work. Please provide an API key in the plugin configuration to enable Brave Search API functionality.'
           );
           return null;
         }
 
-        return new BraveSearch(apiKey);
+        return new BraveSearch(finalApiKey);
       },
     });
   },

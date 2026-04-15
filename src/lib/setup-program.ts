@@ -1009,6 +1009,54 @@ export async function runSetupProgram(argv: string[]): Promise<void> {
       nextConfig.ollama?.host ?? 'http://127.0.0.1:11434'
     );
 
+    // Check credential vault integrity
+    const vaultPath = path.join(configDir, 'credential-vault.json');
+    const aliceIdPath = path.join(configDir, 'alice-id.json');
+    const fsSync = await import('node:fs');
+
+    if (fsSync.existsSync(vaultPath)) {
+      session.printSection('Credential Vault');
+      if (!fsSync.existsSync(aliceIdPath)) {
+        session.printWarning(
+          'WARNING: The credential vault exists but the Alice ID file is missing. ' +
+            'This usually means the Alice ID file was manually deleted. The vault cannot be ' +
+            'decrypted without the original Alice ID. You will need to re-enter your credentials.'
+        );
+      } else {
+        // Try to verify vault integrity by importing the vault module
+        try {
+          const { verifyVaultIntegrity, checkVaultPermissions } =
+            await import('../plugins/system/credential-store/vault.js');
+          const integrity = verifyVaultIntegrity();
+          if (!integrity.vaultReadable) {
+            session.printWarning(
+              'WARNING: The credential vault exists but cannot be decrypted. ' +
+                'This usually means the hardware identifier has changed (e.g., NIC replacement ' +
+                'or OS reinstall). Existing stored credentials are inaccessible until the vault ' +
+                'is re-keyed. A CLI tool for vault recovery will be available in a future release.'
+            );
+          } else {
+            session.printInfo(
+              `Credential vault: OK (${integrity.keyCount} credential(s) stored)`
+            );
+          }
+
+          const permCheck = checkVaultPermissions();
+          if (!permCheck.ok && permCheck.mode) {
+            session.printWarning(
+              `Credential vault permissions are too permissive (${permCheck.mode}). ` +
+                `Consider running: chmod 600 ${permCheck.path}`
+            );
+          }
+        } catch {
+          // Vault module may not be built yet during initial setup
+          session.printInfo(
+            'Credential vault: exists (will be verified on first start)'
+          );
+        }
+      }
+    }
+
     session.printSection('Summary');
     session.printInfo('Setup complete.');
     session.printInfo(`Config directory: ${configDir}`);

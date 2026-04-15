@@ -56,20 +56,57 @@ const currentsNewsPlugin: AlicePlugin = {
     description:
       'Uses Currents News API to provide a news source for the news broker plugin.',
     version: 'LATEST',
-    dependencies: [{ id: 'news-broker', version: 'LATEST' }],
+    dependencies: [
+      { id: 'news-broker', version: 'LATEST' },
+      { id: 'credential-store', version: 'LATEST' },
+    ],
     required: false,
   },
 
   async registerPlugin(pluginInterface) {
     const plugin = await pluginInterface.registerPlugin();
     const { registerNewsProvider } = plugin.request('news-broker');
+    const credentialStore = plugin.request('credential-store');
 
     const config = await plugin.config<CurrentsNewsPluginConfigSchema>(
       CurrentsNewsPluginConfigSchema,
       {}
     );
 
-    const { apiKey } = config.getPluginConfig();
+    // Check the credential vault first, then fall back to config
+    let apiKey: string | undefined = config.getPluginConfig().apiKey;
+
+    if (!apiKey) {
+      try {
+        const vaultKey = await credentialStore.retrieveSecret(
+          'currents-news.apiKey'
+        );
+        if (vaultKey) {
+          apiKey = vaultKey;
+        }
+      } catch {
+        // Vault may not be accessible; fall through to config
+      }
+    }
+
+    // If the config has a real key, migrate it to the vault
+    if (
+      config.getPluginConfig().apiKey &&
+      config.getPluginConfig().apiKey !== apiKey
+    ) {
+      try {
+        await credentialStore.storeSecret(
+          'currents-news.apiKey',
+          config.getPluginConfig().apiKey!
+        );
+        plugin.logger.warn(
+          'registerPlugin: Migrated API key from plugin config to the credential vault. ' +
+            'Please remove the apiKey from plugin-settings/currents-news/currents-news.json.'
+        );
+      } catch {
+        // Best effort migration
+      }
+    }
 
     if (!apiKey) {
       plugin.logger.warn(

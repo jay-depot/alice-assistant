@@ -2,6 +2,8 @@ import { Static, Type } from 'typebox';
 import { Tool } from '../../../../lib/tool-system.js';
 import * as fs from 'fs';
 import * as path from 'path';
+import type { SecretsRedactor } from '../../../system/credential-store/redactor.js';
+import { readFile } from '../../../../lib/node/fs-promised.js';
 
 const parameters = Type.Object({
   path: Type.String({ description: 'Path to the text file to read' }),
@@ -49,7 +51,10 @@ function isAllowedExtension(
   return allowedExtensions.includes(ext);
 }
 
-const readUserTextFileTool: (config) => Tool = config => ({
+const readUserTextFileTool: (config, redactor?: SecretsRedactor) => Tool = (
+  config,
+  redactor
+) => ({
   name: 'readUserTextFile',
   availableFor: ['chat', 'voice', 'autonomy'],
   description: `Reads the contents of a text file from the user's filesystem in chunks, with optional offset and size limits.`,
@@ -142,19 +147,36 @@ const readUserTextFileTool: (config) => Tool = config => ({
 
     try {
       // Read the file
-      const fileContent = fs.readFileSync(absolutePath);
+      const fileContent = await readFile(absolutePath);
 
       // Apply offset and maxBytes truncation
       const truncated = fileContent.subarray(offset, offset + maxBytes);
       const wasComplete = truncated.length === fileContent.length - offset;
 
+      // Apply secrets redaction to text content
+      let redactedContent: Buffer = truncated;
+      if (redactor) {
+        try {
+          const encoding = args.encoding || 'utf-8';
+          const textContent = truncated.toString(encoding as BufferEncoding);
+          const redactedText = redactor.redact(textContent);
+          redactedContent = Buffer.from(
+            redactedText,
+            encoding as BufferEncoding
+          );
+        } catch {
+          // If redaction fails (e.g., binary content that can't be decoded),
+          // use the original content
+        }
+      }
+
       return JSON.stringify({
         path: filePath,
         size: stats.size,
         offset,
-        bytesRead: truncated.length,
+        bytesRead: redactedContent.length,
         isComplete: wasComplete,
-        content: truncated,
+        content: redactedContent,
         message: wasComplete
           ? 'Complete file contents'
           : 'Partial contents (truncated)',
