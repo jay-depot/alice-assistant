@@ -144,6 +144,12 @@
     "required": false
   },
   {
+    "id": "obsidian-broker",
+    "name": "Obsidian Broker",
+    "category": "community",
+    "required": false
+  },
+  {
     "id": "user-files",
     "name": "User Files",
     "category": "system",
