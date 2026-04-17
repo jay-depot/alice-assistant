@@ -171,7 +171,8 @@ const personalityFacetsPlugin: AlicePlugin = {
     corePersonalityPrinciples = await loadCorePersonalityPrinciples();
 
     async function getFacetDefinition(
-      name: string
+      name: string,
+      embodying = false
     ): Promise<PersonalityFacetsFacetDefinition | null> {
       if (name === DEFAULT_FACET_NAME) {
         return null;
@@ -179,7 +180,14 @@ const personalityFacetsPlugin: AlicePlugin = {
 
       const orm = await getORM;
       const em = orm.em.fork();
-      return await em.findOne(PersonalityFacetsFacetDefinition, { name });
+      const facet = await em.findOne(PersonalityFacetsFacetDefinition, {
+        name,
+      });
+      if (facet && embodying) {
+        facet.lastEmbodiedAt = new Date();
+        await em.flush();
+      }
+      return facet;
     }
 
     async function getActiveFacetForConversation(
@@ -441,7 +449,7 @@ const personalityFacetsPlugin: AlicePlugin = {
         }
 
         if (params.facetName !== DEFAULT_FACET_NAME) {
-          const facet = await getFacetDefinition(params.facetName);
+          const facet = await getFacetDefinition(params.facetName, true);
           if (!facet) {
             return `The personality facet "${params.facetName}" does not exist yet.`;
           }

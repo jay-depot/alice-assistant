@@ -143,6 +143,24 @@ const agentsPlugin: AlicePlugin = {
       },
     });
 
+    plugin.registerTool({
+      name: 'getAllIndependentAgentStatuses',
+      availableFor: ['chat', 'voice'],
+      description:
+        'Call getAllIndependentAgentStatuses to get the current status of all ' +
+        'active independent agents when needed to answer a user question or request.',
+      parameters: Type.Object({}),
+      systemPromptFragment: '',
+      toolResultPromptIntro: '',
+      toolResultPromptOutro: '',
+      taintStatus: 'clean',
+      requiresApproval: false,
+      execute: async () => {
+        const statuses = AgentSystem.getIndependentInstances();
+        return JSON.stringify(statuses);
+      },
+    });
+
     plugin.hooks.onUserConversationWillEnd(async conversation => {
       if (conversation.sessionId) {
         AgentSystem.cancelBySession(conversation.sessionId);

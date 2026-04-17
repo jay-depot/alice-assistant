@@ -274,5 +274,11 @@
     "name": "Facet Gardener",
     "category": "community",
     "required": false
+  },
+  {
+    "id": "moltbook-agent",
+    "name": "Moltbook Agent",
+    "category": "community",
+    "required": false
   }
 ]

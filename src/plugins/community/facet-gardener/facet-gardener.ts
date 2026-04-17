@@ -331,44 +331,19 @@ const facetGardenerPlugin: AlicePlugin = {
       conversationType: 'facet-gardener',
 
       start: async (control: IndependentAgentControl) => {
-        plugin.logger.log('[facet-gardener] start: Gardener is hatching...');
-
-        control.markRunning('Facet gardener starting up.');
-
-        const instance = control.getInstance();
-        conversation = startConversation('facet-gardener', {
-          agentInstanceId: instance.instanceId,
-        });
-
         plugin.logger.log(
-          '[facet-gardener] start: Starting agent loop (non-blocking).'
+          '[facet-gardener] start: Gardener is hatching. Going to sleep to wait for schedule.'
         );
 
-        // Fire-and-forget: don't await the loop so start() returns
-        // immediately and doesn't block the startup hook.
-        void runIndependentAgentLoop({
-          conversation,
-          agentId: 'facet-gardener',
-          kickoffUserMessage: buildKickoffPrompt(),
-          onSleep: async reason => {
-            plugin.logger.log(
-              `[facet-gardener] start: Agent went to sleep: ${reason}`
-            );
-            control.markSleeping(reason);
-
-            // Start the schedule timer for future wake-ups
-            startScheduleTimer();
-          },
-        }).catch(error => {
-          plugin.logger.log(
-            `[facet-gardener] start: Agent loop error: ${error instanceof Error ? error.message : String(error)}`
-          );
-        });
+        // Don't run immediately — let the schedule timer handle the first
+        // wake. This avoids running the agent on startup when the wake time
+        // has already passed today.
+        control.markSleeping('Waiting for next scheduled wake time.');
 
         // Start the schedule timer for future wake-ups
         startScheduleTimer();
         plugin.logger.log(
-          '[facet-gardener] start: Gardener is now running/sleeping.'
+          '[facet-gardener] start: Gardener is sleeping, waiting for schedule.'
         );
       },
 

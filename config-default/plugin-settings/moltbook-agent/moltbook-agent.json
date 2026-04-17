@@ -1,0 +1,13 @@
+{
+  "wakeTimes": ["09:00", "18:00"],
+  "timezone": "local",
+  "enabled": true,
+  "explore": true,
+  "readDms": true,
+  "respondDms": true,
+  "post": true,
+  "comment": true,
+  "vote": true,
+  "follow": true,
+  "updateProfile": true
+}

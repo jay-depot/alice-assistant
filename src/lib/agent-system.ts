@@ -340,6 +340,10 @@ export async function runIndependentAgentLoop(
         break;
       }
 
+      // Report activity to prevent stuck detection from firing during
+      // long-running LLM turns or tool calls.
+      AgentSystem.reportIndependentAgentActivity(agentId);
+
       await conversation.sendUserMessage(continuationPrompt);
       iterations++;
 
@@ -800,6 +804,19 @@ export const AgentSystem = {
     return [...activeIndependentInstancesById.values()].sort(
       (a, b) => a.startedAt.getTime() - b.startedAt.getTime()
     );
+  },
+
+  /**
+   * Update the lastActivityAt timestamp for an independent agent.
+   * Called by runIndependentAgentLoop before each iteration to prevent
+   * the stuck detection timer from misdiagnosing an active agent.
+   */
+  reportIndependentAgentActivity(agentId: string): void {
+    const instance = activeIndependentInstancesById.get(agentId);
+    if (instance) {
+      instance.lastActivityAt = new Date();
+      instance.updatedAt = new Date();
+    }
   },
 
   onIndependentAgentUpdate(
