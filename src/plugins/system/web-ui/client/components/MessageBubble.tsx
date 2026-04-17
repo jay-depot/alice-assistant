@@ -1,10 +1,11 @@
+import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { formatTime } from '../utils.js';
 import { classNames } from '../utils.js';
 import { normalizeCssToken } from '../utils.js';
 import { humanizeToolName } from '../utils/tool-call-batch.js';
 import type { Message } from '../types/index.js';
 import { useEffect, useState } from 'react';
-import { MarkdownHooks } from 'react-markdown';
 import { ReadReceiptIcon } from './ReadReceiptIcon.js';
 
 interface MessageBubbleProps {
@@ -134,7 +135,7 @@ export function MessageBubble({
           isLongMessage && 'message__bubble--preview'
         )}
       >
-        <MarkdownHooks>{message.content}</MarkdownHooks>
+        <Markdown remarkPlugins={[remarkGfm]}>{message.content}</Markdown>
       </div>
       {isLongMessage ? (
         <button
@@ -192,7 +193,7 @@ export function MessageBubble({
               </button>
             </div>
             <div className={classNames('message-modal__body', agentClassToken)}>
-              <MarkdownHooks>{message.content}</MarkdownHooks>
+              <Markdown remarkPlugins={[remarkGfm]}>{message.content}</Markdown>
             </div>
           </div>
         </div>

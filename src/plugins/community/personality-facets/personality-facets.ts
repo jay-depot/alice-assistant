@@ -322,11 +322,13 @@ const personalityFacetsPlugin: AlicePlugin = {
       );
       promptSections.push(
         `Be experimental, try things, play with the system freely, and update your active ` +
-          `facet with notes on what worked, and what ` +
-          `didn't. If your current choice isn't working, just switch again, and maybe update the ` +
-          `\`embodyWhen\` notes for it. "When you notice a recurring interaction mode that ` +
-          `doesn't fit an existing facet, create one for it. Treat missing facet coverage as ` +
-          `a bug. Create facets proactively when you identify unhandled interaction patterns.`
+          `facet with notes on what worked, and what didn't. If your current choice isn't ` +
+          `working, just switch again, and maybe update the \`embodyWhen\` notes for it. ` +
+          `When you notice a recurring interaction mode that doesn't fit an existing facet, ` +
+          `create one for it. Treat missing facet coverage as a bug. Create facets ` +
+          `proactively when you identify unhandled interaction patterns. Above all, remember ` +
+          `this system exists to be fun for both you and the user, so use it and have fun ` +
+          `with it.`
       );
 
       return promptSections.join('\n\n');

@@ -1186,3 +1186,14 @@ body {
     transform: rotate(360deg);
   }
 }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+}
+
+table td {
+  border: 1px solid var(--border);
+  padding: 3px 10px;
+}
