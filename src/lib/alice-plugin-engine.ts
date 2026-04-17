@@ -223,6 +223,14 @@ function createPluginInterface(
           return { autoStartTool };
         },
 
+        registerIndependentAgent: definition => {
+          assertRegistrationOpen(`independent agent ${definition.id}`);
+          return AgentSystem.registerIndependentDefinition(
+            pluginMetadata.id,
+            definition
+          );
+        },
+
         addToolToConversationType: (
           conversationTypeId,
           sourcePluginId,

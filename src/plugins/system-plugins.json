@@ -262,5 +262,17 @@
     "name": "Test Agents",
     "category": "community",
     "required": false
+  },
+  {
+    "id": "system-sentinel",
+    "name": "System Sentinel",
+    "category": "community",
+    "required": false
+  },
+  {
+    "id": "facet-gardener",
+    "name": "Facet Gardener",
+    "category": "community",
+    "required": false
   }
 ]

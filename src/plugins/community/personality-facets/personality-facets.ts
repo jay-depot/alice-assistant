@@ -15,6 +15,38 @@ import {
 } from './db-schemas/index.js';
 import { STARTER_FACET_DEFINITIONS } from './seed-facets.js';
 
+// ---------------------------------------------------------------------------
+// Offered API types
+// ---------------------------------------------------------------------------
+
+export type FacetSummary = {
+  name: string;
+  embodyWhen: string;
+  instructionsPreview: string;
+  lastEmbodiedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type FacetDetail = {
+  name: string;
+  embodyWhen: string;
+  instructions: string;
+  lastEmbodiedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+declare module '../../../lib.js' {
+  export interface PluginCapabilities {
+    'personality-facets': {
+      listFacets: () => Promise<FacetSummary[]>;
+      getFacet: (name: string) => Promise<FacetDetail | null>;
+      getCorePrinciples: () => Promise<string>;
+    };
+  }
+}
+
 const DEFAULT_FACET_NAME = 'Neutral';
 const DEFAULT_FACET_EMBODY_WHEN =
   'you do not have a more specific situational facet or preferred "go-to" facet active';
@@ -438,6 +470,140 @@ const personalityFacetsPlugin: AlicePlugin = {
         await em.flush();
 
         return `You have successfully switched to embodying the "${params.facetName}" personality facet.`;
+      },
+    });
+
+    // -----------------------------------------------------------------------
+    // examinePersonalityFacets tool
+    // -----------------------------------------------------------------------
+
+    const ExaminePersonalityFacetsToolParametersSchema = Type.Object({});
+
+    plugin.registerTool({
+      name: 'examinePersonalityFacets',
+      availableFor: ['autonomy'],
+      description:
+        'List all personality facets with their names, embody-when descriptions, ' +
+        'and a preview of their instructions. Use this to review the current facet ' +
+        'landscape before creating or updating facets.',
+      parameters: ExaminePersonalityFacetsToolParametersSchema,
+      systemPromptFragment: '',
+      toolResultPromptIntro:
+        'You have just received a summary of all personality facets. Use this information to decide whether to create new facets, update existing ones, or adjust embody-when descriptions.',
+      toolResultPromptOutro: '',
+      execute: async () => {
+        try {
+          const facets = await getAllFacets();
+          const lines: string[] = [];
+
+          lines.push(
+            `**${DEFAULT_FACET_NAME}** (built-in default, cannot be modified)`
+          );
+          lines.push(`  Embody when: ${DEFAULT_FACET_EMBODY_WHEN}`);
+          lines.push(
+            `  Instructions: ${DEFAULT_FACET_INSTRUCTIONS.slice(0, 120)}...`
+          );
+          lines.push('');
+
+          for (const facet of facets) {
+            lines.push(`**${facet.name}**`);
+            lines.push(`  Embody when: ${facet.embodyWhen}`);
+            lines.push(
+              `  Instructions preview: ${facet.instructions.length > 200 ? facet.instructions.slice(0, 200) + '...' : facet.instructions}`
+            );
+            lines.push(
+              `  Last embodied: ${formatFacetLastUsed(facet.lastEmbodiedAt)}`
+            );
+            lines.push(
+              `  Created: ${facet.createdAt.toISOString()}, Updated: ${facet.updatedAt.toISOString()}`
+            );
+            lines.push('');
+          }
+
+          if (facets.length === 0) {
+            lines.push(
+              'No custom facets exist yet. Only the built-in Neutral facet is available.'
+            );
+          }
+
+          return lines.join('\n');
+        } catch (error) {
+          return error instanceof Error
+            ? `Failed to examine personality facets: ${error.message}`
+            : 'Failed to examine personality facets due to an unknown error.';
+        }
+      },
+    });
+
+    // -----------------------------------------------------------------------
+    // examineCorePrinciples tool
+    // -----------------------------------------------------------------------
+
+    const ExamineCorePrinciplesToolParametersSchema = Type.Object({});
+
+    plugin.registerTool({
+      name: 'examineCorePrinciples',
+      availableFor: ['autonomy'],
+      description:
+        "Read the core personality principles that guide the assistant's " +
+        'behavior. Use this to understand the foundational values and rules ' +
+        'that shape how the assistant interacts, so you can create facets ' +
+        'that complement and align with those principles rather than ' +
+        'contradicting them.',
+      parameters: ExamineCorePrinciplesToolParametersSchema,
+      systemPromptFragment: '',
+      toolResultPromptIntro:
+        'You have just received the core personality principles. Use these as ' +
+        'context when deciding whether to create or update personality facets — ' +
+        'new facets should complement these principles, not conflict with them.',
+      toolResultPromptOutro: '',
+      execute: async () => {
+        try {
+          const principles = await getCorePersonalityPrinciples();
+          return principles;
+        } catch (error) {
+          return error instanceof Error
+            ? `Failed to read core personality principles: ${error.message}`
+            : 'Failed to read core personality principles due to an unknown error.';
+        }
+      },
+    });
+
+    // -----------------------------------------------------------------------
+    // Offer API to dependent plugins
+    // -----------------------------------------------------------------------
+
+    plugin.offer<'personality-facets'>({
+      listFacets: async (): Promise<FacetSummary[]> => {
+        const facets = await getAllFacets();
+        return facets.map(facet => ({
+          name: facet.name,
+          embodyWhen: facet.embodyWhen,
+          instructionsPreview:
+            facet.instructions.length > 200
+              ? facet.instructions.slice(0, 200) + '...'
+              : facet.instructions,
+          lastEmbodiedAt: facet.lastEmbodiedAt,
+          createdAt: facet.createdAt,
+          updatedAt: facet.updatedAt,
+        }));
+      },
+      getFacet: async (name: string): Promise<FacetDetail | null> => {
+        const facet = await getFacetDefinition(name);
+        if (!facet) {
+          return null;
+        }
+        return {
+          name: facet.name,
+          embodyWhen: facet.embodyWhen,
+          instructions: facet.instructions,
+          lastEmbodiedAt: facet.lastEmbodiedAt,
+          createdAt: facet.createdAt,
+          updatedAt: facet.updatedAt,
+        };
+      },
+      getCorePrinciples: async (): Promise<string> => {
+        return await getCorePersonalityPrinciples();
       },
     });
   },

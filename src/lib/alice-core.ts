@@ -7,7 +7,9 @@ import { systemLogger } from './system-logger.js';
 export const AliceCore = {
   waitForShutdownSignal: () => {
     return new Promise<void>(resolve => {
-      systemLogger.log('Entering main loop. Press Ctrl+C to exit.');
+      systemLogger.log(
+        'Entering main loop. Press Ctrl+C or send SIGTERM to exit.'
+      );
       let shuttingDown = false;
       const cleanupSignalHandlers = () => {
         process.off('SIGINT', shutdown);

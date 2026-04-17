@@ -209,3 +209,86 @@ describe('Conversation.sendDirectRequest', () => {
     ).rejects.toThrow();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 4: compactContext modes
+// ---------------------------------------------------------------------------
+
+describe('compactContext', () => {
+  let Conversation: typeof import('./conversation.js').Conversation;
+  let mockChat: ReturnType<typeof vi.fn>;
+
+  beforeEach(async () => {
+    const mod = await import('ollama');
+    mockChat = (mod.default as { chat: ReturnType<typeof vi.fn> }).chat;
+    mockChat.mockReset();
+    ({ Conversation } = await import('./conversation.js'));
+  });
+
+  it('compactContext("normal") returns false when context is small', async () => {
+    const conv = new Conversation('chat');
+    conv.restoreContext([
+      { role: 'user', content: 'Hello' },
+      { role: 'assistant', content: 'Hi' },
+    ]);
+
+    const result = await conv.compactContext('normal');
+    expect(result).toBe(false);
+  });
+
+  it('compactContext("full") summarizes all non-summary messages', async () => {
+    mockChat.mockResolvedValue({
+      message: { role: 'assistant', content: 'Summary of conversation.' },
+    });
+
+    const conv = new Conversation('chat');
+    conv.restoreContext([
+      { role: 'user', content: 'Tell me about cats.' },
+      { role: 'assistant', content: 'Cats are wonderful pets.' },
+      { role: 'user', content: 'What about dogs?' },
+      { role: 'assistant', content: 'Dogs are loyal companions.' },
+    ]);
+
+    const result = await conv.compactContext('full');
+    expect(result).toBe(true);
+    expect(conv.compactedContext).toHaveLength(1);
+    expect(conv.compactedContext[0].content).toContain(
+      'Summary of conversation.'
+    );
+  });
+
+  it('compactContext("full") returns false when everything is already summaries', async () => {
+    const conv = new Conversation('chat');
+    conv.restoreContext([
+      {
+        role: 'system',
+        content:
+          '# Summary of earlier conversation:\n \n1/1/2026\n\nAlready summarized.',
+      },
+    ]);
+
+    const result = await conv.compactContext('full');
+    expect(result).toBe(false);
+  });
+
+  it('compactContext("clear") evicts all summaries to memory hook', async () => {
+    mockChat.mockResolvedValue({
+      message: { role: 'assistant', content: 'Final summary.' },
+    });
+
+    const { PluginHookInvocations } = await import('./plugin-hooks.js');
+
+    const conv = new Conversation('chat');
+    conv.restoreContext([
+      { role: 'user', content: 'Important question.' },
+      { role: 'assistant', content: 'Important answer.' },
+    ]);
+
+    const result = await conv.compactContext('clear');
+    expect(result).toBe(true);
+    expect(conv.compactedContext).toHaveLength(0);
+    expect(
+      PluginHookInvocations.invokeOnContextCompactionSummariesWillBeDeleted
+    ).toHaveBeenCalled();
+  });
+});

@@ -1,5 +1,11 @@
 import { useCallback, useState } from 'react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import {
+  BrowserRouter,
+  Navigate,
+  Route,
+  Routes,
+  useNavigate,
+} from 'react-router-dom';
 import { ChatHeader } from './components/ChatHeader.js';
 import { ErrorToast } from './components/ErrorToast.js';
 import { InputArea } from './components/InputArea.js';
@@ -105,9 +111,11 @@ function ChatWorkspace({
 function PluginRoutePage({
   route,
   onOpenSettings,
+  onBack,
 }: {
   route: PluginClientRoute;
   onOpenSettings: () => void;
+  onBack: () => void;
 }) {
   const RouteComponent = route.component;
   const pageTitle =
@@ -122,6 +130,7 @@ function PluginRoutePage({
         isEndingSession={false}
         onDelete={() => undefined}
         onOpenSettings={onOpenSettings}
+        onBack={onBack}
       />
       <div className="plugin-route-page">
         <RouteComponent />
@@ -130,10 +139,11 @@ function PluginRoutePage({
   );
 }
 
-export function App() {
+function AppShell() {
   const [draft, setDraft] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const navigate = useNavigate();
   const { routes } = useExtensionContext();
   const { sessions, refreshSessions } = useSessions(setErrorMessage);
   const {
@@ -176,15 +186,17 @@ export function App() {
   }, [draft, sendMessage]);
 
   return (
-    <BrowserRouter>
+    <>
       <Sidebar
         sessions={sessions}
         routes={pluginRoutes}
         currentSessionId={currentSessionId}
         onSelectSession={id => {
+          navigate('/');
           void loadSession(id);
         }}
         onNewChat={() => {
+          navigate('/');
           void handleNewChat();
         }}
       />
@@ -230,6 +242,7 @@ export function App() {
               <PluginRoutePage
                 route={route}
                 onOpenSettings={() => setIsSettingsOpen(true)}
+                onBack={() => navigate('/')}
               />
             }
           />
@@ -245,6 +258,14 @@ export function App() {
         message={errorMessage}
         onClear={() => setErrorMessage(null)}
       />
+    </>
+  );
+}
+
+export function App() {
+  return (
+    <BrowserRouter>
+      <AppShell />
     </BrowserRouter>
   );
 }
