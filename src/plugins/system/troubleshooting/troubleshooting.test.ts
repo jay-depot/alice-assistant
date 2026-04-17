@@ -134,7 +134,9 @@ describe('troubleshootingPlugin', () => {
     expect(footer.name).toBe('troubleshootingFooter');
     expect(footer.weight).toBe(0);
 
-    const prompt = footer.getPrompt();
+    const prompt = footer.getPrompt({
+      availableTools: ['getAssistantDebugInfo'],
+    });
     expect(prompt).toContain('getAssistantDebugInfo');
     expect(prompt).toContain('ALICE.md');
     expect(prompt).toContain('troubleshooting');

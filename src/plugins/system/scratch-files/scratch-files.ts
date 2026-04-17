@@ -93,6 +93,16 @@ const scratchFilesPlugin: AlicePlugin = {
           return false;
         }
 
+        if (
+          !context ||
+          !context.availableTools?.length ||
+          !context.availableTools?.some(
+            t => t === 'readScratchFile' || t === 'writeScratchFile'
+          )
+        ) {
+          return false;
+        }
+
         const indexFilePath = path.join(
           config.getPluginConfig().scratchDirectory,
           '.index'

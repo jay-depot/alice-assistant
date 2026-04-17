@@ -381,6 +381,14 @@ const proficienciesPlugin: AlicePlugin = {
           return false;
         }
 
+        if (
+          !context ||
+          !context.availableTools?.length ||
+          !context.availableTools?.includes('recallProficiency')
+        ) {
+          return false;
+        }
+
         return withDatabase(async orm => {
           await ensureAtLeastOneProficiencyExists(orm);
           const em = orm.em.fork();
@@ -417,6 +425,15 @@ const proficienciesPlugin: AlicePlugin = {
       weight: 11000,
       getPrompt: async context => {
         if (context.conversationType === 'startup') {
+          return false;
+        }
+
+        if (
+          !context ||
+          !context.availableTools?.length ||
+          (!context.availableTools?.includes('recallProficiency') &&
+            !context.availableTools?.includes('updateProficiency'))
+        ) {
           return false;
         }
 

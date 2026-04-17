@@ -175,6 +175,7 @@ describe('SkillsPlugin', () => {
     const result = prompt.getPrompt({
       conversationType: 'startup',
       sessionId: 'x',
+      availableTools: ['recallSkill'],
     });
     expect(result).toBe(false);
   });
@@ -199,6 +200,7 @@ describe('SkillsPlugin', () => {
     const result = prompt.getPrompt({
       conversationType: 'chat',
       sessionId: 'x',
+      availableTools: ['recallSkill'],
     });
     expect(result).toContain('baking');
     expect(result).toContain('user asks about baking');

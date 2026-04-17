@@ -320,6 +320,14 @@ const memoryPlugin: AlicePlugin = {
           return false;
         }
 
+        if (
+          !context ||
+          !context.availableTools?.length ||
+          !context.availableTools?.includes('recallPastConversations')
+        ) {
+          return false;
+        }
+
         const orm = await databaseReadyPromise;
         const em = orm.em.fork();
 

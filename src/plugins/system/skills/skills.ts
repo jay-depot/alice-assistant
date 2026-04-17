@@ -125,6 +125,14 @@ const SkillsPlugin: AlicePlugin = {
           return false;
         }
 
+        if (
+          !context ||
+          !context.availableTools?.length ||
+          !context.availableTools?.includes('recallSkill')
+        ) {
+          return false;
+        }
+
         if (skillsRegistry.length === 0) {
           return false;
         }

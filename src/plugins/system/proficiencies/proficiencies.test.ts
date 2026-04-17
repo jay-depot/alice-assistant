@@ -612,6 +612,7 @@ describe('proficienciesPlugin', () => {
     const result = await header.getPrompt({
       conversationType: 'chat',
       sessionId: 'x',
+      availableTools: ['recallProficiency'],
     });
     expect(typeof result).toBe('string');
     expect(result).toContain('ProficienciesWelcome');
@@ -644,6 +645,7 @@ describe('proficienciesPlugin', () => {
     const result = await header.getPrompt({
       conversationType: 'chat',
       sessionId: 'x',
+      availableTools: ['recallProficiency'],
     });
 
     expect(result).toContain('CssGrid');
@@ -672,6 +674,7 @@ describe('proficienciesPlugin', () => {
     const result = await footer.getPrompt({
       conversationType: 'chat',
       sessionId: 'x',
+      availableTools: ['recallProficiency', 'updateProficiency'],
     });
     expect(typeof result).toBe('string');
     expect(result).toMatch(/update/i);

@@ -216,7 +216,10 @@ describe('notificationsChatSeguePlugin', () => {
     );
 
     const header = mockInterface.headerPrompts[0];
-    const result = await header.getPrompt({ conversationType: 'chat' });
+    const result = await header.getPrompt({
+      conversationType: 'chat',
+      availableTools: ['markNotificationsDelivered'],
+    });
 
     expect(result).toContain('# PENDING NOTIFICATIONS');
     expect(result).toContain('ID 1');
