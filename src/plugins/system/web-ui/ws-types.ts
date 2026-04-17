@@ -60,6 +60,8 @@ export interface WsSession {
   updatedAt: string;
   messages: WsMessage[];
   activeAgents: WsActiveAgent[];
+  /** True when the session has compacted context persisted in the database. */
+  hasCompactedContext?: boolean;
 }
 
 export interface WsSessionSummary {

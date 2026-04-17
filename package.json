@@ -7,7 +7,8 @@
   "type": "module",
   "bin": {
     "alice-assistant-start": "bin/alice-assistant-start",
-    "alice-assistant-setup": "bin/alice-assistant-setup"
+    "alice-assistant-setup": "bin/alice-assistant-setup",
+    "alice-tui": "bin/alice-tui"
   },
   "main": "dist/lib.js",
   "scripts": {
@@ -46,6 +47,8 @@
     "date-fns": "^4.1.0",
     "express": "^5.2.1",
     "mikro-orm": "^7.0.3",
+    "marked": "^15.0.0",
+    "marked-terminal": "^7.3.0",
     "ollama": "^0.6.3",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",

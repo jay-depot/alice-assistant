@@ -13,6 +13,7 @@ import type {
   WsServerMessage,
   WsToolCallEvent,
   WsSession,
+  WsMessage,
 } from './ws-types.js';
 import { Express, static as serveStatic } from 'express';
 import * as fs from 'fs';
@@ -145,11 +146,64 @@ const webUiPlugin: AlicePlugin = {
         }));
     };
 
+    const serializeCompactedContext = (
+      messages: Message[] | undefined
+    ): string | null => {
+      if (!messages || messages.length === 0) {
+        return null;
+      }
+      return JSON.stringify(
+        messages.map(m => ({ role: m.role, content: m.content }))
+      );
+    };
+
+    const restoreCompactedContext = (json: unknown): Message[] | undefined => {
+      if (!json) {
+        return undefined;
+      }
+      try {
+        const parsed = JSON.parse(String(json));
+        if (!Array.isArray(parsed) || parsed.length === 0) {
+          return undefined;
+        }
+        return parsed as Message[];
+      } catch {
+        return undefined;
+      }
+    };
+
+    const buildWsSession = (
+      session: ChatSession,
+      sessionId: number
+    ): WsSession => ({
+      id: sessionId,
+      title: session.title,
+      createdAt: session.createdAt.toISOString(),
+      updatedAt: session.updatedAt.toISOString(),
+      messages: session.rounds
+        .getItems()
+        .filter(round => round.role !== 'system')
+        .map(serializeRound) as WsMessage[],
+      activeAgents: getActiveAgentsForSession(sessionId).map(agent => ({
+        ...agent,
+        startedAt:
+          agent.startedAt instanceof Date
+            ? agent.startedAt.toISOString()
+            : String(agent.startedAt),
+      })),
+      hasCompactedContext:
+        session.compactedContext != null &&
+        session.compactedContext !== undefined,
+    });
+
     const serializeRound = (round: ChatSessionRound) => ({
       role: round.role,
       messageKind: round.messageKind,
       content: round.content,
-      timestamp: round.timestamp,
+      timestamp:
+        round.timestamp instanceof Date
+          ? round.timestamp.toISOString()
+          : String(round.timestamp),
       senderName: round.senderName,
       toolCallData: round.toolCallData,
     });
@@ -178,7 +232,8 @@ const webUiPlugin: AlicePlugin = {
 
       const conversation = startConversation('chat', { sessionId: session.id });
       conversation.restoreContext(
-        restoreConversationMessages(session.rounds.getItems())
+        restoreConversationMessages(session.rounds.getItems()),
+        restoreCompactedContext(session.compactedContext)
       );
       cachedChatConversations.set(session.id, conversation);
       return conversation;
@@ -243,6 +298,16 @@ const webUiPlugin: AlicePlugin = {
 
       await em.flush();
       conversation.markUnsynchronizedMessagesSynchronized();
+
+      // Persist the compacted context so sessions can be restored with their
+      // compaction state intact — avoids re-compacting from scratch on reload.
+      // MikroORM's p.json() produces a Brand type; cast through unknown.
+      (
+        session as unknown as { compactedContext: string | null }
+      ).compactedContext = serializeCompactedContext(
+        conversation.compactedContext
+      );
+      await em.flush();
     };
 
     // Flush buffered tool call rounds into the DB before conversation messages so that
@@ -378,17 +443,7 @@ const webUiPlugin: AlicePlugin = {
         broadcastWs({
           type: 'session_updated',
           sessionId: session.id,
-          session: {
-            id: session.id,
-            title: session.title,
-            createdAt: session.createdAt.toISOString(),
-            updatedAt: session.updatedAt.toISOString(),
-            messages: session.rounds
-              .getItems()
-              .filter(round => round.role !== 'system')
-              .map(serializeRound),
-            activeAgents: getActiveAgentsForSession(session.id),
-          } as unknown as WsSession,
+          session: buildWsSession(session, session.id),
         });
       });
     };
@@ -1039,17 +1094,7 @@ const webUiPlugin: AlicePlugin = {
         broadcastWs({
           type: 'session_updated',
           sessionId: updatedSession.id,
-          session: {
-            id: updatedSession.id,
-            title: updatedSession.title,
-            createdAt: updatedSession.createdAt.toISOString(),
-            updatedAt: updatedSession.updatedAt.toISOString(),
-            messages: updatedSession.rounds
-              .getItems()
-              .filter(round => round.role !== 'system')
-              .map(serializeRound),
-            activeAgents: getActiveAgentsForSession(updatedSession.id),
-          } as unknown as WsSession,
+          session: buildWsSession(updatedSession, updatedSession.id),
         });
         void broadcastSessionsList();
       });
@@ -1182,6 +1227,80 @@ const webUiPlugin: AlicePlugin = {
         plugin.logger.log(`Chat session ${id} deleted successfully.`);
         void broadcastSessionsList();
         return;
+      });
+
+      app.post('/api/chat/:id/compact', async (req, res) => {
+        // Compacts the conversation context for the given session. The LLM
+        // summarizes older messages so the context window stays manageable.
+        // Supports ?mode=full (summarize everything) and ?mode=clear
+        // (summarize + evict summaries to memory). Default is "normal"
+        // (auto-threshold compaction).
+
+        const { id } = req.params;
+        const mode = (req.query.mode as string) || 'normal';
+        if (!['normal', 'full', 'clear'].includes(mode)) {
+          res.status(400).json({
+            error: 'Invalid compaction mode. Use "normal", "full", or "clear".',
+          });
+          return;
+        }
+
+        const parsedId = parseInt(id);
+        const em = orm.em.fork();
+        const session = await em.findOne(
+          ChatSession,
+          { id: parsedId },
+          { populate: ['rounds'] }
+        );
+        if (!session) {
+          res.status(404).json({ error: 'Chat session not found' });
+          return;
+        }
+
+        const result = await runSessionOperation(parsedId, async () => {
+          const em = orm.em.fork();
+          const queuedSession = await em.findOne(
+            ChatSession,
+            { id: parsedId },
+            { populate: ['rounds'] }
+          );
+          if (!queuedSession) {
+            throw new Error(
+              `Chat session ${parsedId} not found while compacting.`
+            );
+          }
+
+          const conversation = getOrCreateCachedConversation(queuedSession);
+          const didCompact = await conversation.compactContext(
+            mode as 'normal' | 'full' | 'clear'
+          );
+
+          if (didCompact) {
+            // MikroORM's p.json() produces a Brand type; cast through unknown.
+            (
+              queuedSession as unknown as { compactedContext: string | null }
+            ).compactedContext = serializeCompactedContext(
+              conversation.compactedContext
+            );
+            await em.flush();
+          }
+
+          return { didCompact, mode };
+        });
+
+        res.json({
+          sessionId: parsedId,
+          compacted: result.didCompact,
+          mode: result.mode,
+        });
+
+        if (result.didCompact) {
+          broadcastWs({
+            type: 'session_updated',
+            sessionId: parsedId,
+            session: buildWsSession(session, parsedId),
+          });
+        }
       });
 
       app.get('/api/extensions', async (_req, res) => {
