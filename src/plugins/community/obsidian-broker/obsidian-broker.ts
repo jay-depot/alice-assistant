@@ -527,6 +527,11 @@ const obsidianBrokerPlugin: AlicePlugin = {
       'scratch-files',
       'deleteScratchFile'
     );
+    plugin.addToolToConversationType(
+      'obsidian',
+      'personality-facets',
+      'embodyPersonalityFacet'
+    );
 
     plugin.registerTool({
       name: 'suggest_obsidian_edit',
