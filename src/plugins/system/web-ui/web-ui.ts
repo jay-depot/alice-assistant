@@ -8,7 +8,7 @@ import {
   AgentSystem,
   ToolCallEvents,
 } from '../../../lib.js';
-import { WebSocketServer, WebSocket } from 'ws';
+import { WebSocket } from 'ws';
 import type {
   WsServerMessage,
   WsToolCallEvent,
@@ -771,10 +771,9 @@ const webUiPlugin: AlicePlugin = {
       const orm = await onDatabaseReady(async orm => orm);
 
       // ── WebSocket server ────────────────────────────────────────────────────
-      const wss = new WebSocketServer({
-        server: restServe.server,
-        path: '/ws',
-      });
+      // Use the plugin engine's registerWebSocket() to get a noServer-mode
+      // WebSocketServer with automatic upgrade routing and cleanup.
+      const wss = plugin.registerWebSocket('/ws');
       const wsConnections = new Set<WebSocket>();
 
       broadcastWs = (msg: WsServerMessage): void => {

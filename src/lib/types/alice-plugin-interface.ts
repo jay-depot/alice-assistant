@@ -7,6 +7,7 @@ import {
   ConversationTypeDefinition,
   ConversationTypeId,
 } from '../conversation-types.js';
+import type { WebSocketServer } from 'ws';
 
 type AlicePluginDependency = {
   id: string;
@@ -143,6 +144,29 @@ export type AlicePluginInterface = {
     request: <T extends keyof PluginCapabilities>(
       pluginName: T
     ) => PluginCapabilities[T] | undefined;
+
+    /**
+     * Register a WebSocket server on the shared HTTP server. This is the ONLY
+     * supported way to create a WebSocket server — never construct a
+     * `WebSocketServer` with `{ server, path }` directly, as that causes
+     * `abortHandshake` corruption when multiple WSS instances share the same
+     * HTTP server.
+     *
+     * The returned `WebSocketServer` uses `noServer` mode with a manually
+     * routed upgrade handler. The plugin engine handles cleanup automatically
+     * on shutdown.
+     *
+     * Requires the `rest-serve` plugin as a dependency. Typically called
+     * inside `onAssistantAcceptsRequests` since the HTTP server must be
+     * available, but may also be called during the registration callback.
+     *
+     * @param path The URL path for WebSocket upgrade requests (e.g. '/my-ws').
+     *             Must start with '/' and must not conflict with paths registered
+     *             by other plugins.
+     * @returns A `WebSocketServer` instance in `noServer` mode. Add a
+     *          `'connection'` listener to handle incoming connections.
+     */
+    registerWebSocket: (path: string) => WebSocketServer;
   }>;
 };
 

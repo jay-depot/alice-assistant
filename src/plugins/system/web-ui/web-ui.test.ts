@@ -276,11 +276,15 @@ function createMockPluginInterface(initialSessions: ChatSessionRecord[] = []) {
         if (pluginId === 'rest-serve') {
           return {
             express: mockApp,
-            server: {},
+            server: {
+              on: vi.fn(),
+              off: vi.fn(),
+            },
           };
         }
         return undefined;
       },
+      registerWebSocket: vi.fn(() => mockWss),
     }),
   };
 }

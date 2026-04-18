@@ -97,6 +97,34 @@ import type { AlicePlugin } from './types/alice-plugin-interface.js';
 - The `memory` plugin owns database persistence. Other plugins should depend on `memory` rather than creating their own DB stacks.
 - Built-in plugins live in `src/plugins/system/` and `src/plugins/community/`. User plugins go in `~/.alice-assistant/user-plugins/`.
 
+### WebSocket Servers
+
+**Use `registerWebSocket(path)` from the plugin API to create WebSocket servers.** Never construct a `WebSocketServer` with `{ server, path }` or `{ noServer: true }` manually — the plugin engine handles upgrade routing and cleanup automatically.
+
+When multiple `WebSocketServer` instances use `{ server, path }`, they each add an `upgrade` listener on the HTTP server. The first one to fire calls `abortHandshake(socket, 400)` for non-matching paths, which writes an HTTP 400 response to the socket and destroys it. This silently corrupts the socket for any other `WebSocketServer` that tries to handle it, causing "Invalid frame header" / RSV1 errors and 1006 abnormal closures on the client.
+
+**Correct pattern (use the plugin API):**
+
+```typescript
+// Inside registerPlugin():
+const wss = plugin.registerWebSocket('/my-ws');
+
+wss.on('connection', ws => {
+  // handle connection
+});
+```
+
+**Wrong pattern (will break other WebSocket servers):**
+
+```typescript
+// ❌ NEVER DO THIS — abortHandshake corrupts the socket for non-matching paths
+const wss = new WebSocketServer({ server, path: '/my-path' });
+
+// ❌ ALSO NEVER DO THIS MANUALLY — use registerWebSocket() instead
+const wss = new WebSocketServer({ noServer: true });
+server.on('upgrade', (req, socket, head) => { ... });
+```
+
 ### Configuration
 
 - Main config: `~/.alice-assistant/alice.json`

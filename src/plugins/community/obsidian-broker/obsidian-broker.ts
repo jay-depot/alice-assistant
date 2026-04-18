@@ -1,7 +1,10 @@
 import Type from 'typebox';
-import { AlicePlugin, startConversation } from '../../../lib.js';
-import { WebSocketServer, WebSocket } from 'ws';
-import type { Server } from 'node:http';
+import {
+  AlicePlugin,
+  startConversation,
+  type Conversation,
+} from '../../../lib.js';
+import { WebSocket } from 'ws';
 
 // ── Shared types ──────────────────────────────────────────────────────────
 
@@ -95,7 +98,18 @@ const obsidianBrokerPlugin: AlicePlugin = {
 
     let activeNote: ObsidianNoteContent | null = null;
     const wsConnections = new Set<WebSocket>();
-    let wss: WebSocketServer | null = null;
+    let wss: import('ws').WebSocketServer | null = null;
+    let heartbeat: ReturnType<typeof setInterval> | null = null;
+
+    /**
+     * Long-running conversation for the Obsidian session. Unlike the web-ui
+     * which manages per-session conversations backed by a database, the
+     * Obsidian broker keeps a single in-memory conversation that persists
+     * across all chat messages. The existing compaction logic keeps the
+     * context window manageable, and `closeConversation()` is called during
+     * shutdown so the memory plugin captures all summaries.
+     */
+    let obsidianConversation: Conversation | null = null;
 
     // ── Conversation type ──────────────────────────────────────────────
 
@@ -116,36 +130,58 @@ const obsidianBrokerPlugin: AlicePlugin = {
       ].join('\n'),
     });
 
+    // ── REST endpoints ──────────────────────────────────────────────────
+
+    const restServe = plugin.request('rest-serve');
+    const app = restServe.express;
+
+    // CORS headers applied to all /obsidian/* REST responses.
+    const setCors = (res: { setHeader: (k: string, v: string) => void }) =>
+      res.setHeader('Access-Control-Allow-Origin', '*');
+
+    // Preflight (OPTIONS) handler for all /obsidian/* routes
+    app.use('/obsidian', (req, res, next) => {
+      setCors(res);
+      if (req.method === 'OPTIONS') {
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+        res.setHeader(
+          'Access-Control-Allow-Headers',
+          'Content-Type, Authorization'
+        );
+        res.setHeader('Access-Control-Max-Age', '86400');
+        res.status(204).send();
+        return;
+      }
+      next();
+    });
+
     // ── Offered API ─────────────────────────────────────────────────────
+
+    const sendEditSuggestion = (edit, reason) => {
+      const msg: WsObsidianServerMessage = {
+        type: 'edit_suggestion',
+        edit,
+        reason,
+      };
+      let delivered = false;
+      for (const ws of wsConnections) {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify(msg));
+          delivered = true;
+        }
+      }
+      return delivered;
+    };
 
     plugin.offer<'obsidian-broker'>({
       getActiveNoteContext: () => activeNote,
       isObsidianConnected: () => wsConnections.size > 0,
-      sendEditSuggestion: (edit, reason) => {
-        const msg: WsObsidianServerMessage = {
-          type: 'edit_suggestion',
-          edit,
-          reason,
-        };
-        let delivered = false;
-        for (const ws of wsConnections) {
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify(msg));
-            delivered = true;
-          }
-        }
-        return delivered;
-      },
+      sendEditSuggestion: sendEditSuggestion,
     });
-
-    // ── REST endpoints ──────────────────────────────────────────────────
-
-    const restServe = await plugin.request('rest-serve');
-    const app = restServe.express;
-    const server: Server = restServe.server;
 
     // Health / status check
     app.get('/obsidian/status', (_req, res) => {
+      setCors(res);
       res.json({
         connected: wsConnections.size > 0,
         activeNote: activeNote ? { filePath: activeNote.filePath } : null,
@@ -154,6 +190,7 @@ const obsidianBrokerPlugin: AlicePlugin = {
 
     // Get current note context (for polling clients or debugging)
     app.get('/obsidian/context', (_req, res) => {
+      setCors(res);
       if (!activeNote) {
         return res
           .status(404)
@@ -164,6 +201,7 @@ const obsidianBrokerPlugin: AlicePlugin = {
 
     // Push note context from Obsidian (for REST-only clients)
     app.post('/obsidian/context', (req, res) => {
+      setCors(res);
       const note = req.body as ObsidianNoteContent;
       if (!note.filePath || typeof note.content !== 'string') {
         return res.status(400).json({
@@ -184,7 +222,9 @@ const obsidianBrokerPlugin: AlicePlugin = {
         '[Obsidian Broker] onAssistantAcceptsRequests: Starting WebSocket server on /obsidian-ws.'
       );
 
-      wss = new WebSocketServer({ server, path: '/obsidian-ws' });
+      // Use the plugin engine's registerWebSocket() to get a noServer-mode
+      // WebSocketServer with automatic upgrade routing and cleanup.
+      wss = plugin.registerWebSocket('/obsidian-ws');
 
       wss.on('connection', ws => {
         wsConnections.add(ws);
@@ -192,28 +232,39 @@ const obsidianBrokerPlugin: AlicePlugin = {
           `[Obsidian Broker] Obsidian client connected. (${wsConnections.size} total)`
         );
 
-        // Acknowledge connection
-        const connectedMsg: WsObsidianServerMessage = {
-          type: 'connected',
-        };
-        ws.send(JSON.stringify(connectedMsg));
+        // Defer the initial connected message to the next event-loop tick.
+        // This ensures the client's onopen handler has fully completed
+        // before we start sending data. The web-ui does this implicitly
+        // because its initial send is inside an async IIFE that awaits
+        // a database query.
+        setImmediate(() => {
+          if (ws.readyState !== WebSocket.OPEN) return;
 
-        // If we already have note context, let the client know.
-        if (activeNote) {
-          const contextMsg: WsObsidianServerMessage = {
-            type: 'assistant_message',
-            content: `Active note context already loaded: ${activeNote.filePath}`,
+          const connectedMsg: WsObsidianServerMessage = {
+            type: 'connected',
           };
-          ws.send(JSON.stringify(contextMsg));
-        }
+          ws.send(JSON.stringify(connectedMsg));
+
+          // If we already have note context, let the client know.
+          if (activeNote) {
+            const contextMsg: WsObsidianServerMessage = {
+              type: 'assistant_message',
+              content: `Active note context already loaded: ${activeNote.filePath}`,
+            };
+            ws.send(JSON.stringify(contextMsg));
+          }
+        });
 
         ws.on('message', (data: Buffer) => {
           let msg: WsObsidianClientMessage;
           try {
             msg = JSON.parse(data.toString()) as WsObsidianClientMessage;
-          } catch {
+          } catch (parseErr) {
             plugin.logger.warn(
-              '[Obsidian Broker] Malformed WS message received.'
+              `[Obsidian Broker] Malformed WS message received (${data.length} bytes): ${data.toString('utf8').slice(0, 200)}`
+            );
+            plugin.logger.warn(
+              `[Obsidian Broker] Parse error: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`
             );
             return;
           }
@@ -246,7 +297,7 @@ const obsidianBrokerPlugin: AlicePlugin = {
               break;
 
             case 'pong':
-              // heartbeat response — nothing to do
+              // Application-level heartbeat response — nothing to do
               break;
 
             default:
@@ -256,20 +307,25 @@ const obsidianBrokerPlugin: AlicePlugin = {
           }
         });
 
-        ws.on('close', () => {
+        ws.on('close', (code: number, reason: Buffer) => {
           wsConnections.delete(ws);
           plugin.logger.log(
-            `[Obsidian Broker] Obsidian client disconnected. (${wsConnections.size} remaining)`
+            `[Obsidian Broker] Obsidian client disconnected. code=${code} reason=${reason.toString() || 'none'} (${wsConnections.size} remaining)`
           );
         });
 
-        ws.on('error', () => {
+        ws.on('error', err => {
+          plugin.logger.error(
+            `[Obsidian Broker] WebSocket error on client socket: ${err.message} (code=${(err as Error & { code?: string }).code ?? 'none'})`
+          );
           wsConnections.delete(ws);
         });
       });
 
-      // Heartbeat: ping all connections every 30s and prune dead ones.
-      const heartbeat = setInterval(() => {
+      // Heartbeat: send application-level ping to all connections every 30s
+      // and prune connections that are no longer open. The client responds with
+      // { type: 'pong' } which is handled above. This matches the web-ui pattern.
+      const heartbeatInterval = setInterval(() => {
         for (const ws of [...wsConnections]) {
           if (ws.readyState !== WebSocket.OPEN) {
             wsConnections.delete(ws);
@@ -279,10 +335,11 @@ const obsidianBrokerPlugin: AlicePlugin = {
           ws.send(JSON.stringify(ping));
         }
       }, 30_000);
+      heartbeat = heartbeatInterval;
 
       // Store cleanup reference
       wss.on('close', () => {
-        clearInterval(heartbeat);
+        clearInterval(heartbeatInterval);
       });
 
       plugin.logger.log(
@@ -292,19 +349,62 @@ const obsidianBrokerPlugin: AlicePlugin = {
 
     plugin.hooks.onAssistantWillStopAcceptingRequests(async () => {
       plugin.logger.log(
-        '[Obsidian Broker] onAssistantWillStopAcceptingRequests: Shutting down WebSocket server.'
+        '[Obsidian Broker] onAssistantWillStopAcceptingRequests: Shutting down.'
       );
+
+      // Close the persistent conversation first so the memory plugin can
+      // capture all summaries. This must happen before the WebSocket server
+      // is torn down — once the server is gone, no more plugin communication
+      // is possible, and the memory hook would silently fail.
+      if (obsidianConversation) {
+        plugin.logger.log(
+          '[Obsidian Broker] onAssistantWillStopAcceptingRequests: Closing conversation and persisting summaries to memory plugin.'
+        );
+        try {
+          await obsidianConversation.closeConversation();
+          plugin.logger.log(
+            '[Obsidian Broker] onAssistantWillStopAcceptingRequests: Conversation closed and summaries persisted.'
+          );
+        } catch (closeErr) {
+          plugin.logger.error(
+            '[Obsidian Broker] onAssistantWillStopAcceptingRequests: Error closing conversation:',
+            closeErr
+          );
+        }
+        obsidianConversation = null;
+      }
+
+      clearInterval(heartbeat!);
+      heartbeat = null;
       if (wss) {
-        // Close all connections
+        // Gracefully close all connections, then force-terminate stragglers
         for (const ws of wsConnections) {
           ws.close();
         }
-        wsConnections.clear();
-        wss.close();
+        // Give stragglers 5s to close gracefully, then terminate
+        const forceTimer = setTimeout(() => {
+          for (const ws of [...wsConnections]) {
+            if (ws.readyState !== WebSocket.CLOSED) {
+              plugin.logger.warn(
+                '[Obsidian Broker] Force-terminating unresponsive WebSocket connection.'
+              );
+              ws.terminate();
+            }
+          }
+          wsConnections.clear();
+        }, 5_000);
+
+        await new Promise<void>(resolve => {
+          wss!.close(() => {
+            clearTimeout(forceTimer);
+            wsConnections.clear();
+            resolve();
+          });
+        });
         wss = null;
       }
       plugin.logger.log(
-        '[Obsidian Broker] onAssistantWillStopAcceptingRequests: WebSocket server shut down.'
+        '[Obsidian Broker] onAssistantWillStopAcceptingRequests: Shutdown complete.'
       );
     });
 
@@ -314,9 +414,15 @@ const obsidianBrokerPlugin: AlicePlugin = {
       content: string,
       originatingWs: WebSocket
     ): Promise<void> {
-      const conversation = startConversation('obsidian');
+      // Lazily create the long-running conversation on first message.
+      if (!obsidianConversation) {
+        obsidianConversation = startConversation('obsidian');
+        plugin.logger.log(
+          '[Obsidian Broker] Created new persistent Obsidian conversation session.'
+        );
+      }
 
-      const response = await conversation.sendUserMessage(content);
+      const response = await obsidianConversation.sendUserMessage(content);
 
       const responseMsg: WsObsidianServerMessage = {
         type: 'assistant_message',
@@ -379,6 +485,49 @@ const obsidianBrokerPlugin: AlicePlugin = {
 
     const GetNoteContentParametersSchema = Type.Object({});
 
+    plugin.addToolToConversationType(
+      'obsidian',
+      'memory',
+      'recallPastConversations'
+    );
+    plugin.addToolToConversationType(
+      'obsidian',
+      'web-search-broker',
+      'webSearch'
+    );
+    plugin.addToolToConversationType('obsidian', 'skills', 'recallSkill');
+    plugin.addToolToConversationType(
+      'obsidian',
+      'proficiencies',
+      'recallProficiency'
+    );
+    plugin.addToolToConversationType('obsidian', 'news-broker', 'getNews');
+    plugin.addToolToConversationType(
+      'obsidian',
+      'scratch-files',
+      'readScratchFile'
+    );
+    plugin.addToolToConversationType(
+      'obsidian',
+      'scratch-files',
+      'writeScratchFile'
+    );
+    plugin.addToolToConversationType(
+      'obsidian',
+      'scratch-files',
+      'listScratchFiles'
+    );
+    plugin.addToolToConversationType(
+      'obsidian',
+      'scratch-files',
+      'appendScratchFile'
+    );
+    plugin.addToolToConversationType(
+      'obsidian',
+      'scratch-files',
+      'deleteScratchFile'
+    );
+
     plugin.registerTool({
       name: 'suggest_obsidian_edit',
       availableFor: ['obsidian'],
@@ -409,9 +558,7 @@ const obsidianBrokerPlugin: AlicePlugin = {
           originalText,
           replacementText,
         };
-        const delivered = plugin
-          .request('obsidian-broker')
-          .sendEditSuggestion(edit, reason);
+        const delivered = sendEditSuggestion(edit, reason);
         return JSON.stringify({
           success: delivered,
           message: delivered

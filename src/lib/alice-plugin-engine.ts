@@ -17,6 +17,11 @@ import { addConversationTypeToTool, addTool, hasTool } from './tools.js';
 import { exists, mkdir, writeFile } from './node/fs-promised.js';
 import path from 'node:path';
 import { readFile } from 'node:fs/promises';
+import { WebSocketServer } from 'ws';
+import type { Server } from 'node:http';
+import type { Duplex } from 'node:stream';
+import type { IncomingMessage } from 'node:http';
+import type { Express } from 'express';
 import { PluginHookInvocations } from './plugin-hooks.js';
 import {
   getConversationTypeOwner,
@@ -32,6 +37,11 @@ const registeredPlugins: Record<string, AlicePlugin> = {};
 const registeredHeaderPromptNames: Record<string, string> = {};
 const registeredFooterPromptNames: Record<string, string> = {};
 const registeredToolNames: Record<string, string> = {};
+const registeredWebSocketPaths: Record<string, string> = {};
+const registeredWebSocketServers: Array<{
+  wss: WebSocketServer;
+  upgradeHandler: (req: IncomingMessage, socket: Duplex, head: Buffer) => void;
+}> = [];
 const pendingConversationTypeToolLinks: Array<{
   requestingPluginId: string;
   conversationTypeId: string;
@@ -333,6 +343,62 @@ function createPluginInterface(
             },
           };
         },
+
+        registerWebSocket: (wsPath: string) => {
+          // Note: no assertRegistrationOpen check here. WebSocket servers
+          // are runtime resources tied to the HTTP server lifecycle, so
+          // they're typically registered inside onAssistantAcceptsRequests
+          // (after the initial registration callback has closed). The path
+          // conflict check below is sufficient validation.
+
+          if (!wsPath.startsWith('/')) {
+            throw new Error(
+              `Plugin ${pluginMetadata.id} attempted to register a WebSocket server with path "${wsPath}", but WebSocket paths must start with '/'. Disable ${pluginMetadata.id} to fix your assistant, or correct the path if you are developing this plugin.`
+            );
+          }
+
+          if (registeredWebSocketPaths[wsPath]) {
+            throw new Error(
+              `Plugin ${pluginMetadata.id} attempted to register a WebSocket server on path "${wsPath}", but that path is already registered by plugin ${registeredWebSocketPaths[wsPath]}. Disable one of these plugins to fix your assistant, or change the WebSocket path if you are developing one of these plugins.`
+            );
+          }
+
+          // Verify rest-serve is available
+          const restServe = pluginCapabilities['rest-serve'] as
+            | {
+                express: Express;
+                server: Server;
+              }
+            | undefined;
+
+          if (!restServe) {
+            throw new Error(
+              `Plugin ${pluginMetadata.id} attempted to register a WebSocket server, but the rest-serve plugin is not available. Add "rest-serve" as a dependency of ${pluginMetadata.id} to fix this.`
+            );
+          }
+
+          registeredWebSocketPaths[wsPath] = pluginMetadata.id;
+
+          const wss = new WebSocketServer({ noServer: true });
+
+          const upgradeHandler = (
+            req: IncomingMessage,
+            socket: Duplex,
+            head: Buffer
+          ) => {
+            if (req.url === wsPath) {
+              wss.handleUpgrade(req, socket, head, ws => {
+                wss.emit('connection', ws, req);
+              });
+            }
+            // Non-matching paths fall through to other upgrade listeners
+          };
+
+          restServe.server.on('upgrade', upgradeHandler);
+          registeredWebSocketServers.push({ wss, upgradeHandler });
+
+          return wss;
+        },
       };
     },
 
@@ -453,6 +519,28 @@ export const AlicePluginEngine = {
 
   getLoadedPlugins: () => {
     return loadedPlugins.map(plugin => plugin.pluginMetadata);
+  },
+
+  /**
+   * Remove all registered WebSocket upgrade handlers from the HTTP server
+   * and close all WebSocketServer instances. Called during shutdown to
+   * ensure clean teardown even if a plugin forgets to clean up.
+   */
+  cleanupWebSocketServers: () => {
+    const restServe = pluginCapabilities['rest-serve'] as
+      | {
+          express: Express;
+          server: Server;
+        }
+      | undefined;
+
+    if (restServe) {
+      for (const { wss, upgradeHandler } of registeredWebSocketServers) {
+        restServe.server.off('upgrade', upgradeHandler);
+        wss.close();
+      }
+    }
+    registeredWebSocketServers.length = 0;
   },
 
   // Future plans:
