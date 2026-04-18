@@ -201,6 +201,100 @@ export class Conversation {
     await this.appendToContext(message);
   }
 
+  /**
+   * Manually compact the conversation context.
+   *
+   * - `'normal'`: Summarize the oldest half of non-summary messages if context
+   *   exceeds 50% of the context window. Same as the automatic compaction that
+   *   runs after each message. Returns true if compaction occurred.
+   *
+   * - `'full'`: Summarize ALL non-summary messages into a single summary.
+   *   Useful before sleeping to minimize serialized state size.
+   *   Returns true if there were non-summary messages to summarize.
+   *
+   * - `'clear'`: Full compact, then evict all summary messages by firing
+   *   `onContextCompactionSummariesWillBeDeleted` so the memory plugin can
+   *   persist them. After clear, the compacted context contains only the
+   *   latest summary (if any non-summary messages existed). This is a
+   *   "fresh start" that preserves history in the memory plugin.
+   */
+  async compactContext(mode: 'normal' | 'full' | 'clear'): Promise<boolean> {
+    if (mode === 'normal') {
+      return this.maybeCompactContext();
+    }
+
+    if (mode === 'full' || mode === 'clear') {
+      const firstNonSummaryMessageIndex = this.compactedContext.findIndex(
+        m => !m.content.startsWith(SUMMARY_HEADER)
+      );
+
+      if (firstNonSummaryMessageIndex === -1) {
+        // Everything is already summaries
+        if (mode === 'clear' && this.compactedContext.length > 0) {
+          await PluginHookInvocations.invokeOnContextCompactionSummariesWillBeDeleted(
+            this.compactedContext
+          );
+          this.compactedContext = [];
+        }
+        return false;
+      }
+
+      const messagesToSummarize = this.compactedContext.slice(
+        firstNonSummaryMessageIndex
+      );
+
+      if (messagesToSummarize.length === 0) {
+        if (mode === 'clear' && firstNonSummaryMessageIndex > 0) {
+          await PluginHookInvocations.invokeOnContextCompactionSummariesWillBeDeleted(
+            this.compactedContext
+          );
+          this.compactedContext = [];
+        }
+        return false;
+      }
+
+      const summary = await Conversation.sendDirectRequest([
+        {
+          role: 'system',
+          content:
+            SUMMARY_PROMPT +
+            messagesToSummarize
+              .map(m => `${m.role.toUpperCase()}: ${m.content}`)
+              .join('\n\n'),
+        },
+      ]);
+
+      systemLogger.debug(`Conversation summary generated:\n${summary}`);
+
+      const newSummary: Message = {
+        role: 'system',
+        content: `${SUMMARY_HEADER} \n${new Date().toLocaleString()}\n\n${summary}`,
+      };
+
+      if (mode === 'full') {
+        this.compactedContext = [
+          ...this.compactedContext.slice(0, firstNonSummaryMessageIndex),
+          newSummary,
+        ];
+      } else {
+        // mode === 'clear'
+        // Evict all existing summaries + the new one to memory plugin
+        const allSummaries = [
+          ...this.compactedContext.slice(0, firstNonSummaryMessageIndex),
+          newSummary,
+        ];
+        await PluginHookInvocations.invokeOnContextCompactionSummariesWillBeDeleted(
+          allSummaries
+        );
+        this.compactedContext = [];
+      }
+
+      return true;
+    }
+
+    return false;
+  }
+
   private async appendToContext(message: Message) {
     this.rawContext.push(message);
     this.compactedContext.push(message);
@@ -273,6 +367,8 @@ export class Conversation {
           firstNonSummaryMessageIndex + messagesToSummarize.length
         ),
       ];
+
+      systemLogger.debug(`Conversation summary generated:\n${summary}`);
 
       // And now, we check if the compacted context is *still* too long. If it is, we're
       // going to fire off a hook invocation `onContextCompactionSummariesWillBeDeleted`

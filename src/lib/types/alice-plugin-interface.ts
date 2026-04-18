@@ -91,6 +91,10 @@ export type AlicePluginInterface = {
       definition: import('../agent-system.js').SessionLinkedAgentDefinition
     ) => { autoStartTool: Tool };
 
+    registerIndependentAgent: (
+      definition: import('../agent-system.js').IndependentAgentDefinition
+    ) => import('../agent-system.js').RegisteredIndependentAgentHandle;
+
     addToolToConversationType: (
       conversationTypeId: ConversationTypeId,
       pluginId: string,

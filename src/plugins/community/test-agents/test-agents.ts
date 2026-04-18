@@ -22,6 +22,10 @@ const AGENT_SCENARIO_PROMPT =
   'You are a no-op session-linked agent used only for plumbing tests. ' +
   'Immediately call agentReturnResult with a brief success summary and report.';
 
+const INDEPENDENT_AGENT_SCENARIO_PROMPT =
+  'You are a no-op independent agent used only for plumbing tests. ' +
+  'You should not perform any tool calls or side effects.';
+
 const testAgentsPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'test-agents',
@@ -114,6 +118,16 @@ const testAgentsPlugin: AlicePlugin = {
       scenarioPrompt: AGENT_SCENARIO_PROMPT,
     });
 
+    plugin.registerConversationType({
+      id: 'test-independent-agent',
+      name: 'Test Independent Agent Session',
+      description:
+        'A minimal independent agent conversation type reserved for runtime smoke tests.',
+      baseType: 'autonomy',
+      includePersonality: false,
+      scenarioPrompt: INDEPENDENT_AGENT_SCENARIO_PROMPT,
+    });
+
     plugin.addToolToConversationType(
       'test-session-linked-agent',
       'agents',
@@ -151,6 +165,46 @@ const testAgentsPlugin: AlicePlugin = {
     });
 
     plugin.registerTool(autoStartTool);
+
+    const independentAgent = plugin.registerIndependentAgent({
+      id: 'test-independent-agent',
+      name: 'Test Independent Agent',
+      description:
+        'A nearly no-op independent agent that exists only to prove runtime plumbing.',
+      conversationType: 'test-independent-agent',
+      start: async control => {
+        control.markRunning('Independent agent runtime is online.');
+        control.markSleeping('No work queued. Standing by for future tests.');
+      },
+      stop: async control => {
+        control.markSleeping('Stopping test independent agent.');
+      },
+      freeze: async () => {
+        return { testState: 'frozen-at-idle' };
+      },
+      thaw: async (_frozenState, control) => {
+        control.markSleeping('Thawed from checkpoint. Standing by.');
+      },
+      onPause: async () => {
+        // onPause is for cleanup (e.g. stopping timers), not state changes.
+        // The runtime transitions to 'paused' after onPause returns.
+      },
+      onResume: async control => {
+        control.markRunning('Resumed by supervisor.');
+      },
+      onSuspend: async () => {
+        // onSuspend is for cleanup (e.g. stopping timers), not state changes.
+        // The runtime transitions to 'sleeping' after onSuspend returns.
+      },
+    });
+
+    plugin.hooks.onAssistantAcceptsRequests(async () => {
+      await independentAgent.start();
+    });
+
+    plugin.hooks.onPluginsWillUnload(async () => {
+      await independentAgent.stop();
+    });
   },
 };
 
