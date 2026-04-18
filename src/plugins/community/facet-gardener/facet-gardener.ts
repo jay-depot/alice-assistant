@@ -368,9 +368,23 @@ const facetGardenerPlugin: AlicePlugin = {
 
         control.markRunning('Gardener woken by schedule or supervisor.');
 
-        // Clear context for a fresh start each wake cycle
+        // Clear context for a fresh start each wake cycle, evicting
+        // summaries to the memory plugin so they're persisted.
         if (conversation) {
-          await conversation.compactContext('clear');
+          try {
+            await conversation.compactContext('clear');
+          } catch (error) {
+            plugin.logger.log(
+              `[facet-gardener] onResume: Failed to compact context, starting fresh: ${error instanceof Error ? error.message : String(error)}`
+            );
+            // If compaction fails (e.g. LLM unavailable for summarization),
+            // start with a fresh conversation rather than letting the error
+            // kill the entire wake cycle.
+            const instance = control.getInstance();
+            conversation = startConversation('facet-gardener', {
+              agentInstanceId: instance.instanceId,
+            });
+          }
         } else {
           const instance = control.getInstance();
           conversation = startConversation('facet-gardener', {

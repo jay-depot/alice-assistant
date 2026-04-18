@@ -707,9 +707,23 @@ const moltbookAgentPlugin: AlicePlugin = {
 
         control.markRunning('Agent woken by schedule or supervisor.');
 
-        // Fully compact last session, but keep the summaries for some context
+        // Compact and evict last session's summaries to the memory plugin,
+        // then start fresh. This ensures conversation history is persisted
+        // to the memory database between wake cycles.
         if (conversation) {
-          await conversation.compactContext('full');
+          try {
+            await conversation.compactContext('clear');
+          } catch (error) {
+            plugin.logger.log(
+              `[moltbook-agent] onResume: Failed to compact context, starting fresh: ${error instanceof Error ? error.message : String(error)}`
+            );
+            // If compaction fails (e.g. LLM unavailable), start with a fresh
+            // conversation rather than letting the error kill the wake cycle.
+            const instance = control.getInstance();
+            conversation = startConversation('moltbook-agent', {
+              agentInstanceId: instance.instanceId,
+            });
+          }
         } else {
           const instance = control.getInstance();
           conversation = startConversation('moltbook-agent', {
