@@ -77,7 +77,7 @@ declare module '../../../lib.js' {
        * @param keywords
        * @returns
        */
-      saveMemory: (content: string) => Promise<void>;
+      saveMemory: (content: string, conversationType) => Promise<void>;
     };
   }
 }
@@ -95,7 +95,11 @@ export type MemoryPluginConfigSchema = Type.Static<
   typeof MemoryPluginConfigSchema
 >;
 
-async function saveMemory(orm: MikroORM, content: string) {
+async function saveMemory(
+  orm: MikroORM,
+  content: string,
+  conversationType: string
+) {
   const em = orm.em.fork();
   // Start by extracting keywords:
   const keywords = content.split(' ').filter(word => {
@@ -151,6 +155,7 @@ async function saveMemory(orm: MikroORM, content: string) {
     timestamp: new Date(),
     content,
     keywords: keywordEntities,
+    conversationType,
   });
   em.persist(memory);
 
@@ -208,9 +213,9 @@ const memoryPlugin: AlicePlugin = {
         const orm = await databaseReadyPromise;
         return callback(orm);
       },
-      saveMemory: async (content: string) => {
+      saveMemory: async (content: string, conversationType?: string) => {
         const orm = await databaseReadyPromise;
-        await saveMemory(orm, content);
+        await saveMemory(orm, content, conversationType);
       },
     });
 
@@ -295,20 +300,22 @@ const memoryPlugin: AlicePlugin = {
       },
     });
 
-    plugin.hooks.onContextCompactionSummariesWillBeDeleted(async summaries => {
-      const orm = await databaseReadyPromise;
-      for (const summary of summaries) {
-        // We do these serially because otherwise there might be a race condition
-        // creating the keyword entries. Making that atomic might be nice, but I
-        // don't think SQLite is *quite* that cool.
+    plugin.hooks.onContextCompactionSummariesWillBeDeleted(
+      async (summaries, conversationType) => {
+        const orm = await databaseReadyPromise;
+        for (const summary of summaries) {
+          // We do these serially because otherwise there might be a race condition
+          // creating the keyword entries. Making that atomic might be nice, but I
+          // don't think SQLite is *quite* that cool.
 
-        const contentWithoutHeader = summary.content.replace(
-          SUMMARY_HEADER,
-          ''
-        );
-        await saveMemory(orm, contentWithoutHeader);
+          const contentWithoutHeader = summary.content.replace(
+            SUMMARY_HEADER,
+            ''
+          );
+          await saveMemory(orm, contentWithoutHeader, conversationType);
+        }
       }
-    });
+    );
 
     plugin.registerHeaderSystemPrompt({
       name: 'memoryHeader',
@@ -345,7 +352,8 @@ const memoryPlugin: AlicePlugin = {
         }
 
         const memoryStrings = memories.map(
-          m => `##${m.timestamp.toLocaleString()}\n${m.content}\n`
+          m =>
+            `##${m.timestamp.toLocaleString()} ${m.conversationType}\n${m.content}\n`
         );
 
         return (

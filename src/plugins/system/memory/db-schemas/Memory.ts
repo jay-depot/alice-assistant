@@ -8,6 +8,7 @@ const MemorySchema = defineEntity({
     timestamp: p.datetime(),
     content: p.string(),
     keywords: () => p.manyToMany(Keyword).mappedBy('memories'),
+    conversationType: p.string().nullable(),
   },
 });
 
