@@ -397,16 +397,19 @@ export class Conversation {
   }
 
   async sendUserMessage(userMessage?: string): Promise<string> {
+    const availableTools = getTools(this.type).map(t => t.name);
     const headerPrompts = await getHeaderPrompts({
       conversationType: this.type,
       sessionId: this.sessionId,
       taskAssistantId: this.taskAssistantId,
       toolCallsAllowed: true,
+      availableTools,
     });
     const footerPrompts = await getFooterPrompts({
       conversationType: this.type,
       sessionId: this.sessionId,
       taskAssistantId: this.taskAssistantId,
+      availableTools,
     });
 
     if (userMessage) {
@@ -481,10 +484,12 @@ export class Conversation {
       getConversationTypeDefinition(this.type)?.maxToolCallDepth ??
       MAX_TOOL_CALL_DEPTH;
     const callsStillAllowed = depth < maxToolCallDepth;
+    const availableTools = getTools(this.type).map(t => t.name);
     const footerPrompts = await getFooterPrompts({
       conversationType: this.type,
       sessionId: this.sessionId,
       taskAssistantId: this.taskAssistantId,
+      availableTools,
     });
     const promptIfCallsAvailable = ` - If you need to make another tool call, make it now. Otherwise, answer the user's query in character. You have ${maxToolCallDepth - depth} remaining recursive tool calls you may make regarding this user query.`;
     const promptIfNoCallsAvailable =
@@ -508,6 +513,7 @@ export class Conversation {
       sessionId: this.sessionId,
       taskAssistantId: this.taskAssistantId,
       toolCallsAllowed: callsStillAllowed,
+      availableTools,
     });
     if (toolCalls && toolCalls.length > 0) {
       if (!callsStillAllowed) {

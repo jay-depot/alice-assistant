@@ -51,13 +51,24 @@ const troubleshootingPlugin: AlicePlugin = {
     plugin.registerFooterSystemPrompt({
       name: 'troubleshootingFooter',
       weight: 0,
-      getPrompt: () =>
-        'If you are experiencing issues, you can use the "getAssistantDebugInfo" tool ' +
-        "to get more information about your assistant's configuration and loaded plugins. This " +
-        'information can be helpful for troubleshooting and debugging.\n\n' +
-        'If you have access to the internet, you can also reference the file at ' +
-        'https://raw.githubusercontent.com/jay-depot/alice-assistant/main/ALICE.md for information ' +
-        'that may help you help your user.',
+      getPrompt: context => {
+        if (
+          !context ||
+          !context.availableTools?.length ||
+          !context.availableTools?.includes('getAssistantDebugInfo')
+        ) {
+          return false;
+        }
+
+        return (
+          'If you are experiencing issues, you can use the "getAssistantDebugInfo" tool ' +
+          "to get more information about your assistant's configuration and loaded plugins. This " +
+          'information can be helpful for troubleshooting and debugging.\n\n' +
+          'If you have access to the internet, you can also reference the file at ' +
+          'https://raw.githubusercontent.com/jay-depot/alice-assistant/main/ALICE.md for information ' +
+          'that may help you help your user.'
+        );
+      },
     });
   },
 };

@@ -7,6 +7,8 @@ export type DynamicPromptContext = {
   toolCallsAllowed?: boolean;
   /** Set when this context is for a task assistant conversation. */
   taskAssistantId?: string;
+  /** Names of tools available for the current conversation type. */
+  availableTools?: string[];
 };
 
 export type DynamicPrompt = {

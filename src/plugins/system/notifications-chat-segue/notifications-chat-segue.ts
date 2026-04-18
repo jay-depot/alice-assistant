@@ -68,6 +68,14 @@ const notificationsConversationPlugin: AlicePlugin = {
           return false;
         }
 
+        if (
+          !context ||
+          !context.availableTools?.length ||
+          !context.availableTools?.includes('markNotificationsDelivered')
+        ) {
+          return false;
+        }
+
         const orm = await awaitForOrm;
         const em = orm.em.fork();
         const pendingNotifications = await em.find(

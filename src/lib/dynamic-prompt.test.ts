@@ -76,6 +76,50 @@ describe('processDynamicPrompts', () => {
     expect(received[0]).toBe(context);
   });
 
+  it('passes availableTools through to getPrompt', async () => {
+    const received: DynamicPromptContext[] = [];
+    const prompts: DynamicPrompt[] = [
+      {
+        weight: 1,
+        name: 'spy',
+        getPrompt: ctx => {
+          received.push(ctx);
+          return 'ok';
+        },
+      },
+    ];
+    const contextWithTools: DynamicPromptContext = {
+      conversationType: 'chat',
+      availableTools: ['recallSkill', 'recallProficiency'],
+    };
+    await processDynamicPrompts(contextWithTools, prompts);
+    expect(received[0].availableTools).toEqual([
+      'recallSkill',
+      'recallProficiency',
+    ]);
+  });
+
+  it('allows getPrompt to gate on availableTools', async () => {
+    const prompts: DynamicPrompt[] = [
+      {
+        weight: 1,
+        name: 'gated',
+        getPrompt: ctx =>
+          ctx.availableTools?.includes('recallSkill') ? 'visible' : false,
+      },
+    ];
+    const withTool: DynamicPromptContext = {
+      conversationType: 'chat',
+      availableTools: ['recallSkill'],
+    };
+    const withoutTool: DynamicPromptContext = {
+      conversationType: 'chat',
+      availableTools: [],
+    };
+    expect(await processDynamicPrompts(withTool, prompts)).toEqual(['visible']);
+    expect(await processDynamicPrompts(withoutTool, prompts)).toEqual([]);
+  });
+
   it('returns a single prompt unchanged', async () => {
     const prompts: DynamicPrompt[] = [
       { weight: 0, name: 'only', getPrompt: () => 'solo' },
