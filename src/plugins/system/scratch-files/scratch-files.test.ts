@@ -265,15 +265,21 @@ describe('listScratchFiles', () => {
 // ---------------------------------------------------------------------------
 
 describe('updateScratchFile', () => {
+  type UpdateScratchFileArgs = {
+    filename: string;
+    format: 'full' | 'diff';
+    contents: string;
+  };
+
   let tmpDir: string;
   let config: ScratchFilesPluginConfigSchema;
-  let execute: (args: any) => Promise<string>;
+  let execute: (args: UpdateScratchFileArgs) => Promise<string>;
 
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'alice-scratch-'));
     config = makeConfig({ scratchDirectory: tmpDir });
     execute = updateScratchFileTool(config).execute as (
-      args: any
+      args: UpdateScratchFileArgs
     ) => Promise<string>;
   });
 
@@ -332,7 +338,7 @@ describe('updateScratchFile', () => {
       maxFileSizeKB: 1,
     });
     const smallExecute = updateScratchFileTool(smallConfig).execute as (
-      args: any
+      args: UpdateScratchFileArgs
     ) => Promise<string>;
     const result = await smallExecute({
       filename: 'large.txt',
