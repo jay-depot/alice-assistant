@@ -131,6 +131,7 @@ async function saveMemory(
   const keywords = content
     .split(' ')
     .map(word => word.toLowerCase())
+    .map(word => word.replace(/[^a-zA-Z0-9]/g, ''))
     .filter(word => {
       // Filter out common words, articles, pronouns, and other "filler" words that aren't useful as keywords.
       // This is a very naive implementation, and could be improved with a more sophisticated NLP approach, but it should work decently for now.
@@ -139,7 +140,6 @@ async function saveMemory(
       }
       return true;
     })
-    .map(word => word.replace(/[^a-zA-Z0-9]/g, ''))
     .map(word => lancasterStemmer(word.trim()));
 
   const keywordEntities = [];
