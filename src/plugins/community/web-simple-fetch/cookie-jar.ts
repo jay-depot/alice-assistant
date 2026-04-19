@@ -1,3 +1,5 @@
+import { createPluginLogger } from '../../../lib/plugin-logger.js';
+
 type CookieRecord = {
   value: string;
   expires?: Date;
@@ -6,8 +8,6 @@ type CookieRecord = {
   secure?: boolean;
   httpOnly?: boolean;
 };
-
-import { createPluginLogger } from '../../../lib/plugin-logger.js';
 
 const logger = createPluginLogger('web-simple-fetch');
 

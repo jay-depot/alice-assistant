@@ -249,13 +249,18 @@ function registerRestRoutes(
   app.get('/api/google-apis/config', async (_req, res) => {
     try {
       const pluginConfig = config.getPluginConfig();
+      // Check vault first (where the web UI stores them), then static config
+      const vaultDefaults =
+        await accountStore.loadClientCredentials('_default');
       const hasDefaultCredentials = !!(
-        pluginConfig.clientId && pluginConfig.clientSecret
+        vaultDefaults ??
+        (pluginConfig.clientId && pluginConfig.clientSecret)
       );
+      const activeClientId = vaultDefaults?.clientId ?? pluginConfig.clientId;
       res.json({
         hasDefaultCredentials,
-        clientIdPreview: pluginConfig.clientId
-          ? `${pluginConfig.clientId.slice(0, 8)}...`
+        clientIdPreview: activeClientId
+          ? `${activeClientId.slice(0, 8)}...`
           : null,
         redirectUri: `http://127.0.0.1:${pluginConfig.redirectPort ?? 47153}/api/google-apis/oauth/callback`,
       });

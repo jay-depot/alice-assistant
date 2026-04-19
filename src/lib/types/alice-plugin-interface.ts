@@ -1,9 +1,9 @@
-import { TSchema } from 'typebox';
-import { DynamicPrompt } from '../dynamic-prompt.js';
-import { Tool } from '../tool-system.js';
-import { SystemConfigFull } from './system-config-full.js';
-import { AlicePluginHooks } from './alice-plugin-hooks.js';
-import {
+import type { TSchema } from 'typebox';
+import type { DynamicPrompt } from '../dynamic-prompt.js';
+import type { Tool } from '../tool-system.js';
+import type { SystemConfigFull } from './system-config-full.js';
+import type { AlicePluginHooks } from './alice-plugin-hooks.js';
+import type {
   ConversationTypeDefinition,
   ConversationTypeId,
 } from '../conversation-types.js';

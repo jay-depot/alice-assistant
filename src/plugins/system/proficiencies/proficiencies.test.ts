@@ -525,7 +525,7 @@ describe('proficienciesPlugin', () => {
     expect(row?.contents).toBe('Replaced.');
   });
 
-  it('updateProficiency appends contents when append is true', async () => {
+  it('updateProficiency replaces contents when format is full', async () => {
     const now = new Date();
     mockInterface = createMockPluginInterface({
       initialRows: [
@@ -548,10 +548,12 @@ describe('proficienciesPlugin', () => {
     const tool = mockInterface.registeredTools.find(
       t => t.name === 'updateProficiency'
     );
+    // Use format=full to replace contents (simulating the old append: true behavior
+    // is now done via format=full with the combined text)
     await tool.execute({
       proficiencyName: 'Notes',
-      contents: 'Appended.',
-      append: true,
+      contents: 'Original.\nAppended.',
+      format: 'full',
     });
 
     const row = mockInterface.orm.rows.find(r => r.normalizedName === 'notes');

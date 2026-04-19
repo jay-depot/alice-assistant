@@ -3,6 +3,7 @@ import { Static, Type } from 'typebox';
 import path from 'node:path';
 import { AlicePlugin } from '../../../lib.js';
 import { ProficienciesEntry } from './db-schemas/ProficienciesEntry.js';
+import { resolveContents } from '../../../lib/diff-resolver.js';
 
 const DAYS = 1000 * 60 * 60 * 24;
 
@@ -50,13 +51,21 @@ const UpdateProficiencyParametersSchema = Type.Object({
     Type.String({ description: 'Updated recall trigger for the proficiency.' })
   ),
   contents: Type.Optional(
-    Type.String({ description: 'Updated proficiency contents.' })
-  ),
-  append: Type.Optional(
-    Type.Boolean({
-      description:
-        'Whether to append the provided contents to the existing contents instead of replacing them. Defaults to false.',
+    Type.String({
+      description: 'Updated proficiency contents (full or diff format).',
     })
+  ),
+  format: Type.Optional(
+    Type.Union([
+      Type.Literal('full', {
+        description:
+          'The contents field contains the complete new proficiency contents.',
+      }),
+      Type.Literal('diff', {
+        description:
+          'The contents field contains a unified diff patch to apply to the existing contents.',
+      }),
+    ])
   ),
 });
 
@@ -356,11 +365,19 @@ const proficienciesPlugin: AlicePlugin = {
           }
 
           if (args.contents !== undefined) {
-            if (args.append) {
-              entry.contents = `${entry.contents}\n${args.contents}`;
-            } else {
-              entry.contents = args.contents;
+            const format = args.format ?? 'full';
+            const resolved = resolveContents(
+              entry.contents,
+              format,
+              args.contents
+            );
+            if (resolved.ok === false) {
+              return (
+                `ERROR: ${resolved.message} ` +
+                `THE UPDATE WAS REJECTED.\nUse format=full to replace the entire proficiency instructions, or re-recall the proficiency to create an accurate diff.`
+              );
             }
+            entry.contents = resolved.contents;
           }
 
           const now = new Date();

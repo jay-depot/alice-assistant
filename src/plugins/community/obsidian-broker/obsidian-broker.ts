@@ -510,17 +510,12 @@ const obsidianBrokerPlugin: AlicePlugin = {
     plugin.addToolToConversationType(
       'obsidian',
       'scratch-files',
-      'writeScratchFile'
+      'updateScratchFile'
     );
     plugin.addToolToConversationType(
       'obsidian',
       'scratch-files',
       'listScratchFiles'
-    );
-    plugin.addToolToConversationType(
-      'obsidian',
-      'scratch-files',
-      'appendScratchFile'
     );
     plugin.addToolToConversationType(
       'obsidian',

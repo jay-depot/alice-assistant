@@ -14,6 +14,7 @@ import {
   PersonalityFacetsSessionState,
 } from './db-schemas/index.js';
 import { STARTER_FACET_DEFINITIONS } from './seed-facets.js';
+import { resolveContents } from '../../../lib/diff-resolver.js';
 
 // ---------------------------------------------------------------------------
 // Offered API types
@@ -100,11 +101,18 @@ const UpdatePersonalityFacetToolParametersSchema = Type.Object({
     description:
       'The instructions for this personality facet. These should be written in markdown and should include any information about the facet that the assistant should know when embodying it, such as its tone, style of speaking, attitudes, and any other relevant information.',
   }),
-  appendInstructions: Type.Boolean({
-    default: false,
-    description:
-      'If true and a facet with the given name already exists, the provided instructions will be appended to the existing instructions instead of replacing them. This allows you to iteratively build up the contents of a facet over multiple updates.',
-  }),
+  format: Type.Optional(
+    Type.Union([
+      Type.Literal('full', {
+        description:
+          'The instructions field contains the complete new facet instructions.',
+      }),
+      Type.Literal('diff', {
+        description:
+          'The instructions field contains a unified diff patch to apply to the existing facet instructions.',
+      }),
+    ])
+  ),
 });
 
 const EmbodyFacetToolParametersSchema = Type.Object({
@@ -233,7 +241,7 @@ const personalityFacetsPlugin: AlicePlugin = {
       const facetName = params.facetName?.trim();
       const embodyWhen = params.embodyWhen?.trim();
       const instructions = params.instructions?.trim();
-      const appendInstructions = params.appendInstructions;
+      const format = params.format ?? 'full';
 
       if (!facetName) {
         throw new Error('Facet name cannot be empty.');
@@ -260,9 +268,17 @@ const personalityFacetsPlugin: AlicePlugin = {
         if (embodyWhen) {
           existingFacet.embodyWhen = embodyWhen;
         }
-        existingFacet.instructions = appendInstructions
-          ? `${existingFacet.instructions}\n${instructions}`
-          : instructions;
+        const resolved = resolveContents(
+          existingFacet.instructions,
+          format,
+          instructions
+        );
+        if (resolved.ok === false) {
+          throw new Error(
+            `THE UPDATE WAS REJECTED.\n${resolved.message}\nUse format=full to replace the entire facet instructions or embody/examine the facet to create an accurate diff.`
+          );
+        }
+        existingFacet.instructions = resolved.contents;
         existingFacet.updatedAt = now;
         await em.flush();
         return 'updated';
@@ -274,10 +290,19 @@ const personalityFacetsPlugin: AlicePlugin = {
         );
       }
 
+      // When creating, original is empty string — resolve through diff resolver
+      // to handle both full replacement and diff-patch-to-empty cases
+      const resolved = resolveContents('', format, instructions);
+      if (resolved.ok === false) {
+        throw new Error(
+          `THE UPDATE WAS REJECTED.\n${resolved.message}\nUse format=full to provide the full facet instructions.`
+        );
+      }
+
       em.create(PersonalityFacetsFacetDefinition, {
         name: facetName,
         embodyWhen,
-        instructions,
+        instructions: resolved.contents,
         createdAt: now,
         updatedAt: now,
       });
@@ -411,7 +436,11 @@ const personalityFacetsPlugin: AlicePlugin = {
       name: 'updatePersonalityFacet',
       availableFor: ['autonomy', 'chat', 'voice'],
       description:
-        'Create a new personality facet or update an existing one when you need a reusable situational mode with specific tone, style, or behavioral guidance.',
+        'Create a new personality facet or update an existing one when you need a reusable ' +
+        'situational mode with specific tone, style, or behavioral guidance. If `format` ' +
+        'is "full", the full instruction text will be replaced. If `format` is "diff" ' +
+        'then the instructions field will be treated as a unified diff to apply to the ' +
+        'existing instructions. If you provide an invalid diff, your update will be rejected.',
       parameters: UpdatePersonalityFacetToolParametersSchema,
       systemPromptFragment: '',
       toolResultPromptIntro: '',

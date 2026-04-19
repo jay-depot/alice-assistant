@@ -196,6 +196,44 @@ describe('AccountStore', () => {
     expect(creds).toBeUndefined();
   });
 
+  it('resolveClientCredentials returns per-account credentials when present', async () => {
+    await accountStore.saveClientCredentials(
+      '_default',
+      'default-cid',
+      'default-csec'
+    );
+    await accountStore.saveClientCredentials(
+      'personal',
+      'personal-cid',
+      'personal-csec'
+    );
+
+    const creds = await accountStore.resolveClientCredentials('personal');
+    expect(creds).toEqual({
+      clientId: 'personal-cid',
+      clientSecret: 'personal-csec',
+    });
+  });
+
+  it('resolveClientCredentials falls back to _default when per-account missing', async () => {
+    await accountStore.saveClientCredentials(
+      '_default',
+      'default-cid',
+      'default-csec'
+    );
+
+    const creds = await accountStore.resolveClientCredentials('personal');
+    expect(creds).toEqual({
+      clientId: 'default-cid',
+      clientSecret: 'default-csec',
+    });
+  });
+
+  it('resolveClientCredentials returns undefined when nothing is available', async () => {
+    const creds = await accountStore.resolveClientCredentials('unknown');
+    expect(creds).toBeUndefined();
+  });
+
   it('deletes an account and removes all vault keys', async () => {
     await accountStore.saveTokenSet('personal', {
       refreshToken: 'rt-123',
@@ -311,6 +349,26 @@ describe('OAuthManager', () => {
     await expect(noCredsManager.initiateFlow('test')).rejects.toThrow(
       'No OAuth client credentials configured'
     );
+  });
+
+  it('uses _default vault credentials when no per-account or config credentials exist', async () => {
+    // Store credentials in the vault under _default (what the web UI does)
+    await accountStore.saveClientCredentials(
+      '_default',
+      'vault-cid',
+      'vault-csec'
+    );
+
+    // Create an OAuthManager with NO static config credentials
+    const vaultOnlyManager = new OAuthManager(
+      accountStore,
+      { clientId: undefined, clientSecret: undefined, redirectPort: 47153 },
+      mockLogger
+    );
+
+    // This should succeed by finding the _default vault credentials
+    const url = await vaultOnlyManager.initiateFlow('personal');
+    expect(url).toContain('accounts.google.com');
   });
 
   it('lists accounts from the underlying AccountStore', () => {

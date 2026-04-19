@@ -101,12 +101,12 @@ describe('scratchFilesPlugin', () => {
     });
   });
 
-  it('registers 5 tools', async () => {
+  it('registers 4 tools', async () => {
     const mockInterface = createMockPluginInterface();
     await scratchFilesPlugin.registerPlugin(
       mockInterface as unknown as AlicePluginInterface
     );
-    expect(mockInterface.registeredTools).toHaveLength(5);
+    expect(mockInterface.registeredTools).toHaveLength(4);
   });
 
   it('registers all expected tool names', async () => {
@@ -115,10 +115,9 @@ describe('scratchFilesPlugin', () => {
       mockInterface as unknown as AlicePluginInterface
     );
     const names = mockInterface.registeredTools.map(t => t.name);
-    expect(names).toContain('writeScratchFile');
+    expect(names).toContain('updateScratchFile');
     expect(names).toContain('readScratchFile');
     expect(names).toContain('deleteScratchFile');
-    expect(names).toContain('appendScratchFile');
     expect(names).toContain('listScratchFiles');
   });
 });

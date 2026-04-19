@@ -80,18 +80,13 @@ const googleLocationPlugin: AlicePlugin = {
 
     const { registerLocationProvider } = locationBroker;
 
-    plugin.hooks.onAllPluginsLoaded(async () => {
-      plugin.logger.log(
-        'onAllPluginsLoaded: Registering as a location provider.'
+    plugin.logger.log('Registering as a location provider.');
+    registerLocationProvider('google-location', async () => {
+      return getLocationData(
+        googleApis,
+        config.getPluginConfig(),
+        plugin.logger
       );
-
-      registerLocationProvider('google-location', async () => {
-        return getLocationData(
-          googleApis,
-          config.getPluginConfig(),
-          plugin.logger
-        );
-      });
     });
   },
 };

@@ -1,4 +1,4 @@
-import Type from 'typebox';
+import { Type } from 'typebox';
 import { AlicePlugin } from '../../../lib.js';
 import { type LightpandaFetchOptions, lightpanda } from '@lightpanda/browser';
 

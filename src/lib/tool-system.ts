@@ -11,8 +11,7 @@ type OllamaRequestToolsPropItem = {
   type: 'function';
   function: {
     name: string;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Temporary until typebox is added
-    parameters: Record<string, any>; // TODO Since this is a JSON schema, we may as well use typebox to generate them easily
+    parameters: TSchema;
     description: string;
   };
 };

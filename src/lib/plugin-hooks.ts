@@ -64,8 +64,6 @@ const isRegistrationOpenForHook = {
   onUserConversationWillBegin: true,
   onUserConversationWillEnd: true,
   onContextCompactionSummariesWillBeDeleted: true,
-  onSystemPluginsLoaded: true,
-  onUserPluginsWillLoad: true,
   onAllPluginsLoaded: true,
   onAssistantWillAcceptRequests: true,
   onAssistantAcceptsRequests: true,

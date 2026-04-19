@@ -98,8 +98,8 @@ function buildScenarioPrompt(config: MoltbookAgentConfig): string {
     '2. Check if you have a scratch file called `moltbook-personality-patch.txt` by ' +
       'calling readScratchFile. If it exists, read it and apply the personality patch ' +
       'instructions to your behavior on Moltbook. If it does not exist, create it with ' +
-      'writeScratchFile and add initial notes about how you plan to reconcile your ' +
-      'usual personality with Moltbook norms.',
+      'updateScratchFile (format=full) and add initial notes about how you plan to reconcile ' +
+      'your usual personality with Moltbook norms.',
     '',
     '## YOUR PROCESS',
     '',
@@ -596,12 +596,7 @@ const moltbookAgentPlugin: AlicePlugin = {
     plugin.addToolToConversationType(
       'moltbook-agent',
       'scratch-files',
-      'writeScratchFile'
-    );
-    plugin.addToolToConversationType(
-      'moltbook-agent',
-      'scratch-files',
-      'appendScratchFile'
+      'updateScratchFile'
     );
     plugin.addToolToConversationType(
       'moltbook-agent',

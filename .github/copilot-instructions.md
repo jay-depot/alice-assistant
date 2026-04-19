@@ -345,7 +345,7 @@ import type { AlicePlugin } from './types/alice-plugin-interface.js';
 
 - Keep code compatible with strict TypeScript and the existing ESLint rules.
 - Use Typebox schemas for plugin config and tool parameters.
-- MikroORM decorators are enabled.
+- MikroORM decorators are disabled, and no longer the preffered way to use MikroORM.
 - Avoid `any` where practical.
 
 ### Error Handling in Plugins

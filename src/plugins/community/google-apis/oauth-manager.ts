@@ -118,11 +118,12 @@ export class OAuthManager {
     // Ensure the account exists in our store
     this.accountStore.registerAccount(accountId);
 
-    // Resolve client credentials: per-account first, then plugin config defaults
-    const perAccount = await this.accountStore.loadClientCredentials(accountId);
-    const clientId = perAccount?.clientId ?? this.config.clientId ?? '';
+    // Resolve client credentials: per-account vault → _default vault → plugin config
+    const resolved =
+      await this.accountStore.resolveClientCredentials(accountId);
+    const clientId = resolved?.clientId ?? this.config.clientId ?? '';
     const clientSecret =
-      perAccount?.clientSecret ?? this.config.clientSecret ?? '';
+      resolved?.clientSecret ?? this.config.clientSecret ?? '';
 
     if (!clientId || !clientSecret) {
       throw new Error(
@@ -237,17 +238,17 @@ export class OAuthManager {
     });
 
     // Store the client credentials in the vault if they aren't already there.
-    // We read them from the per-account store or fall back to config defaults.
+    // We read them from the resolved chain (per-account → _default → config).
     const perAccount = await this.accountStore.loadClientCredentials(accountId);
     if (!perAccount) {
       // Per-account credentials don't exist yet — save the resolved ones
-      const clientId = this.config.clientId ?? '';
-      const clientSecret = this.config.clientSecret ?? '';
-      if (clientId && clientSecret) {
+      const resolved =
+        await this.accountStore.resolveClientCredentials(accountId);
+      if (resolved) {
         await this.accountStore.saveClientCredentials(
           accountId,
-          clientId,
-          clientSecret
+          resolved.clientId,
+          resolved.clientSecret
         );
       }
     }
@@ -318,10 +319,11 @@ export class OAuthManager {
     }
 
     // Build a new client from stored credentials
-    const perAccount = await this.accountStore.loadClientCredentials(accountId);
-    const clientId = perAccount?.clientId ?? this.config.clientId ?? '';
+    const resolved =
+      await this.accountStore.resolveClientCredentials(accountId);
+    const clientId = resolved?.clientId ?? this.config.clientId ?? '';
     const clientSecret =
-      perAccount?.clientSecret ?? this.config.clientSecret ?? '';
+      resolved?.clientSecret ?? this.config.clientSecret ?? '';
 
     if (!clientId || !clientSecret) {
       this.logger.warn(

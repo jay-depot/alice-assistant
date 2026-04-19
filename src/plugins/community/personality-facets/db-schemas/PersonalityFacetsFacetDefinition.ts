@@ -14,16 +14,7 @@ const PersonalityFacetsFacetDefinitionSchema = defineEntity({
 });
 
 export class PersonalityFacetsFacetDefinition
-  extends PersonalityFacetsFacetDefinitionSchema.class
-{
-  declare id: number;
-  declare name: string;
-  declare embodyWhen: string;
-  declare instructions: string;
-  declare createdAt: Date;
-  declare updatedAt: Date;
-  declare lastEmbodiedAt: Date | null;
-}
+  extends PersonalityFacetsFacetDefinitionSchema.class {}
 
 PersonalityFacetsFacetDefinitionSchema.setClass(
   PersonalityFacetsFacetDefinition

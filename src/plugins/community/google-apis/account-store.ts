@@ -225,6 +225,26 @@ export class AccountStore {
   }
 
   /**
+   * Resolve client credentials for an account, falling back to the
+   * `_default` vault entry if the account doesn't have its own.
+   *
+   * This is the primary method consumers should use — it mirrors the
+   * resolution chain: per-account vault → `_default` vault.
+   */
+  async resolveClientCredentials(
+    accountId: string
+  ): Promise<{ clientId: string; clientSecret: string } | undefined> {
+    // Per-account credentials take priority
+    const perAccount = await this.loadClientCredentials(accountId);
+    if (perAccount) {
+      return perAccount;
+    }
+
+    // Fall back to the `_default` account credentials stored via the web UI
+    return this.loadClientCredentials('_default');
+  }
+
+  /**
    * Persist profile information (email, display name) to the vault
    * and update the in-memory account.
    */

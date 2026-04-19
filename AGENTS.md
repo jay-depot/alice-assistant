@@ -66,7 +66,6 @@ import type { AlicePlugin } from './types/alice-plugin-interface.js';
 
 - Target: ES2022, Module: NodeNext, JSX: react-jsx
 - Strict mode enabled
-- `experimentalDecorators` and `emitDecoratorMetadata` are on (MikroORM)
 - Use Typebox (`typebox`) for plugin config schemas and tool parameter definitions
 - Avoid `any` in production code. `@typescript-eslint/no-explicit-any` is only allowed as an inline comment suppress in test files — never in application code.
 - Prefer explicit, descriptive error messages over generic ones.
@@ -97,6 +96,43 @@ import type { AlicePlugin } from './types/alice-plugin-interface.js';
 - The `memory` plugin owns database persistence. Other plugins should depend on `memory` rather than creating their own DB stacks.
 - Built-in plugins live in `src/plugins/system/` and `src/plugins/community/`. User plugins go in `~/.alice-assistant/user-plugins/`.
 
+### Plugin Capability Augmentation
+
+Use TypeScript module augmentation to extend `PluginCapabilities` for typed inter-plugin APIs:
+
+```typescript
+declare module '../../../lib.js' {
+  export interface PluginCapabilities {
+    'my-plugin': {
+      myMethod: (arg: string) => Promise<number>;
+    };
+  }
+}
+```
+
+Then use `offer()` to expose and `request()` to consume:
+
+```typescript
+// Expose in registerPlugin():
+plugin.offer('my-plugin', { myMethod: async (arg) => { ... } });
+
+// Consume in another plugin:
+const { myMethod } = plugin.request('my-plugin')!;
+```
+
+### Plugin UI Bundles
+
+Plugin UI code (React components for the web UI) is bundled separately via esbuild and runs in the browser. Since React is provided by the host web-ui bundle, use `globalThis.React` instead of direct imports:
+
+```typescript
+// This file is built with esbuild into a standalone JS bundle that runs
+// in the browser. It uses globalThis.React instead of importing React,
+// since React is provided by the host web-ui bundle.
+
+type ReactModule = typeof import('react');
+const React = (globalThis as typeof globalThis & { React?: ReactModule }).React;
+```
+
 ### WebSocket Servers
 
 **Use `registerWebSocket(path)` from the plugin API to create WebSocket servers.** Never construct a `WebSocketServer` with `{ server, path }` or `{ noServer: true }` manually — the plugin engine handles upgrade routing and cleanup automatically.
@@ -123,6 +159,32 @@ const wss = new WebSocketServer({ server, path: '/my-path' });
 // ❌ ALSO NEVER DO THIS MANUALLY — use registerWebSocket() instead
 const wss = new WebSocketServer({ noServer: true });
 server.on('upgrade', (req, socket, head) => { ... });
+```
+
+### Database Entities
+
+- The `memory` plugin owns the database and exposes typed APIs for other plugins to interact with it.
+- Plugins that need custom entities should define them in their own module and register them with `memory` `registerEntities()` method.
+- Use MikroORM's `defineEntity()` to define entities, and set the class with `setClass()`. The plugin can then use a callback passed into `onDatabaseReady()` from `request('memory')` to get an ORM object and interact with the database.
+
+#### Example Entity Definition
+
+```typescript
+import { defineEntity, p } from '@mikro-orm/sqlite';
+import { Memory } from './Memory.js';
+
+const KeywordSchema = defineEntity({
+  name: 'Keyword',
+  properties: {
+    id: p.integer().primary(),
+    keyword: p.string(),
+    memories: () => p.manyToMany(Memory),
+  },
+});
+
+export class Keyword extends KeywordSchema.class {} // Use .class and don't redeclare the fields from the schema here.
+
+KeywordSchema.setClass(Keyword);
 ```
 
 ### Configuration
