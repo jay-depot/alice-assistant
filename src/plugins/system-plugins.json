@@ -144,6 +144,12 @@
     "required": false
   },
   {
+    "id": "obsidian-broker",
+    "name": "Obsidian Broker",
+    "category": "community",
+    "required": false
+  },
+  {
     "id": "user-files",
     "name": "User Files",
     "category": "system",
@@ -270,14 +276,50 @@
     "required": false
   },
   {
+    "id": "google-apis",
+    "name": "Google APIs",
+    "category": "community",
+    "required": false
+  },
+  {
     "id": "facet-gardener",
     "name": "Facet Gardener",
     "category": "community",
     "required": false
   },
   {
+    "id": "google-location",
+    "name": "Google Location",
+    "category": "community",
+    "required": false
+  },
+  {
     "id": "moltbook-agent",
     "name": "Moltbook Agent",
+    "category": "community",
+    "required": false
+  },
+  {
+    "id": "email-broker",
+    "name": "Email Broker",
+    "category": "system",
+    "required": false
+  },
+  {
+    "id": "calendar-broker",
+    "name": "Calendar Broker",
+    "category": "system",
+    "required": false
+  },
+  {
+    "id": "gmail",
+    "name": "Gmail",
+    "category": "community",
+    "required": false
+  },
+  {
+    "id": "google-calendar",
+    "name": "Google Calendar",
     "category": "community",
     "required": false
   }

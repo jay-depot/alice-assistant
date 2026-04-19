@@ -61,7 +61,7 @@ export type AlicePluginHooks = {
    *    hook is invoked.
    */
   onContextCompactionSummariesWillBeDeleted: (
-    callback: (summaries: Message[]) => Promise<void>
+    callback: (summaries: Message[], conversationType: string) => Promise<void>
   ) => void;
 
   /**

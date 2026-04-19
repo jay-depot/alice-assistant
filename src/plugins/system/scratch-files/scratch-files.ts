@@ -1,10 +1,9 @@
 import { Type } from 'typebox';
 import { AlicePlugin } from '../../../lib.js';
-import appendScratchFileTool from './tools/append-scratch-file.js';
 import deleteScratchFileTool from './tools/delete-scratch-file.js';
 import listScratchFilesTool from './tools/list-scratch-files.js';
 import readScratchFileTool from './tools/read-scratch-file.js';
-import writeScratchFileTool from './tools/write-scratch-file.js';
+import updateScratchFileTool from './tools/update-scratch-file.js';
 import path from 'node:path';
 import { exists, readFile } from '../../../lib/node/fs-promised.js';
 import { reindexScratchFiles } from './scratch-files-index.js';
@@ -46,11 +45,10 @@ const scratchFilesPlugin: AlicePlugin = {
       allowOverwrite: true,
     });
 
-    plugin.registerTool(appendScratchFileTool(config.getPluginConfig()));
     plugin.registerTool(deleteScratchFileTool(config.getPluginConfig()));
     plugin.registerTool(listScratchFilesTool(config.getPluginConfig()));
     plugin.registerTool(readScratchFileTool(config.getPluginConfig()));
-    plugin.registerTool(writeScratchFileTool(config.getPluginConfig()));
+    plugin.registerTool(updateScratchFileTool(config.getPluginConfig()));
 
     plugin.hooks.onAllPluginsLoaded(async () => {
       plugin.logger.log(
@@ -97,7 +95,7 @@ const scratchFilesPlugin: AlicePlugin = {
           !context ||
           !context.availableTools?.length ||
           !context.availableTools?.some(
-            t => t === 'readScratchFile' || t === 'writeScratchFile'
+            t => t === 'readScratchFile' || t === 'updateScratchFile'
           )
         ) {
           return false;

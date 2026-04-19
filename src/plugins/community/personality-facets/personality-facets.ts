@@ -14,6 +14,7 @@ import {
   PersonalityFacetsSessionState,
 } from './db-schemas/index.js';
 import { STARTER_FACET_DEFINITIONS } from './seed-facets.js';
+import { resolveContents } from '../../../lib/diff-resolver.js';
 
 // ---------------------------------------------------------------------------
 // Offered API types
@@ -100,11 +101,18 @@ const UpdatePersonalityFacetToolParametersSchema = Type.Object({
     description:
       'The instructions for this personality facet. These should be written in markdown and should include any information about the facet that the assistant should know when embodying it, such as its tone, style of speaking, attitudes, and any other relevant information.',
   }),
-  appendInstructions: Type.Boolean({
-    default: false,
-    description:
-      'If true and a facet with the given name already exists, the provided instructions will be appended to the existing instructions instead of replacing them. This allows you to iteratively build up the contents of a facet over multiple updates.',
-  }),
+  format: Type.Optional(
+    Type.Union([
+      Type.Literal('full', {
+        description:
+          'The instructions field contains the complete new facet instructions.',
+      }),
+      Type.Literal('diff', {
+        description:
+          'The instructions field contains a unified diff patch to apply to the existing facet instructions.',
+      }),
+    ])
+  ),
 });
 
 const EmbodyFacetToolParametersSchema = Type.Object({
@@ -233,7 +241,7 @@ const personalityFacetsPlugin: AlicePlugin = {
       const facetName = params.facetName?.trim();
       const embodyWhen = params.embodyWhen?.trim();
       const instructions = params.instructions?.trim();
-      const appendInstructions = params.appendInstructions;
+      const format = params.format ?? 'full';
 
       if (!facetName) {
         throw new Error('Facet name cannot be empty.');
@@ -260,9 +268,17 @@ const personalityFacetsPlugin: AlicePlugin = {
         if (embodyWhen) {
           existingFacet.embodyWhen = embodyWhen;
         }
-        existingFacet.instructions = appendInstructions
-          ? `${existingFacet.instructions}\n${instructions}`
-          : instructions;
+        const resolved = resolveContents(
+          existingFacet.instructions,
+          format,
+          instructions
+        );
+        if (resolved.ok === false) {
+          throw new Error(
+            `THE UPDATE WAS REJECTED.\n${resolved.message}\nRe-examine the facet with embodyPersonalityFacet to get the current instructions, then produce a valid unified diff patch. Use format=full only as a last resort if you cannot produce a valid diff after re-examining.`
+          );
+        }
+        existingFacet.instructions = resolved.contents;
         existingFacet.updatedAt = now;
         await em.flush();
         return 'updated';
@@ -271,6 +287,14 @@ const personalityFacetsPlugin: AlicePlugin = {
       if (!embodyWhen) {
         throw new Error(
           'Facet embodyWhen cannot be empty when creating a new facet.'
+        );
+      }
+
+      // When creating a new facet, use instructions directly — diffing against
+      // empty content is not supported. format=full is required for creation.
+      if (format === 'diff') {
+        throw new Error(
+          'THE UPDATE WAS REJECTED.\nCannot apply a diff to empty content. When creating a new facet, use format=full for the initial instructions. You can use format=diff for subsequent updates.'
         );
       }
 
@@ -411,7 +435,11 @@ const personalityFacetsPlugin: AlicePlugin = {
       name: 'updatePersonalityFacet',
       availableFor: ['autonomy', 'chat', 'voice'],
       description:
-        'Create a new personality facet or update an existing one when you need a reusable situational mode with specific tone, style, or behavioral guidance.',
+        'Create a new personality facet or update an existing one. When updating, ' +
+        'prefer format=diff with a unified diff patch for targeted edits — re-examine ' +
+        'the facet first with embodyPersonalityFacet to get the current instructions, ' +
+        'then produce a diff. Use format=full only for new facets or as a last resort. ' +
+        'Invalid diffs will be rejected with instructions to re-read and retry.',
       parameters: UpdatePersonalityFacetToolParametersSchema,
       systemPromptFragment: '',
       toolResultPromptIntro: '',

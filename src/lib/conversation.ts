@@ -232,7 +232,8 @@ export class Conversation {
         // Everything is already summaries
         if (mode === 'clear' && this.compactedContext.length > 0) {
           await PluginHookInvocations.invokeOnContextCompactionSummariesWillBeDeleted(
-            this.compactedContext
+            this.compactedContext,
+            this.type
           );
           this.compactedContext = [];
         }
@@ -246,7 +247,8 @@ export class Conversation {
       if (messagesToSummarize.length === 0) {
         if (mode === 'clear' && firstNonSummaryMessageIndex > 0) {
           await PluginHookInvocations.invokeOnContextCompactionSummariesWillBeDeleted(
-            this.compactedContext
+            this.compactedContext,
+            this.type
           );
           this.compactedContext = [];
         }
@@ -284,7 +286,8 @@ export class Conversation {
           newSummary,
         ];
         await PluginHookInvocations.invokeOnContextCompactionSummariesWillBeDeleted(
-          allSummaries
+          allSummaries,
+          this.type
         );
         this.compactedContext = [];
       }
@@ -386,7 +389,8 @@ export class Conversation {
           .slice(0, Math.floor(messageCount / 4));
         // Fire off the hook invocation with the oldest half the summaries.
         await PluginHookInvocations.invokeOnContextCompactionSummariesWillBeDeleted(
-          summariesToDelete
+          summariesToDelete,
+          this.type
         );
       }
 
@@ -778,7 +782,8 @@ export class Conversation {
     }
 
     await PluginHookInvocations.invokeOnContextCompactionSummariesWillBeDeleted(
-      this.compactedContext
+      this.compactedContext,
+      this.type
     );
   }
 

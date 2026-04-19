@@ -15,12 +15,12 @@ const deleteScratchFileTool: (
   availableFor: ['autonomy', 'chat', 'voice'],
   description:
     'Deletes a text file from the internal scratch directory. This is meant to be used in conjunction with the ' +
-    'writeScratchFile, readScratchFile, and listScratchFiles tools, which allow you to write, read, and list text files in ' +
+    'updateScratchFile, readScratchFile, and listScratchFiles tools, which allow you to write, read, and list text files in ' +
     'this scratch directory. You can call this tool with the filename of the file you want to delete as an argument.',
   systemPromptFragment:
     `Call deleteScratchFile when you want to delete a text file from your internal scratch directory. ` +
     `The file must be located in your scratch directory, and you must provide the filename as an argument. For example, if ` +
-    `you previously wrote a file named "notes.txt" using the writeScratchFile tool and no longer need it, you would call ` +
+    `you previously wrote a file named "notes.txt" using the updateScratchFile tool and no longer need it, you would call ` +
     `deleteScratchFile with the argument "filename" set to "notes.txt" to delete it.`,
   parameters,
   toolResultPromptIntro:

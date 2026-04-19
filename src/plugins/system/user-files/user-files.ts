@@ -3,6 +3,7 @@ import { AlicePlugin } from '../../../lib.js';
 import findUserFilesTool from './tools/find-user-files.js';
 import getDirectoryListingTool from './tools/get-directory-listing.js';
 import readUserTextFileTool from './tools/read-user-text-file.js';
+import updateUserTextFileTool from './tools/update-user-text-file.js';
 import writeUserTextFileTool from './tools/write-user-text-file.js';
 
 const UserFilesPluginConfigSchema = Type.Object(
@@ -10,13 +11,15 @@ const UserFilesPluginConfigSchema = Type.Object(
     allowedFilePaths: Type.Array(Type.String(), { default: [] }),
     allowedFileTypesReadOnly: Type.Array(Type.String(), { default: [] }),
     allowedFileTypesWrite: Type.Array(Type.String(), { default: [] }),
+    allowedUpdatePaths: Type.Array(Type.String(), { default: [] }),
     maxFileSizeBytes: Type.Number({ default: 10485760, minimum: 1 }),
   },
   {
     description:
       'Configuration for the user files plugin. Allows the user to specify ' +
       'which file paths and file types the assistant is allowed to access. If left empty, ' +
-      'the assistant will not be able to access any files.',
+      'the assistant will not be able to access any files. allowedUpdatePaths further ' +
+      'restricts where updateUserTextFile can write, enabling scenarios like shared folders.',
   }
 );
 
@@ -89,6 +92,7 @@ const userFilesPlugin: AlicePlugin = {
       allowedFilePaths: [],
       allowedFileTypesReadOnly: [],
       allowedFileTypesWrite: [],
+      allowedUpdatePaths: [],
       maxFileSizeBytes: 10485760,
     });
 
@@ -148,6 +152,7 @@ const userFilesPlugin: AlicePlugin = {
       readUserTextFileTool(config.getPluginConfig(), redactor)
     );
     plugin.registerTool(writeUserTextFileTool(config.getPluginConfig()));
+    plugin.registerTool(updateUserTextFileTool(config.getPluginConfig()));
   },
 };
 

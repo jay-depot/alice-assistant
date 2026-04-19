@@ -1,0 +1,38 @@
+#!/usr/bin/env node
+
+import path from 'node:path';
+import { access } from 'node:fs/promises';
+import { constants as fsConstants } from 'node:fs';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
+const currentDir = path.dirname(fileURLToPath(import.meta.url));
+const tuiModulePath = path.join(
+  currentDir,
+  '..',
+  'dist',
+  'lib',
+  'tui-program.js'
+);
+
+try {
+  await access(tuiModulePath, fsConstants.R_OK);
+} catch {
+  console.error(
+    `Could not find TUI module at ${tuiModulePath}. Run \`npm run build\` first.`
+  );
+  process.exit(1);
+}
+
+const tuiModule = await import(pathToFileURL(tuiModulePath).href);
+
+if (!tuiModule.runTuiProgram || typeof tuiModule.runTuiProgram !== 'function') {
+  console.error(
+    'TUI module is missing runTuiProgram(). Rebuild and try again.'
+  );
+  process.exit(1);
+}
+
+tuiModule.runTuiProgram(process.argv.slice(2)).catch(err => {
+  console.error('Fatal TUI error', err);
+  process.exit(1);
+});

@@ -1227,3 +1227,292 @@ table td {
   border: 1px solid var(--border);
   padding: 3px 10px;
 }
+
+/* ── Shared plugin page utilities ────────────────────────────────────── */
+
+/* Reusable layout, card, button, status, and form patterns for plugin
+   pages (e.g. google-apis, independent-agents). These use the theme
+   CSS variables defined in :root above so all plugin pages share a
+   consistent terminal-green aesthetic. */
+
+.plugin-page {
+  padding: 24px 20px;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+}
+
+.plugin-page__title {
+  margin: 0 0 0.5rem;
+  color: var(--text-brighter);
+  font-size: 1.4rem;
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 10px rgba(51, 248, 69, 0.18);
+}
+
+.plugin-page__description {
+  color: var(--text-secondary);
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.plugin-card {
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid color-mix(in srgb, var(--border) 60%, var(--accent) 40%);
+  border-radius: var(--radius-md);
+  background: linear-gradient(
+    180deg,
+    rgba(13, 20, 13, 0.92),
+    rgba(9, 14, 9, 0.94)
+  );
+  box-shadow: inset 0 0 0 1px rgba(51, 248, 69, 0.04);
+}
+
+.plugin-card h3 {
+  margin: 0 0 0.75rem;
+  color: var(--text-brighter);
+  font-size: 1rem;
+  letter-spacing: 0.03em;
+}
+
+.plugin-card h4 {
+  margin: 0 0 0.25rem;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  letter-spacing: 0.02em;
+}
+
+.plugin-eyebrow {
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* ── Shared plugin buttons ──────────────────────────────────────────── */
+
+.plugin-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0.5rem 1rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+
+.plugin-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.plugin-btn--primary {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+.plugin-btn--primary:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--bg-base);
+  box-shadow: 0 0 12px rgba(51, 248, 69, 0.15);
+}
+
+.plugin-btn--danger {
+  border-color: #e07070;
+  color: #e07070;
+  background: rgba(224, 112, 112, 0.08);
+}
+
+.plugin-btn--danger:hover:not(:disabled) {
+  background: #e07070;
+  color: var(--bg-base);
+}
+
+.plugin-btn--secondary {
+  border-color: var(--border);
+  color: var(--text-secondary);
+  background: transparent;
+}
+
+.plugin-btn--secondary:hover:not(:disabled) {
+  background: var(--bg-session);
+  color: var(--text-primary);
+}
+
+.plugin-btn--small {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.78rem;
+}
+
+/* ── Shared plugin status badges ─────────────────────────────────────── */
+
+.plugin-status {
+  display: inline-block;
+  border: 1px solid currentColor;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.plugin-status--success {
+  color: #49e86c;
+}
+
+.plugin-status--error {
+  color: #e46c6c;
+}
+
+.plugin-status--warning {
+  color: #e0c65b;
+}
+
+.plugin-status--info {
+  color: #5bc7e0;
+}
+
+/* ── Shared plugin form inputs ───────────────────────────────────────── */
+
+.plugin-form-group {
+  margin-bottom: 0.75rem;
+}
+
+.plugin-form-group label {
+  display: block;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+  margin-bottom: 0.25rem;
+}
+
+.plugin-form-group input,
+.plugin-form-group select,
+.plugin-form-group textarea {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-main);
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+
+.plugin-form-group input:focus,
+.plugin-form-group select:focus,
+.plugin-form-group textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.plugin-form-group input::placeholder {
+  color: var(--text-muted);
+}
+
+.plugin-form-group code {
+  background: var(--bg-main);
+  padding: 0.15rem 0.35rem;
+  border-radius: 3px;
+  font-size: 0.82rem;
+}
+
+/* ── Shared plugin message banners ───────────────────────────────────── */
+
+.plugin-msg {
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+}
+
+.plugin-msg--error {
+  color: #e46c6c;
+}
+
+.plugin-msg--success {
+  color: #49e86c;
+}
+
+.plugin-msg--banner {
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+}
+
+.plugin-msg--banner.plugin-msg--success {
+  background: rgba(73, 232, 108, 0.08);
+  border: 1px solid rgba(73, 232, 108, 0.25);
+}
+
+.plugin-msg--banner.plugin-msg--error {
+  background: rgba(228, 108, 108, 0.08);
+  border: 1px solid rgba(228, 108, 108, 0.25);
+}
+
+/* ── Shared plugin link list ─────────────────────────────────────────── */
+
+.plugin-link-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.plugin-link-list li {
+  padding: 0.35rem 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.plugin-link-list li a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.plugin-link-list li a:hover {
+  text-decoration: underline;
+  color: var(--text-brighter);
+}
+
+/* ── Shared plugin empty state ───────────────────────────────────────── */
+
+.plugin-empty {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-muted);
+}
+
+/* ── Shared plugin hint text ─────────────────────────────────────────── */
+
+.plugin-hint {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: 0.5rem 0;
+}
+
+.plugin-hint--success {
+  color: #49e86c;
+}
+
+.plugin-hint code {
+  background: var(--bg-main);
+  padding: 0.15rem 0.35rem;
+  border-radius: 3px;
+  font-size: 0.82rem;
+}

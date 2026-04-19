@@ -1,0 +1,102 @@
+/* Google APIs Web UI Styles
+   Uses shared .plugin-* utility classes from the main stylesheet
+   for layout, cards, buttons, status badges, form inputs, and
+   message banners. Only google-apis-specific overrides live here. */
+
+/* ── Page layout ──────────────────────────────────────────────────────── */
+.ga-page {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+/* ── OAuth config section ─────────────────────────────────────────────── */
+.ga-redirect-uri {
+  margin: 0.5rem 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.ga-redirect-uri code {
+  background: var(--bg-main);
+  padding: 0.15rem 0.35rem;
+  border-radius: 3px;
+  font-size: 0.82rem;
+}
+
+/* ── API enablement links ─────────────────────────────────────────────── */
+.ga-api-links {
+  margin: 0.75rem 0;
+  padding: 0.75rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--border) 70%, var(--accent) 30%);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(
+    180deg,
+    rgba(4, 8, 4, 0.88),
+    rgba(9, 16, 9, 0.92)
+  );
+}
+
+.ga-api-links p {
+  margin-bottom: 0.5rem;
+}
+
+/* ── Account list ─────────────────────────────────────────────────────── */
+.ga-account-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.ga-account-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border);
+  gap: 1rem;
+}
+
+.ga-account-item:last-child {
+  border-bottom: none;
+}
+
+.ga-account-info {
+  flex: 1;
+}
+
+.ga-account-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  margin-bottom: 0.15rem;
+}
+
+.ga-account-email {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-family: var(--font-mono);
+}
+
+.ga-account-status {
+  font-size: 0.85rem;
+  margin-top: 0.25rem;
+}
+
+.ga-account-refreshed {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.ga-account-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.ga-confirm-disconnect {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}

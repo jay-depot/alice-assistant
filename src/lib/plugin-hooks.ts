@@ -25,7 +25,7 @@ const registeredHooks: {
     ) => Promise<void>
   >;
   onContextCompactionSummariesWillBeDeleted: Array<
-    (summaries: Message[]) => Promise<void>
+    (summaries: Message[], conversationType: string) => Promise<void>
   >;
   onAllPluginsLoaded: Array<() => Promise<void>>;
   onAssistantWillAcceptRequests: Array<() => Promise<void>>;
@@ -64,8 +64,6 @@ const isRegistrationOpenForHook = {
   onUserConversationWillBegin: true,
   onUserConversationWillEnd: true,
   onContextCompactionSummariesWillBeDeleted: true,
-  onSystemPluginsLoaded: true,
-  onUserPluginsWillLoad: true,
   onAllPluginsLoaded: true,
   onAssistantWillAcceptRequests: true,
   onAssistantAcceptsRequests: true,
@@ -106,7 +104,7 @@ export const PluginHooks: (
     registeredHooks.onUserConversationWillEnd.push(callback);
   },
   onContextCompactionSummariesWillBeDeleted: (
-    callback: (summaries: Message[]) => Promise<void>
+    callback: (summaries: Message[], conversationType: string) => Promise<void>
   ) => {
     if (!isRegistrationOpenForHook.onContextCompactionSummariesWillBeDeleted) {
       throw new Error(
@@ -196,10 +194,11 @@ export const PluginHookInvocations = {
     }
   },
   invokeOnContextCompactionSummariesWillBeDeleted: async (
-    summaries: Message[]
+    summaries: Message[],
+    conversationType: string
   ) => {
     for (const callback of registeredHooks.onContextCompactionSummariesWillBeDeleted) {
-      await callback(summaries);
+      await callback(summaries, conversationType);
     }
   },
   invokeOnAllPluginsLoaded: async () => {

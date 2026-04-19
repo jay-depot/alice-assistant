@@ -160,6 +160,7 @@ After registration, a plugin can:
 | `registerConversationType(def)`                         | Add a plugin-defined conversation type                                            |
 | `registerTaskAssistant(def)`                            | Register a task assistant definition                                              |
 | `addToolToConversationType(typeId, pluginId, toolName)` | Attach an existing tool to a conversation type                                    |
+| `registerWebSocket(path)`                               | Create a WebSocket server on the shared HTTP server (noServer mode)               |
 | `config<T>(schema, defaults)`                           | Load typed plugin config from `~/.alice-assistant/plugin-settings/<id>/<id>.json` |
 | `offer(capabilities)`                                   | Expose an API to dependent plugins                                                |
 | `request(pluginId)`                                     | Access another plugin's offered API                                               |
@@ -284,6 +285,34 @@ The web UI still supports extension regions for plugin-provided UI. Plugins typi
 
 The `memory` plugin exposes database-related capabilities. Plugins that persist state should depend on `memory` and use its offered API rather than creating their own parallel persistence stack.
 
+### WebSocket Servers
+
+**Use `plugin.registerWebSocket(path)` to create WebSocket servers.** Never construct a `WebSocketServer` with `{ server, path }` or `{ noServer: true }` manually — the plugin engine handles upgrade routing and cleanup automatically.
+
+When multiple `WebSocketServer` instances use `{ server, path }`, they each add an `upgrade` listener on the HTTP server. The first one to fire calls `abortHandshake(socket, 400)` for non-matching paths, which writes an HTTP 400 response to the socket and destroys it. This silently corrupts the socket for any other `WebSocketServer` that tries to handle it, causing "Invalid frame header" / RSV1 errors and 1006 abnormal closures on the client.
+
+**Correct pattern (use the plugin API):**
+
+```typescript
+// Inside registerPlugin():
+const wss = plugin.registerWebSocket('/my-ws');
+
+wss.on('connection', ws => {
+  // handle connection
+});
+```
+
+**Wrong patterns (will break other WebSocket servers):**
+
+```typescript
+// ❌ NEVER DO THIS — abortHandshake corrupts the socket for non-matching paths
+const wss = new WebSocketServer({ server, path: '/my-path' });
+
+// ❌ ALSO NEVER DO THIS MANUALLY — use registerWebSocket() instead
+const wss = new WebSocketServer({ noServer: true });
+server.on('upgrade', (req, socket, head) => { ... });
+```
+
 ---
 
 ## Coding Conventions
@@ -316,7 +345,7 @@ import type { AlicePlugin } from './types/alice-plugin-interface.js';
 
 - Keep code compatible with strict TypeScript and the existing ESLint rules.
 - Use Typebox schemas for plugin config and tool parameters.
-- MikroORM decorators are enabled.
+- MikroORM decorators are disabled, and no longer the preferred way to use MikroORM.
 - Avoid `any` where practical.
 
 ### Error Handling in Plugins

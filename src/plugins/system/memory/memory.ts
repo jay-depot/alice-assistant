@@ -8,6 +8,32 @@ import { AnyEntity, EntityClass, MikroORM } from '@mikro-orm/sqlite';
 import * as path from 'path';
 import { Keyword, Memory } from './db-schemas/index.js';
 import { UserConfig } from '../../../lib/user-config.js';
+import { lancasterStemmer } from 'lancaster-stemmer';
+
+const fillerWords = [
+  'the',
+  'a',
+  'an',
+  'some',
+  'any',
+  'and',
+  'or',
+  'but',
+  'if',
+  'then',
+  'I',
+  'you',
+  'he',
+  'she',
+  'it',
+  'we',
+  'they',
+  'me',
+  'him',
+  'her',
+  'us',
+  'them',
+].map(w => w.toLowerCase());
 
 declare module '../../../lib.js' {
   export interface PluginCapabilities {
@@ -77,7 +103,7 @@ declare module '../../../lib.js' {
        * @param keywords
        * @returns
        */
-      saveMemory: (content: string) => Promise<void>;
+      saveMemory: (content: string, conversationType?: string) => Promise<void>;
     };
   }
 }
@@ -95,47 +121,26 @@ export type MemoryPluginConfigSchema = Type.Static<
   typeof MemoryPluginConfigSchema
 >;
 
-async function saveMemory(orm: MikroORM, content: string) {
+async function saveMemory(
+  orm: MikroORM,
+  content: string,
+  conversationType?: string
+) {
   const em = orm.em.fork();
   // Start by extracting keywords:
-  const keywords = content.split(' ').filter(word => {
-    // Filter out common words, articles, pronouns, and other "filler" words that aren't useful as keywords.
-    // This is a very naive implementation, and could be improved with a more sophisticated NLP approach, but it should work decently for now.
-    const lowerWord = word.toLowerCase();
-    if (
-      [
-        'the',
-        'a',
-        'an',
-        'some',
-        'any',
-        'and',
-        'or',
-        'but',
-        'if',
-        'then',
-        'I',
-        'you',
-        'he',
-        'she',
-        'it',
-        'we',
-        'they',
-        'me',
-        'him',
-        'her',
-        'us',
-        'them',
-      ].includes(lowerWord)
-    ) {
-      return false;
-    }
-    // Filter out punctuation and other non-alphanumeric characters.
-    if (/[^a-z0-9]/i.test(lowerWord)) {
-      return false;
-    }
-    return true;
-  });
+  const keywords = content
+    .split(' ')
+    .map(word => word.toLowerCase())
+    .map(word => word.replace(/[^a-zA-Z0-9]/g, ''))
+    .filter(word => {
+      // Filter out common words, articles, pronouns, and other "filler" words that aren't useful as keywords.
+      // This is a very naive implementation, and could be improved with a more sophisticated NLP approach, but it should work decently for now.
+      if (fillerWords.includes(word)) {
+        return false;
+      }
+      return true;
+    })
+    .map(word => lancasterStemmer(word.trim()));
 
   const keywordEntities = [];
   for (const keyword of keywords) {
@@ -151,6 +156,7 @@ async function saveMemory(orm: MikroORM, content: string) {
     timestamp: new Date(),
     content,
     keywords: keywordEntities,
+    conversationType: conversationType ?? null,
   });
   em.persist(memory);
 
@@ -208,9 +214,9 @@ const memoryPlugin: AlicePlugin = {
         const orm = await databaseReadyPromise;
         return callback(orm);
       },
-      saveMemory: async (content: string) => {
+      saveMemory: async (content: string, conversationType?: string) => {
         const orm = await databaseReadyPromise;
-        await saveMemory(orm, content);
+        await saveMemory(orm, content, conversationType);
       },
     });
 
@@ -267,7 +273,7 @@ const memoryPlugin: AlicePlugin = {
             .split(',')
             .map(k => k.split(' '))
             .flat()
-            .map(k => k.trim());
+            .map(k => lancasterStemmer(k.trim()));
 
           const keywordEntities = await em.find(Keyword, {
             keyword: { $in: keywords },
@@ -295,20 +301,22 @@ const memoryPlugin: AlicePlugin = {
       },
     });
 
-    plugin.hooks.onContextCompactionSummariesWillBeDeleted(async summaries => {
-      const orm = await databaseReadyPromise;
-      for (const summary of summaries) {
-        // We do these serially because otherwise there might be a race condition
-        // creating the keyword entries. Making that atomic might be nice, but I
-        // don't think SQLite is *quite* that cool.
+    plugin.hooks.onContextCompactionSummariesWillBeDeleted(
+      async (summaries, conversationType) => {
+        const orm = await databaseReadyPromise;
+        for (const summary of summaries) {
+          // We do these serially because otherwise there might be a race condition
+          // creating the keyword entries. Making that atomic might be nice, but I
+          // don't think SQLite is *quite* that cool.
 
-        const contentWithoutHeader = summary.content.replace(
-          SUMMARY_HEADER,
-          ''
-        );
-        await saveMemory(orm, contentWithoutHeader);
+          const contentWithoutHeader = summary.content.replace(
+            SUMMARY_HEADER,
+            ''
+          );
+          await saveMemory(orm, contentWithoutHeader, conversationType);
+        }
       }
-    });
+    );
 
     plugin.registerHeaderSystemPrompt({
       name: 'memoryHeader',
@@ -345,7 +353,8 @@ const memoryPlugin: AlicePlugin = {
         }
 
         const memoryStrings = memories.map(
-          m => `##${m.timestamp.toLocaleString()}\n${m.content}\n`
+          m =>
+            `##${m.timestamp.toLocaleString()} ${m.conversationType}\n${m.content}\n`
         );
 
         return (

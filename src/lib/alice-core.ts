@@ -2,6 +2,7 @@ import { UserConfig } from './user-config.js';
 import { startConversation } from './conversation.js';
 import { loadPlugins } from './alice-plugin-loader.js';
 import { PluginHookInvocations } from './plugin-hooks.js';
+import { AlicePluginEngine } from './alice-plugin-engine.js';
 import { systemLogger } from './system-logger.js';
 
 export const AliceCore = {
@@ -29,6 +30,7 @@ export const AliceCore = {
         await PluginHookInvocations.invokeOnAssistantWillStopAcceptingRequests();
         await PluginHookInvocations.invokeOnAssistantStoppedAcceptingRequests();
         await PluginHookInvocations.invokeOnPluginsWillUnload();
+        AlicePluginEngine.cleanupWebSocketServers();
         systemLogger.log(
           'All plugins have been notified of shutdown. Exiting now.'
         );

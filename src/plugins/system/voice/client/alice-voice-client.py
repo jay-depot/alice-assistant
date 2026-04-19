@@ -24,7 +24,10 @@ shutdown_requested = False
 def handle_shutdown_signal(signum, _frame) -> None:
     global shutdown_requested
     if shutdown_requested:
-        raise SystemExit(0)
+        # Second signal: force-exit immediately so nothing can swallow it.
+        signal_name = signal.Signals(signum).name if signum in signal.Signals._value2member_map_ else str(signum)
+        print(f'voice client: received second {signal_name}, forcing exit.')
+        os._exit(0)
 
     shutdown_requested = True
     signal_name = signal.Signals(signum).name if signum in signal.Signals._value2member_map_ else str(signum)
@@ -392,7 +395,7 @@ def record_audio_clip(
         overlap_chunks_count = max(1, ceil((preroll_ms / 1000.0) / chunk_duration_seconds))
         drain_overlap: list[bytes] = []
 
-        while listening_sound_process is not None and listening_sound_process.poll() is None:
+        while listening_sound_process is not None and listening_sound_process.poll() is None and not shutdown_requested:
             audio_chunk, overflowed = stream.read(chunk_size)
             if not overflowed:
                 drain_overlap.append(bytes(audio_chunk))
@@ -407,6 +410,10 @@ def record_audio_clip(
         captured_chunks.extend(drain_overlap)
 
         for _ in range(max_chunks):
+            if shutdown_requested:
+                stop_reason = 'shutdown'
+                break
+
             audio_chunk, overflowed = stream.read(chunk_size)
             # Keep overflowed chunks — losing them causes transcription gaps.
             audio_bytes = bytes(audio_chunk)
@@ -894,7 +901,7 @@ def announce_archival_progress(after_sequence: int, system_config: dict, voice_p
     spoken_completed = False
     deadline = time.monotonic() + 15.0
 
-    while time.monotonic() < deadline and not spoken_completed:
+    while time.monotonic() < deadline and not spoken_completed and not shutdown_requested:
         events, latest_sequence = fetch_voice_events(current_sequence)
         current_sequence, spoken_started, spoken_completed = process_voice_events(
             events,
@@ -1022,7 +1029,7 @@ def wait_for_wake_word(system_config: dict) -> None:
     wake_model = create_wake_word_model(Model, model_path)
 
     with sd.RawInputStream(samplerate=16000, channels=1, dtype='int16', blocksize=chunk_size) as stream:
-        while True:
+        while not shutdown_requested:
             audio_chunk, overflowed = stream.read(chunk_size)
             if overflowed:
                 continue
@@ -1043,7 +1050,7 @@ def run_manual_loop(system_config: dict, voice_plugin_config: dict, last_event_s
     print(f'ALICE voice client ready. Wake word configured as: {wake_word}')
     print('Manual dev mode: press Enter to record one turn, type text to send it directly, or type q to quit.')
 
-    while True:
+    while not shutdown_requested:
         try:
             user_input = input('voice> ').strip()
         except EOFError:
@@ -1106,7 +1113,7 @@ def run_wake_word_loop(system_config: dict, voice_plugin_config: dict, last_even
     audio_capture_closed_sound = get_optional_sound_path(voice_plugin_config, 'audioCaptureClosedSoundPath')
     print(f'ALICE voice client ready. Waiting for wake word: {wake_word}')
 
-    while True:
+    while not shutdown_requested:
         wait_for_wake_word(system_config)
 
         transcript = capture_transcript_from_microphone(
@@ -1118,7 +1125,7 @@ def run_wake_word_loop(system_config: dict, voice_plugin_config: dict, last_even
         if transcript is None:
             continue
 
-        while True:
+        while not shutdown_requested:
             print(f'user: {transcript}')
             turn_result = send_voice_turn(transcript)
             reply = turn_result['reply']

@@ -1,3 +1,4 @@
+import type { AlicePluginInterface } from '../../../lib.js';
 import { AlicePlugin } from '../../../lib.js';
 import { RemindersSchedule } from './db-schemas/RemindersSchedule.js';
 
@@ -64,7 +65,7 @@ const remindersBrokerPlugin: AlicePlugin = {
     required: true,
   },
 
-  async registerPlugin(pluginInterface) {
+  async registerPlugin(pluginInterface: AlicePluginInterface) {
     const plugin = await pluginInterface.registerPlugin();
 
     const { registerDatabaseModels, onDatabaseReady } =

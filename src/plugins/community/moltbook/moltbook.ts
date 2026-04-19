@@ -1,4 +1,4 @@
-import Type from 'typebox';
+import { Type } from 'typebox';
 import { AlicePlugin } from '../../../lib.js';
 import { createMoltbookClient } from './moltbook-client.js';
 import registerMoltbookAgentTool from './tools/register-moltbook-agent.js';

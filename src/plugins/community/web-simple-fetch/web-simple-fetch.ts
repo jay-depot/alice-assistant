@@ -1,10 +1,10 @@
-import Type from 'typebox';
+import { Type } from 'typebox';
 import { AlicePlugin } from '../../../lib.js';
 import { cookieJar } from './cookie-jar.js';
 import { createPluginLogger } from '../../../lib/plugin-logger.js';
 
 const MINUTES = 60 * 1000;
-const MAX_CHUNK_SIZE = 160000;
+const MAX_CHUNK_SIZE = 100000;
 
 const SimpleFetchToolParametersSchema = Type.Object({
   url: Type.String({ description: 'The URL to fetch data from.' }),
@@ -17,7 +17,7 @@ const SimpleFetchToolParametersSchema = Type.Object({
     Type.Number({
       minimum: 0,
       description:
-        'The character index to start reading from for the fetched content. This is useful for fetching large web pages in chunks to avoid overflowing the context window. Set this parameter OR startReadingFromKeyword, but not both.',
+        'The character index to start reading from for the fetched content. This is useful for fetching large files in chunks to avoid overflowing the context window. Set this parameter OR startReadingFromKeyword, but not both.',
     })
   ),
   startReadingFromKeyword: Type.Optional(
@@ -351,7 +351,7 @@ const webSimpleFetchPlugin: AlicePlugin = {
         const start = getIndex(args, data);
 
         if (start === -1) {
-          return `Sorry, I could not find the of the keyword "${args.startReadingFromKeyword?.keyword}" in the response data, or it occurs fewer than ${args.startReadingFromKeyword?.occurrence} time(s). Please check the keyword and try again.`;
+          return `Sorry, I could not find the keyword "${args.startReadingFromKeyword?.keyword}" in the response data, or it occurs fewer than ${args.startReadingFromKeyword?.occurrence} time(s). Please check the keyword and try again.`;
         }
 
         const end = start + limit;

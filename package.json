@@ -7,16 +7,18 @@
   "type": "module",
   "bin": {
     "alice-assistant-start": "bin/alice-assistant-start",
-    "alice-assistant-setup": "bin/alice-assistant-setup"
+    "alice-assistant-setup": "bin/alice-assistant-setup",
+    "alice-tui": "bin/alice-tui"
   },
   "main": "dist/lib.js",
   "scripts": {
-    "build": "npm run build:server && npm run build:client && npm run build:plugin-ui && npm run build:credential-store-ui && npm run build:agents-ui",
+    "build": "npm run build:server && npm run build:client && npm run build:plugin-ui && npm run build:credential-store-ui && npm run build:agents-ui && npm run build:google-apis-ui",
     "build:server": "tsc && npm run post-build",
     "build:client": "esbuild src/plugins/system/web-ui/client/index.tsx --bundle --format=esm --platform=browser --target=es2022 --tsconfig=src/plugins/system/web-ui/client/tsconfig.client.json --outfile=dist/plugins/system/web-ui/client/alice-client.js",
     "build:plugin-ui": "esbuild src/plugins/community/mood/mood-web-ui.tsx --bundle --format=esm --platform=browser --target=es2022 --tsconfig=src/plugins/system/web-ui/client/tsconfig.client.json --outfile=dist/plugins/community/mood/mood-web-ui.js",
     "build:credential-store-ui": "esbuild src/plugins/system/credential-store/credential-store-web-ui.tsx --bundle --format=esm --platform=browser --target=es2022 --tsconfig=src/plugins/system/web-ui/client/tsconfig.client.json --outfile=dist/plugins/system/credential-store/credential-store-web-ui.js",
     "build:agents-ui": "esbuild src/plugins/system/agents/independent-agents-web-ui.tsx --bundle --format=esm --platform=browser --target=es2022 --tsconfig=src/plugins/system/web-ui/client/tsconfig.client.json --outfile=dist/plugins/system/agents/independent-agents-web-ui.js",
+    "build:google-apis-ui": "esbuild src/plugins/community/google-apis/google-apis-web-ui.tsx --bundle --format=esm --platform=browser --target=es2022 --tsconfig=src/plugins/system/web-ui/client/tsconfig.client.json --outfile=dist/plugins/community/google-apis/google-apis-web-ui.js",
     "clean": "rm -rf dist",
     "post-build": "copyfiles -u 1 src/**/*.js dist/ && copyfiles -u 1 src/**/*.html dist/ && copyfiles -u 1 src/**/*.css dist/ && copyfiles -u 1 src/**/*.json dist/ && copyfiles -u 1 src/**/*.md dist/ && copyfiles -u 1 src/**/*.py dist/ && copyfiles -u 1 src/**/*.txt dist/",
     "lint:eslint": "eslint ./src --ext .ts,.tsx --fix",
@@ -38,13 +40,21 @@
     ]
   },
   "dependencies": {
+    "@googleapis/calendar": "^14.2.0",
+    "@googleapis/gmail": "^16.1.1",
+    "@googleapis/people": "^7.0.1",
     "@lightpanda/browser": "^1.2.0",
     "@mikro-orm/core": "^7.0.3",
     "@mikro-orm/sqlite": "^7.0.3",
     "blessed": "^0.1.81",
     "brave-search": "^0.9.0",
     "date-fns": "^4.1.0",
+    "diff": "^7.0.0",
     "express": "^5.2.1",
+    "google-auth-library": "^10.6.2",
+    "lancaster-stemmer": "^2.1.0",
+    "marked": "^15.0.0",
+    "marked-terminal": "^7.3.0",
     "mikro-orm": "^7.0.3",
     "ollama": "^0.6.3",
     "react": "^19.2.4",

@@ -14,11 +14,11 @@ const readScratchFileTool: (
   availableFor: ['autonomy', 'chat', 'voice'],
   description:
     `Reads the contents of a note in the assistant's internal scratch directory. This is meant ` +
-    `to read back the contents of notes the assistant has written to itself, using the writeScratchFile tool.`,
+    `to read back the contents of notes the assistant has written to itself, using the updateScratchFile tool.`,
   systemPromptFragment:
     `Call readScratchFile to read the contents of a note in your internal scratch ` +
     `directory. This is meant to read back the contents of notes you have written to yourself, using the ` +
-    `writeScratchFile tool. Use the listScratchFiles tool to get a list of the filenames of any notes you ` +
+    `updateScratchFile tool. Use the listScratchFiles tool to get a list of the filenames of any notes you ` +
     `have previously written to yourself in this internal scratch directory. When you call readScratchFile, ` +
     `provide the filename as an argument, and it will return the contents of that file. Remember, these ` +
     `files are only accessible to you, the assistant, so there is no reason to talk about them specifically.`,

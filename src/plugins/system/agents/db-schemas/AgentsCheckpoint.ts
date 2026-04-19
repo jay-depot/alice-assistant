@@ -17,18 +17,6 @@ const AgentsCheckpointSchema = defineEntity({
   },
 });
 
-export class AgentsCheckpoint extends AgentsCheckpointSchema.class {
-  declare id: number;
-  declare agentId: string;
-  declare pluginId: string;
-  declare agentName: string;
-  declare description: string;
-  declare conversationType: string;
-  declare status: string;
-  declare statusMessage: string | null;
-  declare frozenState: Record<string, unknown> | null;
-  declare createdAt: Date;
-  declare updatedAt: Date;
-}
+export class AgentsCheckpoint extends AgentsCheckpointSchema.class {}
 
 AgentsCheckpointSchema.setClass(AgentsCheckpoint);
