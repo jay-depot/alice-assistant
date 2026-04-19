@@ -245,7 +245,9 @@ describe('listScratchFiles', () => {
     fs.writeFileSync(path.join(tmpDir, 'image.png'), '');
     const result = await execute();
     // The directory is not empty but no allowed files — list shows no allowed files
-    expect(result).toContain('Files in your internal scratch directory:');
+    expect(result).toContain(
+      'Your internal scratch directory contains no files of the allowed types (txt, md).'
+    );
   });
 
   it('reports empty when directory does not exist', async () => {
@@ -278,7 +280,7 @@ describe('updateScratchFile', () => {
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'alice-scratch-'));
     config = makeConfig({ scratchDirectory: tmpDir });
-    execute = updateScratchFileTool(config).execute as (
+    execute = updateScratchFileTool(config).execute as unknown as (
       args: UpdateScratchFileArgs
     ) => Promise<string>;
   });
@@ -337,9 +339,8 @@ describe('updateScratchFile', () => {
       scratchDirectory: tmpDir,
       maxFileSizeKB: 1,
     });
-    const smallExecute = updateScratchFileTool(smallConfig).execute as (
-      args: UpdateScratchFileArgs
-    ) => Promise<string>;
+    const smallExecute = updateScratchFileTool(smallConfig)
+      .execute as unknown as (args: UpdateScratchFileArgs) => Promise<string>;
     const result = await smallExecute({
       filename: 'large.txt',
       format: 'full',
