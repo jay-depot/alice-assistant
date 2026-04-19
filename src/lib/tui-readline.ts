@@ -23,7 +23,7 @@ import {
 export class TuiReadlineFrontend implements TuiFrontend {
   onUserInput: ((text: string) => void) | null = null;
   private rl: readline.Interface | null = null;
-  private currentSessionId: number | null = null;
+  currentSessionId: number | null = null;
   private isProcessing = false;
   private inputHistory: string[] = [];
   private historyIndex = -1;

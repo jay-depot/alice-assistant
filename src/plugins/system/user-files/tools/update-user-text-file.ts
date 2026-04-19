@@ -53,6 +53,7 @@ const updateUserTextFileTool: (config: {
   allowedFilePaths?: string[];
   allowedFileTypesWrite?: string[];
   allowedUpdatePaths?: string[];
+  maxFileSizeBytes?: number;
 }) => Tool = config => ({
   name: 'updateUserTextFile',
   availableFor: ['chat', 'voice'],
@@ -131,6 +132,23 @@ const updateUserTextFileTool: (config: {
       });
     }
 
+    // Verify it's a regular file
+    const stats = fs.statSync(absolutePath);
+    if (!stats.isFile()) {
+      return JSON.stringify({
+        error: `Path is not a regular file: ${filename}`,
+      });
+    }
+
+    // Check file size limits
+    const maxAllowedSize = config.maxFileSizeBytes || 10485760; // 10MB default
+    if (stats.size > maxAllowedSize) {
+      return JSON.stringify({
+        error: `File exceeds maximum allowed size of ${maxAllowedSize} bytes.`,
+        fileSize: stats.size,
+      });
+    }
+
     const original = fs.readFileSync(absolutePath, 'utf-8');
 
     const resolved = resolveContents(original, args.format, contents);
@@ -141,6 +159,15 @@ const updateUserTextFileTool: (config: {
     }
 
     const newContents = resolved.contents;
+
+    // Check new content size before writing
+    const newContentSize = Buffer.byteLength(newContents, 'utf-8');
+    if (newContentSize > maxAllowedSize) {
+      return JSON.stringify({
+        error: `Updated content exceeds maximum allowed size of ${maxAllowedSize} bytes.`,
+        newSize: newContentSize,
+      });
+    }
 
     try {
       fs.writeFileSync(absolutePath, newContents, { encoding: 'utf-8' });

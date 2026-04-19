@@ -86,5 +86,15 @@ describe('resolveContents', () => {
       if (result.ok) throw new Error('Expected ok=false');
       expect(result.reason).toBe('parse_error');
     });
+
+    it('returns soft error when patch fails to apply (applyPatch returns false)', () => {
+      const original = 'Hello World';
+      // A patch that references lines that don't exist in the original
+      const patch =
+        '--- original\n+++ modified\n@@ -1,3 +1,3 @@\n-line1\n-line2\n-line3\n+line1\n+line2\n+line3';
+      const result = resolveContents(original, 'diff', patch);
+      if (result.ok) throw new Error('Expected ok=false');
+      expect(result.reason).toBe('apply_error');
+    });
   });
 });

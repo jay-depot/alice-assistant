@@ -59,6 +59,7 @@ const TOKEN_FIELDS = [
   'scopes',
   'email',
   'displayName',
+  'lastRefreshedAt',
 ];
 
 /**
@@ -321,9 +322,15 @@ export class AccountStore {
       tokenExpiry
     );
 
+    const now = new Date().toISOString();
+    await this.credentialStore.storeSecret(
+      vaultKey(accountId, 'lastRefreshedAt'),
+      now
+    );
+
     const account = this.accounts.get(accountId);
     if (account) {
-      account.lastRefreshedAt = new Date().toISOString();
+      account.lastRefreshedAt = now;
     }
   }
 
@@ -377,7 +384,7 @@ export class AccountStore {
       )) ?? undefined;
     const lastRefreshedAt =
       (await this.credentialStore.retrieveSecret(
-        vaultKey(accountId, 'tokenExpiry')
+        vaultKey(accountId, 'lastRefreshedAt')
       )) ?? undefined;
 
     return {

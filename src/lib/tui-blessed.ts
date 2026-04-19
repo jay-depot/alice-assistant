@@ -46,7 +46,7 @@ export class TuiBlessedFrontend implements TuiFrontend {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private helpOverlay: any | null = null;
 
-  private currentSessionId: number | null = null;
+  currentSessionId: number | null = null;
   private isProcessing = false;
   private isMultiline = false;
   private inputHistory: string[] = [];

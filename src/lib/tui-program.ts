@@ -121,7 +121,20 @@ export async function runTuiProgram(argv: string[]): Promise<void> {
       return;
     }
 
-    // The frontend handles sending via its own session management
+    // Send the message to the backend via the API client
+    const sessionId = frontend.currentSessionId;
+    if (sessionId === null) {
+      console.error('No active session. Type /clear to start one.');
+      return;
+    }
+
+    try {
+      await apiClient.sendMessage(sessionId, text);
+    } catch (err) {
+      console.error(
+        `Failed to send message: ${err instanceof Error ? err.message : 'Unknown error'}`
+      );
+    }
   };
 
   // Handle graceful shutdown

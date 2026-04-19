@@ -148,4 +148,5 @@ export interface TuiFrontend {
   start(): Promise<void>;
   stop(): Promise<void>;
   onUserInput: ((text: string) => void) | null;
+  currentSessionId: number | null;
 }

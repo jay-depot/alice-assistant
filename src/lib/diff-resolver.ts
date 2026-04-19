@@ -79,7 +79,14 @@ export function resolveContents(
   let result = original;
   try {
     for (const patch of patches) {
-      result = applyPatch(result, patch);
+      const nextResult = applyPatch(result, patch);
+      if (nextResult === false) {
+        const msg =
+          'The diff patch could not be applied to the current content. Re-read the current content to get the exact text, then produce a valid unified diff patch that matches it. Only use format=full as a last resort.';
+        systemLogger.warn('[diff-resolver]', msg);
+        return { ok: false, reason: 'apply_error', message: msg };
+      }
+      result = nextResult;
     }
   } catch (e) {
     const msg = `The diff patch could not be applied to the current content: ${e instanceof Error ? e.message : String(e)}. Re-read the current content to get the exact text, then produce a valid unified diff patch that matches it. Only use format=full as a last resort.`;

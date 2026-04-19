@@ -148,13 +148,11 @@ const webUiPlugin: AlicePlugin = {
 
     const serializeCompactedContext = (
       messages: Message[] | undefined
-    ): string | null => {
+    ): { role: string; content: string }[] | null => {
       if (!messages || messages.length === 0) {
         return null;
       }
-      return JSON.stringify(
-        messages.map(m => ({ role: m.role, content: m.content }))
-      );
+      return messages.map(m => ({ role: m.role, content: m.content }));
     };
 
     const restoreCompactedContext = (json: unknown): Message[] | undefined => {
@@ -162,7 +160,9 @@ const webUiPlugin: AlicePlugin = {
         return undefined;
       }
       try {
-        const parsed = JSON.parse(String(json));
+        // MikroORM's p.json() column may return an already-parsed array
+        // or a string (legacy). Handle both.
+        const parsed = Array.isArray(json) ? json : JSON.parse(String(json));
         if (!Array.isArray(parsed) || parsed.length === 0) {
           return undefined;
         }
@@ -303,7 +303,9 @@ const webUiPlugin: AlicePlugin = {
       // compaction state intact — avoids re-compacting from scratch on reload.
       // MikroORM's p.json() produces a Brand type; cast through unknown.
       (
-        session as unknown as { compactedContext: string | null }
+        session as unknown as {
+          compactedContext: { role: string; content: string }[] | null;
+        }
       ).compactedContext = serializeCompactedContext(
         conversation.compactedContext
       );
@@ -1277,7 +1279,9 @@ const webUiPlugin: AlicePlugin = {
           if (didCompact) {
             // MikroORM's p.json() produces a Brand type; cast through unknown.
             (
-              queuedSession as unknown as { compactedContext: string | null }
+              queuedSession as unknown as {
+                compactedContext: { role: string; content: string }[] | null;
+              }
             ).compactedContext = serializeCompactedContext(
               conversation.compactedContext
             );

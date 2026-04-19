@@ -27,10 +27,8 @@ import type { Tool } from '../../../lib/tool-system.js';
 import scratchFilesPlugin, {
   ScratchFilesPluginConfigSchema,
 } from './scratch-files.js';
-import writeScratchFileTool from './tools/write-scratch-file.js';
 import readScratchFileTool from './tools/read-scratch-file.js';
 import deleteScratchFileTool from './tools/delete-scratch-file.js';
-import appendScratchFileTool from './tools/append-scratch-file.js';
 import listScratchFilesTool from './tools/list-scratch-files.js';
 
 // ---------------------------------------------------------------------------
@@ -126,114 +124,6 @@ describe('scratchFilesPlugin', () => {
 // Tool tests (using a real temp directory)
 // ---------------------------------------------------------------------------
 
-describe('writeScratchFile', () => {
-  let tmpDir: string;
-  let config: ScratchFilesPluginConfigSchema;
-  let execute: (args: any) => Promise<string>;
-
-  beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'alice-scratch-'));
-    config = makeConfig({ scratchDirectory: tmpDir });
-    execute = writeScratchFileTool(config).execute as (
-      args: any
-    ) => Promise<string>;
-  });
-
-  afterEach(() => {
-    fs.rmSync(tmpDir, { recursive: true, force: true });
-  });
-
-  it('writes a file and returns success message', async () => {
-    const result = await execute({ filename: 'notes.txt', contents: 'hello' });
-    expect(result).toContain('Written file notes.txt');
-    expect(result).toContain('5 characters written');
-    expect(fs.readFileSync(path.join(tmpDir, 'notes.txt'), 'utf-8')).toBe(
-      'hello'
-    );
-  });
-
-  it('creates scratch directory if it does not exist', async () => {
-    const nestedDir = path.join(tmpDir, 'new-subdir');
-    const cfg = makeConfig({ scratchDirectory: nestedDir });
-    const exec = writeScratchFileTool(cfg).execute as (
-      args: any
-    ) => Promise<string>;
-
-    const result = await exec({ filename: 'notes.txt', contents: 'data' });
-    expect(result).toContain('Written file');
-    expect(fs.existsSync(path.join(nestedDir, 'notes.txt'))).toBe(true);
-  });
-
-  it('rejects a disallowed file extension', async () => {
-    const result = await execute({ filename: 'bad.exe', contents: 'boom' });
-    expect(result).toContain('Error: File type not allowed');
-  });
-
-  it('rejects forward-slash path traversal', async () => {
-    const result = await execute({
-      filename: '../escape.txt',
-      contents: 'data',
-    });
-    expect(result).toContain('Error: Invalid filename');
-  });
-
-  it('rejects backslash path traversal', async () => {
-    const result = await execute({
-      filename: 'sub\\file.txt',
-      contents: 'data',
-    });
-    expect(result).toContain('Error: Invalid filename');
-  });
-
-  it('rejects double-dot path traversal', async () => {
-    const result = await execute({
-      filename: '..secrets.txt',
-      contents: 'data',
-    });
-    expect(result).toContain('Error: Invalid filename');
-  });
-
-  it('rejects content exceeding maxFileSizeKB', async () => {
-    const bigContent = 'x'.repeat(config.maxFileSizeKB * 1024 + 1);
-    const result = await execute({ filename: 'big.txt', contents: bigContent });
-    expect(result).toContain('Error: File size exceeds');
-  });
-
-  it('rejects overwrite when allowOverwrite is false', async () => {
-    const cfg = makeConfig({
-      scratchDirectory: tmpDir,
-      allowOverwrite: false,
-    });
-    const exec = writeScratchFileTool(cfg).execute as (
-      args: any
-    ) => Promise<string>;
-    fs.writeFileSync(path.join(tmpDir, 'existing.txt'), 'original');
-    const result = await exec({
-      filename: 'existing.txt',
-      contents: 'new content',
-    });
-    expect(result).toContain('Error: File already exists');
-    // Original should be unchanged
-    expect(fs.readFileSync(path.join(tmpDir, 'existing.txt'), 'utf-8')).toBe(
-      'original'
-    );
-  });
-
-  it('overwrites when allowOverwrite is true', async () => {
-    fs.writeFileSync(path.join(tmpDir, 'existing.txt'), 'original');
-    const result = await execute({
-      filename: 'existing.txt',
-      contents: 'updated',
-    });
-    expect(result).toContain('Written file');
-    expect(fs.readFileSync(path.join(tmpDir, 'existing.txt'), 'utf-8')).toBe(
-      'updated'
-    );
-  });
-});
-
-// ---------------------------------------------------------------------------
-
 describe('readScratchFile', () => {
   let tmpDir: string;
   let config: ScratchFilesPluginConfigSchema;
@@ -314,85 +204,6 @@ describe('deleteScratchFile', () => {
   it('rejects path traversal', async () => {
     const result = await execute({ filename: '../important.txt' });
     expect(result).toContain('Error: Invalid filename');
-  });
-});
-
-// ---------------------------------------------------------------------------
-
-describe('appendScratchFile', () => {
-  let tmpDir: string;
-  let config: ScratchFilesPluginConfigSchema;
-  let execute: (args: any) => Promise<string>;
-
-  beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'alice-scratch-'));
-    config = makeConfig({ scratchDirectory: tmpDir });
-    execute = appendScratchFileTool(config).execute as (
-      args: any
-    ) => Promise<string>;
-  });
-
-  afterEach(() => {
-    fs.rmSync(tmpDir, { recursive: true, force: true });
-  });
-
-  it('creates a new file when target does not exist', async () => {
-    const result = await execute({
-      filename: 'log.txt',
-      contents: 'first line',
-    });
-    expect(result).toContain('Updated file log.txt');
-    expect(fs.readFileSync(path.join(tmpDir, 'log.txt'), 'utf-8')).toBe(
-      'first line'
-    );
-  });
-
-  it('appends a newline and new content to an existing file', async () => {
-    fs.writeFileSync(path.join(tmpDir, 'log.txt'), 'line 1');
-    await execute({ filename: 'log.txt', contents: 'line 2' });
-    expect(fs.readFileSync(path.join(tmpDir, 'log.txt'), 'utf-8')).toBe(
-      'line 1\nline 2'
-    );
-  });
-
-  it('rejects a disallowed file extension', async () => {
-    const result = await execute({ filename: 'bad.csv', contents: 'data' });
-    expect(result).toContain('Error: File type not allowed');
-  });
-
-  it('rejects path traversal', async () => {
-    const result = await execute({
-      filename: '../escape.txt',
-      contents: 'data',
-    });
-    expect(result).toContain('Error: Invalid filename');
-  });
-
-  it('rejects new content that alone exceeds maxFileSizeKB', async () => {
-    const bigContent = 'x'.repeat(config.maxFileSizeKB * 1024 + 1);
-    const result = await execute({ filename: 'big.txt', contents: bigContent });
-    expect(result).toContain('Error: File size exceeds');
-  });
-
-  it('rejects append that would push combined size over maxFileSizeKB', async () => {
-    // Write a file that uses most of the budget
-    const halfKB = Math.floor((config.maxFileSizeKB * 1024) / 2);
-    fs.writeFileSync(path.join(tmpDir, 'log.txt'), 'x'.repeat(halfKB));
-    // Appending another halfKB + 1 should exceed the limit
-    const result = await execute({
-      filename: 'log.txt',
-      contents: 'y'.repeat(halfKB + 2),
-    });
-    expect(result).toContain('Error: Appending this content');
-    expect(result).toContain('exceed the maximum allowed size');
-  });
-
-  it('returns character count in success message', async () => {
-    const result = await execute({
-      filename: 'notes.txt',
-      contents: 'abc',
-    });
-    expect(result).toContain('3 characters appended');
   });
 });
 

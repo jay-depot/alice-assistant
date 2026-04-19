@@ -78,7 +78,7 @@ declare module '../../../lib.js' {
        * @param keywords
        * @returns
        */
-      saveMemory: (content: string, conversationType) => Promise<void>;
+      saveMemory: (content: string, conversationType?: string) => Promise<void>;
     };
   }
 }
@@ -99,7 +99,7 @@ export type MemoryPluginConfigSchema = Type.Static<
 async function saveMemory(
   orm: MikroORM,
   content: string,
-  conversationType: string
+  conversationType?: string
 ) {
   const em = orm.em.fork();
   // Start by extracting keywords:
@@ -156,7 +156,7 @@ async function saveMemory(
     timestamp: new Date(),
     content,
     keywords: keywordEntities,
-    conversationType,
+    conversationType: conversationType ?? null,
   });
   em.persist(memory);
 
