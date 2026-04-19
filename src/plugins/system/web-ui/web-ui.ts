@@ -1247,6 +1247,12 @@ const webUiPlugin: AlicePlugin = {
         }
 
         const parsedId = parseInt(id);
+
+        if (isNaN(parsedId)) {
+          res.status(400).json({ error: 'Invalid session ID' });
+          return;
+        }
+
         const em = orm.em.fork();
         const session = await em.findOne(
           ChatSession,
