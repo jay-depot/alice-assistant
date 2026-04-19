@@ -343,7 +343,7 @@ describe('updateScratchFile', () => {
     const result = await smallExecute({
       filename: 'large.txt',
       format: 'full',
-      contents: 'x'.repeat(1025),
+      contents: 'x'.repeat(10 * 1024),
     });
     expect(result).toContain(
       'Error: Content size exceeds the maximum allowed size of 1 KB.'
