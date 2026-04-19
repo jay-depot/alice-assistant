@@ -603,6 +603,66 @@ describe('webUiPlugin', () => {
     expect(getRegisteredRouteHandler('get', '/api/extensions')).toBeDefined();
   });
 
+  it('POST /api/chat/:id/compact broadcasts session_updated with post-compaction session state', async () => {
+    const existingSession: ChatSessionRecord = {
+      id: 1,
+      title: 'Existing',
+      rounds: makeRounds([]),
+      createdAt: new Date('2026-01-01T00:00:00Z'),
+      updatedAt: new Date('2026-01-01T00:00:00Z'),
+    };
+    const mockInterface = createMockPluginInterface([existingSession]);
+    await webUiPlugin.registerPlugin(
+      mockInterface as unknown as AlicePluginInterface
+    );
+    await mockInterface.runHook('onAssistantAcceptsRequests');
+
+    const compactHandler = getRegisteredRouteHandler('post', '/api/chat/:id/compact');
+    const connectionHandler = mockWss.on.mock.calls.find(
+      (entry: any[]) => entry[0] === 'connection'
+    )?.[1] as ((ws: any) => void) | undefined;
+
+    const wsClient = {
+      readyState: 1,
+      send: vi.fn(),
+      on: vi.fn(),
+    };
+    connectionHandler?.(wsClient);
+
+    mockStartConversation.mockReturnValueOnce({
+      restoreContext: vi.fn(),
+      compactContext: vi.fn().mockResolvedValue(true),
+      compactedContext: [{ role: 'assistant', content: 'summary' }],
+      getUnsynchronizedMessages: vi.fn(() => []),
+      markUnsynchronizedMessagesSynchronized: vi.fn(),
+      appendExternalMessage: vi.fn(),
+      closeConversation: vi.fn(),
+      sendUserMessage: vi.fn().mockResolvedValue(undefined),
+      requestTitle: vi.fn(async () => 'New Conversation'),
+    });
+
+    const res = createMockResponse();
+    await compactHandler?.(
+      { params: { id: '1' }, query: { mode: 'full' } },
+      res
+    );
+
+    const sentMessages = wsClient.send.mock.calls.map((call: [string]) =>
+      JSON.parse(call[0])
+    );
+    const updatedMessage = sentMessages.find(
+      (msg: any) => msg.type === 'session_updated'
+    );
+
+    expect(res.json).toHaveBeenCalledWith({
+      sessionId: 1,
+      compacted: true,
+      mode: 'full',
+    });
+    expect(updatedMessage).toBeDefined();
+    expect(updatedMessage.session.hasCompactedContext).toBe(true);
+  });
+
   it('POST /api/chat creates a chat session and returns session payload', async () => {
     const mockInterface = createMockPluginInterface();
     await webUiPlugin.registerPlugin(

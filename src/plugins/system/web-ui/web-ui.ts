@@ -1294,7 +1294,13 @@ const webUiPlugin: AlicePlugin = {
             await em.flush();
           }
 
-          return { didCompact, mode };
+          return {
+            didCompact,
+            mode,
+            wsSession: didCompact
+              ? buildWsSession(queuedSession, queuedSession.id)
+              : undefined,
+          };
         });
 
         res.json({
@@ -1307,7 +1313,7 @@ const webUiPlugin: AlicePlugin = {
           broadcastWs({
             type: 'session_updated',
             sessionId: parsedId,
-            session: buildWsSession(session, parsedId),
+            session: result.wsSession!,
           });
         }
       });
