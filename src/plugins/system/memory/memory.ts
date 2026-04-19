@@ -10,6 +10,31 @@ import { Keyword, Memory } from './db-schemas/index.js';
 import { UserConfig } from '../../../lib/user-config.js';
 import { lancasterStemmer } from 'lancaster-stemmer';
 
+const fillerWords = [
+  'the',
+  'a',
+  'an',
+  'some',
+  'any',
+  'and',
+  'or',
+  'but',
+  'if',
+  'then',
+  'I',
+  'you',
+  'he',
+  'she',
+  'it',
+  'we',
+  'they',
+  'me',
+  'him',
+  'her',
+  'us',
+  'them',
+].map(w => w.toLowerCase());
+
 declare module '../../../lib.js' {
   export interface PluginCapabilities {
     memory: {
@@ -109,32 +134,7 @@ async function saveMemory(
     .filter(word => {
       // Filter out common words, articles, pronouns, and other "filler" words that aren't useful as keywords.
       // This is a very naive implementation, and could be improved with a more sophisticated NLP approach, but it should work decently for now.
-      if (
-        [
-          'the',
-          'a',
-          'an',
-          'some',
-          'any',
-          'and',
-          'or',
-          'but',
-          'if',
-          'then',
-          'I',
-          'you',
-          'he',
-          'she',
-          'it',
-          'we',
-          'they',
-          'me',
-          'him',
-          'her',
-          'us',
-          'them',
-        ].includes(word)
-      ) {
+      if (fillerWords.includes(word)) {
         return false;
       }
       return true;
