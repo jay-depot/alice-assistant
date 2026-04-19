@@ -386,7 +386,19 @@ function createPluginInterface(
             socket: Duplex,
             head: Buffer
           ) => {
-            if (req.url === wsPath) {
+            if (!req.url) {
+              return;
+            }
+
+            let requestPathname: string;
+
+            try {
+              requestPathname = new URL(req.url, 'http://localhost').pathname;
+            } catch {
+              return;
+            }
+
+            if (requestPathname === wsPath) {
               wss.handleUpgrade(req, socket, head, ws => {
                 wss.emit('connection', ws, req);
               });
