@@ -27,6 +27,7 @@ import type { Tool } from '../../../lib/tool-system.js';
 import scratchFilesPlugin, {
   ScratchFilesPluginConfigSchema,
 } from './scratch-files.js';
+import updateScratchFileTool from './tools/update-scratch-file.js';
 import readScratchFileTool from './tools/read-scratch-file.js';
 import deleteScratchFileTool from './tools/delete-scratch-file.js';
 import listScratchFilesTool from './tools/list-scratch-files.js';
@@ -258,5 +259,88 @@ describe('listScratchFiles', () => {
   it('reports empty for an empty directory', async () => {
     const result = await execute();
     expect(result).toContain('empty');
+  });
+});
+
+// ---------------------------------------------------------------------------
+
+describe('updateScratchFile', () => {
+  let tmpDir: string;
+  let config: ScratchFilesPluginConfigSchema;
+  let execute: (args: any) => Promise<string>;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'alice-scratch-'));
+    config = makeConfig({ scratchDirectory: tmpDir });
+    execute = updateScratchFileTool(config).execute as (
+      args: any
+    ) => Promise<string>;
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it('writes full content to a new file', async () => {
+    const result = await execute({
+      filename: 'notes.txt',
+      format: 'full',
+      contents: 'first draft',
+    });
+    expect(result).toContain('Written file notes.txt');
+    expect(fs.readFileSync(path.join(tmpDir, 'notes.txt'), 'utf-8')).toBe(
+      'first draft'
+    );
+  });
+
+  it('applies a unified diff update to an existing file', async () => {
+    fs.writeFileSync(path.join(tmpDir, 'notes.txt'), 'hello\nworld\n');
+    const result = await execute({
+      filename: 'notes.txt',
+      format: 'diff',
+      contents:
+        '--- notes.txt\n+++ notes.txt\n@@ -1,2 +1,2 @@\n hello\n-world\n+alice\n',
+    });
+    expect(result).toContain('Updated file notes.txt');
+    expect(fs.readFileSync(path.join(tmpDir, 'notes.txt'), 'utf-8')).toBe(
+      'hello\nalice\n'
+    );
+  });
+
+  it('rejects invalid diff patches', async () => {
+    fs.writeFileSync(path.join(tmpDir, 'notes.txt'), 'hello\nworld\n');
+    const result = await execute({
+      filename: 'notes.txt',
+      format: 'diff',
+      contents: 'this is not a diff',
+    });
+    expect(result).toContain('ERROR! UPDATE REJECTED.');
+  });
+
+  it('rejects path traversal attempts', async () => {
+    const result = await execute({
+      filename: '../notes.txt',
+      format: 'full',
+      contents: 'content',
+    });
+    expect(result).toContain('Error: Invalid filename');
+  });
+
+  it('enforces max file size limits', async () => {
+    const smallConfig = makeConfig({
+      scratchDirectory: tmpDir,
+      maxFileSizeKB: 1,
+    });
+    const smallExecute = updateScratchFileTool(smallConfig).execute as (
+      args: any
+    ) => Promise<string>;
+    const result = await smallExecute({
+      filename: 'large.txt',
+      format: 'full',
+      contents: 'x'.repeat(1025),
+    });
+    expect(result).toContain(
+      'Error: Content size exceeds the maximum allowed size of 1 KB.'
+    );
   });
 });
