@@ -311,6 +311,7 @@ export class OAuthManager {
 
     // Check if the account is authenticated
     const account = this.accountStore.getAccount(accountId);
+
     if (!account || !account.isAuthenticated) {
       this.logger.warn(
         `getClient: Account "${accountId}" is not authenticated.`
@@ -342,6 +343,7 @@ export class OAuthManager {
     // Load tokens from the vault
     const refreshToken = await this.accountStore.getRefreshToken(accountId);
     const accessToken = await this.accountStore.getAccessToken(accountId);
+    const tokenExpiry = await this.accountStore.getTokenExpiry(accountId);
 
     if (!refreshToken) {
       this.logger.warn(
@@ -350,9 +352,20 @@ export class OAuthManager {
       return null;
     }
 
+    // Convert the ISO 8601 expiry string to a Unix timestamp in milliseconds.
+    // If missing or unparseable, default to 0 (forces an immediate refresh).
+    let expiryDate = 0;
+    if (tokenExpiry) {
+      const parsed = new Date(tokenExpiry).getTime();
+      if (!Number.isNaN(parsed)) {
+        expiryDate = parsed;
+      }
+    }
+
     client.setCredentials({
       refresh_token: refreshToken,
       access_token: accessToken ?? undefined,
+      expiry_date: expiryDate,
     });
 
     // Set up automatic token refresh persistence
@@ -370,7 +383,10 @@ export class OAuthManager {
    */
   async getGmailClient(accountId: string): Promise<gmail_v1.Gmail | null> {
     const client = await this.getClient(accountId);
-    if (!client) return null;
+    if (!client) {
+      return null;
+    }
+
     return gmail({ version: 'v1', auth: client });
   }
 
@@ -382,7 +398,10 @@ export class OAuthManager {
     accountId: string
   ): Promise<calendar_v3.Calendar | null> {
     const client = await this.getClient(accountId);
-    if (!client) return null;
+    if (!client) {
+      return null;
+    }
+
     return calendar({ version: 'v3', auth: client });
   }
 

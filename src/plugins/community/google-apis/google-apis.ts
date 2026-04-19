@@ -388,17 +388,28 @@ const googleApisPlugin: AlicePlugin = {
 
     // Offer capabilities to downstream plugins
     plugin.offer<'google-apis'>({
-      getAuthenticatedClient: (accountId: string) =>
-        oauthManager.getClient(accountId),
-      getGmailClient: (accountId: string) =>
-        oauthManager.getGmailClient(accountId),
-      getCalendarClient: (accountId: string) =>
-        oauthManager.getCalendarClient(accountId),
-      getPeopleClient: (accountId: string) =>
-        oauthManager.getPeopleClient(accountId),
-      listAccounts: () => accountStore.listAccountIds(),
-      getAccountInfo: (accountId: string) =>
-        accountStore.getAccount(accountId) ?? null,
+      getAuthenticatedClient: (accountId: string) => {
+        return oauthManager.getClient(accountId);
+      },
+      getGmailClient: (accountId: string) => {
+        return oauthManager.getGmailClient(accountId);
+      },
+      getCalendarClient: (accountId: string) => {
+        return oauthManager.getCalendarClient(accountId);
+      },
+      getPeopleClient: (accountId: string) => {
+        return oauthManager.getPeopleClient(accountId);
+      },
+      listAccounts: () => {
+        const ids = accountStore.listAccountIds();
+
+        return ids;
+      },
+      getAccountInfo: (accountId: string) => {
+        const info = accountStore.getAccount(accountId) ?? null;
+
+        return info;
+      },
       initiateOAuthFlow: (accountId: string) =>
         oauthManager.initiateFlow(accountId),
       disconnectAccount: (accountId: string) =>
@@ -427,11 +438,15 @@ const googleApisPlugin: AlicePlugin = {
           if (accountStore.getAccount(accountId)?.isAuthenticated) {
             try {
               await oauthManager.refreshIfExpired(accountId);
-            } catch {
+            } catch (err) {
+              plugin.logger.error(
+                `onAssistantWillAcceptRequests: refreshIfExpired FAILED for ${accountId}: ${err instanceof Error ? err.message : String(err)}`
+              );
               // Best effort — the auto-refresh listener will handle it
             }
           }
         }
+        plugin.logger.log('onAssistantWillAcceptRequests: DONE');
       } catch (err) {
         plugin.logger.error(
           `onAssistantWillAcceptRequests: Failed to restore accounts from vault: ${err instanceof Error ? err.message : String(err)}`

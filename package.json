@@ -52,6 +52,7 @@
     "diff": "^7.0.0",
     "express": "^5.2.1",
     "google-auth-library": "^10.6.2",
+    "lancaster-stemmer": "^2.1.0",
     "marked": "^15.0.0",
     "marked-terminal": "^7.3.0",
     "mikro-orm": "^7.0.3",

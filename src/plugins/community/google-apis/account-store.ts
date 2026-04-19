@@ -236,12 +236,15 @@ export class AccountStore {
   ): Promise<{ clientId: string; clientSecret: string } | undefined> {
     // Per-account credentials take priority
     const perAccount = await this.loadClientCredentials(accountId);
+
     if (perAccount) {
       return perAccount;
     }
 
     // Fall back to the `_default` account credentials stored via the web UI
-    return this.loadClientCredentials('_default');
+    const defaults = await this.loadClientCredentials('_default');
+
+    return defaults;
   }
 
   /**
@@ -270,18 +273,35 @@ export class AccountStore {
    * Retrieve a stored refresh token for an account.
    */
   async getRefreshToken(accountId: string): Promise<string | undefined> {
-    return this.credentialStore.retrieveSecret(
+    const token = await this.credentialStore.retrieveSecret(
       vaultKey(accountId, 'refreshToken')
     );
+
+    return token;
   }
 
   /**
    * Retrieve a cached access token for an account (may be expired).
    */
   async getAccessToken(accountId: string): Promise<string | undefined> {
-    return this.credentialStore.retrieveSecret(
+    const token = await this.credentialStore.retrieveSecret(
       vaultKey(accountId, 'accessToken')
     );
+
+    return token;
+  }
+
+  /**
+   * Retrieve the stored token expiry timestamp for an account (ISO 8601 string).
+   * Used by OAuthManager to set expiry_date on the OAuth2Client so it knows
+   * when to proactively refresh the access token.
+   */
+  async getTokenExpiry(accountId: string): Promise<string | undefined> {
+    const expiry = await this.credentialStore.retrieveSecret(
+      vaultKey(accountId, 'tokenExpiry')
+    );
+
+    return expiry;
   }
 
   /**

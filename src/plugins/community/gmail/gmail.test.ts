@@ -46,7 +46,7 @@ function createMockPluginInterface(
   googleApisCapability: Record<string, any> | null,
   emailBrokerCapability: Record<string, any> | null
 ) {
-  let capturedAllPluginsLoaded: (() => Promise<void>) | null = null;
+  let capturedHook: (() => Promise<void>) | null = null;
   const mockLogger = {
     log: vi.fn(),
     info: vi.fn(),
@@ -57,7 +57,7 @@ function createMockPluginInterface(
 
   return {
     mockLogger,
-    getCapturedHook: () => capturedAllPluginsLoaded,
+    getCapturedHook: () => capturedHook,
     registerPlugin: async () => ({
       logger: mockLogger,
       registerTool: vi.fn(),
@@ -67,11 +67,11 @@ function createMockPluginInterface(
       registerTaskAssistant: vi.fn(),
       addToolToConversationType: vi.fn(),
       hooks: {
-        onAllPluginsLoaded: vi.fn((cb: () => Promise<void>) => {
-          capturedAllPluginsLoaded = cb;
-        }),
+        onAllPluginsLoaded: vi.fn(),
         onAssistantWillAcceptRequests: vi.fn(),
-        onAssistantAcceptsRequests: vi.fn(),
+        onAssistantAcceptsRequests: vi.fn((cb: () => Promise<void>) => {
+          capturedHook = cb;
+        }),
         onAssistantWillStopAcceptingRequests: vi.fn(),
         onAssistantStoppedAcceptingRequests: vi.fn(),
         onPluginsWillUnload: vi.fn(),
@@ -135,7 +135,7 @@ describe('gmailPlugin', () => {
         mockInterface as unknown as AlicePluginInterface
       );
 
-      // Trigger onAllPluginsLoaded
+      // Trigger onAssistantAcceptsRequests
       const hook = mockInterface.getCapturedHook();
       expect(hook).toBeDefined();
       await hook!();

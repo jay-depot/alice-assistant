@@ -224,10 +224,13 @@ const googleCalendarPlugin: AlicePlugin = {
       return;
     }
 
-    // Register providers after all plugins have loaded
-    plugin.hooks.onAllPluginsLoaded(async () => {
+    // Register providers after google-apis has restored accounts from the vault.
+    // onAssistantAcceptsRequests fires after ALL onAssistantWillAcceptRequests
+    // hooks have completed, so the account store will definitely be populated
+    // by the time we call listAccounts().
+    plugin.hooks.onAssistantAcceptsRequests(async () => {
       plugin.logger.log(
-        'onAllPluginsLoaded: Registering Google Calendar providers.'
+        'onAssistantAcceptsRequests: Registering Google Calendar providers.'
       );
 
       const accountIds = googleApis.listAccounts();
@@ -243,6 +246,7 @@ const googleCalendarPlugin: AlicePlugin = {
 
       for (const accountId of accountIds) {
         const accountInfo = googleApis.getAccountInfo(accountId);
+
         if (!accountInfo?.isAuthenticated) {
           plugin.logger.warn(
             `onAllPluginsLoaded: Google account "${accountId}" is not authenticated. Skipping.`
@@ -282,6 +286,7 @@ const googleCalendarPlugin: AlicePlugin = {
         };
 
         calendarBroker.registerCalendarProvider(providerName, provider);
+
         plugin.logger.log(
           `onAllPluginsLoaded: Registered calendar provider "${providerName}".`
         );
@@ -308,6 +313,7 @@ async function getEvents(
     const calendarClient = (await googleApis.getCalendarClient(
       accountId
     )) as CalendarClient | null;
+
     if (!calendarClient) {
       logger.error(
         `getEvents: Could not get Calendar client for account "${accountId}".`
@@ -339,6 +345,7 @@ async function getEvents(
     const response: any = await calendarClient.events.list(listParams);
 
     const events = response.data?.items ?? [];
+
     return events.map(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (e: any) =>

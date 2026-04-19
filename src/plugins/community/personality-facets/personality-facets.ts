@@ -275,7 +275,7 @@ const personalityFacetsPlugin: AlicePlugin = {
         );
         if (resolved.ok === false) {
           throw new Error(
-            `THE UPDATE WAS REJECTED.\n${resolved.message}\nUse format=full to replace the entire facet instructions or embody/examine the facet to create an accurate diff.`
+            `THE UPDATE WAS REJECTED.\n${resolved.message}\nRe-examine the facet with embodyPersonalityFacet to get the current instructions, then produce a valid unified diff patch. Use format=full only as a last resort if you cannot produce a valid diff after re-examining.`
           );
         }
         existingFacet.instructions = resolved.contents;
@@ -290,19 +290,18 @@ const personalityFacetsPlugin: AlicePlugin = {
         );
       }
 
-      // When creating, original is empty string — resolve through diff resolver
-      // to handle both full replacement and diff-patch-to-empty cases
-      const resolved = resolveContents('', format, instructions);
-      if (resolved.ok === false) {
+      // When creating a new facet, use instructions directly — diffing against
+      // empty content is not supported. format=full is required for creation.
+      if (format === 'diff') {
         throw new Error(
-          `THE UPDATE WAS REJECTED.\n${resolved.message}\nUse format=full to provide the full facet instructions.`
+          'THE UPDATE WAS REJECTED.\nCannot apply a diff to empty content. When creating a new facet, use format=full for the initial instructions. You can use format=diff for subsequent updates.'
         );
       }
 
       em.create(PersonalityFacetsFacetDefinition, {
         name: facetName,
         embodyWhen,
-        instructions: resolved.contents,
+        instructions,
         createdAt: now,
         updatedAt: now,
       });
@@ -436,11 +435,11 @@ const personalityFacetsPlugin: AlicePlugin = {
       name: 'updatePersonalityFacet',
       availableFor: ['autonomy', 'chat', 'voice'],
       description:
-        'Create a new personality facet or update an existing one when you need a reusable ' +
-        'situational mode with specific tone, style, or behavioral guidance. If `format` ' +
-        'is "full", the full instruction text will be replaced. If `format` is "diff" ' +
-        'then the instructions field will be treated as a unified diff to apply to the ' +
-        'existing instructions. If you provide an invalid diff, your update will be rejected.',
+        'Create a new personality facet or update an existing one. When updating, ' +
+        'prefer format=diff with a unified diff patch for targeted edits — re-examine ' +
+        'the facet first with embodyPersonalityFacet to get the current instructions, ' +
+        'then produce a diff. Use format=full only for new facets or as a last resort. ' +
+        'Invalid diffs will be rejected with instructions to re-read and retry.',
       parameters: UpdatePersonalityFacetToolParametersSchema,
       systemPromptFragment: '',
       toolResultPromptIntro: '',

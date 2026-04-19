@@ -143,11 +143,11 @@ function OAuthConfigSection({
 
   return h(
     'div',
-    { className: 'ga-section' },
+    { className: 'plugin-card' },
     h('h3', null, '⚙️ OAuth Client Configuration'),
     h(
       'p',
-      { className: 'ga-description' },
+      { className: 'plugin-page__description' },
       'To connect Google accounts, you need OAuth credentials from the ',
       h(
         'a',
@@ -158,14 +158,69 @@ function OAuthConfigSection({
         },
         'Google Cloud Console'
       ),
-      '. Create a project, enable the Gmail, Calendar, and People APIs, ' +
-        'then create an OAuth 2.0 Client ID (type: Web application). ' +
+      '. Create a project, then create an OAuth 2.0 Client ID (type: Web application). ' +
         'Add the redirect URI shown below as an authorized redirect URI.'
+    ),
+    h(
+      'div',
+      { className: 'ga-api-links' },
+      h('h4', null, 'Required APIs'),
+      h(
+        'p',
+      { className: 'plugin-page__description' },
+        'Enable these APIs in your Google Cloud project:'
+      ),
+      h(
+        'ul',
+        { className: 'plugin-link-list' },
+        h(
+          'li',
+          null,
+          h(
+            'a',
+            {
+              href: 'https://console.cloud.google.com/apis/library/gmail.googleapis.com',
+              target: '_blank',
+              rel: 'noopener noreferrer',
+            },
+            'Gmail API'
+          ),
+          ' — Read, send, and search email'
+        ),
+        h(
+          'li',
+          null,
+          h(
+            'a',
+            {
+              href: 'https://console.cloud.google.com/apis/library/calendar-json.googleapis.com',
+              target: '_blank',
+              rel: 'noopener noreferrer',
+            },
+            'Google Calendar API'
+          ),
+          ' — View and manage calendar events'
+        ),
+        h(
+          'li',
+          null,
+          h(
+            'a',
+            {
+              href: 'https://console.cloud.google.com/apis/library/people.googleapis.com',
+              target: '_blank',
+              rel: 'noopener noreferrer',
+            },
+            'People API'
+          ),
+          ' — Access contacts and profile info'
+        )
+      )
     ),
     config
       ? h(
           'p',
-          { className: 'ga-hint' },
+          { className: 'plugin-hint' },
           h('strong', null, 'Redirect URI: '),
           h('code', null, config.redirectUri)
         )
@@ -173,13 +228,13 @@ function OAuthConfigSection({
     config?.hasDefaultCredentials
       ? h(
           'p',
-          { className: 'ga-hint ga-success' },
+          { className: 'plugin-hint plugin-hint--success' },
           '✓ Default OAuth credentials are configured.'
         )
       : null,
     h(
       'div',
-      { className: 'ga-form-group' },
+      { className: 'plugin-form-group' },
       h('label', { htmlFor: 'ga-client-id' }, 'Client ID'),
       h('input', {
         id: 'ga-client-id',
@@ -192,7 +247,7 @@ function OAuthConfigSection({
     ),
     h(
       'div',
-      { className: 'ga-form-group' },
+      { className: 'plugin-form-group' },
       h('label', { htmlFor: 'ga-client-secret' }, 'Client Secret'),
       h('input', {
         id: 'ga-client-secret',
@@ -207,14 +262,14 @@ function OAuthConfigSection({
       'button',
       {
         type: 'button',
-        className: 'ga-btn ga-btn-primary',
+        className: 'plugin-btn plugin-btn--primary',
         onClick: handleSave,
         disabled: saving || !clientId.trim() || !clientSecret.trim(),
       },
       saving ? 'Saving...' : 'Save Credentials'
     ),
-    error ? h('div', { className: 'ga-error' }, error) : null,
-    success ? h('div', { className: 'ga-success' }, success) : null
+    error ? h('div', { className: 'plugin-msg plugin-msg--error' }, error) : null,
+    success ? h('div', { className: 'plugin-msg plugin-msg--success' }, success) : null
   );
 }
 
@@ -251,11 +306,11 @@ function AccountList({
   if (accounts.length === 0) {
     return h(
       'div',
-      { className: 'ga-empty' },
+      { className: 'plugin-empty' },
       h('p', null, 'No Google accounts connected.'),
       h(
         'p',
-        { className: 'ga-hint' },
+        { className: 'plugin-hint' },
         'Use the form below to connect a Google account.'
       )
     );
@@ -263,7 +318,7 @@ function AccountList({
 
   return h(
     'div',
-    { className: 'ga-section' },
+    { className: 'plugin-card' },
     h('h3', null, '📋 Connected Accounts'),
     h(
       'ul',
@@ -289,12 +344,12 @@ function AccountList({
               account.isAuthenticated
                 ? h(
                     'span',
-                    { className: 'ga-status-authenticated' },
+                    { className: 'plugin-status plugin-status--success' },
                     '✓ Authenticated'
                   )
                 : h(
                     'span',
-                    { className: 'ga-status-unauthenticated' },
+                    { className: 'plugin-status plugin-status--error' },
                     '✗ Not authenticated'
                   ),
               account.lastRefreshedAt
@@ -317,7 +372,7 @@ function AccountList({
                   h(
                     'button',
                     {
-                      className: 'ga-btn ga-btn-danger',
+                      className: 'plugin-btn plugin-btn--danger',
                       onClick: () => handleDisconnect(account.accountId),
                       disabled: disconnecting !== null,
                     },
@@ -328,7 +383,7 @@ function AccountList({
                   h(
                     'button',
                     {
-                      className: 'ga-btn ga-btn-secondary',
+                      className: 'plugin-btn plugin-btn--secondary',
                       onClick: () => setConfirmId(null),
                       disabled: disconnecting !== null,
                     },
@@ -338,7 +393,7 @@ function AccountList({
               : h(
                   'button',
                   {
-                    className: 'ga-btn ga-btn-danger ga-btn-small',
+                    className: 'plugin-btn plugin-btn--danger plugin-btn--small',
                     onClick: () => setConfirmId(account.accountId),
                     disabled: disconnecting !== null,
                   },
@@ -348,7 +403,7 @@ function AccountList({
         )
       )
     ),
-    error ? h('div', { className: 'ga-error' }, error) : null
+    error ? h('div', { className: 'plugin-msg plugin-msg--error' }, error) : null
   );
 }
 
@@ -376,17 +431,17 @@ function AddAccountSection() {
 
   return h(
     'div',
-    { className: 'ga-section' },
+    { className: 'plugin-card' },
     h('h3', null, '➕ Add Google Account'),
     h(
       'p',
-      { className: 'ga-description' },
+      { className: 'plugin-page__description' },
       'Enter an account ID (e.g., "work" or "personal") to identify this Google account. ' +
         'You will be redirected to Google to grant permission.'
     ),
     h(
       'div',
-      { className: 'ga-form-group' },
+      { className: 'plugin-form-group' },
       h('label', { htmlFor: 'ga-account-id' }, 'Account ID'),
       h('input', {
         id: 'ga-account-id',
@@ -402,7 +457,7 @@ function AddAccountSection() {
       'button',
       {
         type: 'button',
-        className: 'ga-btn ga-btn-primary',
+        className: 'plugin-btn plugin-btn--primary',
         onClick: handleConnect,
         disabled:
           connecting ||
@@ -411,7 +466,7 @@ function AddAccountSection() {
       },
       connecting ? 'Connecting...' : 'Connect Account'
     ),
-    error ? h('div', { className: 'ga-error' }, error) : null
+    error ? h('div', { className: 'plugin-msg plugin-msg--error' }, error) : null
   );
 }
 
@@ -469,19 +524,19 @@ function GoogleApisManagerPage() {
   if (loading) {
     return h(
       'div',
-      { className: 'ga-page' },
-      h('h2', null, '🔗 Google APIs'),
+      { className: 'plugin-page ga-page' },
+      h('h2', { className: 'plugin-page__title' }, '🔗 Google APIs'),
       h('p', null, 'Loading...')
     );
   }
 
   return h(
     'div',
-    { className: 'ga-page' },
-    h('h2', null, '🔗 Google APIs'),
+    { className: 'plugin-page ga-page' },
+    h('h2', { className: 'plugin-page__title' }, '🔗 Google APIs'),
     h(
       'p',
-      { className: 'ga-description' },
+      { className: 'plugin-page__description' },
       'Manage Google account connections for Gmail, Calendar, and People API access. ' +
         'Connect one or more Google accounts to enable Google API features.'
     ),
@@ -491,8 +546,8 @@ function GoogleApisManagerPage() {
           {
             className:
               callbackMessage.type === 'success'
-                ? 'ga-success ga-callback-message'
-                : 'ga-error ga-callback-message',
+                ? 'plugin-msg--banner plugin-msg--success'
+                : 'plugin-msg--banner plugin-msg--error',
           },
           callbackMessage.text
         )

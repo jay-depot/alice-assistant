@@ -311,10 +311,13 @@ const gmailPlugin: AlicePlugin = {
       return;
     }
 
-    // Register providers after all plugins have loaded
-    plugin.hooks.onAllPluginsLoaded(async () => {
+    // Register providers after google-apis has restored accounts from the vault.
+    // onAssistantAcceptsRequests fires after ALL onAssistantWillAcceptRequests
+    // hooks have completed, so the account store will definitely be populated
+    // by the time we call listAccounts().
+    plugin.hooks.onAssistantAcceptsRequests(async () => {
       plugin.logger.log(
-        'onAllPluginsLoaded: Registering Gmail email providers.'
+        'onAssistantAcceptsRequests: Registering Gmail email providers.'
       );
 
       const accountIds = googleApis.listAccounts();
@@ -373,6 +376,7 @@ async function searchEmails(
     const gmailClient = (await googleApis.getGmailClient(
       accountId
     )) as GmailClient | null;
+
     if (!gmailClient) {
       logger.error(
         `searchEmails: Could not get Gmail client for account "${accountId}".`
@@ -394,6 +398,7 @@ async function searchEmails(
     const listResponse: any = await gmailClient.users.messages.list(listParams);
 
     const messages = listResponse.data?.messages ?? [];
+
     if (messages.length === 0) {
       return [];
     }
@@ -437,6 +442,7 @@ async function readEmail(
     const gmailClient = (await googleApis.getGmailClient(
       accountId
     )) as GmailClient | null;
+
     if (!gmailClient) {
       logger.error(
         `readEmail: Could not get Gmail client for account "${accountId}".`
@@ -474,6 +480,7 @@ async function sendEmail(
     const gmailClient = (await googleApis.getGmailClient(
       accountId
     )) as GmailClient | null;
+
     if (!gmailClient) {
       return {
         provider: `gmail:${accountId}`,
@@ -553,6 +560,10 @@ async function sendEmail(
       messageId: sendResponse.data?.id ?? undefined,
     };
   } catch (err) {
+    logger.error(
+      `sendEmail: Failed to send email for account "${accountId}": ${err instanceof Error ? err.message : String(err)}`
+    );
+
     return {
       provider: `gmail:${accountId}`,
       success: false,

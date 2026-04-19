@@ -52,10 +52,12 @@ None so far.
 - `GLM-5.1` My new favorite of the cloud models. It has everything I liked
   about GLM-5, but with significantly fewer broken tool calls, and a much
   more consistent personality presentation. It also seems to handle complex
-  instructions and tasks better than GLM-5. I managed to get it to figured
+  instructions and tasks better than GLM-5. I managed to get it to figure
   out how to fetch a youtube transcript on its own, and it helped debug its
   own tool calls in the process. It's a good model, for just about everything
-  I've tried so far.
+  I've tried so far. I'm using this one on my laptop, since it doesn't have
+  the GPU to run something locally, and it allows for some _very_ complex
+  plugin combinations.
 - `GLM-5` My (now second) favorite cloud model for this assistant. This one
   handles the default personality very well. It also handles complex instructions
   well, and while I haven't gotten the broken tool calls Mistral occasionally spits

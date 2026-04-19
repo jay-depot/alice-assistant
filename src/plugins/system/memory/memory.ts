@@ -8,6 +8,7 @@ import { AnyEntity, EntityClass, MikroORM } from '@mikro-orm/sqlite';
 import * as path from 'path';
 import { Keyword, Memory } from './db-schemas/index.js';
 import { UserConfig } from '../../../lib/user-config.js';
+import { lancasterStemmer } from 'lancaster-stemmer';
 
 declare module '../../../lib.js' {
   export interface PluginCapabilities {
@@ -102,44 +103,44 @@ async function saveMemory(
 ) {
   const em = orm.em.fork();
   // Start by extracting keywords:
-  const keywords = content.split(' ').filter(word => {
-    // Filter out common words, articles, pronouns, and other "filler" words that aren't useful as keywords.
-    // This is a very naive implementation, and could be improved with a more sophisticated NLP approach, but it should work decently for now.
-    const lowerWord = word.toLowerCase();
-    if (
-      [
-        'the',
-        'a',
-        'an',
-        'some',
-        'any',
-        'and',
-        'or',
-        'but',
-        'if',
-        'then',
-        'I',
-        'you',
-        'he',
-        'she',
-        'it',
-        'we',
-        'they',
-        'me',
-        'him',
-        'her',
-        'us',
-        'them',
-      ].includes(lowerWord)
-    ) {
-      return false;
-    }
-    // Filter out punctuation and other non-alphanumeric characters.
-    if (/[^a-z0-9]/i.test(lowerWord)) {
-      return false;
-    }
-    return true;
-  });
+  const keywords = content
+    .split(' ')
+    .map(word => word.toLowerCase())
+    .filter(word => {
+      // Filter out common words, articles, pronouns, and other "filler" words that aren't useful as keywords.
+      // This is a very naive implementation, and could be improved with a more sophisticated NLP approach, but it should work decently for now.
+      if (
+        [
+          'the',
+          'a',
+          'an',
+          'some',
+          'any',
+          'and',
+          'or',
+          'but',
+          'if',
+          'then',
+          'I',
+          'you',
+          'he',
+          'she',
+          'it',
+          'we',
+          'they',
+          'me',
+          'him',
+          'her',
+          'us',
+          'them',
+        ].includes(word)
+      ) {
+        return false;
+      }
+      return true;
+    })
+    .map(word => word.replace(/[^a-zA-Z0-9]/g, ''))
+    .map(word => lancasterStemmer(word.trim()));
 
   const keywordEntities = [];
   for (const keyword of keywords) {
@@ -272,7 +273,7 @@ const memoryPlugin: AlicePlugin = {
             .split(',')
             .map(k => k.split(' '))
             .flat()
-            .map(k => k.trim());
+            .map(k => lancasterStemmer(k.trim()));
 
           const keywordEntities = await em.find(Keyword, {
             keyword: { $in: keywords },

@@ -52,7 +52,8 @@ const UpdateProficiencyParametersSchema = Type.Object({
   ),
   contents: Type.Optional(
     Type.String({
-      description: 'Updated proficiency contents (full or diff format).',
+      description:
+        'Updated proficiency contents. Prefer format=diff with a unified diff patch for targeted edits.',
     })
   ),
   format: Type.Optional(
@@ -63,7 +64,9 @@ const UpdateProficiencyParametersSchema = Type.Object({
       }),
       Type.Literal('diff', {
         description:
-          'The contents field contains a unified diff patch to apply to the existing contents.',
+          'The contents field contains a unified diff patch to apply to the existing contents. ' +
+          'Re-call recallProficiency first to get the current content, then produce a diff. ' +
+          'Prefer this over format=full for updates.',
       }),
     ])
   ),
@@ -374,7 +377,7 @@ const proficienciesPlugin: AlicePlugin = {
             if (resolved.ok === false) {
               return (
                 `ERROR: ${resolved.message} ` +
-                `THE UPDATE WAS REJECTED.\nUse format=full to replace the entire proficiency instructions, or re-recall the proficiency to create an accurate diff.`
+                `THE UPDATE WAS REJECTED.\nRe-recall the proficiency with recallProficiency to get the current content, then produce a valid unified diff patch. Use format=full only as a last resort if you cannot produce a valid diff after re-recalling.`
               );
             }
             entry.contents = resolved.contents;

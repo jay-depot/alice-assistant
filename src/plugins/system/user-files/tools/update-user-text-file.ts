@@ -57,15 +57,16 @@ const updateUserTextFileTool: (config: {
   name: 'updateUserTextFile',
   availableFor: ['chat', 'voice'],
   description:
-    "Updates an existing text file in the user's filesystem. Supports full replacement " +
-    '(format=full) or targeted diff editing (format=diff). Use this when the user wants to ' +
-    'modify an existing file rather than create a new one. The diff mode takes a unified ' +
-    'diff patch and applies it to the existing file contents.',
+    "Updates an existing text file in the user's filesystem. Prefer format=diff with a " +
+    'unified diff patch for targeted edits — this avoids re-sending unchanged content. ' +
+    'Use format=full only as a last resort. Read the file first with readUserTextFile to ' +
+    'get the current content before producing a diff.',
   systemPromptFragment:
     `Call updateUserTextFile when the user wants to modify an existing text file on their ` +
-    `computer. Provide the path, format (full or diff), and contents. Use format=full to ` +
-    `replace the entire file, or format=diff to apply a unified diff patch to the existing ` +
-    `file. If the response to a query would be too long for a single message, you MAY ` +
+    `computer. When updating a file, prefer format=diff with a unified diff patch for ` +
+    `targeted edits. Read the file first with readUserTextFile to get the current content, ` +
+    `then produce a diff. Use format=full only when a diff cannot be made to work after ` +
+    `re-reading. If the response to a query would be too long for a single message, you MAY ` +
     `OFFER TO write the response to a file in the user's home directory using this tool.`,
   parameters,
   toolResultPromptIntro:
@@ -135,7 +136,7 @@ const updateUserTextFileTool: (config: {
     const resolved = resolveContents(original, args.format, contents);
     if (resolved.ok === false) {
       return JSON.stringify({
-        error: `ERROR! UPDATE REJECTED!\n${resolved.message}\nUse format=full to replace the entire file contents, or re-read the file now to produce an accurate diff.`,
+        error: `ERROR! UPDATE REJECTED!\n${resolved.message}\nRe-read the file with readUserTextFile to get the current content, then produce a valid unified diff patch. Use format=full only as a last resort if you cannot produce a valid diff after re-reading.`,
       });
     }
 

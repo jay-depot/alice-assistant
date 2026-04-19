@@ -48,13 +48,10 @@ describe('resolveContents', () => {
       expect(result.contents).toBe('line1\nline3');
     });
 
-    it('creates content from empty original', () => {
-      const patch =
-        '--- original\n+++ modified\n@@ -0,0 +1,2 @@\n+line1\n+line2';
-      const result = resolveContents('', 'diff', patch);
-      if (!result.ok) throw new Error('Expected ok=true');
-      // applyPatch may add a trailing newline when applied to empty string
-      expect(result.contents).toMatch(/^line1\nline2\n?$/);
+    it('returns soft error for empty original with diff format', () => {
+      const result = resolveContents('', 'diff', '--- a\n+++ b\n@@ -0,0 +1,2 @@\n+line1\n+line2');
+      if (result.ok) throw new Error('Expected ok=false');
+      expect(result.reason).toBe('empty_original');
     });
 
     it('returns soft error for empty patch', () => {

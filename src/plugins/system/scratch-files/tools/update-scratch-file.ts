@@ -40,14 +40,15 @@ const updateScratchFileTool: (
   availableFor: ['autonomy', 'chat', 'voice'],
   description:
     "Writes or updates a note in the assistant's internal scratch directory. " +
-    'Supports two modes: full replacement (format=full) or targeted diff editing ' +
-    '(format=diff). The diff mode takes a unified diff patch and applies it to the ' +
-    'existing file contents.',
+    'When updating an existing file, prefer format=diff with a unified diff patch for ' +
+    'targeted edits — this avoids re-sending unchanged content. Use format=full only for ' +
+    'new files or as a last resort.',
   systemPromptFragment:
     `Call updateScratchFile when you want to write or update a note in your internal scratch ` +
-    `directory. Provide the filename, format (full or diff), and contents. Use format=full ` +
-    `to replace the entire file, or format=diff to apply a unified diff patch to the existing ` +
-    `file. You may only use the extensions [${config.allowedFileTypes.join(', ')}] for the ` +
+    `directory. When updating an existing file, prefer format=diff with a unified diff ` +
+    `patch for targeted edits. Read the file first with readScratchFile to get the current ` +
+    `content, then produce a diff. Use format=full only for new files or when a diff ` +
+    `cannot be made to work after re-reading. You may only use the extensions [${config.allowedFileTypes.join(', ')}] for the ` +
     `filename, and the contents must not exceed ${config.maxFileSizeKB} KB in size. ` +
     `You should also ensure that the filename does not contain any path traversal characters.`,
   parameters,
@@ -95,11 +96,11 @@ const updateScratchFileTool: (
     // Resolve new contents via diff resolver
     const resolved = resolveContents(original, args.format, contents);
     if (resolved.ok === false) {
-      const msg = `LLM provided an invalid diff patch: ${resolved.message}`;
+      const msg = `Invalid diff patch: ${resolved.message}`;
       logger.warn(
-        `updateScratchFile: ${msg} Tell the LLM to use format=full for this update.`
+        `updateScratchFile: ${msg} Suggest re-reading the file and producing a valid diff.`
       );
-      return `ERROR! UPDATE REJECTED.\n${msg}\nUse format=full to replace the entire file contents with your full replacement text, or re-read the file now to produce an accurate diff.`;
+      return `ERROR! UPDATE REJECTED.\n${msg}\nRe-read the file with readScratchFile to get the current content, then produce a valid unified diff patch. Use format=full only as a last resort if you cannot produce a valid diff after re-reading.`;
     }
 
     const newContents = resolved.contents;

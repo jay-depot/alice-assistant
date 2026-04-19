@@ -1,123 +1,46 @@
-/* Google APIs Web UI Styles */
+/* Google APIs Web UI Styles
+   Uses shared .plugin-* utility classes from the main stylesheet
+   for layout, cards, buttons, status badges, form inputs, and
+   message banners. Only google-apis-specific overrides live here. */
 
+/* ── Page layout ──────────────────────────────────────────────────────── */
 .ga-page {
-  padding: 1.5rem;
   max-width: 800px;
   margin: 0 auto;
 }
 
-.ga-page h2 {
+/* ── OAuth config section ─────────────────────────────────────────────── */
+.ga-redirect-uri {
+  margin: 0.5rem 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.ga-redirect-uri code {
+  background: var(--bg-main);
+  padding: 0.15rem 0.35rem;
+  border-radius: 3px;
+  font-size: 0.82rem;
+}
+
+/* ── API enablement links ─────────────────────────────────────────────── */
+.ga-api-links {
+  margin: 0.75rem 0;
+  padding: 0.75rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--border) 70%, var(--accent) 30%);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(
+    180deg,
+    rgba(4, 8, 4, 0.88),
+    rgba(9, 16, 9, 0.92)
+  );
+}
+
+.ga-api-links p {
   margin-bottom: 0.5rem;
 }
 
-.ga-description {
-  color: var(--text-secondary, #888);
-  margin-bottom: 1.5rem;
-  font-size: 0.9rem;
-  line-height: 1.4;
-}
-
-/* Sections */
-.ga-section {
-  background: var(--bg-secondary, #1a1a2e);
-  border: 1px solid var(--border-color, #333);
-  border-radius: 8px;
-  padding: 1rem;
-  margin-bottom: 1.5rem;
-}
-
-.ga-section h3 {
-  margin: 0 0 0.75rem 0;
-  font-size: 1rem;
-}
-
-/* Form groups */
-.ga-form-group {
-  margin-bottom: 0.75rem;
-}
-
-.ga-form-group label {
-  display: block;
-  font-size: 0.85rem;
-  color: var(--text-secondary, #888);
-  margin-bottom: 0.25rem;
-}
-
-.ga-form-group input {
-  width: 100%;
-  padding: 0.5rem 0.75rem;
-  background: var(--bg-primary, #0d1117);
-  border: 1px solid var(--border-color, #333);
-  border-radius: 4px;
-  color: var(--text-primary, #e6edf3);
-  font-size: 0.9rem;
-  box-sizing: border-box;
-}
-
-.ga-form-group input:focus {
-  outline: none;
-  border-color: var(--accent, #58a6ff);
-}
-
-.ga-form-group code {
-  background: var(--bg-primary, #0d1117);
-  padding: 0.2rem 0.4rem;
-  border-radius: 3px;
-  font-size: 0.85rem;
-}
-
-/* Buttons */
-.ga-btn {
-  padding: 0.5rem 1rem;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  transition: background 0.15s;
-}
-
-.ga-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.ga-btn-primary {
-  background: var(--accent, #4285f4);
-  color: #fff;
-  border-color: var(--accent, #4285f4);
-}
-
-.ga-btn-primary:hover:not(:disabled) {
-  background: var(--accent-hover, #5a95f5);
-}
-
-.ga-btn-danger {
-  background: transparent;
-  color: var(--danger, #f85149);
-  border-color: var(--danger, #f85149);
-}
-
-.ga-btn-danger:hover:not(:disabled) {
-  background: var(--danger, #f85149);
-  color: #fff;
-}
-
-.ga-btn-secondary {
-  background: transparent;
-  color: var(--text-secondary, #888);
-  border-color: var(--border-color, #333);
-}
-
-.ga-btn-secondary:hover:not(:disabled) {
-  background: var(--bg-tertiary, #21262d);
-}
-
-.ga-btn-small {
-  padding: 0.25rem 0.5rem;
-  font-size: 0.8rem;
-}
-
-/* Account list */
+/* ── Account list ─────────────────────────────────────────────────────── */
 .ga-account-list {
   list-style: none;
   padding: 0;
@@ -129,7 +52,7 @@
   justify-content: space-between;
   align-items: flex-start;
   padding: 0.75rem 0;
-  border-bottom: 1px solid var(--border-color, #333);
+  border-bottom: 1px solid var(--border);
   gap: 1rem;
 }
 
@@ -144,13 +67,14 @@
 .ga-account-name {
   font-weight: 600;
   font-size: 0.95rem;
+  color: var(--text-primary);
   margin-bottom: 0.15rem;
 }
 
 .ga-account-email {
-  color: var(--text-secondary, #888);
+  color: var(--text-secondary);
   font-size: 0.85rem;
-  font-family: monospace;
+  font-family: var(--font-mono);
 }
 
 .ga-account-status {
@@ -159,16 +83,8 @@
 }
 
 .ga-account-refreshed {
-  color: var(--text-secondary, #888);
+  color: var(--text-muted);
   font-size: 0.8rem;
-}
-
-.ga-status-authenticated {
-  color: var(--success, #3fb950);
-}
-
-.ga-status-unauthenticated {
-  color: var(--danger, #f85149);
 }
 
 .ga-account-actions {
@@ -183,62 +99,4 @@
   align-items: center;
   gap: 0.5rem;
   font-size: 0.85rem;
-}
-
-/* Hint text */
-.ga-hint {
-  font-size: 0.85rem;
-  color: var(--text-secondary, #888);
-  margin: 0.5rem 0;
-}
-
-.ga-hint.ga-success {
-  color: var(--success, #3fb950);
-}
-
-/* Empty state */
-.ga-empty {
-  text-align: center;
-  padding: 2rem;
-  color: var(--text-secondary, #888);
-}
-
-/* Messages */
-.ga-error {
-  color: var(--danger, #f85149);
-  font-size: 0.85rem;
-  margin-top: 0.5rem;
-}
-
-.ga-success {
-  color: var(--success, #3fb950);
-  font-size: 0.85rem;
-  margin-top: 0.5rem;
-}
-
-.ga-callback-message {
-  margin-bottom: 1rem;
-  padding: 0.75rem 1rem;
-  border-radius: 4px;
-  font-size: 0.9rem;
-}
-
-.ga-callback-message.ga-success {
-  background: rgba(63, 185, 80, 0.1);
-  border: 1px solid rgba(63, 185, 80, 0.3);
-}
-
-.ga-callback-message.ga-error {
-  background: rgba(248, 81, 73, 0.1);
-  border: 1px solid rgba(248, 81, 73, 0.3);
-}
-
-/* Links */
-.ga-section a {
-  color: var(--accent, #4285f4);
-  text-decoration: none;
-}
-
-.ga-section a:hover {
-  text-decoration: underline;
 }
