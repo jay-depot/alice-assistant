@@ -28,6 +28,10 @@ export class TuiReadlineFrontend implements TuiFrontend {
   private inputHistory: string[] = [];
   private historyIndex = -1;
   private toolCallBatches = new Map<string, TuiToolCallBatch>();
+  private stopPromise: Promise<void> | null = null;
+  private readonly handleReadlineClose = (): void => {
+    void this.stop();
+  };
 
   constructor(
     private apiClient: TuiApiClient,
@@ -90,21 +94,35 @@ export class TuiReadlineFrontend implements TuiFrontend {
       this.onUserInput?.(input);
     });
 
-    this.rl.on('close', () => {
-      this.stop();
-    });
+    this.rl.on('close', this.handleReadlineClose);
   }
 
   async stop(): Promise<void> {
-    if (this.currentSessionId !== null) {
-      try {
-        await this.apiClient.deleteSession(this.currentSessionId);
-      } catch {
-        // Best effort — we're shutting down.
-      }
+    if (this.stopPromise) {
+      return this.stopPromise;
     }
-    this.rl?.close();
-    this.rl = null;
+
+    this.stopPromise = (async () => {
+      const sessionId = this.currentSessionId;
+      this.currentSessionId = null;
+
+      if (sessionId !== null) {
+        try {
+          await this.apiClient.deleteSession(sessionId);
+        } catch {
+          // Best effort — we're shutting down.
+        }
+      }
+
+      const rl = this.rl;
+      if (rl) {
+        rl.off('close', this.handleReadlineClose);
+        rl.close();
+        this.rl = null;
+      }
+    })();
+
+    return this.stopPromise;
   }
 
   private async handleSlashCommand(input: string): Promise<void> {
