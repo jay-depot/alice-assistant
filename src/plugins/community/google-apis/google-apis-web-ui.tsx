@@ -167,7 +167,7 @@ function OAuthConfigSection({
       h('h4', null, 'Required APIs'),
       h(
         'p',
-      { className: 'plugin-page__description' },
+        { className: 'plugin-page__description' },
         'Enable these APIs in your Google Cloud project:'
       ),
       h(
@@ -268,8 +268,12 @@ function OAuthConfigSection({
       },
       saving ? 'Saving...' : 'Save Credentials'
     ),
-    error ? h('div', { className: 'plugin-msg plugin-msg--error' }, error) : null,
-    success ? h('div', { className: 'plugin-msg plugin-msg--success' }, success) : null
+    error
+      ? h('div', { className: 'plugin-msg plugin-msg--error' }, error)
+      : null,
+    success
+      ? h('div', { className: 'plugin-msg plugin-msg--success' }, success)
+      : null
   );
 }
 
@@ -393,7 +397,8 @@ function AccountList({
               : h(
                   'button',
                   {
-                    className: 'plugin-btn plugin-btn--danger plugin-btn--small',
+                    className:
+                      'plugin-btn plugin-btn--danger plugin-btn--small',
                     onClick: () => setConfirmId(account.accountId),
                     disabled: disconnecting !== null,
                   },
@@ -403,7 +408,9 @@ function AccountList({
         )
       )
     ),
-    error ? h('div', { className: 'plugin-msg plugin-msg--error' }, error) : null
+    error
+      ? h('div', { className: 'plugin-msg plugin-msg--error' }, error)
+      : null
   );
 }
 
@@ -466,7 +473,9 @@ function AddAccountSection() {
       },
       connecting ? 'Connecting...' : 'Connect Account'
     ),
-    error ? h('div', { className: 'plugin-msg plugin-msg--error' }, error) : null
+    error
+      ? h('div', { className: 'plugin-msg plugin-msg--error' }, error)
+      : null
   );
 }
 
