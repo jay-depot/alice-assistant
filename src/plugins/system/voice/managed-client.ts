@@ -107,7 +107,14 @@ export async function stopManagedVoiceClient(
   }
 
   await new Promise<void>(resolve => {
+    const timeout = setTimeout(() => {
+      if (!child.killed) {
+        child.kill('SIGKILL');
+      }
+    }, 5000);
+
     const finish = () => {
+      clearTimeout(timeout);
       state.childProcess = null;
       resolve();
     };

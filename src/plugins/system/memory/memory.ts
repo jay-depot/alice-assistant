@@ -115,6 +115,7 @@ const parameters = Type.Object({
 
 const MemoryPluginConfigSchema = Type.Object({
   includePersonalityChangeLlmHint: Type.Optional(Type.Boolean()),
+  enableRandomRecallTool: Type.Optional(Type.Boolean()),
 });
 
 export type MemoryPluginConfigSchema = Type.Static<
@@ -183,6 +184,7 @@ const memoryPlugin: AlicePlugin = {
 
     const config = await plugin.config(MemoryPluginConfigSchema, {
       includePersonalityChangeLlmHint: false,
+      enableRandomRecallTool: false,
     });
 
     const entities: EntityClass<AnyEntity>[] = [Keyword, Memory];
@@ -300,6 +302,48 @@ const memoryPlugin: AlicePlugin = {
         }
       },
     });
+
+    if (config.getPluginConfig().enableRandomRecallTool) {
+      plugin.registerTool({
+        name: 'recallRandomConversation',
+        availableFor: ['chat', 'voice'],
+        description:
+          `Call recallRandomConversation to recall a random past conversation. ` +
+          `This tool is for finding organic connections to the current moment. Do not use ` +
+          `this tool to retrieve specific information. Use it when you want to make a reference, ` +
+          `callback, or inside joke that creates a sense of shared history. If the random ` +
+          `result doesn't connect or fit the situation, don't force it. Let it go and try ` +
+          `again later.`,
+        systemPromptFragment: '',
+        parameters: Type.Object({}),
+        toolResultPromptIntro: `You have just received the results of a call to the recallRandomConversation tool. The results are in JSON format, below.`,
+        toolResultPromptOutro: '',
+        execute: async () => {
+          const orm = await databaseReadyPromise;
+          const em = orm.em.fork();
+
+          const count = await em.count(Memory);
+          const randomOffset = Math.floor(Math.random() * count);
+
+          const memory = await em.findOne(
+            Memory,
+            {},
+            {
+              orderBy: { timestamp: 'DESC' },
+              offset: randomOffset,
+            }
+          );
+
+          if (!memory) {
+            return JSON.stringify({ memory: null });
+          }
+
+          const randomMemory = JSON.stringify(memory);
+
+          return JSON.stringify({ memory: randomMemory });
+        },
+      });
+    }
 
     plugin.hooks.onContextCompactionSummariesWillBeDeleted(
       async (summaries, conversationType) => {
