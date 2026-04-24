@@ -1,4 +1,4 @@
-import { defineEntity, p } from '@mikro-orm/sqlite';
+import { defineEntity, p, type Collection } from '@mikro-orm/sqlite';
 import { VoiceSessionRound } from './VoiceSessionRound.js';
 
 /**
@@ -22,7 +22,7 @@ const VoiceSessionSchema = defineEntity({
   name: 'VoiceSession',
   properties: {
     id: p.integer().primary(),
-    status: p.enum(VOICE_SESSION_STATUS_VALUES).default('active'),
+    status: p.string().default('active'),
     conversationType: p.string().default('voice'),
     title: p.string().default(''),
     /**
@@ -63,6 +63,19 @@ const VoiceSessionSchema = defineEntity({
   },
 });
 
-export class VoiceSession extends VoiceSessionSchema.class {}
+export class VoiceSession extends VoiceSessionSchema.class {
+  declare status: VoiceSessionStatus;
+  declare conversationType: string;
+  declare title: string;
+  declare compactedContext: Record<string, unknown>[] | null;
+  declare rawContext: Record<string, unknown>[] | null;
+  declare taskAssistantId: string | null;
+  declare agentInstanceId: string | null;
+  declare parentSessionId: number | null;
+  declare rounds: Collection<VoiceSessionRound>;
+  declare createdAt: Date;
+  declare updatedAt: Date;
+  declare lastActivityAt: Date;
+}
 
 VoiceSessionSchema.setClass(VoiceSession);

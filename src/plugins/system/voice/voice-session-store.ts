@@ -1,8 +1,8 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- MikroORM v7 defineEntity produces opaque Loaded<object, never, never, never> types that require `as any` casts for filter objects, property assignments, and em.create calls. */
 import { type MikroORM } from '@mikro-orm/sqlite';
-import { type Conversation, startConversation } from '../../../lib.js';
+import { type Conversation, type Message, startConversation } from '../../../lib.js';
 import type { ConversationTypeId } from '../../../lib/conversation-types.js';
-import { VoiceSession } from './db-schemas/VoiceSession.js';
+import { VoiceSession, type VoiceSessionStatus } from './db-schemas/VoiceSession.js';
+import type { VoiceSessionRoundMessageKind, VoiceSessionRoundRole } from './db-schemas/VoiceSessionRound.js';
 import { VoiceSessionRound } from './db-schemas/VoiceSessionRound.js';
 import { createPluginLogger } from '../../../lib/plugin-logger.js';
 
@@ -65,7 +65,7 @@ export const VoiceSessionStore = {
    */
   async getSession(orm: MikroORM, id: number): Promise<VoiceSession | null> {
     const em = orm.em.fork();
-    return em.findOne(VoiceSession, { id } as any, {
+    return em.findOne(VoiceSession, { id }, {
       populate: ['rounds'],
     }) as Promise<VoiceSession | null>;
   },
@@ -75,7 +75,7 @@ export const VoiceSessionStore = {
    */
   async getActiveSession(orm: MikroORM): Promise<VoiceSession | null> {
     const em = orm.em.fork();
-    return em.findOne(VoiceSession, { status: 'active' } as any, {
+    return em.findOne(VoiceSession, { status: 'active' }, {
       populate: ['rounds'],
     }) as Promise<VoiceSession | null>;
   },
@@ -85,7 +85,7 @@ export const VoiceSessionStore = {
    */
   async getSetAsideSessions(orm: MikroORM): Promise<VoiceSession[]> {
     const em = orm.em.fork();
-    return em.find(VoiceSession, { status: 'set_aside' } as any, {
+    return em.find(VoiceSession, { status: 'set_aside' }, {
       populate: ['rounds'],
     }) as Promise<VoiceSession[]>;
   },
@@ -97,7 +97,7 @@ export const VoiceSessionStore = {
     const em = orm.em.fork();
     return em.find(
       VoiceSession,
-      { status: { $in: ['active', 'set_aside'] } } as any,
+      { status: { $in: ['active', 'set_aside'] } },
       {
         populate: ['rounds'],
       }
@@ -111,7 +111,7 @@ export const VoiceSessionStore = {
     const em = orm.em.fork();
     return em.count(VoiceSession, {
       status: { $in: ['active', 'set_aside'] },
-    } as any);
+    });
   },
 
   /**
@@ -121,7 +121,7 @@ export const VoiceSessionStore = {
     orm: MikroORM,
     id: number,
     updates: {
-      status?: string;
+      status?: VoiceSessionStatus;
       title?: string;
       compactedContext?: unknown;
       rawContext?: unknown;
@@ -129,15 +129,13 @@ export const VoiceSessionStore = {
     }
   ): Promise<VoiceSession> {
     const em = orm.em.fork();
-    const session = (await em.findOneOrFail(VoiceSession, {
-      id,
-    } as any)) as VoiceSession;
-    if (updates.status !== undefined) session.status = updates.status as any;
-    if (updates.title !== undefined) session.title = updates.title as any;
+    const session = await em.findOneOrFail(VoiceSession, { id });
+    if (updates.status !== undefined) session.status = updates.status;
+    if (updates.title !== undefined) session.title = updates.title;
     if (updates.compactedContext !== undefined)
-      session.compactedContext = updates.compactedContext as any;
+      session.compactedContext = updates.compactedContext as Record<string, unknown>[] | null;
     if (updates.rawContext !== undefined)
-      session.rawContext = updates.rawContext as any;
+      session.rawContext = updates.rawContext as Record<string, unknown>[] | null;
     if (updates.lastActivityAt !== undefined)
       session.lastActivityAt = updates.lastActivityAt;
     session.updatedAt = new Date();
@@ -159,14 +157,12 @@ export const VoiceSessionStore = {
     await VoiceSessionStore.enforceMaxSessions(orm);
 
     const em = orm.em.fork();
-    const session = (await em.findOneOrFail(VoiceSession, {
-      id,
-    } as any)) as VoiceSession;
+    const session = await em.findOneOrFail(VoiceSession, { id });
 
     // Persist conversation context
-    session.status = 'set_aside' as any;
-    session.compactedContext = conversation.compactedContext as any;
-    session.rawContext = conversation.rawContext as any;
+    session.status = 'set_aside';
+    session.compactedContext = conversation.compactedContext as Record<string, unknown>[];
+    session.rawContext = conversation.rawContext as Record<string, unknown>[];
     session.updatedAt = new Date();
     await em.flush();
 
@@ -179,9 +175,7 @@ export const VoiceSessionStore = {
    */
   async resumeSession(orm: MikroORM, id: number): Promise<VoiceSession> {
     const em = orm.em.fork();
-    const session = (await em.findOneOrFail(VoiceSession, {
-      id,
-    } as any)) as VoiceSession;
+    const session = await em.findOneOrFail(VoiceSession, { id });
 
     if (session.status !== 'set_aside') {
       throw new Error(
@@ -189,7 +183,7 @@ export const VoiceSessionStore = {
       );
     }
 
-    session.status = 'active' as any;
+    session.status = 'active';
     session.updatedAt = new Date();
     session.lastActivityAt = new Date();
     await em.flush();
@@ -205,13 +199,11 @@ export const VoiceSessionStore = {
    */
   async archiveSession(orm: MikroORM, id: number): Promise<VoiceSession> {
     const em = orm.em.fork();
-    const session = (await em.findOneOrFail(VoiceSession, {
-      id,
-    } as any)) as VoiceSession;
+    const session = await em.findOneOrFail(VoiceSession, { id });
 
-    session.status = 'archived' as any;
-    session.compactedContext = null as any;
-    session.rawContext = null as any;
+    session.status = 'archived';
+    session.compactedContext = null;
+    session.rawContext = null;
     session.updatedAt = new Date();
     await em.flush();
 
@@ -227,7 +219,7 @@ export const VoiceSessionStore = {
     orm: MikroORM,
     session: VoiceSession,
     conversation: Conversation,
-    messageKind: string = 'voice'
+    messageKind: VoiceSessionRoundMessageKind = 'voice'
   ): Promise<void> {
     const unsynchronizedMessages = conversation.getUnsynchronizedMessages();
     if (unsynchronizedMessages.length === 0) {
@@ -235,19 +227,19 @@ export const VoiceSessionStore = {
     }
 
     const em = orm.em.fork();
-    const managedSession = (await em.findOneOrFail(VoiceSession, {
+    const managedSession = await em.findOneOrFail(VoiceSession, {
       id: session.id,
-    } as any)) as VoiceSession;
+    });
 
     for (const message of unsynchronizedMessages) {
       em.create(VoiceSessionRound, {
         voiceSession: managedSession,
-        role: message.role,
+        role: message.role as VoiceSessionRoundRole,
         messageKind,
         content: message.content,
         timestamp: new Date(),
         toolCallData: message.tool_calls ?? null,
-      } as any);
+      });
     }
 
     managedSession.updatedAt = new Date();
@@ -272,8 +264,8 @@ export const VoiceSessionStore = {
 
     if (session.compactedContext && session.rawContext) {
       conversation.restoreContext(
-        session.rawContext as any,
-        session.compactedContext as any
+        session.rawContext as Message[],
+        session.compactedContext as Message[]
       );
     }
 
@@ -296,13 +288,13 @@ export const VoiceSessionStore = {
 
     // Find the oldest set_aside session and archive it
     const em = orm.em.fork();
-    const oldestSetAside = (await em.findOne(
+    const oldestSetAside = await em.findOne(
       VoiceSession,
       {
         status: 'set_aside',
-      } as any,
-      { orderBy: { lastActivityAt: 'asc' } as any }
-    )) as VoiceSession | null;
+      },
+      { orderBy: { lastActivityAt: 'asc' } }
+    );
 
     if (oldestSetAside) {
       logger.log(
