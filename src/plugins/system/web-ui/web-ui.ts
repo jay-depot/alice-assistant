@@ -1010,9 +1010,11 @@ const webUiPlugin: AlicePlugin = {
                   'chat'
                 );
 
-                const titleSummary = await llmTransaction.requestTitle();
-                queuedSession.title =
-                  titleSummary.length > 0 ? titleSummary : 'New Conversation';
+                const titleSummary = await llmTransaction.maybeRequestTitle();
+                if (titleSummary && titleSummary.length > 0) {
+                  queuedSession.title =
+                    titleSummary.length > 0 ? titleSummary : 'New Conversation';
+                }
               }
 
               queuedSession.updatedAt = new Date();
@@ -1069,9 +1071,13 @@ const webUiPlugin: AlicePlugin = {
               );
             }
 
-            const titleSummary = await llmTransaction.requestTitle();
-            queuedSession.title =
-              titleSummary.length > 0 ? titleSummary : 'New Conversation';
+            const titleSummary = await llmTransaction.maybeRequestTitle();
+
+            if (titleSummary && titleSummary.length > 0) {
+              queuedSession.title = titleSummary;
+            } else {
+              queuedSession.title = 'New Conversation';
+            }
 
             await em.flush();
 

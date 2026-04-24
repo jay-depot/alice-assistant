@@ -139,6 +139,7 @@ export class Conversation {
   public rawContext: Message[] = [];
   public compactedContext: Message[] = [];
   private synchronizedRawMessageCount = 0;
+  private lastTitleRequestTurn = -10; // Initialize to -10 so that a title request can be made immediately on the first turn
 
   /**
    * Tracks which tainted tools have been called in this conversation.
@@ -318,10 +319,10 @@ export class Conversation {
       (acc, message) => acc + message.content.split(' ').length,
       0
     );
-    // Start compacting once we hit 50% of the context window, so we have room for our
+    // Start compacting once we hit 25% of the context window, so we have room for our
     // system prompts and the future conversation.
     const contextLengthThreshold =
-      (this.llmConnection.options.num_ctx ?? 16000) * 0.5;
+      (this.llmConnection.options.num_ctx ?? 16000) * 0.25;
 
     if (approximateContextLength > contextLengthThreshold) {
       const firstNonSummaryMessageIndex = this.compactedContext.findIndex(
@@ -787,7 +788,15 @@ export class Conversation {
     );
   }
 
-  async requestTitle(): Promise<string> {
+  async maybeRequestTitle(): Promise<string | undefined> {
+    const currentTurn = this.rawContext.length;
+    // Only request a title if we haven't already requested one in the last 10 turns, to avoid excessive title requests.
+    if (currentTurn - this.lastTitleRequestTurn < 10) {
+      return undefined;
+    }
+
+    this.lastTitleRequestTurn = currentTurn;
+
     const titlePrompt = `Based on the conversation so far, provide a concise title for this conversation that captures the main topics discussed. Do not include any headers or formatting, reply with only the title text of 6 words or less.`;
     const response = await retry(
       async () => {

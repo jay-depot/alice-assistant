@@ -1,5 +1,11 @@
 import type { Express, Request, Response, NextFunction } from 'express';
-import { type Conversation, startConversation } from '../../../lib.js';
+import { type MikroORM } from '@mikro-orm/sqlite';
+import {
+  type Conversation,
+  startConversation,
+  TaskAssistants,
+  AgentSystem,
+} from '../../../lib.js';
 import { PluginHookInvocations } from '../../../lib/plugin-hooks.js';
 import { extractVoiceAccessToken, isVoiceAccessTokenValid } from './auth.js';
 import {
@@ -8,6 +14,7 @@ import {
 } from './managed-client.js';
 import { markdownToTts } from './markdown-to-tts.js';
 import { createPluginLogger } from '../../../lib/plugin-logger.js';
+import { VoiceSessionStore } from './voice-session-store.js';
 
 const logger = createPluginLogger('voice');
 
@@ -53,6 +60,11 @@ type VoiceCaptureDebugState = {
 export type VoicePluginRuntimeState = {
   accessToken: string | null;
   managedClientState: ManagedVoiceClientState;
+  /** The database ORM instance, set once the memory plugin initializes the database. */
+  orm: MikroORM | null;
+  /** The database ID of the currently active voice session, or null if none is active. */
+  activeVoiceSessionId: number | null;
+  /** In-memory conversation object for the active voice session. */
   activeVoiceSession: ActiveVoiceSession | null;
   sessionIdleTimeoutMs: number;
   deferredSessionCloseDelayMs: number;
@@ -71,6 +83,18 @@ type VoiceTurnResponseBody = {
   reply: string;
   continueConversation: boolean;
   endConversation: boolean;
+  /** If a task assistant is now active, its definition id and name. */
+  activeTaskAssistant?: {
+    id: string;
+    name: string;
+  };
+  /** Active session-linked agents for this voice session. */
+  activeAgents?: Array<{
+    instanceId: string;
+    agentId: string;
+    agentName: string;
+    status: string;
+  }>;
 };
 
 type VoiceContinuationTimeoutResponseBody = {
@@ -283,7 +307,43 @@ export async function closeActiveVoiceSession(
   }
 
   const { conversation } = runtimeState.activeVoiceSession;
+  const sessionId = runtimeState.activeVoiceSessionId;
+
+  // Cancel any active task assistant for this session before closing
+  if (sessionId) {
+    const activeTaskAssistant = TaskAssistants.getActiveInstance(sessionId);
+    if (activeTaskAssistant) {
+      logger.log(
+        `voice plugin: cancelling active task assistant "${activeTaskAssistant.definition.name}" before closing session ${sessionId}.`
+      );
+      await TaskAssistants.cancel(sessionId);
+    }
+
+    // Cancel any session-linked agents for this session
+    const activeAgents = AgentSystem.getInstancesBySession(sessionId);
+    if (activeAgents.length > 0) {
+      logger.log(
+        `voice plugin: cancelling ${activeAgents.length} active agent(s) before closing session ${sessionId}.`
+      );
+      AgentSystem.cancelBySession(sessionId);
+    }
+  }
+
   runtimeState.activeVoiceSession = null;
+  runtimeState.activeVoiceSessionId = null;
+
+  // Archive the database session
+  if (runtimeState.orm && sessionId) {
+    try {
+      await VoiceSessionStore.archiveSession(runtimeState.orm, sessionId);
+      logger.log(`voice plugin: archived voice session record ${sessionId}.`);
+    } catch (error) {
+      logger.error(
+        `voice plugin: failed to archive voice session record ${sessionId}:`,
+        error
+      );
+    }
+  }
 
   if (options.deferFinalization) {
     scheduleDeferredVoiceSessionClose(runtimeState, conversation);
@@ -299,14 +359,89 @@ export async function closeActiveVoiceSession(
   await finalizeDeferredVoiceSessionClose(runtimeState, deferredClose);
 }
 
+/**
+ * Set aside the active voice session instead of archiving it.
+ * Persists the conversation context to the database so it can be
+ * resumed later. This is called when a session times out rather
+ * than when the user explicitly ends it.
+ */
+async function setAsideActiveVoiceSession(
+  runtimeState: VoicePluginRuntimeState
+): Promise<void> {
+  if (!runtimeState.activeVoiceSession) {
+    return;
+  }
+
+  const { conversation } = runtimeState.activeVoiceSession;
+  const sessionId = runtimeState.activeVoiceSessionId;
+
+  // Cancel any active task assistant for this session before setting aside
+  if (sessionId) {
+    const activeTaskAssistant = TaskAssistants.getActiveInstance(sessionId);
+    if (activeTaskAssistant) {
+      logger.log(
+        `voice plugin: cancelling active task assistant "${activeTaskAssistant.definition.name}" before setting aside session ${sessionId}.`
+      );
+      await TaskAssistants.cancel(sessionId);
+    }
+
+    // Cancel any session-linked agents for this session
+    const activeAgents = AgentSystem.getInstancesBySession(sessionId);
+    if (activeAgents.length > 0) {
+      logger.log(
+        `voice plugin: cancelling ${activeAgents.length} active agent(s) before setting aside session ${sessionId}.`
+      );
+      AgentSystem.cancelBySession(sessionId);
+    }
+  }
+
+  // Persist unsynchronized messages before setting aside
+  if (runtimeState.orm && sessionId) {
+    try {
+      const session = await VoiceSessionStore.getSession(
+        runtimeState.orm,
+        sessionId
+      );
+      if (session) {
+        await VoiceSessionStore.persistUnsynchronizedMessages(
+          runtimeState.orm,
+          session,
+          conversation
+        );
+        await VoiceSessionStore.setAsideSession(
+          runtimeState.orm,
+          sessionId,
+          conversation
+        );
+        logger.log(`voice plugin: set aside voice session ${sessionId}.`);
+      }
+    } catch (error) {
+      logger.error(
+        `voice plugin: failed to set aside voice session ${sessionId}:`,
+        error
+      );
+    }
+  }
+
+  // Clear the in-memory session state
+  runtimeState.activeVoiceSession = null;
+  runtimeState.activeVoiceSessionId = null;
+
+  // Fire the conversation will-end hook but don't close/archive yet
+  await PluginHookInvocations.invokeOnUserConversationWillEnd(
+    conversation,
+    'voice'
+  );
+}
+
 async function getOrCreateActiveVoiceConversation(
   runtimeState: VoicePluginRuntimeState
 ): Promise<Conversation> {
   if (hasActiveVoiceSessionExpired(runtimeState)) {
     logger.log(
-      'voice plugin: active voice session expired, closing it immediately before starting a fresh conversation.'
+      'voice plugin: active voice session expired, setting it aside before starting a fresh conversation.'
     );
-    await closeActiveVoiceSession(runtimeState);
+    await setAsideActiveVoiceSession(runtimeState);
   }
 
   if (runtimeState.activeVoiceSession) {
@@ -320,6 +455,25 @@ async function getOrCreateActiveVoiceConversation(
     conversation,
     'voice'
   );
+
+  // Create a database record for this voice session
+  if (runtimeState.orm) {
+    try {
+      const session = await VoiceSessionStore.createSession(runtimeState.orm, {
+        conversationType: 'voice',
+      });
+      runtimeState.activeVoiceSessionId = session.id;
+      conversation.sessionId = session.id;
+      logger.log(
+        `voice plugin: created voice session record ${session.id} for new conversation.`
+      );
+    } catch (error) {
+      logger.error(
+        'voice plugin: failed to create voice session record:',
+        error
+      );
+    }
+  }
 
   runtimeState.activeVoiceSession = {
     conversation,
@@ -336,8 +490,25 @@ export function registerVoiceRoutes(
 ): void {
   const requireToken = requireVoiceAccessToken(runtimeState);
 
-  app.get('/api/voice/health', requireToken, (_req, res) => {
+  app.get('/api/voice/health', requireToken, async (_req, res) => {
     const pendingDeferredCloses = [...runtimeState.pendingVoiceSessionCloses];
+
+    let setAsideSessionCount = 0;
+    if (runtimeState.orm) {
+      try {
+        const setAsideSessions = await VoiceSessionStore.getSetAsideSessions(
+          runtimeState.orm
+        );
+        setAsideSessionCount = setAsideSessions.length;
+      } catch {
+        // Ignore — health endpoint should not fail on DB errors
+      }
+    }
+
+    // Get active agents for the current voice session
+    const activeAgents = runtimeState.activeVoiceSessionId
+      ? AgentSystem.getInstancesBySession(runtimeState.activeVoiceSessionId)
+      : [];
 
     res.json({
       ok: true,
@@ -346,6 +517,9 @@ export function registerVoiceRoutes(
         runtimeState.managedClientState
       ),
       hasActiveVoiceSession: !!runtimeState.activeVoiceSession,
+      activeVoiceSessionId: runtimeState.activeVoiceSessionId,
+      setAsideSessionCount,
+      activeAgentCount: activeAgents.length,
       sessionIdleTimeoutMs: runtimeState.sessionIdleTimeoutMs,
       deferredSessionCloseDelayMs: runtimeState.deferredSessionCloseDelayMs,
       pendingSessionCloseCount: runtimeState.pendingVoiceSessionCloses.size,
@@ -397,9 +571,9 @@ export function registerVoiceRoutes(
 
     if (closedConversation) {
       logger.log(
-        'voice plugin: continuation turn ended in silence, closing voice conversation immediately.'
+        'voice plugin: continuation turn ended in silence, setting aside voice conversation.'
       );
-      await closeActiveVoiceSession(runtimeState, { deferFinalization: true });
+      await setAsideActiveVoiceSession(runtimeState);
     }
 
     const responseBody: VoiceContinuationTimeoutResponseBody = {
@@ -428,7 +602,163 @@ export function registerVoiceRoutes(
         runtimeState.activeVoiceSession.requestedConversationEnd = false;
       }
 
-      const reply = await conversation.sendUserMessage(message);
+      const sessionId = runtimeState.activeVoiceSessionId;
+      let reply: string;
+
+      // Check if there's an active task assistant for this voice session.
+      // If so, route the user's message to the task assistant's conversation
+      // instead of the parent voice conversation.
+      const activeTaskAssistant = sessionId
+        ? TaskAssistants.getActiveInstance(sessionId)
+        : undefined;
+
+      if (activeTaskAssistant) {
+        // Route to the task assistant's conversation
+        await activeTaskAssistant.conversation.appendExternalMessage({
+          role: 'user',
+          content: message,
+        });
+        await activeTaskAssistant.conversation.sendUserMessage();
+        // The task assistant's reply is the last assistant message in its conversation
+        const taskAssistantContext =
+          activeTaskAssistant.conversation.rawContext;
+        const lastAssistantMessage = [...taskAssistantContext]
+          .reverse()
+          .find(msg => msg.role === 'assistant');
+        reply = lastAssistantMessage?.content ?? '';
+
+        // Persist task assistant messages to the database
+        if (runtimeState.orm && sessionId) {
+          try {
+            const session = await VoiceSessionStore.getSession(
+              runtimeState.orm,
+              sessionId
+            );
+            if (session) {
+              await VoiceSessionStore.persistUnsynchronizedMessages(
+                runtimeState.orm,
+                session,
+                activeTaskAssistant.conversation,
+                'tool_call'
+              );
+            }
+          } catch (error) {
+            logger.error(
+              'voice plugin: failed to persist task assistant messages:',
+              error
+            );
+          }
+        }
+
+        // If the task assistant completed during this turn, inject the
+        // handback message into the parent voice conversation and let
+        // the main assistant wrap up.
+        const completedResult = sessionId
+          ? TaskAssistants.getAndClearCompletedResult(sessionId)
+          : undefined;
+
+        if (completedResult) {
+          logger.log(
+            `voice plugin: task assistant "${completedResult.taskAssistantName}" completed during voice turn.`
+          );
+          await conversation.appendExternalMessage({
+            role: 'system',
+            content:
+              `Task assistant "${completedResult.taskAssistantName}" has completed.\n\n` +
+              completedResult.handbackMessage,
+          });
+          const handbackReply = await conversation.sendUserMessage();
+          reply = handbackReply;
+
+          // Persist the handback exchange to the database
+          if (runtimeState.orm && sessionId) {
+            try {
+              const session = await VoiceSessionStore.getSession(
+                runtimeState.orm,
+                sessionId
+              );
+              if (session) {
+                await VoiceSessionStore.persistUnsynchronizedMessages(
+                  runtimeState.orm,
+                  session,
+                  conversation
+                );
+              }
+            } catch (error) {
+              logger.error(
+                'voice plugin: failed to persist handback messages:',
+                error
+              );
+            }
+          }
+        }
+      } else {
+        // Normal voice conversation turn
+
+        // Drain any pending agent messages into the LLM context before processing
+        if (sessionId) {
+          const pendingAgentMessages =
+            AgentSystem.getAndClearPendingMessages(sessionId);
+          for (const agentMsg of pendingAgentMessages) {
+            await conversation.appendExternalMessage({
+              role: 'system',
+              content: `## ${agentMsg.heading}\n\n${agentMsg.content}`,
+            });
+          }
+        }
+
+        reply = await conversation.sendUserMessage(message);
+
+        // Persist unsynchronized messages to the database
+        if (runtimeState.orm && sessionId) {
+          try {
+            const session = await VoiceSessionStore.getSession(
+              runtimeState.orm,
+              sessionId
+            );
+            if (session) {
+              await VoiceSessionStore.persistUnsynchronizedMessages(
+                runtimeState.orm,
+                session,
+                conversation
+              );
+            }
+          } catch (error) {
+            logger.error(
+              'voice plugin: failed to persist voice session messages:',
+              error
+            );
+          }
+        }
+
+        // If the parent LLM called a task assistant start tool during this turn,
+        // persist the task assistant's seed messages so they appear in the DB.
+        const newTaskAssistant = sessionId
+          ? TaskAssistants.getActiveInstance(sessionId)
+          : undefined;
+        if (newTaskAssistant && runtimeState.orm && sessionId) {
+          try {
+            const session = await VoiceSessionStore.getSession(
+              runtimeState.orm,
+              sessionId
+            );
+            if (session) {
+              await VoiceSessionStore.persistUnsynchronizedMessages(
+                runtimeState.orm,
+                session,
+                newTaskAssistant.conversation,
+                'tool_call'
+              );
+            }
+          } catch (error) {
+            logger.error(
+              'voice plugin: failed to persist task assistant seed messages:',
+              error
+            );
+          }
+        }
+      }
+
       const endConversation =
         runtimeState.activeVoiceSession?.conversation === conversation
           ? runtimeState.activeVoiceSession.requestedConversationEnd
@@ -447,13 +777,371 @@ export function registerVoiceRoutes(
         runtimeState.activeVoiceSession.lastActivityAt = Date.now();
       }
 
+      // Check if a task assistant is now active for this session
+      const currentTaskAssistant = sessionId
+        ? TaskAssistants.getActiveInstance(sessionId)
+        : undefined;
+
+      // Check for active session-linked agents
+      const currentAgents = sessionId
+        ? AgentSystem.getInstancesBySession(sessionId)
+        : [];
+
       const responseBody: VoiceTurnResponseBody = {
         reply: markdownToTts(reply),
         continueConversation: !endConversation,
         endConversation,
+        activeTaskAssistant: currentTaskAssistant
+          ? {
+              id: currentTaskAssistant.definition.id,
+              name: currentTaskAssistant.definition.name,
+            }
+          : undefined,
+        activeAgents:
+          currentAgents.length > 0
+            ? currentAgents.map(agent => ({
+                instanceId: agent.instanceId,
+                agentId: agent.agentId,
+                agentName: agent.agentName,
+                status: agent.status,
+              }))
+            : undefined,
       };
 
       res.json(responseBody);
+    } catch (error) {
+      const messageText =
+        error instanceof Error ? error.message : String(error);
+      res.status(500).json({ error: messageText });
+    }
+  });
+
+  // --- Set-aside session management endpoints ---
+
+  /**
+   * GET /api/voice/set-aside-sessions
+   * Returns a list of set-aside voice sessions that can be resumed.
+   */
+  app.get('/api/voice/set-aside-sessions', requireToken, async (_req, res) => {
+    if (!runtimeState.orm) {
+      res.status(503).json({
+        error: 'Voice session persistence is not available yet.',
+      });
+      return;
+    }
+
+    try {
+      const sessions = await VoiceSessionStore.getSetAsideSessions(
+        runtimeState.orm
+      );
+      res.json({
+        ok: true,
+        sessions: sessions.map(session => ({
+          id: session.id,
+          conversationType: session.conversationType,
+          title: session.title,
+          lastActivityAt: session.lastActivityAt,
+          createdAt: session.createdAt,
+        })),
+      });
+    } catch (error) {
+      const messageText =
+        error instanceof Error ? error.message : String(error);
+      res.status(500).json({ error: messageText });
+    }
+  });
+
+  /**
+   * POST /api/voice/resume-session/:id
+   * Resumes a set-aside voice session by ID.
+   * Only works if no other voice session is currently active.
+   */
+  app.post('/api/voice/resume-session/:id', requireToken, async (req, res) => {
+    if (!runtimeState.orm) {
+      res.status(503).json({
+        error: 'Voice session persistence is not available yet.',
+      });
+      return;
+    }
+
+    // Don't allow resuming if there's already an active session
+    if (runtimeState.activeVoiceSession) {
+      res.status(409).json({
+        error:
+          'Cannot resume a set-aside session while another voice session is active.',
+      });
+      return;
+    }
+
+    const sessionId = Number(req.params.id);
+    if (!Number.isFinite(sessionId) || sessionId <= 0) {
+      res.status(400).json({ error: 'Invalid session ID.' });
+      return;
+    }
+
+    try {
+      const session = await VoiceSessionStore.getSession(
+        runtimeState.orm,
+        sessionId
+      );
+
+      if (!session || session.status !== 'set_aside') {
+        res.status(404).json({
+          error: 'Set-aside session not found or not in a resumable state.',
+        });
+        return;
+      }
+
+      // Resume the session in the database
+      await VoiceSessionStore.resumeSession(runtimeState.orm, sessionId);
+
+      // Restore the conversation from the persisted context
+      const conversation =
+        VoiceSessionStore.restoreConversationFromSession(session);
+
+      runtimeState.activeVoiceSessionId = sessionId;
+      runtimeState.activeVoiceSession = {
+        conversation,
+        lastActivityAt: Date.now(),
+        requestedConversationEnd: false,
+      };
+
+      logger.log(`voice plugin: resumed set-aside voice session ${sessionId}.`);
+
+      res.json({
+        ok: true,
+        sessionId,
+        conversationType: session.conversationType,
+        title: session.title,
+      });
+    } catch (error) {
+      const messageText =
+        error instanceof Error ? error.message : String(error);
+      res.status(500).json({ error: messageText });
+    }
+  });
+
+  /**
+   * POST /api/voice/discard-session/:id
+   * Archives a set-aside voice session by ID, discarding its context.
+   */
+  app.post('/api/voice/discard-session/:id', requireToken, async (req, res) => {
+    if (!runtimeState.orm) {
+      res.status(503).json({
+        error: 'Voice session persistence is not available yet.',
+      });
+      return;
+    }
+
+    const sessionId = Number(req.params.id);
+    if (!Number.isFinite(sessionId) || sessionId <= 0) {
+      res.status(400).json({ error: 'Invalid session ID.' });
+      return;
+    }
+
+    try {
+      const session = await VoiceSessionStore.getSession(
+        runtimeState.orm,
+        sessionId
+      );
+
+      if (!session || session.status !== 'set_aside') {
+        res.status(404).json({
+          error: 'Set-aside session not found or not in a discardable state.',
+        });
+        return;
+      }
+
+      await VoiceSessionStore.archiveSession(runtimeState.orm, sessionId);
+
+      logger.log(
+        `voice plugin: discarded (archived) set-aside voice session ${sessionId}.`
+      );
+
+      res.json({ ok: true, sessionId });
+    } catch (error) {
+      const messageText =
+        error instanceof Error ? error.message : String(error);
+      res.status(500).json({ error: messageText });
+    }
+  });
+
+  // --- Web UI management endpoints (no voice access token required) ---
+  // These endpoints are for the web UI to manage voice sessions.
+  // They are local-only and do not require the voice client access token.
+
+  /**
+   * GET /api/voice/sessions
+   * List all voice sessions (active, set-aside, and recent archived).
+   * For the web UI management page.
+   */
+  app.get('/api/voice/sessions', async (_req, res) => {
+    if (!runtimeState.orm) {
+      res.status(503).json({
+        error: 'Voice session persistence is not available yet.',
+      });
+      return;
+    }
+
+    try {
+      const liveSessions = await VoiceSessionStore.getLiveSessions(
+        runtimeState.orm
+      );
+
+      // Also include the in-memory active session info
+      const activeSessionInfo = runtimeState.activeVoiceSession
+        ? {
+            id: runtimeState.activeVoiceSessionId,
+            status: 'active_in_memory' as const,
+            conversationType: 'voice',
+            title: '',
+            lastActivityAt: new Date(
+              runtimeState.activeVoiceSession.lastActivityAt
+            ).toISOString(),
+            createdAt: '',
+            hasActiveConversation: true,
+          }
+        : null;
+
+      res.json({
+        ok: true,
+        activeSession: activeSessionInfo,
+        sessions: liveSessions.map(session => ({
+          id: session.id,
+          status: session.status,
+          conversationType: session.conversationType,
+          title: session.title,
+          taskAssistantId: session.taskAssistantId,
+          agentInstanceId: session.agentInstanceId,
+          parentSessionId: session.parentSessionId,
+          lastActivityAt: session.lastActivityAt,
+          createdAt: session.createdAt,
+          updatedAt: session.updatedAt,
+        })),
+      });
+    } catch (error) {
+      const messageText =
+        error instanceof Error ? error.message : String(error);
+      res.status(500).json({ error: messageText });
+    }
+  });
+
+  /**
+   * DELETE /api/voice/sessions/:id
+   * Archive (evict) a set-aside voice session immediately.
+   * For the web UI management page.
+   */
+  app.delete('/api/voice/sessions/:id', async (req, res) => {
+    if (!runtimeState.orm) {
+      res.status(503).json({
+        error: 'Voice session persistence is not available yet.',
+      });
+      return;
+    }
+
+    const sessionId = Number(req.params.id);
+    if (!Number.isFinite(sessionId) || sessionId <= 0) {
+      res.status(400).json({ error: 'Invalid session ID.' });
+      return;
+    }
+
+    try {
+      const session = await VoiceSessionStore.getSession(
+        runtimeState.orm,
+        sessionId
+      );
+
+      if (!session) {
+        res.status(404).json({ error: 'Session not found.' });
+        return;
+      }
+
+      if (session.status !== 'set_aside') {
+        res.status(400).json({
+          error: `Cannot evict session in "${session.status}" state. Only set_aside sessions can be evicted.`,
+        });
+        return;
+      }
+
+      await VoiceSessionStore.archiveSession(runtimeState.orm, sessionId);
+
+      logger.log(
+        `voice plugin: evicted set-aside voice session ${sessionId} via web UI.`
+      );
+
+      res.json({ ok: true, sessionId });
+    } catch (error) {
+      const messageText =
+        error instanceof Error ? error.message : String(error);
+      res.status(500).json({ error: messageText });
+    }
+  });
+
+  /**
+   * POST /api/voice/sessions/:id/resume
+   * Resume a set-aside voice session via the web UI.
+   * Only works if no other voice session is currently active.
+   */
+  app.post('/api/voice/sessions/:id/resume', async (req, res) => {
+    if (!runtimeState.orm) {
+      res.status(503).json({
+        error: 'Voice session persistence is not available yet.',
+      });
+      return;
+    }
+
+    // Don't allow resuming if there's already an active session
+    if (runtimeState.activeVoiceSession) {
+      res.status(409).json({
+        error:
+          'Cannot resume a set-aside session while another voice session is active.',
+      });
+      return;
+    }
+
+    const sessionId = Number(req.params.id);
+    if (!Number.isFinite(sessionId) || sessionId <= 0) {
+      res.status(400).json({ error: 'Invalid session ID.' });
+      return;
+    }
+
+    try {
+      const session = await VoiceSessionStore.getSession(
+        runtimeState.orm,
+        sessionId
+      );
+
+      if (!session || session.status !== 'set_aside') {
+        res.status(404).json({
+          error: 'Set-aside session not found or not in a resumable state.',
+        });
+        return;
+      }
+
+      // Resume the session in the database
+      await VoiceSessionStore.resumeSession(runtimeState.orm, sessionId);
+
+      // Restore the conversation from the persisted context
+      const conversation =
+        VoiceSessionStore.restoreConversationFromSession(session);
+
+      runtimeState.activeVoiceSessionId = sessionId;
+      runtimeState.activeVoiceSession = {
+        conversation,
+        lastActivityAt: Date.now(),
+        requestedConversationEnd: false,
+      };
+
+      logger.log(
+        `voice plugin: resumed set-aside voice session ${sessionId} via web UI.`
+      );
+
+      res.json({
+        ok: true,
+        sessionId,
+        conversationType: session.conversationType,
+        title: session.title,
+      });
     } catch (error) {
       const messageText =
         error instanceof Error ? error.message : String(error);

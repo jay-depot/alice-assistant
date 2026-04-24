@@ -4,6 +4,8 @@ import { Type } from 'typebox';
 import { UserConfig } from '../../../lib/user-config.js';
 import { createVoiceAccessToken } from './auth.js';
 import { VoicePluginConfigSchema, defaultVoicePluginConfig } from './config.js';
+import { VoiceSession, VoiceSessionRound } from './db-schemas/index.js';
+import { VoiceSessionStore } from './voice-session-store.js';
 import {
   createManagedVoiceClientState,
   startManagedVoiceClient,
@@ -27,7 +29,10 @@ const voicePlugin: AlicePlugin = {
     description:
       'Provides token-protected local voice endpoints and supervises the managed local voice client.',
     version: 'LATEST',
-    dependencies: [{ id: 'rest-serve', version: 'LATEST' }],
+    dependencies: [
+      { id: 'rest-serve', version: 'LATEST' },
+      { id: 'memory', version: 'LATEST' },
+    ],
     required: true,
   },
 
@@ -45,9 +50,21 @@ const voicePlugin: AlicePlugin = {
       );
     }
 
+    const memory = plugin.request('memory');
+
+    if (!memory) {
+      throw new Error(
+        'voice plugin could not access the memory plugin capabilities. Disable voice or fix the memory plugin to continue.'
+      );
+    }
+
+    memory.registerDatabaseModels([VoiceSession, VoiceSessionRound]);
+
     const runtimeState: VoicePluginRuntimeState = {
       accessToken: null as string | null,
       managedClientState: createManagedVoiceClientState(),
+      orm: null,
+      activeVoiceSessionId: null,
       activeVoiceSession: null,
       sessionIdleTimeoutMs:
         (config.getPluginConfig().sessionIdleTimeoutMinutes ?? 10) * 60_000,
@@ -69,7 +86,7 @@ const voicePlugin: AlicePlugin = {
       name: 'endVoiceConversation',
       availableFor: ['voice'],
       description:
-        'Use endVoiceConversation only when the user clearly indicates the conversation is over, such as saying that will be all, that is it, or thanks that is all. Do not call it just because a task is complete if the user still appears to be engaged.',
+        'Use endVoiceConversation only when the user clearly indicates the conversation is over, such as saying "that will be all," "that is it," or "thanks, that is all." Do not call it just because a task is complete if the user still appears to be engaged.',
       systemPromptFragment: '',
       parameters: Type.Object({}),
       toolResultPromptIntro:
@@ -91,16 +108,82 @@ const voicePlugin: AlicePlugin = {
 
     registerVoiceRoutes(restServe.express, runtimeState);
 
+    // Initialize the ORM once the memory plugin has the database ready.
+    memory.onDatabaseReady(async orm => {
+      runtimeState.orm = orm;
+      plugin.logger.log(
+        'voice plugin: database ORM initialized, voice session persistence available.'
+      );
+
+      // Recover from unclean shutdowns: any sessions still marked as
+      // 'active' in the DB are stale (the app restarted), so set them
+      // aside so they can be offered for resume on the next wake-word.
+      try {
+        const activeSessions = await VoiceSessionStore.getActiveSession(orm);
+        if (activeSessions) {
+          plugin.logger.log(
+            `voice plugin: found stale active session ${activeSessions.id} from previous run, setting it aside.`
+          );
+          await VoiceSessionStore.updateSession(orm, activeSessions.id, {
+            status: 'set_aside',
+          });
+        }
+      } catch (error) {
+        plugin.logger.error(
+          'voice plugin: failed to recover stale active sessions:',
+          error
+        );
+      }
+    });
+
     const closeVoiceRuntime = async () => {
       plugin.logger.log('voice plugin: shutting down voice runtime.');
 
-      if (runtimeState.activeVoiceSession) {
+      // Persist the active voice session to the database before shutdown
+      // so it can be resumed after a restart.
+      if (
+        runtimeState.activeVoiceSession &&
+        runtimeState.orm &&
+        runtimeState.activeVoiceSessionId
+      ) {
         plugin.logger.log(
-          'voice plugin: closing final active voice conversation during shutdown.'
+          'voice plugin: persisting active voice conversation to database before shutdown.'
         );
+        try {
+          const session = await VoiceSessionStore.getSession(
+            runtimeState.orm,
+            runtimeState.activeVoiceSessionId
+          );
+          if (session) {
+            await VoiceSessionStore.persistUnsynchronizedMessages(
+              runtimeState.orm,
+              session,
+              runtimeState.activeVoiceSession.conversation
+            );
+            await VoiceSessionStore.setAsideSession(
+              runtimeState.orm,
+              runtimeState.activeVoiceSessionId,
+              runtimeState.activeVoiceSession.conversation
+            );
+            plugin.logger.log(
+              `voice plugin: set aside voice session ${runtimeState.activeVoiceSessionId} for potential resume after restart.`
+            );
+          }
+        } catch (error) {
+          plugin.logger.error(
+            'voice plugin: failed to persist active voice session before shutdown:',
+            error
+          );
+        }
+        // Clear the in-memory state regardless of persistence success
+        runtimeState.activeVoiceSession = null;
+        runtimeState.activeVoiceSessionId = null;
+      } else if (runtimeState.activeVoiceSession) {
+        plugin.logger.log(
+          'voice plugin: closing final active voice conversation during shutdown (no database available).'
+        );
+        await closeActiveVoiceSession(runtimeState);
       }
-
-      await closeActiveVoiceSession(runtimeState);
 
       if (runtimeState.pendingVoiceSessionCloses.size > 0) {
         plugin.logger.log(

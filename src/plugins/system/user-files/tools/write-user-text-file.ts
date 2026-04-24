@@ -86,10 +86,7 @@ const writeUserTextFileTool: (config: {
     }
 
     const extension = pathLib.extname(absolutePath).toLowerCase();
-    if (
-      allowedWriteExtensions.length > 0 &&
-      !allowedWriteExtensions.includes(extension)
-    ) {
+    if (!allowedWriteExtensions.includes(extension)) {
       return JSON.stringify({
         error: `File type not allowed for writing. Allowed extensions: ${allowedWriteExtensions.join(', ')}`,
       });

@@ -947,7 +947,7 @@ export const AgentSystem = {
 
   async sleepIndependentAgent(agentId: string, reason: string): Promise<void> {
     const instance = activeIndependentInstancesById.get(agentId);
-    if (!instance || instance.status !== 'running') {
+    if (!instance || !['running', 'stuck'].includes(instance.status)) {
       systemLogger.warn(
         `Independent agent ${agentId}: cannot sleep from state ${instance?.status ?? 'unknown'}. Ignoring.`
       );

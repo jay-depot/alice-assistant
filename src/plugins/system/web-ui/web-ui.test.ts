@@ -302,7 +302,7 @@ describe('webUiPlugin', () => {
       appendExternalMessage: vi.fn(),
       closeConversation: vi.fn(),
       sendUserMessage: vi.fn().mockResolvedValue(undefined),
-      requestTitle: vi.fn(async () => 'New Conversation'),
+      maybeRequestTitle: vi.fn(async () => 'New Conversation'),
     });
     mockTaskAssistants.getActiveInstance.mockReset().mockReturnValue(null);
     mockTaskAssistants.getAndClearCompletedResult
@@ -617,7 +617,10 @@ describe('webUiPlugin', () => {
     );
     await mockInterface.runHook('onAssistantAcceptsRequests');
 
-    const compactHandler = getRegisteredRouteHandler('post', '/api/chat/:id/compact');
+    const compactHandler = getRegisteredRouteHandler(
+      'post',
+      '/api/chat/:id/compact'
+    );
     const connectionHandler = mockWss.on.mock.calls.find(
       (entry: any[]) => entry[0] === 'connection'
     )?.[1] as ((ws: any) => void) | undefined;
@@ -638,7 +641,7 @@ describe('webUiPlugin', () => {
       appendExternalMessage: vi.fn(),
       closeConversation: vi.fn(),
       sendUserMessage: vi.fn().mockResolvedValue(undefined),
-      requestTitle: vi.fn(async () => 'New Conversation'),
+      maybeRequestTitle: vi.fn(async () => 'New Conversation'),
     });
 
     const res = createMockResponse();
@@ -730,7 +733,7 @@ describe('webUiPlugin', () => {
       ),
       closeConversation: vi.fn(),
       sendUserMessage: taSendUserMessage,
-      requestTitle: vi.fn(async () => 'Task Session'),
+      maybeRequestTitle: vi.fn(async () => 'Task Session'),
     };
 
     const parentConversation = {
@@ -744,7 +747,7 @@ describe('webUiPlugin', () => {
       ),
       closeConversation: vi.fn(),
       sendUserMessage: parentSendUserMessage,
-      requestTitle: vi.fn(async () => 'Task Session Updated'),
+      maybeRequestTitle: vi.fn(async () => 'Task Session Updated'),
     };
 
     // startConversation is only called for the parent conversation in this PATCH path;

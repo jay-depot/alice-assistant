@@ -7,11 +7,7 @@ export type ResolveResult =
   | { ok: true; contents: string }
   | {
       ok: false;
-      reason:
-        | 'empty_original'
-        | 'empty_patch'
-        | 'parse_error'
-        | 'apply_error';
+      reason: 'empty_original' | 'empty_patch' | 'parse_error' | 'apply_error';
       message: string;
     };
 

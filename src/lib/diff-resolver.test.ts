@@ -49,7 +49,11 @@ describe('resolveContents', () => {
     });
 
     it('returns soft error for empty original with diff format', () => {
-      const result = resolveContents('', 'diff', '--- a\n+++ b\n@@ -0,0 +1,2 @@\n+line1\n+line2');
+      const result = resolveContents(
+        '',
+        'diff',
+        '--- a\n+++ b\n@@ -0,0 +1,2 @@\n+line1\n+line2'
+      );
       if (result.ok) throw new Error('Expected ok=false');
       expect(result.reason).toBe('empty_original');
     });

@@ -606,6 +606,16 @@ const moltbookAgentPlugin: AlicePlugin = {
 
     // Skills — for loading the Moltbook behavioral skill
     plugin.addToolToConversationType('moltbook-agent', 'skills', 'recallSkill');
+    plugin.addToolToConversationType(
+      'moltbook-agent',
+      'proficiencies',
+      'recallProficiency'
+    );
+    plugin.addToolToConversationType(
+      'moltbook-agent',
+      'memory',
+      'recallPastConversations'
+    );
 
     // -----------------------------------------------------------------------
     // Schedule timer management
