@@ -1,8 +1,18 @@
 import { type MikroORM } from '@mikro-orm/sqlite';
-import { type Conversation, type Message, startConversation } from '../../../lib.js';
+import {
+  type Conversation,
+  type Message,
+  startConversation,
+} from '../../../lib.js';
 import type { ConversationTypeId } from '../../../lib/conversation-types.js';
-import { VoiceSession, type VoiceSessionStatus } from './db-schemas/VoiceSession.js';
-import type { VoiceSessionRoundMessageKind, VoiceSessionRoundRole } from './db-schemas/VoiceSessionRound.js';
+import {
+  VoiceSession,
+  type VoiceSessionStatus,
+} from './db-schemas/VoiceSession.js';
+import type {
+  VoiceSessionRoundMessageKind,
+  VoiceSessionRoundRole,
+} from './db-schemas/VoiceSessionRound.js';
 import { VoiceSessionRound } from './db-schemas/VoiceSessionRound.js';
 import { createPluginLogger } from '../../../lib/plugin-logger.js';
 
@@ -65,9 +75,13 @@ export const VoiceSessionStore = {
    */
   async getSession(orm: MikroORM, id: number): Promise<VoiceSession | null> {
     const em = orm.em.fork();
-    return em.findOne(VoiceSession, { id }, {
-      populate: ['rounds'],
-    }) as Promise<VoiceSession | null>;
+    return em.findOne(
+      VoiceSession,
+      { id },
+      {
+        populate: ['rounds'],
+      }
+    ) as Promise<VoiceSession | null>;
   },
 
   /**
@@ -75,9 +89,13 @@ export const VoiceSessionStore = {
    */
   async getActiveSession(orm: MikroORM): Promise<VoiceSession | null> {
     const em = orm.em.fork();
-    return em.findOne(VoiceSession, { status: 'active' }, {
-      populate: ['rounds'],
-    }) as Promise<VoiceSession | null>;
+    return em.findOne(
+      VoiceSession,
+      { status: 'active' },
+      {
+        populate: ['rounds'],
+      }
+    ) as Promise<VoiceSession | null>;
   },
 
   /**
@@ -85,9 +103,13 @@ export const VoiceSessionStore = {
    */
   async getSetAsideSessions(orm: MikroORM): Promise<VoiceSession[]> {
     const em = orm.em.fork();
-    return em.find(VoiceSession, { status: 'set_aside' }, {
-      populate: ['rounds'],
-    }) as Promise<VoiceSession[]>;
+    return em.find(
+      VoiceSession,
+      { status: 'set_aside' },
+      {
+        populate: ['rounds'],
+      }
+    ) as Promise<VoiceSession[]>;
   },
 
   /**
@@ -133,9 +155,17 @@ export const VoiceSessionStore = {
     if (updates.status !== undefined) session.status = updates.status;
     if (updates.title !== undefined) session.title = updates.title;
     if (updates.compactedContext !== undefined)
-      session.compactedContext = updates.compactedContext as Record<string, unknown>[] | null;
+      (
+        session as unknown as {
+          compactedContext: Record<string, unknown>[] | null;
+        }
+      ).compactedContext = updates.compactedContext as
+        | Record<string, unknown>[]
+        | null;
     if (updates.rawContext !== undefined)
-      session.rawContext = updates.rawContext as Record<string, unknown>[] | null;
+      (
+        session as unknown as { rawContext: Record<string, unknown>[] | null }
+      ).rawContext = updates.rawContext as Record<string, unknown>[] | null;
     if (updates.lastActivityAt !== undefined)
       session.lastActivityAt = updates.lastActivityAt;
     session.updatedAt = new Date();
@@ -161,8 +191,17 @@ export const VoiceSessionStore = {
 
     // Persist conversation context
     session.status = 'set_aside';
-    session.compactedContext = conversation.compactedContext as Record<string, unknown>[];
-    session.rawContext = conversation.rawContext as Record<string, unknown>[];
+    (
+      session as unknown as {
+        compactedContext: Record<string, unknown>[] | null;
+      }
+    ).compactedContext = conversation.compactedContext as Record<
+      string,
+      unknown
+    >[];
+    (
+      session as unknown as { rawContext: Record<string, unknown>[] | null }
+    ).rawContext = conversation.rawContext as Record<string, unknown>[];
     session.updatedAt = new Date();
     await em.flush();
 

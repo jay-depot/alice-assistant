@@ -1062,27 +1062,29 @@ def create_wake_word_model(Model, model_path: str):
     raise RuntimeError('Unsupported openwakeword Model constructor shape. Unable to initialize wake-word model safely.')
 
 
-def wait_for_wake_word(system_config: dict) -> None:
-    np, sd, Model = import_wake_word_runtime()
-    model_path = get_open_wake_word_model_path(system_config)
+def get_wake_word_reset_interval_seconds() -> float:
+    try:
+        return max(60.0, float(os.environ.get('ALICE_VOICE_WAKE_RESET_INTERVAL_SECONDS', '300').strip()))
+    except ValueError:
+        return 300.0
+
+
+def wait_for_wake_word(
+    system_config: dict,
+    wake_model,
+    np,
+    sd,
+    last_reset_time: float,
+    reset_interval_seconds: float,
+) -> float:
+    """Listen for the wake word, returning the (possibly updated) last_reset_time.
+
+    The model and timer are owned by the caller so they survive across
+    detections. Without this, each conversation turn creates a fresh model
+    and the periodic reset that prevents CPU creep never fires.
+    """
     threshold = get_wake_threshold()
     chunk_size = 1280
-    # Reset the wake model every ~5 minutes to prevent internal buffer bloat.
-    # openwakeword's AudioFeatures._buffer_raw_data converts every chunk to a
-    # Python list via x.tolist() and _streaming_features grows feature_buffer
-    # via np.vstack on every predict() call. Over time the repeated array
-    # copies and GC pressure from list conversion cause steadily increasing
-    # CPU usage. A periodic reset clears all internal buffers back to their
-    # initial small sizes; the model re-warms in ~400ms (5 frames).
-    try:
-        reset_interval_seconds = max(60.0, float(os.environ.get('ALICE_VOICE_WAKE_RESET_INTERVAL_SECONDS', '300').strip()))
-    except ValueError:
-        reset_interval_seconds = 300.0
-    last_reset_time = time.monotonic()
-
-    print(f'voice client: listening for wake word using model {model_path}')
-
-    wake_model = create_wake_word_model(Model, model_path)
 
     with sd.RawInputStream(samplerate=16000, channels=1, dtype='int16', blocksize=chunk_size) as stream:
         while not shutdown_requested:
@@ -1099,15 +1101,27 @@ def wait_for_wake_word(system_config: dict) -> None:
                 print('voice client: reset wake word model buffers to prevent CPU creep.')
 
             if overflowed:
+                # Brief yield so a sustained overflow storm doesn't tight-spin
+                # the CPU and starve the audio callback thread.
+                time.sleep(0.001)
                 continue
 
             prediction_input = np.frombuffer(audio_chunk, dtype=np.int16)
+            predict_start = time.monotonic()
             prediction = wake_model.predict(prediction_input)
+            predict_elapsed = time.monotonic() - predict_start
+            if predict_elapsed > 0.05:
+                print(
+                    f'voice client: predict() took {predict_elapsed * 1000:.1f}ms '
+                    f'(threshold is 50ms); wake word model may be bloated.'
+                )
             score = max((float(value) for value in prediction.values()), default=0.0)
 
             if score >= threshold:
                 print(f'voice client: wake word detected with score {score:.3f}')
-                return
+                return last_reset_time
+
+    return last_reset_time
 
 
 def run_manual_loop(system_config: dict, voice_plugin_config: dict, last_event_sequence: int) -> None:
@@ -1180,8 +1194,21 @@ def run_wake_word_loop(system_config: dict, voice_plugin_config: dict, last_even
     audio_capture_closed_sound = get_optional_sound_path(voice_plugin_config, 'audioCaptureClosedSoundPath')
     print(f'ALICE voice client ready. Waiting for wake word: {wake_word}')
 
+    np, sd, Model = import_wake_word_runtime()
+    model_path = get_open_wake_word_model_path(system_config)
+    wake_model = create_wake_word_model(Model, model_path)
+    reset_interval_seconds = get_wake_word_reset_interval_seconds()
+    last_reset_time = time.monotonic()
+
     while not shutdown_requested:
-        wait_for_wake_word(system_config)
+        last_reset_time = wait_for_wake_word(
+            system_config,
+            wake_model,
+            np,
+            sd,
+            last_reset_time,
+            reset_interval_seconds,
+        )
 
         transcript = capture_transcript_from_microphone(
             voice_plugin_config,

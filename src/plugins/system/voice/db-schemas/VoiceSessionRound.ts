@@ -17,10 +17,6 @@ const VoiceSessionRoundSchema = defineEntity({
   },
 });
 
-export class VoiceSessionRound extends VoiceSessionRoundSchema.class {
-  declare role: VoiceSessionRoundRole;
-  declare messageKind: VoiceSessionRoundMessageKind;
-  declare toolCallData: Record<string, unknown>[] | null;
-}
+export class VoiceSessionRound extends VoiceSessionRoundSchema.class {}
 
 VoiceSessionRoundSchema.setClass(VoiceSessionRound);
