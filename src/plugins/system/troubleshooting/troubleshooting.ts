@@ -65,7 +65,7 @@ const troubleshootingPlugin: AlicePlugin = {
           "to get more information about your assistant's configuration and loaded plugins. This " +
           'information can be helpful for troubleshooting and debugging.\n\n' +
           'If you have access to the internet, you can also reference the file at ' +
-          'https://raw.githubusercontent.com/jay-depot/alice-assistant/main/ALICE.md for information ' +
+          'https://raw.githubusercontent.com/jay-depot/alice-assistant/main/src/ALICE.md for information ' +
           'that may help you help your user.'
         );
       },
