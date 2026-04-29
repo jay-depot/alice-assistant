@@ -1,4 +1,5 @@
 import OllamaClient, { ChatResponse, ToolCall } from 'ollama';
+import type { AbortableAsyncIterator } from 'ollama';
 import { randomUUID } from 'node:crypto';
 import { UserConfig } from './user-config.js';
 import {
@@ -35,8 +36,16 @@ const MAX_TOOL_CALL_DEPTH = 10;
 export type Message = {
   role: string;
   content: string;
+  reasoning?: string;
   tool_calls?: ToolCall[];
   tool_name?: string;
+};
+
+export type ConversationStreamingCallbacks = {
+  onThinking: (delta: string) => void;
+  onContent: (delta: string) => void;
+  onToolCalls: (toolCalls: ToolCall[]) => void;
+  onError: (err: unknown) => void;
 };
 
 export type StartConversationOptions = {
@@ -465,6 +474,244 @@ export class Conversation {
     }
 
     return response.message.content || '';
+  }
+
+  /**
+   * Token-by-token streaming entry point for the web UI.
+   */
+  async beginStreaming(
+    callbacks: ConversationStreamingCallbacks,
+    options?: {
+      userMessage?: string;
+      depth?: number;
+    }
+  ): Promise<{ content: string; thinking: string; toolCalls: ToolCall[] }> {
+    const depth = options?.depth ?? 0;
+    const availableTools = getTools(this.type).map(t => t.name);
+    const maxToolCallDepth =
+      getConversationTypeDefinition(this.type)?.maxToolCallDepth ??
+      MAX_TOOL_CALL_DEPTH;
+    const headerPrompts = await getHeaderPrompts({
+      conversationType: this.type,
+      sessionId: this.sessionId,
+      taskAssistantId: this.taskAssistantId,
+      toolCallsAllowed: depth < maxToolCallDepth,
+      availableTools,
+    });
+    const footerPrompts = await getFooterPrompts({
+      conversationType: this.type,
+      sessionId: this.sessionId,
+      taskAssistantId: this.taskAssistantId,
+      availableTools,
+    });
+
+    if (options?.userMessage) {
+      await this.appendToContext({
+        role: 'user',
+        content: options.userMessage,
+      });
+    }
+
+    const fullContext = [
+      ...headerPrompts.map(prompt => ({ role: 'system', content: prompt })),
+      ...this.compactedContext,
+      ...footerPrompts.map(prompt => ({ role: 'system', content: prompt })),
+    ];
+
+    let streamIterator: AbortableAsyncIterator<ChatResponse>;
+
+    try {
+      const streamResult = await OllamaClient.chat({
+        ...this.llmConnection,
+        messages: fullContext,
+        tools: buildOllamaToolDescriptionObject(this.type, this.isTainted),
+        stream: true,
+      });
+      streamIterator = streamResult as AbortableAsyncIterator<ChatResponse>;
+    } catch (err) {
+      callbacks.onError(err);
+      throw err;
+    }
+
+    let content = '';
+    let thinking = '';
+    let toolCalls: ToolCall[] = [];
+
+    try {
+      for await (const chunk of streamIterator) {
+        const deltaThinking = chunk.message.thinking ?? '';
+        const deltaContent = chunk.message.content ?? '';
+        const deltaToolCalls = chunk.message.tool_calls;
+
+        if (deltaThinking) {
+          thinking += deltaThinking;
+          callbacks.onThinking(deltaThinking);
+        }
+
+        if (deltaContent) {
+          content += deltaContent;
+          callbacks.onContent(deltaContent);
+        }
+
+        if (deltaToolCalls && deltaToolCalls.length > 0) {
+          toolCalls = deltaToolCalls;
+        }
+
+        if (chunk.done) {
+          break;
+        }
+      }
+    } catch (err) {
+      callbacks.onError(err);
+      throw err;
+    }
+
+    checkLLMResponseForDegeneracy(content);
+
+    await this.appendToContext({
+      role: 'assistant',
+      content,
+      reasoning: thinking || undefined,
+      tool_calls: toolCalls.length > 0 ? toolCalls : undefined,
+    });
+
+    if (toolCalls.length > 0) {
+      void ToolCallEvents.dispatchToolCallEvent({
+        type: 'assistant_turn_started',
+        conversationType: this.type,
+        sessionId: this.sessionId,
+        taskAssistantId: this.taskAssistantId,
+        agentInstanceId: this.agentInstanceId,
+        assistantContent: content,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    return { content, thinking, toolCalls };
+  }
+
+  async executeToolCalls(toolCalls: ToolCall[], depth = 0): Promise<void> {
+    const maxToolCallDepth =
+      getConversationTypeDefinition(this.type)?.maxToolCallDepth ??
+      MAX_TOOL_CALL_DEPTH;
+    const callsStillAllowed = depth < maxToolCallDepth;
+    if (!callsStillAllowed) {
+      await this.appendToContext({
+        role: 'system',
+        content:
+          'The model attempted to make additional tool calls after the tool-call limit was reached. Answer the user in character using the information already available. Do not make any more tool calls for this conversation turn.',
+      });
+      return;
+    }
+
+    const callBatchId = randomUUID();
+
+    const toolResultMessages = await Promise.all(
+      toolCalls.map(async toolCall => {
+        const toolName = toolCall.function.name;
+        const toolArgs = toolCall.function.arguments;
+        systemLogger.log(JSON.stringify({ toolName, toolArgs }));
+        const tools = getTools(this.type);
+        const tool = tools.find(t => t.name === toolName);
+        if (!tool) {
+          return {
+            role: 'tool' as const,
+            content: `Tool ${toolName} is not recognized.`,
+            tool_name: toolName,
+          };
+        }
+
+        const effectiveTaint = tool.taintStatus ?? 'clean';
+        if (effectiveTaint === 'secure' && this.isTainted) {
+          return {
+            role: 'tool' as const,
+            content:
+              `Tool ${toolName} is a secure tool and cannot be used in this conversation ` +
+              `because the conversation context has been tainted by a previous tool call ` +
+              `(${[...this.taintedToolNames].join(', ')}). ` +
+              `Inform the user that if they still want to take this action, start a new conversation.`,
+            tool_name: toolName,
+          };
+        }
+
+        void ToolCallEvents.dispatchToolCallEvent({
+          type: 'tool_call_started',
+          callBatchId,
+          toolName,
+          toolArgs,
+          conversationType: this.type,
+          sessionId: this.sessionId,
+          taskAssistantId: this.taskAssistantId,
+          agentInstanceId: this.agentInstanceId,
+          requiresApproval: tool.requiresApproval,
+          timestamp: new Date().toISOString(),
+        });
+
+        try {
+          const callResult = await tool.execute(toolArgs, {
+            toolName,
+            conversationType: this.type,
+            sessionId: this.sessionId,
+            taskAssistantId: this.taskAssistantId,
+            agentInstanceId: this.agentInstanceId,
+          });
+
+          if (effectiveTaint === 'tainted') {
+            this.taintedToolNames.add(toolName);
+          }
+
+          const resultSummary =
+            callResult.length > 200
+              ? callResult.slice(0, 200) + '…'
+              : callResult;
+          void ToolCallEvents.dispatchToolCallEvent({
+            type: 'tool_call_completed',
+            callBatchId,
+            toolName,
+            toolArgs,
+            conversationType: this.type,
+            sessionId: this.sessionId,
+            taskAssistantId: this.taskAssistantId,
+            agentInstanceId: this.agentInstanceId,
+            resultSummary,
+            requiresApproval: tool.requiresApproval,
+            timestamp: new Date().toISOString(),
+          });
+
+          return {
+            role: 'tool' as const,
+            content: callResult,
+            tool_name: toolName,
+          };
+        } catch (e) {
+          const errorMessage = e instanceof Error ? e.message : String(e);
+
+          void ToolCallEvents.dispatchToolCallEvent({
+            type: 'tool_call_error',
+            callBatchId,
+            toolName,
+            toolArgs,
+            conversationType: this.type,
+            sessionId: this.sessionId,
+            taskAssistantId: this.taskAssistantId,
+            agentInstanceId: this.agentInstanceId,
+            error: errorMessage,
+            requiresApproval: tool.requiresApproval,
+            timestamp: new Date().toISOString(),
+          });
+
+          return {
+            role: 'tool' as const,
+            content: `Error: ${errorMessage}`,
+            tool_name: toolName,
+          };
+        }
+      })
+    );
+
+    for (const toolResult of toolResultMessages) {
+      await this.appendToContext(toolResult);
+    }
   }
 
   private async handleToolCalls(

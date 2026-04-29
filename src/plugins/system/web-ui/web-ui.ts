@@ -7,6 +7,7 @@ import {
   TaskAssistants,
   AgentSystem,
   ToolCallEvents,
+  systemLogger,
 } from '../../../lib.js';
 import { WebSocket } from 'ws';
 import type {
@@ -143,19 +144,28 @@ const webUiPlugin: AlicePlugin = {
         .map(round => ({
           role: round.role,
           content: round.content,
+          reasoning: round.reasoning ?? undefined,
           ...(round.toolName ? { tool_name: round.toolName } : {}),
         }));
     };
 
     const serializeCompactedContext = (
       messages: Message[] | undefined
-    ): { role: string; content: string; tool_name?: string }[] | null => {
+    ):
+      | {
+          role: string;
+          content: string;
+          reasoning?: string;
+          tool_name?: string;
+        }[]
+      | null => {
       if (!messages || messages.length === 0) {
         return null;
       }
       return messages.map(m => ({
         role: m.role,
         content: m.content,
+        ...(m.reasoning ? { reasoning: m.reasoning } : {}),
         ...(m.tool_name ? { tool_name: m.tool_name } : {}),
       }));
     };
@@ -205,6 +215,7 @@ const webUiPlugin: AlicePlugin = {
       role: round.role,
       messageKind: round.messageKind,
       content: round.content,
+      reasoning: round.reasoning,
       timestamp:
         round.timestamp instanceof Date
           ? round.timestamp.toISOString()
@@ -272,6 +283,7 @@ const webUiPlugin: AlicePlugin = {
             message.role === 'assistant' ? assistantMessageKind : 'chat',
           timestamp: new Date(),
           content: message.content,
+          reasoning: message.reasoning ?? null,
           senderName:
             message.role === 'assistant' ? (senderName ?? null) : null,
           toolName: message.tool_name ?? null,
@@ -1053,29 +1065,71 @@ const webUiPlugin: AlicePlugin = {
               });
             }
 
-            await llmTransaction.sendUserMessage();
+            // Streaming loop with inline tool-call handling.
+            let streamDepth = 0;
+            while (true) {
+              const turn = await llmTransaction.beginStreaming(
+                {
+                  onThinking: delta => {
+                    broadcastWs({
+                      type: 'stream_thinking',
+                      sessionId: session.id,
+                      delta,
+                    });
+                  },
+                  onContent: delta => {
+                    broadcastWs({
+                      type: 'stream_content',
+                      sessionId: session.id,
+                      delta,
+                    });
+                  },
+                  onToolCalls: toolCalls => {
+                    broadcastWs({
+                      type: 'stream_tool_calls',
+                      sessionId: session.id,
+                      toolCalls,
+                    });
+                  },
+                  onError: err => {
+                    systemLogger.error(
+                      'Streaming error in PATCH /api/chat/:id:',
+                      err
+                    );
+                    broadcastWs({
+                      type: 'stream_error',
+                      sessionId: session.id,
+                      error: err instanceof Error ? err.message : String(err),
+                    });
+                  },
+                },
+                { depth: streamDepth }
+              );
 
-            await persistUnsynchronizedMessages(
-              em,
-              queuedSession,
-              llmTransaction,
-              'chat'
-            );
-
-            // If the parent LLM called a task assistant start tool during this turn,
-            // also persist the task assistant's seed messages (kickoff greeting etc.)
-            // so they appear immediately in the response.
-            const newTaskAssistant = TaskAssistants.getActiveInstance(
-              session.id
-            );
-            if (newTaskAssistant) {
               await persistUnsynchronizedMessages(
                 em,
                 queuedSession,
-                newTaskAssistant.conversation,
-                'chat',
-                newTaskAssistant.definition.name
+                llmTransaction,
+                'chat'
               );
+
+              if (turn.toolCalls.length === 0) {
+                broadcastWs({
+                  type: 'stream_done',
+                  sessionId: session.id,
+                  finalContent: turn.content,
+                  finalReasoning: turn.thinking || null,
+                });
+                break;
+              }
+
+              // Tool calls were returned — execute them inline so the next
+              // streaming call sees the tool results.
+              await llmTransaction.executeToolCalls(
+                turn.toolCalls,
+                streamDepth
+              );
+              streamDepth++;
             }
 
             const titleSummary = await llmTransaction.maybeRequestTitle();

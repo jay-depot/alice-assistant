@@ -16,6 +16,9 @@ interface MessagesAreaProps {
   lastReadMessageKey: string | null;
   toolCallBatches: Map<string, ToolCallData[]>;
   pendingAssistantMessage: string | null;
+  streamingContent?: string;
+  streamingThinking?: string | null;
+  isStreaming?: boolean;
 }
 
 /** Group consecutive tool_call messages by callBatchId into batched segments. */
@@ -80,6 +83,9 @@ export function MessagesArea({
   lastReadMessageKey,
   toolCallBatches,
   pendingAssistantMessage,
+  streamingContent = '',
+  streamingThinking = null,
+  isStreaming = false,
 }: MessagesAreaProps) {
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const visibleMessages = useMemo(
@@ -179,6 +185,19 @@ export function MessagesArea({
           {realtimeBatches.map(([batchId, calls]) => (
             <ToolCallBatch key={`realtime-${batchId}`} calls={calls} />
           ))}
+
+          {/* Streaming transient assistant message */}
+          {isStreaming ? (
+            <MessageBubble
+              message={{
+                role: 'assistant',
+                messageKind: 'chat',
+                content: streamingContent,
+                reasoning: streamingThinking,
+                timestamp: '',
+              }}
+            />
+          ) : null}
         </>
       )}
 

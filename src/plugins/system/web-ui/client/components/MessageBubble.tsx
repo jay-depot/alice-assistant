@@ -7,6 +7,7 @@ import { humanizeToolName } from '../utils/tool-call-batch.js';
 import type { Message } from '../types/index.js';
 import { useEffect, useState } from 'react';
 import { ReadReceiptIcon } from './ReadReceiptIcon.js';
+import { ThinkingBlock } from './ThinkingBlock.js';
 
 interface MessageBubbleProps {
   message: Message;
@@ -105,6 +106,8 @@ export function MessageBubble({
     );
   }
 
+  const isStreaming = message.timestamp === '';
+
   return (
     <div
       className={classNames(
@@ -127,6 +130,9 @@ export function MessageBubble({
             {message.senderName}
           </div>
         </div>
+      ) : null}
+      {message.role === 'assistant' && message.reasoning ? (
+        <ThinkingBlock content={message.reasoning} isThinking={isStreaming} />
       ) : null}
       <div
         className={classNames(

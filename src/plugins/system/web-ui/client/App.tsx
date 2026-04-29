@@ -16,6 +16,7 @@ import { Sidebar } from './components/Sidebar.js';
 import { useExtensionContext } from './context/ExtensionContext.js';
 import { useSession } from './hooks/useSession.js';
 import { useSessions } from './hooks/useSessions.js';
+import { useStreamingSession } from './hooks/useStreamingSession.js';
 import { useToolCallEvents } from './hooks/useToolCallEvents.js';
 import type {
   ActiveSessionAgent,
@@ -39,6 +40,9 @@ interface ChatWorkspaceProps {
   lastReadMessageKey: string | null;
   toolCallBatches: Map<string, ToolCallData[]>;
   pendingAssistantMessage: string | null;
+  streamingContent?: string;
+  streamingThinking?: string | null;
+  isStreaming?: boolean;
   draft: string;
   setDraft: (value: string) => void;
   submitDraft: () => void;
@@ -63,6 +67,9 @@ function ChatWorkspace({
   lastReadMessageKey,
   toolCallBatches,
   pendingAssistantMessage,
+  streamingContent,
+  streamingThinking,
+  isStreaming,
   draft,
   setDraft,
   submitDraft,
@@ -95,6 +102,9 @@ function ChatWorkspace({
         lastReadMessageKey={lastReadMessageKey}
         toolCallBatches={toolCallBatches}
         pendingAssistantMessage={pendingAssistantMessage}
+        streamingContent={streamingContent}
+        streamingThinking={streamingThinking}
+        isStreaming={isStreaming}
       />
       <InputArea
         value={draft}
@@ -170,6 +180,9 @@ function AppShell() {
     refreshSessions,
   });
 
+  const { streamingContent, streamingThinking, isStreaming } =
+    useStreamingSession(currentSessionId);
+
   const { toolCallBatches, pendingAssistantMessage, agentMonologue } =
     useToolCallEvents(currentSessionId, isProcessingMessage, messages);
 
@@ -223,6 +236,9 @@ function AppShell() {
               lastReadMessageKey={lastReadMessageKey}
               toolCallBatches={toolCallBatches}
               pendingAssistantMessage={pendingAssistantMessage}
+              streamingContent={streamingContent}
+              streamingThinking={streamingThinking}
+              isStreaming={isStreaming}
               draft={draft}
               setDraft={setDraft}
               submitDraft={() => {

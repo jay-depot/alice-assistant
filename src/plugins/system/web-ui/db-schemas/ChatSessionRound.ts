@@ -12,6 +12,7 @@ const ChatSessionRoundSchema = defineEntity({
       .nullable()
       .default('chat'),
     content: p.string(),
+    reasoning: p.string().nullable().default(null),
     timestamp: p.datetime(),
     senderName: p.string().nullable().default(null),
     toolCallData: p.json().nullable().default(null),
