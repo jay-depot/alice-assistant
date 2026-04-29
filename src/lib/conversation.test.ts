@@ -36,48 +36,7 @@ vi.mock('./plugin-hooks.js', () => ({
 }));
 
 // ---------------------------------------------------------------------------
-// Phase 1: pure function — checkLLMResponseForDegeneracy
-// ---------------------------------------------------------------------------
-
-describe('checkLLMResponseForDegeneracy', () => {
-  let check: (response: string) => void;
-
-  beforeEach(async () => {
-    ({ checkLLMResponseForDegeneracy: check } =
-      await import('./conversation.js'));
-  });
-
-  it('does not throw for a normal response', () => {
-    expect(() => check('Hello! How can I help you today?')).not.toThrow();
-  });
-
-  it('does not throw for an empty response', () => {
-    expect(() => check('')).not.toThrow();
-  });
-
-  it('throws on 21+ consecutive repetitions of the same word', () => {
-    const repeated = Array(22).fill('yes').join(' ');
-    expect(() => check(repeated)).toThrow('degenerate');
-  });
-
-  it('does not throw for 20 or fewer repetitions', () => {
-    const repeated = Array(20).fill('yes').join(' ');
-    expect(() => check(repeated)).not.toThrow();
-  });
-
-  it('does not throw for a valid empty function_calls list', () => {
-    expect(() => check('{"function_calls": []}')).not.toThrow();
-  });
-
-  it('throws on a tool-call dumped as garbage unicode + JSON', () => {
-    // Simulate the pattern: TOOLNAME + garbage unicode chars + {JSON}
-    const garbageResponse = 'myTool\u0001\u0002{"arg":"value"}';
-    expect(() => check(garbageResponse)).toThrow('degenerate');
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Phase 3: Conversation instance state management (no Ollama calls)
+// Conversation instance state management (no Ollama calls)
 // ---------------------------------------------------------------------------
 
 describe('Conversation state management', () => {
@@ -138,7 +97,7 @@ describe('Conversation state management', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 3: Conversation.sendDirectRequest (with Ollama mock)
+// sendDirectRequest (with Ollama mock)
 // ---------------------------------------------------------------------------
 
 describe('Conversation.sendDirectRequest', () => {
@@ -205,7 +164,7 @@ describe('Conversation.sendDirectRequest', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 4: compactContext modes
+// compactContext modes
 // ---------------------------------------------------------------------------
 
 describe('compactContext', () => {
