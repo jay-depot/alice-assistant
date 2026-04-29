@@ -595,11 +595,11 @@ describe('webUiPlugin', () => {
 
     await mockInterface.runHook('onAssistantAcceptsRequests');
 
-    expect(getRegisteredRouteHandler('post', '/api/chat')).toBeDefined();
-    expect(getRegisteredRouteHandler('patch', '/api/chat/:id')).toBeDefined();
+    // Write operations (create/send/end) moved to WebSocket — only read
+    // routes and the compaction endpoint remain as HTTP handlers.
     expect(getRegisteredRouteHandler('get', '/api/chat')).toBeDefined();
     expect(getRegisteredRouteHandler('get', '/api/chat/:id')).toBeDefined();
-    expect(getRegisteredRouteHandler('delete', '/api/chat/:id')).toBeDefined();
+    expect(getRegisteredRouteHandler('post', '/api/chat/:id/compact')).toBeDefined();
     expect(getRegisteredRouteHandler('get', '/api/extensions')).toBeDefined();
   });
 
@@ -666,47 +666,88 @@ describe('webUiPlugin', () => {
     expect(updatedMessage.session.hasCompactedContext).toBe(true);
   });
 
-  it('POST /api/chat creates a chat session and returns session payload', async () => {
+  it('WS create_session starts a new chat and broadcasts session_created', async () => {
     const mockInterface = createMockPluginInterface();
-    await webUiPlugin.registerPlugin(
-      mockInterface as unknown as AlicePluginInterface
-    );
-    await mockInterface.runHook('onAssistantAcceptsRequests');
-
-    const handler = getRegisteredRouteHandler('post', '/api/chat');
-    const res = createMockResponse();
-
-    await handler?.({}, res);
-
-    expect(mockStartConversation).toHaveBeenCalledWith('chat', {
-      sessionId: 1,
+    mockStartConversation.mockReturnValue({
+      restoreContext: vi.fn(),
+      sendUserMessage: vi.fn().mockResolvedValue(undefined),
+      getUnsynchronizedMessages: vi.fn(() => []),
+      markUnsynchronizedMessagesSynchronized: vi.fn(),
+      appendExternalMessage: vi.fn(),
+      closeConversation: vi.fn(),
+      maybeRequestTitle: vi.fn(async () => 'New Conversation'),
     });
-    expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({
-        session: expect.objectContaining({ id: 1, title: 'New Conversation' }),
-      })
-    );
-  });
 
-  it('PATCH /api/chat/:id returns 404 when session is missing', async () => {
-    const mockInterface = createMockPluginInterface();
     await webUiPlugin.registerPlugin(
       mockInterface as unknown as AlicePluginInterface
     );
     await mockInterface.runHook('onAssistantAcceptsRequests');
 
-    const handler = getRegisteredRouteHandler('patch', '/api/chat/:id');
-    const res = createMockResponse();
+    const connectionHandler = mockWss.on.mock.calls.find(
+      (entry: any[]) => entry[0] === 'connection'
+    )?.[1] as ((ws: any) => void) | undefined;
 
-    await handler?.({ params: { id: '999' }, body: { message: 'hello' } }, res);
+    const wsClient = { readyState: 1, send: vi.fn(), on: vi.fn() };
+    connectionHandler?.(wsClient);
 
-    expect(res.status).toHaveBeenCalledWith(404);
-    expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({ error: 'Chat session not found' })
+    const messageHandler = wsClient.on.mock.calls.find(
+      (c: any[]) => c[0] === 'message'
+    )?.[1] as ((data: Buffer) => void) | undefined;
+    expect(messageHandler).toBeDefined();
+    messageHandler!(
+      Buffer.from(JSON.stringify({ type: 'create_session' }))
     );
+
+    // Let async handlers complete
+    await new Promise(r => setTimeout(r, 50));
+
+    const sent = wsClient.send.mock.calls.map((c: [string]) => JSON.parse(c[0]));
+    const created = sent.find((m: any) => m.type === 'session_created');
+    expect(created).toBeDefined();
+    expect(created.session.title).toBe('New Conversation');
   });
 
-  it('PATCH /api/chat/:id routes to parent LLM with handback when task assistant completes', async () => {
+  it('WS send_message sends message_error when session is missing', async () => {
+    const mockInterface = createMockPluginInterface(); // no sessions registered
+    await webUiPlugin.registerPlugin(
+      mockInterface as unknown as AlicePluginInterface
+    );
+    await mockInterface.runHook('onAssistantAcceptsRequests');
+
+    const connectionHandler = mockWss.on.mock.calls.find(
+      (entry: any[]) => entry[0] === 'connection'
+    )?.[1] as ((ws: any) => void) | undefined;
+
+    const wsClient = { readyState: 1, send: vi.fn(), on: vi.fn() };
+    connectionHandler?.(wsClient);
+
+    const messageHandler = wsClient.on.mock.calls.find(
+      (c: any[]) => c[0] === 'message'
+    )?.[1] as ((data: Buffer) => void) | undefined;
+    expect(messageHandler).toBeDefined();
+    messageHandler!(
+      Buffer.from(
+        JSON.stringify({
+          type: 'send_message',
+          sessionId: 999,
+          content: 'hello',
+          clientMessageKey: 'user:hello',
+        })
+      )
+    );
+
+    await new Promise(r => setTimeout(r, 50));
+
+    const sendCalls = wsClient.send.mock.calls.map((c: [string]) =>
+      JSON.parse(c[0])
+    );
+    const errorMsg = sendCalls.find((m: any) => m.type === 'message_error');
+    // First message is message_ack, second should be message_error
+    expect(errorMsg).toBeDefined();
+    expect(errorMsg.error).toBe('Chat session not found');
+  });
+
+  it('WS send_message routes to parent LLM when task assistant completes', async () => {
     const now = new Date('2026-04-12T00:00:00Z');
     const mockInterface = createMockPluginInterface([
       {
@@ -750,8 +791,6 @@ describe('webUiPlugin', () => {
       maybeRequestTitle: vi.fn(async () => 'Task Session Updated'),
     };
 
-    // startConversation is only called for the parent conversation in this PATCH path;
-    // the task assistant conversation is accessed via taInstance.conversation directly.
     mockStartConversation.mockReset().mockReturnValue(parentConversation);
 
     const taInstance = {
@@ -768,10 +807,8 @@ describe('webUiPlugin', () => {
       handbackMessage: 'The test is complete!',
     };
 
-    // getActiveInstance returns the TA instance
     //@ts-expect-error -- testing affordance
     mockTaskAssistants.getActiveInstance.mockReturnValue(taInstance);
-    // getAndClearCompletedResult returns the result after TA finishes
     mockTaskAssistants.getAndClearCompletedResult.mockReturnValue(
       //@ts-expect-error -- testing affordance
       completedResult
@@ -782,9 +819,17 @@ describe('webUiPlugin', () => {
     );
     await mockInterface.runHook('onAssistantAcceptsRequests');
 
-    const handler = getRegisteredRouteHandler('patch', '/api/chat/:id');
-    expect(handler).toBeDefined();
-    const res = createMockResponse();
+    const connectionHandler = mockWss.on.mock.calls.find(
+      (entry: any[]) => entry[0] === 'connection'
+    )?.[1] as ((ws: any) => void) | undefined;
+
+    const wsClient = { readyState: 1, send: vi.fn(), on: vi.fn() };
+    connectionHandler?.(wsClient);
+
+    const messageHandler = wsClient.on.mock.calls.find(
+      (c: any[]) => c[0] === 'message'
+    )?.[1] as ((data: Buffer) => void) | undefined;
+    expect(messageHandler).toBeDefined();
 
     taMessages.push({
       role: 'assistant',
@@ -792,7 +837,18 @@ describe('webUiPlugin', () => {
     });
     parentMessages.push({ role: 'assistant', content: 'Parent wrap-up' });
 
-    await handler!({ params: { id: '11' }, body: { message: 'done' } }, res);
+    messageHandler!(
+      Buffer.from(
+        JSON.stringify({
+          type: 'send_message',
+          sessionId: 11,
+          content: 'done',
+          clientMessageKey: 'user:done',
+        })
+      )
+    );
+
+    await new Promise(r => setTimeout(r, 50));
 
     expect(taSendUserMessage).toHaveBeenCalled();
     expect(mockTaskAssistants.getAndClearCompletedResult).toHaveBeenCalled();
@@ -803,14 +859,11 @@ describe('webUiPlugin', () => {
       })
     );
     expect(parentSendUserMessage).toHaveBeenCalled();
-    expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({
-        session: expect.objectContaining({
-          id: '11',
-          title: 'Task Session Updated',
-        }),
-      })
-    );
+
+    const sent = wsClient.send.mock.calls.map((c: [string]) => JSON.parse(c[0]));
+    const updated = sent.find((m: any) => m.type === 'session_updated');
+    expect(updated).toBeDefined();
+    expect(updated.session.title).toBe('Task Session Updated');
   });
 
   it('GET /api/chat returns session summaries', async () => {
@@ -922,24 +975,39 @@ describe('webUiPlugin', () => {
     );
   });
 
-  it('DELETE /api/chat/:id returns 404 when the session does not exist', async () => {
-    const mockInterface = createMockPluginInterface([]);
+  it('WS end_session sends message_error when session does not exist', async () => {
+    const mockInterface = createMockPluginInterface([]); // no sessions
     await webUiPlugin.registerPlugin(
       mockInterface as unknown as AlicePluginInterface
     );
     await mockInterface.runHook('onAssistantAcceptsRequests');
 
-    const handler = getRegisteredRouteHandler('delete', '/api/chat/:id');
-    const res = createMockResponse();
-    await handler?.({ params: { id: '404' } }, res);
+    const connectionHandler = mockWss.on.mock.calls.find(
+      (entry: any[]) => entry[0] === 'connection'
+    )?.[1] as ((ws: any) => void) | undefined;
 
-    expect(res.status).toHaveBeenCalledWith(404);
-    expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({ error: 'Chat session not found' })
+    const wsClient = { readyState: 1, send: vi.fn(), on: vi.fn() };
+    connectionHandler?.(wsClient);
+
+    const messageHandler = wsClient.on.mock.calls.find(
+      (c: any[]) => c[0] === 'message'
+    )?.[1] as ((data: Buffer) => void) | undefined;
+    expect(messageHandler).toBeDefined();
+    messageHandler!(
+      Buffer.from(
+        JSON.stringify({ type: 'end_session', sessionId: 404 })
+      )
     );
+
+    await new Promise(r => setTimeout(r, 50));
+
+    const sent = wsClient.send.mock.calls.map((c: [string]) => JSON.parse(c[0]));
+    const ended = sent.find((m: any) => m.type === 'session_ended');
+    expect(ended).toBeDefined();
+    expect(ended.sessionId).toBe(404);
   });
 
-  it('DELETE /api/chat/:id deletes empty chat sessions successfully', async () => {
+  it('WS end_session deletes empty sessions successfully', async () => {
     const now = new Date('2026-04-12T00:00:00Z');
     const mockInterface = createMockPluginInterface([
       {
@@ -955,15 +1023,29 @@ describe('webUiPlugin', () => {
     );
     await mockInterface.runHook('onAssistantAcceptsRequests');
 
-    const handler = getRegisteredRouteHandler('delete', '/api/chat/:id');
-    const res = createMockResponse();
-    await handler?.({ params: { id: '3' } }, res);
+    const connectionHandler = mockWss.on.mock.calls.find(
+      (entry: any[]) => entry[0] === 'connection'
+    )?.[1] as ((ws: any) => void) | undefined;
 
-    expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({
-        reply: 'Chat session with id 3 deleted successfully',
-      })
+    const wsClient = { readyState: 1, send: vi.fn(), on: vi.fn() };
+    connectionHandler?.(wsClient);
+
+    const messageHandler = wsClient.on.mock.calls.find(
+      (c: any[]) => c[0] === 'message'
+    )?.[1] as ((data: Buffer) => void) | undefined;
+    expect(messageHandler).toBeDefined();
+    messageHandler!(
+      Buffer.from(
+        JSON.stringify({ type: 'end_session', sessionId: 3 })
+      )
     );
+
+    await new Promise(r => setTimeout(r, 50));
+
+    const sent = wsClient.send.mock.calls.map((c: [string]) => JSON.parse(c[0]));
+    const ended = sent.find((m: any) => m.type === 'session_ended');
+    expect(ended).toBeDefined();
+    expect(ended.sessionId).toBe(3);
     expect(mockInterface.orm.sessions.find(s => s.id === 3)).toBeUndefined();
   });
 

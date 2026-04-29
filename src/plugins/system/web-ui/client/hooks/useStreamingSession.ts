@@ -1,10 +1,26 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useWebSocket } from './useWebSocket.js';
 
+/** One LLM turn within a multi-turn streaming cycle.
+ *  Each turn accumulates reasoning and content deltas until the server
+ *  emits stream_turn_complete (tool calls triggered) or stream_done (finished). */
+export interface StreamTurn {
+  turnIndex: number;
+  reasoning: string;
+  content: string;
+  isComplete: boolean;
+}
+
 export interface StreamingState {
-  streamingContent: string;
-  streamingThinking: string | null;
-  isThinking: boolean;
+  /** Completed turns (stream_turn_complete has fired for each). */
+  turns: StreamTurn[];
+  /** The turn currently receiving deltas, or null when not streaming. */
+  currentTurn: StreamTurn | null;
+  /** Final assistant content from the most recent stream_done. Persists across
+   *  the handoff window until the persisted message arrives via session_updated. */
+  finalContent: string;
+  /** Final assistant reasoning from the most recent stream_done. */
+  finalReasoning: string | null;
   isStreaming: boolean;
   reset: () => void;
 }
@@ -12,21 +28,24 @@ export interface StreamingState {
 export function useStreamingSession(
   currentSessionId: number | string | null
 ): StreamingState {
-  const [streamingContent, setStreamingContent] = useState('');
-  const [streamingThinking, setStreamingThinking] = useState<string | null>(
-    null
-  );
-  const [isThinking, setIsThinking] = useState(false);
+  const [turns, setTurns] = useState<StreamTurn[]>([]);
+  const [currentTurn, setCurrentTurn] = useState<StreamTurn | null>(null);
+  const [finalContent, setFinalContent] = useState('');
+  const [finalReasoning, setFinalReasoning] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
+  /** Tracks the next turnIndex to assign. Incremented on stream_turn_complete. */
+  const nextTurnIndexRef = useRef(0);
 
   const { subscribe } = useWebSocket();
 
   useEffect(() => {
     if (currentSessionId === null) {
-      setStreamingContent('');
-      setStreamingThinking(null);
-      setIsThinking(false);
+      setTurns([]);
+      setCurrentTurn(null);
+      setFinalContent('');
+      setFinalReasoning(null);
       setIsStreaming(false);
+      nextTurnIndexRef.current = 0;
       return;
     }
 
@@ -35,6 +54,14 @@ export function useStreamingSession(
         ? parseInt(currentSessionId)
         : currentSessionId;
 
+    // Reset accumulated state when the session changes.
+    setTurns([]);
+    setCurrentTurn(null);
+    setFinalContent('');
+    setFinalReasoning(null);
+    setIsStreaming(false);
+    nextTurnIndexRef.current = 0;
+
     return subscribe(msg => {
       if (!('sessionId' in msg) || msg.sessionId !== numericId) {
         return;
@@ -42,40 +69,89 @@ export function useStreamingSession(
 
       if (msg.type === 'stream_thinking') {
         setIsStreaming(true);
-        setIsThinking(true);
-        setStreamingThinking(prev => (prev ?? '') + msg.delta);
+        setCurrentTurn(prev => {
+          const turn =
+            prev ??
+            ((): StreamTurn => ({
+              turnIndex: nextTurnIndexRef.current,
+              reasoning: '',
+              content: '',
+              isComplete: false,
+            }))();
+          return { ...turn, reasoning: turn.reasoning + msg.delta };
+        });
       } else if (msg.type === 'stream_content') {
         setIsStreaming(true);
-        setIsThinking(false);
-        setStreamingContent(prev => prev + msg.delta);
+        setCurrentTurn(prev => {
+          const turn =
+            prev ??
+            ((): StreamTurn => ({
+              turnIndex: nextTurnIndexRef.current,
+              reasoning: '',
+              content: '',
+              isComplete: false,
+            }))();
+          return { ...turn, content: turn.content + msg.delta };
+        });
       } else if (msg.type === 'stream_tool_calls') {
         setIsStreaming(true);
-        setIsThinking(false);
+      } else if (msg.type === 'stream_turn_complete') {
+        // Finalize the current turn and allocate the next turn slot.
+        setCurrentTurn(prev => {
+          if (!prev) return prev;
+          const completedTurn = { ...prev, isComplete: true };
+          setTurns(prevTurns => [...prevTurns, completedTurn]);
+          nextTurnIndexRef.current += 1;
+          const nextIndex = nextTurnIndexRef.current;
+          return {
+            turnIndex: nextIndex,
+            reasoning: '',
+            content: '',
+            isComplete: false,
+          };
+        });
       } else if (msg.type === 'stream_done') {
+        // Finalize the current turn if it has content, then hold the
+        // finalContent / finalReasoning for the handoff bubble.
+        setCurrentTurn(prev => {
+          if (prev && (prev.reasoning.length > 0 || prev.content.length > 0)) {
+            const completedTurn = { ...prev, isComplete: true };
+            setTurns(prevTurns => [...prevTurns, completedTurn]);
+          }
+          return null;
+        });
+        setFinalContent(msg.finalContent);
+        setFinalReasoning(msg.finalReasoning);
         setIsStreaming(false);
-        setIsThinking(false);
-        setStreamingContent('');
-        setStreamingThinking(null);
       } else if (msg.type === 'stream_error') {
+        setCurrentTurn(prev => {
+          if (prev && (prev.reasoning.length > 0 || prev.content.length > 0)) {
+            const completedTurn = { ...prev, isComplete: true };
+            setTurns(prevTurns => [...prevTurns, completedTurn]);
+          }
+          return null;
+        });
+        setFinalContent('');
+        setFinalReasoning(null);
         setIsStreaming(false);
-        setIsThinking(false);
-        setStreamingContent('');
-        setStreamingThinking(null);
       }
     });
   }, [currentSessionId, subscribe]);
 
   const reset = useCallback(() => {
-    setStreamingContent('');
-    setStreamingThinking(null);
-    setIsThinking(false);
+    setTurns([]);
+    setCurrentTurn(null);
+    setFinalContent('');
+    setFinalReasoning(null);
     setIsStreaming(false);
+    nextTurnIndexRef.current = 0;
   }, []);
 
   return {
-    streamingContent,
-    streamingThinking,
-    isThinking,
+    turns,
+    currentTurn,
+    finalContent,
+    finalReasoning,
     isStreaming,
     reset,
   };

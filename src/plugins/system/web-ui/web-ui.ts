@@ -12,6 +12,7 @@ import {
 } from '../../../lib.js';
 import { WebSocket } from 'ws';
 import type {
+  WsClientMessage,
   WsServerMessage,
   WsToolCallEvent,
   WsSession,
@@ -841,19 +842,413 @@ const webUiPlugin: AlicePlugin = {
         });
       };
 
+      // ── WS message handlers ─────────────────────────────────────────────────
+      // Defined as closures so they have access to orm, persistent helpers,
+      // broadcastWs, etc. Invoked by the message router inside wss.on('connection').
+
+      const handleSendMessage = async (
+        ws: WebSocket,
+        msg: WsClientMessage & { type: 'send_message' }
+      ): Promise<void> => {
+        const { sessionId, content, clientMessageKey } = msg;
+
+        // Acknowledge receipt immediately
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(
+            JSON.stringify({
+              type: 'message_ack',
+              sessionId,
+              clientMessageKey,
+            } satisfies WsServerMessage)
+          );
+        }
+
+        try {
+          const em = orm.em.fork();
+          const session = await em.findOne(
+            ChatSession,
+            { id: sessionId },
+            { populate: ['rounds'] }
+          );
+          if (!session) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: 'message_error',
+                  sessionId,
+                  clientMessageKey,
+                  error: 'Chat session not found',
+                } satisfies WsServerMessage)
+              );
+            }
+            return;
+          }
+
+          const updatedSession = await runSessionOperation(
+            session.id,
+            async () => {
+              const em = orm.em.fork();
+              const queuedSession = await em.findOne(
+                ChatSession,
+                { id: session.id },
+                { populate: ['rounds'] }
+              );
+              if (!queuedSession) {
+                throw new Error(
+                  'Chat session not found while processing message.'
+                );
+              }
+
+              const activeInstance = TaskAssistants.getActiveInstance(
+                session.id
+              );
+              if (activeInstance) {
+                await activeInstance.conversation.appendExternalMessage({
+                  role: 'user',
+                  content,
+                });
+                await persistUnsynchronizedMessages(
+                  em,
+                  queuedSession,
+                  activeInstance.conversation,
+                  'chat',
+                  activeInstance.definition.name
+                );
+                await activeInstance.conversation.sendUserMessage();
+                await persistUnsynchronizedMessages(
+                  em,
+                  queuedSession,
+                  activeInstance.conversation,
+                  'chat',
+                  activeInstance.definition.name
+                );
+
+                const completedResult =
+                  TaskAssistants.getAndClearCompletedResult(session.id);
+                if (completedResult) {
+                  const llmTransaction =
+                    getOrCreateCachedConversation(queuedSession);
+                  await llmTransaction.appendExternalMessage({
+                    role: 'system',
+                    content:
+                      `Task assistant "${completedResult.taskAssistantName}" has completed.\n\n` +
+                      completedResult.handbackMessage,
+                  });
+                  await llmTransaction.sendUserMessage();
+                  await persistUnsynchronizedMessages(
+                    em,
+                    queuedSession,
+                    llmTransaction,
+                    'chat'
+                  );
+
+                  const titleSummary = await llmTransaction.maybeRequestTitle();
+                  queuedSession.title =
+                    titleSummary ?? queuedSession.title ?? 'New Conversation';
+                }
+
+                queuedSession.updatedAt = new Date();
+                await em.flush();
+                return queuedSession;
+              }
+
+              const llmTransaction =
+                getOrCreateCachedConversation(queuedSession);
+
+              const hasPriorUserMessages = queuedSession.rounds
+                .getItems()
+                .some(round => round.role === 'user');
+              if (!hasPriorUserMessages) {
+                await PluginHookInvocations.invokeOnUserConversationWillBegin(
+                  llmTransaction,
+                  'chat'
+                );
+              }
+
+              await llmTransaction.appendExternalMessage({
+                role: 'user',
+                content,
+              });
+              await persistUnsynchronizedMessages(
+                em,
+                queuedSession,
+                llmTransaction,
+                'chat'
+              );
+
+              const pendingAgentMessages =
+                AgentSystem.getAndClearPendingMessages(session.id);
+              for (const agentMsg of pendingAgentMessages) {
+                await llmTransaction.appendExternalMessage({
+                  role: 'system',
+                  content: `## ${agentMsg.heading}\n\n${agentMsg.content}`,
+                });
+              }
+
+              // ── Streaming loop with stream_turn_complete ──────────────────
+              let streamDepth = 0;
+              while (true) {
+                const turn = await llmTransaction.beginStreaming(
+                  {
+                    onThinking: delta => {
+                      broadcastWs({
+                        type: 'stream_thinking',
+                        sessionId: session.id,
+                        delta,
+                      });
+                    },
+                    onContent: delta => {
+                      broadcastWs({
+                        type: 'stream_content',
+                        sessionId: session.id,
+                        delta,
+                      });
+                    },
+                    onToolCalls: toolCalls => {
+                      broadcastWs({
+                        type: 'stream_tool_calls',
+                        sessionId: session.id,
+                        toolCalls,
+                      });
+                    },
+                    onError: err => {
+                      systemLogger.error(
+                        'Streaming error in handleSendMessage:',
+                        err
+                      );
+                      broadcastWs({
+                        type: 'stream_error',
+                        sessionId: session.id,
+                        error: err instanceof Error ? err.message : String(err),
+                      });
+                    },
+                  },
+                  { depth: streamDepth }
+                );
+
+                await persistUnsynchronizedMessages(
+                  em,
+                  queuedSession,
+                  llmTransaction,
+                  'chat'
+                );
+
+                if (turn.toolCalls.length === 0) {
+                  broadcastWs({
+                    type: 'stream_done',
+                    sessionId: session.id,
+                    finalContent: turn.content,
+                    finalReasoning: turn.thinking || null,
+                  });
+                  break;
+                }
+
+                // Signal turn boundary so the client wraps this turn's reasoning
+                // in a collapsible block and prepares the next turn slot.
+                broadcastWs({
+                  type: 'stream_turn_complete',
+                  sessionId: session.id,
+                  turnIndex: streamDepth,
+                  hasToolCalls: true,
+                });
+
+                await llmTransaction.executeToolCalls(
+                  turn.toolCalls,
+                  streamDepth
+                );
+                streamDepth++;
+              }
+
+              const titleSummary = await llmTransaction.maybeRequestTitle();
+              queuedSession.title =
+                titleSummary ?? queuedSession.title ?? 'New Conversation';
+
+              await em.flush();
+              return queuedSession;
+            }
+          );
+
+          // Canonical session update to the initiating client
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(
+              JSON.stringify({
+                type: 'session_updated',
+                sessionId: updatedSession.id,
+                session: buildWsSession(updatedSession, updatedSession.id),
+              } satisfies WsServerMessage)
+            );
+          }
+          void broadcastSessionsList();
+        } catch (error) {
+          systemLogger.error('handleSendMessage failed:', error);
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(
+              JSON.stringify({
+                type: 'message_error',
+                sessionId,
+                clientMessageKey,
+                error: error instanceof Error ? error.message : String(error),
+              } satisfies WsServerMessage)
+            );
+          }
+        }
+      };
+
+      const handleCreateSession = async (ws: WebSocket): Promise<void> => {
+        try {
+          const sessionId = await createEmptyChatSession();
+          const orm = await onDatabaseReady(async databaseOrm => databaseOrm);
+          const em = orm.em.fork();
+          const session = await em.findOne(
+            ChatSession,
+            { id: sessionId },
+            { populate: ['rounds'] }
+          );
+          if (!session) {
+            throw new Error('Created session disappeared.');
+          }
+
+          const conversation = getOrCreateCachedConversation(session);
+          await conversation.sendUserMessage();
+          await persistUnsynchronizedMessages(
+            em,
+            session,
+            conversation,
+            'chat'
+          );
+
+          const wsSession = buildWsSession(session, sessionId);
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(
+              JSON.stringify({
+                type: 'session_created',
+                session: wsSession,
+              } satisfies WsServerMessage)
+            );
+            ws.send(
+              JSON.stringify({
+                type: 'session_updated',
+                sessionId,
+                session: wsSession,
+              } satisfies WsServerMessage)
+            );
+          }
+          void broadcastSessionsList();
+        } catch (error) {
+          systemLogger.error('handleCreateSession failed:', error);
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(
+              JSON.stringify({
+                type: 'message_error',
+                sessionId: 0,
+                clientMessageKey: '',
+                error: error instanceof Error ? error.message : String(error),
+              } satisfies WsServerMessage)
+            );
+          }
+        }
+      };
+
+      const handleEndSession = async (
+        ws: WebSocket,
+        msg: WsClientMessage & { type: 'end_session' }
+      ): Promise<void> => {
+        const { sessionId } = msg;
+
+        try {
+          const em = orm.em.fork();
+          const session = await em.findOne(
+            ChatSession,
+            { id: sessionId },
+            { populate: ['rounds'] }
+          );
+          if (!session) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: 'session_ended',
+                  sessionId,
+                } satisfies WsServerMessage)
+              );
+            }
+            return;
+          }
+
+          await runSessionOperation(sessionId, async () => {
+            const em = orm.em.fork();
+            const queuedSession = await em.findOne(
+              ChatSession,
+              { id: sessionId },
+              { populate: ['rounds'] }
+            );
+            if (!queuedSession) {
+              throw new Error(
+                `Chat session ${sessionId} not found while deleting.`
+              );
+            }
+
+            const userMessages = queuedSession.rounds
+              .getItems()
+              .filter(round => round.role === 'user');
+            if (userMessages.length > 0) {
+              plugin.logger.log(
+                `Requesting conversation summary for chat session ${sessionId} before deletion...`
+              );
+              getOrCreateCachedConversation(queuedSession);
+              await closeAndEvictCachedConversation(sessionId);
+            } else {
+              evictCachedConversation(sessionId);
+            }
+
+            queuedSession.rounds.removeAll();
+            em.remove(queuedSession);
+            await em.flush();
+          });
+
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(
+              JSON.stringify({
+                type: 'session_ended',
+                sessionId,
+              } satisfies WsServerMessage)
+            );
+          }
+          plugin.logger.log(`Chat session ${sessionId} deleted successfully.`);
+          void broadcastSessionsList();
+        } catch (error) {
+          systemLogger.error('handleEndSession failed:', error);
+        }
+      };
+
       wss.on('connection', ws => {
         wsConnections.add(ws);
 
+        // ── Client message router ───────────────────────────────────────────
         ws.on('message', (data: Buffer) => {
+          let msg: WsClientMessage;
           try {
-            const msg = JSON.parse(data.toString()) as { type: string };
-            if (msg.type !== 'pong') {
-              plugin.logger.warn(
-                `[web-ui] Unexpected WS client message type: ${msg.type}`
-              );
-            }
+            msg = JSON.parse(data.toString()) as WsClientMessage;
           } catch {
-            // malformed message — ignore
+            return; // malformed — ignore
+          }
+
+          switch (msg.type) {
+            case 'send_message':
+              void handleSendMessage(ws, msg);
+              break;
+            case 'create_session':
+              void handleCreateSession(ws);
+              break;
+            case 'end_session':
+              void handleEndSession(ws, msg);
+              break;
+            case 'pong':
+              // heartbeat response — no action needed
+              break;
+            default:
+              plugin.logger.warn(
+                `[web-ui] Unexpected WS client message type: ${(msg as { type: string }).type}`
+              );
           }
         });
 
@@ -913,272 +1308,6 @@ const webUiPlugin: AlicePlugin = {
           ws.send(JSON.stringify({ type: 'ping' } satisfies WsServerMessage));
         }
       }, 30_000);
-
-      app.post('/api/chat', async (req, res) => {
-        // Creates a new chat sessions with the assistant. Sends an initial "You've been
-        // activated through an alternative text-based interface. Greet the user" prompt
-        // and returns the answer to it.
-
-        const em = orm.em.fork();
-        const now = new Date();
-        const conversationRecord = em.create(ChatSession, {
-          title: 'New Conversation',
-          rounds: [],
-          createdAt: now,
-          updatedAt: now,
-        });
-        await em.flush();
-
-        const conversation = startConversation('chat', {
-          sessionId: conversationRecord.id,
-        });
-        cachedChatConversations.set(conversationRecord.id, conversation);
-        await conversation.sendUserMessage();
-        await persistUnsynchronizedMessages(
-          em,
-          conversationRecord,
-          conversation,
-          'chat'
-        );
-
-        res.json({
-          session: {
-            id: conversationRecord.id,
-            title: conversationRecord.title,
-            createdAt: conversationRecord.createdAt,
-            updatedAt: conversationRecord.updatedAt,
-            messages: conversationRecord.rounds
-              .getItems()
-              .filter(round => round.role !== 'system' && round.role !== 'tool')
-              .map(serializeRound),
-            activeAgents: getActiveAgentsForSession(conversationRecord.id),
-          },
-        });
-        void broadcastSessionsList();
-      });
-
-      app.patch('/api/chat/:id', async (req, res) => {
-        // This should send the message to the assistant as part of the chat session with the given
-        // id, and return the assistant's reply. The message should be added to the conversation
-        // history for that chat session in the database, and the assistant's reply should also be
-        // added to the conversation history in the database.
-
-        const { id } = req.params;
-        const { message } = req.body;
-
-        const em = orm.em.fork();
-        const session = await em.findOne(
-          ChatSession,
-          { id: parseInt(id) },
-          { populate: ['rounds'] }
-        );
-        if (!session) {
-          res.status(404).json({ error: 'Chat session not found' });
-          return;
-        }
-
-        const updatedSession = await runSessionOperation(
-          session.id,
-          async () => {
-            const em = orm.em.fork();
-            const queuedSession = await em.findOne(
-              ChatSession,
-              { id: session.id },
-              { populate: ['rounds'] }
-            );
-            if (!queuedSession) {
-              throw new Error(
-                `Chat session ${session.id} not found while processing message.`
-              );
-            }
-
-            const activeInstance = TaskAssistants.getActiveInstance(session.id);
-            if (activeInstance) {
-              await activeInstance.conversation.appendExternalMessage({
-                role: 'user',
-                content: message,
-              });
-              await persistUnsynchronizedMessages(
-                em,
-                queuedSession,
-                activeInstance.conversation,
-                'chat',
-                activeInstance.definition.name
-              );
-              await activeInstance.conversation.sendUserMessage();
-              await persistUnsynchronizedMessages(
-                em,
-                queuedSession,
-                activeInstance.conversation,
-                'chat',
-                activeInstance.definition.name
-              );
-
-              // If sendUserMessage() triggered task assistant completion, inject the
-              // handback into the parent conversation and let the main assistant wrap up.
-              const completedResult = TaskAssistants.getAndClearCompletedResult(
-                session.id
-              );
-              if (completedResult) {
-                const llmTransaction =
-                  getOrCreateCachedConversation(queuedSession);
-                await llmTransaction.appendExternalMessage({
-                  role: 'system',
-                  content:
-                    `Task assistant "${completedResult.taskAssistantName}" has completed.\n\n` +
-                    completedResult.handbackMessage,
-                });
-                await llmTransaction.sendUserMessage();
-                await persistUnsynchronizedMessages(
-                  em,
-                  queuedSession,
-                  llmTransaction,
-                  'chat'
-                );
-
-                const titleSummary = await llmTransaction.maybeRequestTitle();
-                queuedSession.title =
-                  titleSummary ?? queuedSession.title ?? 'New Conversation';
-              }
-
-              queuedSession.updatedAt = new Date();
-              await em.flush();
-              return queuedSession;
-            }
-
-            const llmTransaction = getOrCreateCachedConversation(queuedSession);
-
-            // Fire the hook once when this is the first user message in the conversation.
-            // We detect "first message" by checking if there are no prior user messages.
-            const hasPriorUserMessages = queuedSession.rounds
-              .getItems()
-              .some(round => round.role === 'user');
-            if (!hasPriorUserMessages) {
-              await PluginHookInvocations.invokeOnUserConversationWillBegin(
-                llmTransaction,
-                'chat'
-              );
-            }
-
-            await llmTransaction.appendExternalMessage({
-              role: 'user',
-              content: message,
-            });
-            await persistUnsynchronizedMessages(
-              em,
-              queuedSession,
-              llmTransaction,
-              'chat'
-            );
-
-            // Drain any pending agent messages into the LLM context before processing
-            const pendingAgentMessages = AgentSystem.getAndClearPendingMessages(
-              session.id
-            );
-            for (const agentMsg of pendingAgentMessages) {
-              await llmTransaction.appendExternalMessage({
-                role: 'system',
-                content: `## ${agentMsg.heading}\n\n${agentMsg.content}`,
-              });
-            }
-
-            // Streaming loop with inline tool-call handling.
-            let streamDepth = 0;
-            while (true) {
-              const turn = await llmTransaction.beginStreaming(
-                {
-                  onThinking: delta => {
-                    broadcastWs({
-                      type: 'stream_thinking',
-                      sessionId: session.id,
-                      delta,
-                    });
-                  },
-                  onContent: delta => {
-                    broadcastWs({
-                      type: 'stream_content',
-                      sessionId: session.id,
-                      delta,
-                    });
-                  },
-                  onToolCalls: toolCalls => {
-                    broadcastWs({
-                      type: 'stream_tool_calls',
-                      sessionId: session.id,
-                      toolCalls,
-                    });
-                  },
-                  onError: err => {
-                    systemLogger.error(
-                      'Streaming error in PATCH /api/chat/:id:',
-                      err
-                    );
-                    broadcastWs({
-                      type: 'stream_error',
-                      sessionId: session.id,
-                      error: err instanceof Error ? err.message : String(err),
-                    });
-                  },
-                },
-                { depth: streamDepth }
-              );
-
-              await persistUnsynchronizedMessages(
-                em,
-                queuedSession,
-                llmTransaction,
-                'chat'
-              );
-
-              if (turn.toolCalls.length === 0) {
-                broadcastWs({
-                  type: 'stream_done',
-                  sessionId: session.id,
-                  finalContent: turn.content,
-                  finalReasoning: turn.thinking || null,
-                });
-                break;
-              }
-
-              // Tool calls were returned — execute them inline so the next
-              // streaming call sees the tool results.
-              await llmTransaction.executeToolCalls(
-                turn.toolCalls,
-                streamDepth
-              );
-              streamDepth++;
-            }
-
-            const titleSummary = await llmTransaction.maybeRequestTitle();
-            queuedSession.title =
-              titleSummary ?? queuedSession.title ?? 'New Conversation';
-
-            await em.flush();
-
-            return queuedSession;
-          }
-        );
-
-        res.json({
-          session: {
-            id,
-            title: updatedSession.title,
-            createdAt: updatedSession.createdAt,
-            updatedAt: updatedSession.updatedAt,
-            messages: updatedSession.rounds
-              .getItems()
-              .filter(round => round.role !== 'system' && round.role !== 'tool')
-              .map(serializeRound),
-            activeAgents: getActiveAgentsForSession(updatedSession.id),
-          },
-        });
-        broadcastWs({
-          type: 'session_updated',
-          sessionId: updatedSession.id,
-          session: buildWsSession(updatedSession, updatedSession.id),
-        });
-        void broadcastSessionsList();
-      });
 
       app.get('/api/chat', async (req, res) => {
         // This should return a list of open chat sessions. Each session should include
@@ -1250,63 +1379,6 @@ const webUiPlugin: AlicePlugin = {
             activeAgents: getActiveAgentsForSession(session.id),
           },
         });
-      });
-
-      app.delete('/api/chat/:id', async (req, res) => {
-        const { id } = req.params;
-        // TODO: wire up to Alice assistant logic.
-
-        // This should tell the LLM to summarize the chat, so we can save it to memory, and remove the
-        // session from the database.
-
-        // Step 1. Check if there are any user messages in the chat. If not, we''' just delete it.
-        const parsedId = parseInt(id);
-        const em = orm.em.fork();
-        const session = await em.findOne(
-          ChatSession,
-          { id: parsedId },
-          { populate: ['rounds'] }
-        );
-        if (!session) {
-          res.status(404).json({ error: 'Chat session not found' });
-          return;
-        }
-
-        await runSessionOperation(parsedId, async () => {
-          const em = orm.em.fork();
-          const queuedSession = await em.findOne(
-            ChatSession,
-            { id: parsedId },
-            { populate: ['rounds'] }
-          );
-          if (!queuedSession) {
-            throw new Error(
-              `Chat session ${parsedId} not found while deleting session.`
-            );
-          }
-
-          const userMessages = queuedSession.rounds
-            .getItems()
-            .filter(round => round.role === 'user');
-          if (userMessages.length > 0) {
-            plugin.logger.log(
-              `Requesting conversation summary for chat session ${id} before deletion...`
-            );
-            getOrCreateCachedConversation(queuedSession);
-            await closeAndEvictCachedConversation(parsedId);
-          } else {
-            evictCachedConversation(parsedId);
-          }
-
-          queuedSession.rounds.removeAll();
-          em.remove(queuedSession);
-          await em.flush();
-        });
-
-        res.json({ reply: `Chat session with id ${id} deleted successfully` });
-        plugin.logger.log(`Chat session ${id} deleted successfully.`);
-        void broadcastSessionsList();
-        return;
       });
 
       app.post('/api/chat/:id/compact', async (req, res) => {

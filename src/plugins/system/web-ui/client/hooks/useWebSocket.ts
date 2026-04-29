@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from 'react';
-import type { WsServerMessage } from '../../ws-types.js';
+import type { WsClientMessage, WsServerMessage } from '../../ws-types.js';
 
 type WsMessageHandler = (message: WsServerMessage) => void;
 
@@ -90,5 +90,16 @@ export function useWebSocket() {
     };
   }, []);
 
-  return { subscribe };
+  const send = useCallback((msg: WsClientMessage) => {
+    if (currentWs && currentWs.readyState === WebSocket.OPEN) {
+      currentWs.send(JSON.stringify(msg));
+    } else {
+      console.warn(
+        '[ws] Cannot send — socket not open. Message dropped:',
+        msg.type
+      );
+    }
+  }, []);
+
+  return { subscribe, send };
 }

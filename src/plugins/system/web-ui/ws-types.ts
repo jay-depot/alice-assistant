@@ -98,4 +98,36 @@ export type WsServerMessage =
       finalContent: string;
       finalReasoning: string | null;
     }
-  | { type: 'stream_error'; sessionId: number; error: string };
+  | { type: 'stream_error'; sessionId: number; error: string }
+  | {
+      type: 'message_ack';
+      sessionId: number;
+      clientMessageKey: string;
+    }
+  | {
+      type: 'message_error';
+      sessionId: number;
+      clientMessageKey: string;
+      error: string;
+    }
+  | {
+      type: 'stream_turn_complete';
+      sessionId: number;
+      turnIndex: number;
+      hasToolCalls: boolean;
+    }
+  | { type: 'session_created'; session: WsSession }
+  | { type: 'session_ended'; sessionId: number };
+
+// ── Client → Server messages ────────────────────────────────────────────
+
+export type WsClientMessage =
+  | { type: 'pong' }
+  | {
+      type: 'send_message';
+      sessionId: number;
+      content: string;
+      clientMessageKey: string;
+    }
+  | { type: 'create_session' }
+  | { type: 'end_session'; sessionId: number };

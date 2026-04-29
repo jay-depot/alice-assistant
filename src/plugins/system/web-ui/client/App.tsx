@@ -17,6 +17,7 @@ import { useExtensionContext } from './context/ExtensionContext.js';
 import { useSession } from './hooks/useSession.js';
 import { useSessions } from './hooks/useSessions.js';
 import { useStreamingSession } from './hooks/useStreamingSession.js';
+import type { StreamTurn } from './hooks/useStreamingSession.js';
 import { useToolCallEvents } from './hooks/useToolCallEvents.js';
 import type {
   ActiveSessionAgent,
@@ -40,9 +41,11 @@ interface ChatWorkspaceProps {
   lastReadMessageKey: string | null;
   toolCallBatches: Map<string, ToolCallData[]>;
   pendingAssistantMessage: string | null;
-  streamingContent?: string;
-  streamingThinking?: string | null;
-  isStreaming?: boolean;
+  completedTurns: StreamTurn[];
+  currentStreamTurn: StreamTurn | null;
+  finalContent: string;
+  finalReasoning: string | null;
+  isStreaming: boolean;
   draft: string;
   setDraft: (value: string) => void;
   submitDraft: () => void;
@@ -67,8 +70,10 @@ function ChatWorkspace({
   lastReadMessageKey,
   toolCallBatches,
   pendingAssistantMessage,
-  streamingContent,
-  streamingThinking,
+  completedTurns,
+  currentStreamTurn,
+  finalContent,
+  finalReasoning,
   isStreaming,
   draft,
   setDraft,
@@ -102,8 +107,10 @@ function ChatWorkspace({
         lastReadMessageKey={lastReadMessageKey}
         toolCallBatches={toolCallBatches}
         pendingAssistantMessage={pendingAssistantMessage}
-        streamingContent={streamingContent}
-        streamingThinking={streamingThinking}
+        completedTurns={completedTurns}
+        currentStreamTurn={currentStreamTurn}
+        finalContent={finalContent}
+        finalReasoning={finalReasoning}
         isStreaming={isStreaming}
       />
       <InputArea
@@ -155,7 +162,7 @@ function AppShell() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const navigate = useNavigate();
   const { routes } = useExtensionContext();
-  const { sessions, refreshSessions } = useSessions(setErrorMessage);
+  const { sessions } = useSessions(setErrorMessage);
   const {
     currentSessionId,
     messages,
@@ -177,10 +184,9 @@ function AppShell() {
     showWelcome,
   } = useSession({
     onError: setErrorMessage,
-    refreshSessions,
   });
 
-  const { streamingContent, streamingThinking, isStreaming } =
+  const { turns, currentTurn, finalContent, finalReasoning, isStreaming } =
     useStreamingSession(currentSessionId);
 
   const { toolCallBatches, pendingAssistantMessage, agentMonologue } =
@@ -188,14 +194,14 @@ function AppShell() {
 
   const pluginRoutes = routes.filter(route => route.path !== '/');
 
-  const submitDraft = useCallback(async () => {
+  const submitDraft = useCallback(() => {
     const trimmedDraft = draft.trim();
     if (!trimmedDraft) {
       return;
     }
 
     setDraft('');
-    await sendMessage(trimmedDraft);
+    sendMessage(trimmedDraft);
   }, [draft, sendMessage]);
 
   return (
@@ -236,14 +242,14 @@ function AppShell() {
               lastReadMessageKey={lastReadMessageKey}
               toolCallBatches={toolCallBatches}
               pendingAssistantMessage={pendingAssistantMessage}
-              streamingContent={streamingContent}
-              streamingThinking={streamingThinking}
+              completedTurns={turns}
+              currentStreamTurn={currentTurn}
+              finalContent={finalContent}
+              finalReasoning={finalReasoning}
               isStreaming={isStreaming}
               draft={draft}
               setDraft={setDraft}
-              submitDraft={() => {
-                void submitDraft();
-              }}
+              submitDraft={submitDraft}
               isInputDisabled={isInputDisabled}
               canSubmitMessage={canSubmitMessage}
               inputPlaceholder={inputPlaceholder}

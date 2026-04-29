@@ -1,11 +1,17 @@
-import { useLayoutEffect, useMemo, useRef } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { MessageBubble } from './MessageBubble.js';
 import { ProcessingStatus } from './ProcessingStatus.js';
 import { RegionSlot } from './RegionSlot.js';
 import { WelcomeScreen } from './WelcomeScreen.js';
 import { ToolCallBatch } from './ToolCallBatch.js';
+import { StreamTurnContainer } from './StreamTurnContainer.js';
 import type { Message, ToolCallData } from '../types/index.js';
-import { getMessageKey, isDisplayableMessage } from '../utils.js';
+import type { StreamTurn } from '../hooks/useStreamingSession.js';
+import {
+  getMessageIdentityKey,
+  getMessageKey,
+  isDisplayableMessage,
+} from '../utils.js';
 
 interface MessagesAreaProps {
   messages: Message[];
@@ -16,9 +22,16 @@ interface MessagesAreaProps {
   lastReadMessageKey: string | null;
   toolCallBatches: Map<string, ToolCallData[]>;
   pendingAssistantMessage: string | null;
-  streamingContent?: string;
-  streamingThinking?: string | null;
-  isStreaming?: boolean;
+  /** Completed stream turns rendered as collapsible containers. */
+  completedTurns: StreamTurn[];
+  /** The turn currently receiving deltas (null when not streaming). */
+  currentStreamTurn: StreamTurn | null;
+  /** Final assistant content from stream_done — rendered as a handoff bubble
+   *  until the persisted message arrives via session_updated. */
+  finalContent: string;
+  /** Final assistant reasoning from stream_done. */
+  finalReasoning: string | null;
+  isStreaming: boolean;
 }
 
 /** Group consecutive tool_call messages by callBatchId into batched segments. */
@@ -83,9 +96,11 @@ export function MessagesArea({
   lastReadMessageKey,
   toolCallBatches,
   pendingAssistantMessage,
-  streamingContent = '',
-  streamingThinking = null,
-  isStreaming = false,
+  completedTurns,
+  currentStreamTurn,
+  finalContent,
+  finalReasoning,
+  isStreaming,
 }: MessagesAreaProps) {
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const visibleMessages = useMemo(
@@ -107,6 +122,22 @@ export function MessagesArea({
     () => [...toolCallBatches.entries()],
     [toolCallBatches]
   );
+
+  // ── Expanded message keys (parent-managed so it survives stream→persisted) ─
+  const [expandedMessageKeys, setExpandedMessageKeys] = useState<Set<string>>(
+    new Set()
+  );
+
+  const handleSetExpanded = useCallback((key: string, expanded: boolean) => {
+    setExpandedMessageKeys(prev => {
+      const next = new Set(prev);
+      if (expanded) next.add(key);
+      else next.delete(key);
+      return next;
+    });
+  }, []);
+
+  // ── Auto-scroll ────────────────────────────────────────────────────────
 
   useLayoutEffect(() => {
     const container = messagesRef.current;
@@ -142,6 +173,7 @@ export function MessagesArea({
         <WelcomeScreen />
       ) : (
         <>
+          {/* ── Persisted messages and tool-call batches ── */}
           {groupedSegments.map((segment, segmentIndex) => {
             if (segment.type === 'tool-batch') {
               return (
@@ -158,18 +190,46 @@ export function MessagesArea({
                 message={message}
                 receiptStatus={
                   message.role === 'user'
-                    ? getMessageKey(message) === lastReadMessageKey
+                    ? getMessageIdentityKey(message) === lastReadMessageKey
                       ? 'read'
-                      : getMessageKey(message) === pendingMessageKey
+                      : getMessageIdentityKey(message) === pendingMessageKey
                         ? 'sent'
                         : null
                     : null
                 }
+                isExpanded={expandedMessageKeys.has(
+                  getMessageIdentityKey(message)
+                )}
+                onSetExpanded={handleSetExpanded}
               />
             ));
           })}
 
-          {/* Real-time pending assistant message (shown before tool calls stream in) */}
+          {/* ── Completed stream turns (multi-turn blocks) ── */}
+          {completedTurns.map(turn => (
+            <StreamTurnContainer
+              key={`completed-turn-${turn.turnIndex}`}
+              turn={turn}
+              isCurrent={false}
+              isComplete={true}
+              expandedKeys={expandedMessageKeys}
+              onSetExpanded={handleSetExpanded}
+            />
+          ))}
+
+          {/* ── Current stream turn (receiving deltas) ── */}
+          {currentStreamTurn ? (
+            <StreamTurnContainer
+              key={`current-turn-${currentStreamTurn.turnIndex}`}
+              turn={currentStreamTurn}
+              isCurrent={true}
+              isComplete={currentStreamTurn.isComplete}
+              expandedKeys={expandedMessageKeys}
+              onSetExpanded={handleSetExpanded}
+            />
+          ) : null}
+
+          {/* ── Real-time pending assistant message (before tool calls stream in) ── */}
           {pendingAssistantMessage ? (
             <MessageBubble
               message={{
@@ -178,24 +238,41 @@ export function MessagesArea({
                 content: pendingAssistantMessage,
                 timestamp: '',
               }}
+              isExpanded={expandedMessageKeys.has(
+                getMessageIdentityKey({
+                  role: 'assistant',
+                  content: pendingAssistantMessage,
+                })
+              )}
+              onSetExpanded={handleSetExpanded}
             />
           ) : null}
 
-          {/* Real-time tool call batches (shown during processing) */}
+          {/* ── Real-time tool call batches ── */}
           {realtimeBatches.map(([batchId, calls]) => (
             <ToolCallBatch key={`realtime-${batchId}`} calls={calls} />
           ))}
 
-          {/* Streaming transient assistant message */}
-          {isStreaming ? (
+          {/* ── Final content handoff bubble ──────────────────────────────
+               Rendered after stream_done but before the persisted message
+               arrives via session_updated. Shares the same identity key
+               as the persisted message, so expanded state survives. ── */}
+          {!isStreaming && finalContent ? (
             <MessageBubble
               message={{
                 role: 'assistant',
                 messageKind: 'chat',
-                content: streamingContent,
-                reasoning: streamingThinking,
+                content: finalContent,
+                reasoning: finalReasoning,
                 timestamp: '',
               }}
+              isExpanded={expandedMessageKeys.has(
+                getMessageIdentityKey({
+                  role: 'assistant',
+                  content: finalContent,
+                })
+              )}
+              onSetExpanded={handleSetExpanded}
             />
           ) : null}
         </>
