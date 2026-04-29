@@ -89,10 +89,6 @@ const voicePlugin: AlicePlugin = {
         'Use endVoiceConversation only when the user clearly indicates the conversation is over, such as saying "that will be all," "that is it," or "thanks, that is all." Do not call it just because a task is complete if the user still appears to be engaged.',
       systemPromptFragment: '',
       parameters: Type.Object({}),
-      toolResultPromptIntro:
-        'The current voice conversation has been marked to end right after your current reply is spoken.',
-      toolResultPromptOutro:
-        'Give a brief wrap-up reply. Do not ask a follow-up question, do not invite the user to continue, and do not imply that you are still waiting for another turn.',
       execute: async (_args, context) => {
         if (context.conversationType !== 'voice') {
           throw new Error(

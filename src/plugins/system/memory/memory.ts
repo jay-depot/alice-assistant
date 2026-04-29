@@ -237,16 +237,6 @@ const memoryPlugin: AlicePlugin = {
         `(a, the, an, some, any, ...), PRONOUNS, OR OTHER COMMON "FILLER WORDS" IN THE KEYWORDS.`,
       systemPromptFragment: '',
       parameters,
-      toolResultPromptIntro: `You have just received the results of a call to the recallPastConversation tool. The results are in JSON format, below.`,
-      toolResultPromptOutro: () =>
-        // If the user is frequently changing their assistant's personality files, they may want to enable this.
-        config.getPluginConfig().includePersonalityChangeLlmHint
-          ? `If any of the recalled memories indicate a change in your personality, or quirks, roll with it. Feel free to ` +
-            `treat it as "personal growth," or "memories of past lives," or "upgrades," or just a "glitch in the matrix," Whatever fits ` +
-            `your current persona best, that is IF you even need to mention it at all. Err on the side of not bringing up ` +
-            `personality changes at all if you can get away with it, and maintain your assigned ` +
-            `"${config.getSystemConfig().assistantName}" persona, regardless.`
-          : '',
       execute: async (args: Static<typeof parameters>) => {
         const orm = await databaseReadyPromise;
         const em = orm.em.fork();
@@ -316,8 +306,6 @@ const memoryPlugin: AlicePlugin = {
           `again later.`,
         systemPromptFragment: '',
         parameters: Type.Object({}),
-        toolResultPromptIntro: `You have just received the results of a call to the recallRandomConversation tool. The results are in JSON format, below.`,
-        toolResultPromptOutro: '',
         execute: async () => {
           const orm = await databaseReadyPromise;
           const em = orm.em.fork();

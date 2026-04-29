@@ -1,7 +1,7 @@
 import { defineEntity, p } from '@mikro-orm/sqlite';
 import { VoiceSession } from './VoiceSession.js';
 
-export type VoiceSessionRoundRole = 'user' | 'assistant' | 'system';
+export type VoiceSessionRoundRole = 'user' | 'assistant' | 'system' | 'tool';
 export type VoiceSessionRoundMessageKind = 'voice' | 'chat' | 'tool_call';
 
 const VoiceSessionRoundSchema = defineEntity({

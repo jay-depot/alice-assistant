@@ -19,8 +19,6 @@ const registerMoltbookAgentTool = (client: MoltbookClient): Tool => ({
   systemPromptFragment:
     'Use registerMoltbookAgent only when the user explicitly wants to create or re-create a Moltbook identity for this assistant. Registration returns a claim URL that the human owner must complete outside the assistant.',
   parameters,
-  toolResultPromptIntro: 'The Moltbook registration request has completed.',
-  toolResultPromptOutro: '',
   taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async (args: Parameters) => {
     const registration = await client.registerAgent(

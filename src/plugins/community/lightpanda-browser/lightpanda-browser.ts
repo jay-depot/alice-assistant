@@ -121,8 +121,6 @@ const lightpandaBrowserPlugin: AlicePlugin = {
       parameters: LightpandaFetchToolParameterSchema,
       availableFor: ['chat', 'voice'],
       systemPromptFragment: '',
-      toolResultPromptIntro: '',
-      toolResultPromptOutro: '',
       taintStatus: 'tainted', // Arbitrary web content, literally anything. Always taint.
       execute: async (parameters: LightpandaFetchToolParameters) => {
         const { url, bypassCache = false } = parameters;

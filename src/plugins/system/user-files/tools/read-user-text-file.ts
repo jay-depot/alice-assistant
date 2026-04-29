@@ -66,11 +66,7 @@ const readUserTextFileTool: (config, redactor?: SecretsRedactor) => Tool = (
     `readUserTextFile with path set to the file path and maxBytes set to an appropriate size. The tool respects security ` +
     `constraints on which directories and file types you can access.`,
   parameters,
-  toolResultPromptIntro:
-    `You have just read the contents of a text file using the readUserTextFile tool. The file contents ` +
-    `are provided below (may be truncated if larger than the requested byte limit). Use this information to answer the user's ` +
-    `question, summarize the content, or extract relevant information.`,
-  toolResultPromptOutro: '',
+
   execute: async (args: Static<typeof parameters>) => {
     const allowedFilePaths = config.allowedFilePaths || [];
     const allowedExtensions = config.allowedExtensions || [

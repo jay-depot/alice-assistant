@@ -125,11 +125,6 @@ const newsBrokerPlugin: AlicePlugin = {
         'containing news data from all registered news providers that have relevant data for ' +
         'the query, keyed by provider name.',
       systemPromptFragment: '',
-      toolResultPromptIntro: '',
-      toolResultPromptOutro: type =>
-        type === 'chat'
-          ? 'IMPORTANT: ALWAYS INCLUDE LINKS TO THE ARTICLES YOU ARE REFERENCING IN YOUR REPLY!'
-          : '',
       taintStatus: 'tainted', // Arbitrary news results from the web. Always taint.
       execute: async (parameters: NewsToolParametersSchema) => {
         const newsData = await requestNewsData(parameters.query);

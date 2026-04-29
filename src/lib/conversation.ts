@@ -36,6 +36,7 @@ export type Message = {
   role: string;
   content: string;
   tool_calls?: ToolCall[];
+  tool_name?: string;
 };
 
 export type StartConversationOptions = {
@@ -49,7 +50,6 @@ export type StartConversationOptions = {
 export function checkLLMResponseForDegeneracy(response: string) {
   // We want to fail on the following, and force a retry:
   // - Long chains of the same repeating pattern.
-  // - Broken tool calls.
   if (/(\b\w+\b)(?:\s+\1\b){20,}/.test(response)) {
     systemLogger.warn(
       'LLM response appears to be degenerate (repeating pattern detected). Response:',
@@ -59,19 +59,7 @@ export function checkLLMResponseForDegeneracy(response: string) {
       'LLM response appears to be degenerate (repeating the same pattern over and over).'
     );
   }
-  if (
-    response.includes('"function_calls":') &&
-    !response.includes('"function_calls": []') &&
-    !response.includes('"function_calls":[')
-  ) {
-    systemLogger.warn(
-      'LLM response appears to be degenerate (broken tool call formatting). Response:',
-      response
-    );
-    throw new Error(
-      'LLM response appears to be degenerate (broken tool call formatting).'
-    );
-  }
+  // - Broken tool calls.
   // Ollama tool calls specifically like to fail by dumping the tool name, a couple random unicode
   // characters, and then the tool arguments all as one big blob of text in the content field,
   // without properly populating the tool_calls field.
@@ -115,6 +103,7 @@ export class Conversation {
             role: message.role,
             content: message.content,
             tool_calls: message.tool_calls,
+            tool_name: message.tool_name,
           })),
         });
         checkLLMResponseForDegeneracy(res.message.content || '');
@@ -496,17 +485,7 @@ export class Conversation {
       taskAssistantId: this.taskAssistantId,
       availableTools,
     });
-    const promptIfCallsAvailable = ` - If you need to make another tool call, make it now. Otherwise, answer the user's query in character. You have ${maxToolCallDepth - depth} remaining recursive tool calls you may make regarding this user query.`;
-    const promptIfNoCallsAvailable =
-      ` - You may make no more recursive tool calls for this conversation turn, so you must answer the user's query in character.\n` +
-      ` - If you still do not have sufficient information to form a complete answer, you have two options: \n` +
-      `   1) Do your best with the information you have, or \n` +
-      `   2) If you are missing a specific piece of information that would be critical to forming a complete answer, ask the user in character ` +
-      `if you can continue looking. If they agree, the next round of conversation will have a fresh tool-call budget.`;
 
-    const continuationPrompt = callsStillAllowed
-      ? promptIfCallsAvailable
-      : promptIfNoCallsAvailable;
     const toolCalls = response.message.tool_calls;
 
     // Generate a callBatchId for this depth iteration — all tool calls in the same
@@ -569,7 +548,7 @@ export class Conversation {
         );
       }
 
-      const resultParts = await Promise.all(
+      const toolResultMessages = await Promise.all(
         toolCalls.map(async toolCall => {
           const toolName = toolCall.function.name;
           const toolArgs = toolCall.function.arguments;
@@ -578,18 +557,25 @@ export class Conversation {
           const tools = getTools(this.type);
           const tool = tools.find(t => t.name === toolName);
           if (!tool) {
-            return `Tool ${toolName} is not recognized.`;
+            return {
+              role: 'tool' as const,
+              content: `Tool ${toolName} is not recognized.`,
+              tool_name: toolName,
+            };
           }
 
           // Enforce taint security: secure tools cannot run in a tainted conversation.
           const effectiveTaint = tool.taintStatus ?? 'clean';
           if (effectiveTaint === 'secure' && this.isTainted) {
-            return (
-              `Tool ${toolName} is a secure tool and cannot be used in this conversation ` +
-              `because the conversation context has been tainted by a previous tool call ` +
-              `(${[...this.taintedToolNames].join(', ')}). ` +
-              `Inform the user that if they still want to take this action, start a new conversation.`
-            );
+            return {
+              role: 'tool' as const,
+              content:
+                `Tool ${toolName} is a secure tool and cannot be used in this conversation ` +
+                `because the conversation context has been tainted by a previous tool call ` +
+                `(${[...this.taintedToolNames].join(', ')}). ` +
+                `Inform the user that if they still want to take this action, start a new conversation.`,
+              tool_name: toolName,
+            };
           }
 
           // Dispatch tool_call_started event
@@ -614,18 +600,6 @@ export class Conversation {
               taskAssistantId: this.taskAssistantId,
               agentInstanceId: this.agentInstanceId,
             });
-            const toolResultIntro =
-              typeof tool.toolResultPromptIntro === 'function'
-                ? tool.toolResultPromptIntro(this.type)
-                : tool.toolResultPromptIntro;
-            const toolResultOutro =
-              typeof tool.toolResultPromptOutro === 'function'
-                ? tool.toolResultPromptOutro(this.type)
-                : tool.toolResultPromptOutro;
-
-            const result = `${toolResultIntro ? toolResultIntro + '\n' : ''}${
-              callResult
-            }${toolResultOutro ? '\n' + toolResultOutro : ''}`;
 
             // Track taint: if this tool is tainted, mark the conversation as tainted.
             if (effectiveTaint === 'tainted') {
@@ -651,7 +625,11 @@ export class Conversation {
               timestamp: new Date().toISOString(),
             });
 
-            return `Result of calling tool ${toolName} with arguments ${JSON.stringify(toolArgs)}:\n${result}`;
+            return {
+              role: 'tool' as const,
+              content: callResult,
+              tool_name: toolName,
+            };
           } catch (e) {
             const errorMessage = e instanceof Error ? e.message : String(e);
 
@@ -670,20 +648,18 @@ export class Conversation {
               timestamp: new Date().toISOString(),
             });
 
-            return `Error calling tool ${toolName} with arguments ${JSON.stringify(toolArgs)}: ${errorMessage}`;
+            return {
+              role: 'tool' as const,
+              content: `Error: ${errorMessage}`,
+              tool_name: toolName,
+            };
           }
         })
       );
-      const continuationPromptWithResults =
-        `You have just made the following tool calls:\n` +
-        `${toolCalls.map((call, index) => `Tool call ${index + 1}: ${call.function.name} with arguments ${JSON.stringify(call.function.arguments)}`).join('\n')}\n\n` +
-        `*Here are the results:*+\n` +
-        `${resultParts.join('\n\n')}\n\n${continuationPrompt}`;
-
-      await this.appendToContext({
-        role: 'system',
-        content: continuationPromptWithResults,
-      });
+      // Append each tool result as a proper Ollama tool-role message
+      for (const toolResult of toolResultMessages) {
+        await this.appendToContext(toolResult);
+      }
 
       const nextResponse = await retry(
         async () => {

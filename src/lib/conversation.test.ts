@@ -65,12 +65,6 @@ describe('checkLLMResponseForDegeneracy', () => {
     expect(() => check(repeated)).not.toThrow();
   });
 
-  it('throws on a malformed function_calls field', () => {
-    // Contains "function_calls": but NOT in the valid empty or compact form
-    const badResponse = 'Here is my answer. {"function_calls": "bad" }';
-    expect(() => check(badResponse)).toThrow('degenerate');
-  });
-
   it('does not throw for a valid empty function_calls list', () => {
     expect(() => check('{"function_calls": []}')).not.toThrow();
   });
@@ -220,7 +214,8 @@ describe('compactContext', () => {
 
   beforeEach(async () => {
     const mod = await import('ollama');
-    mockChat = (mod.default as { chat: ReturnType<typeof vi.fn> }).chat;
+    mockChat = (mod.default as unknown as { chat: ReturnType<typeof vi.fn> })
+      .chat;
     mockChat.mockReset();
     ({ Conversation } = await import('./conversation.js'));
   });

@@ -12,8 +12,6 @@ const makeMinimalTool = (overrides: Partial<Tool> = {}): Tool => ({
   description: 'A tool for testing.',
   availableFor: ['chat'],
   systemPromptFragment: '',
-  toolResultPromptIntro: '',
-  toolResultPromptOutro: '',
   parameters: { type: 'object', properties: {}, required: [] },
   execute: async () => 'result',
   ...overrides,

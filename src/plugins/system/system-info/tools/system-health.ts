@@ -1,7 +1,7 @@
 import { Type } from 'typebox';
 import { Tool } from '../../../../lib/tool-system.js';
 
-const systemHealthCheckTool: (config) => Tool = config => ({
+const systemHealthCheckTool: (config) => Tool = () => ({
   name: 'systemHealthCheck',
   availableFor: ['chat', 'voice', 'autonomy'],
   description: 'Performs a health check on the system and returns a report.',
@@ -10,13 +10,6 @@ const systemHealthCheckTool: (config) => Tool = config => ({
     `This includes general questions about how you are doing, as you ARE the computer. systemHealthCheck takes no parameters.`,
   callSignature: 'systemHealthCheck',
   parameters: Type.Object({}),
-  toolResultPromptIntro: ``,
-  toolResultPromptOutro: () => {
-    if (config.mustMentionIfNetworkDown) {
-      return `If the network connectivity status is "disconnected" or "limited," you MUST include that information in your response.`;
-    }
-    return '';
-  },
   execute: async () => {
     // systemHealthCheck takes no parameters, so we can ignore the args.
     // TODO: Fetch real data. Some of these might be complicated

@@ -23,9 +23,7 @@ const deleteScratchFileTool: (
     `you previously wrote a file named "notes.txt" using the updateScratchFile tool and no longer need it, you would call ` +
     `deleteScratchFile with the argument "filename" set to "notes.txt" to delete it.`,
   parameters,
-  toolResultPromptIntro:
-    'You have just deleted a text file from your internal scratch directory using the deleteScratchFile tool.\n',
-  toolResultPromptOutro: '',
+
   execute: async (args: Static<typeof parameters>) => {
     const filename = args.filename;
     const allowedFileTypes = config.allowedFileTypes;

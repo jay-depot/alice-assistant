@@ -274,6 +274,7 @@ export function formatTaskAssistantToolResult(
 function getOptionalToolPrompt<
   T extends Tool['toolResultPromptIntro'] | Tool['toolResultPromptOutro'],
 >(prompt: T | undefined): T {
+  /** @deprecated Tool result prompts are no longer used — tool results now use Ollama's native `tool` role. */
   return (prompt ?? '') as T;
 }
 

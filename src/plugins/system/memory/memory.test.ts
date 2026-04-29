@@ -244,52 +244,6 @@ describe('memoryPlugin', () => {
     expect(tool.description).toContain('PRONOUNS');
   });
 
-  it('toolResultPromptOutro includes personality change hint when configured', async () => {
-    mockInterface.configValues.plugin = {
-      includePersonalityChangeLlmHint: true,
-    };
-
-    await memoryPlugin.registerPlugin(
-      mockInterface as unknown as AlicePluginInterface
-    );
-
-    const tool = mockInterface.registeredTools[0];
-    // @ts-expect-error - This definitely exists.
-    const outro = tool.toolResultPromptOutro();
-
-    expect(outro).toContain('personality');
-    expect(outro).toContain('Alice');
-  });
-
-  it('toolResultPromptOutro is empty when personality change hint disabled', async () => {
-    mockInterface.configValues.plugin = {
-      includePersonalityChangeLlmHint: false,
-    };
-
-    await memoryPlugin.registerPlugin(
-      mockInterface as unknown as AlicePluginInterface
-    );
-
-    const tool = mockInterface.registeredTools[0];
-    // @ts-expect-error - This definitely exists.
-    const outro = tool.toolResultPromptOutro();
-
-    expect(outro).toBe('');
-  });
-
-  it('plugin loads with default config when not provided', async () => {
-    await memoryPlugin.registerPlugin(
-      mockInterface as unknown as AlicePluginInterface
-    );
-
-    const tool = mockInterface.registeredTools[0];
-    // With default config (includePersonalityChangeLlmHint: false)
-    // @ts-expect-error - This definitely exists.
-    const outro = tool.toolResultPromptOutro();
-
-    expect(outro).toBe('');
-  });
-
   it('has empty system prompt fragments', async () => {
     await memoryPlugin.registerPlugin(
       mockInterface as unknown as AlicePluginInterface
@@ -297,16 +251,6 @@ describe('memoryPlugin', () => {
 
     const tool = mockInterface.registeredTools[0];
     expect(tool.systemPromptFragment).toBe('');
-  });
-
-  it('tool result intro is present and informative', async () => {
-    await memoryPlugin.registerPlugin(
-      mockInterface as unknown as AlicePluginInterface
-    );
-
-    const tool = mockInterface.registeredTools[0];
-    expect(tool.toolResultPromptIntro).toContain('recallPastConversation');
-    expect(tool.toolResultPromptIntro).toContain('JSON');
   });
 
   it('supports both keyword and date parameter formats', async () => {

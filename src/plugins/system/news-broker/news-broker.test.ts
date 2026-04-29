@@ -330,30 +330,6 @@ describe('newsBrokerPlugin', () => {
     expect(result).toContain('Story 2');
   });
 
-  it('toolResultPromptOutro includes link reminder for chat', async () => {
-    await newsBrokerPlugin.registerPlugin(
-      mockInterface as unknown as AlicePluginInterface
-    );
-
-    const tool = mockInterface.registeredTools[0];
-    // @ts-expect-error -- Test affordance
-    const chatOutro = tool.toolResultPromptOutro('chat');
-
-    expect(chatOutro).toContain('ALWAYS INCLUDE LINKS');
-  });
-
-  it('toolResultPromptOutro is empty for non-chat types', async () => {
-    await newsBrokerPlugin.registerPlugin(
-      mockInterface as unknown as AlicePluginInterface
-    );
-
-    const tool = mockInterface.registeredTools[0];
-    // @ts-expect-error -- Test affordance
-    const voiceOutro = tool.toolResultPromptOutro('voice');
-
-    expect(voiceOutro).toBe('');
-  });
-
   it('plugin is not required', () => {
     expect(newsBrokerPlugin.pluginMetadata.required).toBe(false);
   });

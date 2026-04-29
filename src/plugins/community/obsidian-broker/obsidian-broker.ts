@@ -537,8 +537,6 @@ const obsidianBrokerPlugin: AlicePlugin = {
         'when the user asks you to modify the current note.',
       parameters: SuggestEditParametersSchema,
       systemPromptFragment: '',
-      toolResultPromptIntro: '',
-      toolResultPromptOutro: '',
       execute: async (args: SuggestEditParameters) => {
         const { originalText, replacementText, reason } = args;
         if (wsConnections.size === 0) {
@@ -576,8 +574,6 @@ const obsidianBrokerPlugin: AlicePlugin = {
         'full note content, file path, and cursor position.',
       parameters: GetNoteContentParametersSchema,
       systemPromptFragment: '',
-      toolResultPromptIntro: '',
-      toolResultPromptOutro: '',
       execute: async () => {
         if (!activeNote) {
           return JSON.stringify({

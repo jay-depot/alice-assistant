@@ -159,8 +159,6 @@ const moodPlugin: AlicePlugin = {
         `the assistant's responses. The mood can be set by calling the setMood tool with the new mood and a ` +
         `reason for the change. Use this freely to enhance the delivery of your character. Allowed moods are: ` +
         `${AllowedMoods.join(', ')}.`,
-      toolResultPromptIntro: '',
-      toolResultPromptOutro: '',
       execute: async args => {
         const { mood, reason } = args as { mood: string; reason: string };
         currentMood.mood = mood;

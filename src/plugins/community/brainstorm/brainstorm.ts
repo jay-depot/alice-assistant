@@ -37,8 +37,6 @@ const brainstormPlugin: AlicePlugin = {
           ),
         }),
         systemPromptFragment: '',
-        toolResultPromptIntro: '',
-        toolResultPromptOutro: '',
         buildHandoff: async args => {
           const typedArgs = args as { contextHints?: string };
           return {
@@ -69,9 +67,6 @@ const brainstormPlugin: AlicePlugin = {
           }),
         }),
         systemPromptFragment: '',
-        toolResultPromptIntro: '',
-        toolResultPromptOutro:
-          'Acknowledge to the user that their brainstorm session is complete and briefly describe the notes.',
         buildCompletion: async args => {
           const typedArgs = args as {
             summary: string;

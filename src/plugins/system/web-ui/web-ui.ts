@@ -143,16 +143,21 @@ const webUiPlugin: AlicePlugin = {
         .map(round => ({
           role: round.role,
           content: round.content,
+          ...(round.toolName ? { tool_name: round.toolName } : {}),
         }));
     };
 
     const serializeCompactedContext = (
       messages: Message[] | undefined
-    ): { role: string; content: string }[] | null => {
+    ): { role: string; content: string; tool_name?: string }[] | null => {
       if (!messages || messages.length === 0) {
         return null;
       }
-      return messages.map(m => ({ role: m.role, content: m.content }));
+      return messages.map(m => ({
+        role: m.role,
+        content: m.content,
+        ...(m.tool_name ? { tool_name: m.tool_name } : {}),
+      }));
     };
 
     const restoreCompactedContext = (json: unknown): Message[] | undefined => {
@@ -182,7 +187,7 @@ const webUiPlugin: AlicePlugin = {
       updatedAt: session.updatedAt.toISOString(),
       messages: session.rounds
         .getItems()
-        .filter(round => round.role !== 'system')
+        .filter(round => round.role !== 'system' && round.role !== 'tool')
         .map(serializeRound) as WsMessage[],
       activeAgents: getActiveAgentsForSession(sessionId).map(agent => ({
         ...agent,
@@ -206,6 +211,7 @@ const webUiPlugin: AlicePlugin = {
           : String(round.timestamp),
       senderName: round.senderName,
       toolCallData: round.toolCallData,
+      toolName: round.toolName,
     });
 
     const getActiveAgentsForSession = (sessionId: number) =>
@@ -261,13 +267,14 @@ const webUiPlugin: AlicePlugin = {
       persistableMessages.forEach(message => {
         const round = em.create(ChatSessionRound, {
           chatSession: session,
-          role: message.role as 'user' | 'assistant',
+          role: message.role as 'user' | 'assistant' | 'system' | 'tool',
           messageKind:
             message.role === 'assistant' ? assistantMessageKind : 'chat',
           timestamp: new Date(),
           content: message.content,
           senderName:
             message.role === 'assistant' ? (senderName ?? null) : null,
+          toolName: message.tool_name ?? null,
         });
 
         session.rounds.add(round);
@@ -304,7 +311,9 @@ const webUiPlugin: AlicePlugin = {
       // MikroORM's p.json() produces a Brand type; cast through unknown.
       (
         session as unknown as {
-          compactedContext: { role: string; content: string }[] | null;
+          compactedContext:
+            | { role: string; content: string; tool_name?: string }[]
+            | null;
         }
       ).compactedContext = serializeCompactedContext(
         conversation.compactedContext
@@ -923,7 +932,7 @@ const webUiPlugin: AlicePlugin = {
             updatedAt: conversationRecord.updatedAt,
             messages: conversationRecord.rounds
               .getItems()
-              .filter(round => round.role !== 'system')
+              .filter(round => round.role !== 'system' && round.role !== 'tool')
               .map(serializeRound),
             activeAgents: getActiveAgentsForSession(conversationRecord.id),
           },
@@ -1011,10 +1020,8 @@ const webUiPlugin: AlicePlugin = {
                 );
 
                 const titleSummary = await llmTransaction.maybeRequestTitle();
-                if (titleSummary && titleSummary.length > 0) {
-                  queuedSession.title =
-                    titleSummary.length > 0 ? titleSummary : 'New Conversation';
-                }
+                queuedSession.title =
+                  titleSummary ?? queuedSession.title ?? 'New Conversation';
               }
 
               queuedSession.updatedAt = new Date();
@@ -1072,12 +1079,8 @@ const webUiPlugin: AlicePlugin = {
             }
 
             const titleSummary = await llmTransaction.maybeRequestTitle();
-
-            if (titleSummary && titleSummary.length > 0) {
-              queuedSession.title = titleSummary;
-            } else {
-              queuedSession.title = 'New Conversation';
-            }
+            queuedSession.title =
+              titleSummary ?? queuedSession.title ?? 'New Conversation';
 
             await em.flush();
 
@@ -1093,7 +1096,7 @@ const webUiPlugin: AlicePlugin = {
             updatedAt: updatedSession.updatedAt,
             messages: updatedSession.rounds
               .getItems()
-              .filter(round => round.role !== 'system')
+              .filter(round => round.role !== 'system' && round.role !== 'tool')
               .map(serializeRound),
             activeAgents: getActiveAgentsForSession(updatedSession.id),
           },
@@ -1172,7 +1175,7 @@ const webUiPlugin: AlicePlugin = {
             assistantMood: 'happy', // This will pull from the global "mood" state the assistant can set through tools. It's common across all assistant conversations.
             messages: session.rounds
               .getItems()
-              .filter(round => round.role !== 'system')
+              .filter(round => round.role !== 'system' && round.role !== 'tool')
               .map(serializeRound),
             activeAgents: getActiveAgentsForSession(session.id),
           },

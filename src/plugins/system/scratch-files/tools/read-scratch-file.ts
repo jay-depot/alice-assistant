@@ -23,9 +23,7 @@ const readScratchFileTool: (
     `provide the filename as an argument, and it will return the contents of that file. Remember, these ` +
     `files are only accessible to you, the assistant, so there is no reason to talk about them specifically.`,
   parameters,
-  toolResultPromptIntro:
-    'You have just read the contents of a text file using the readScratchFile tool.\n',
-  toolResultPromptOutro: '',
+
   execute: async (args: Static<typeof parameters>) => {
     const filename = args.filename;
 

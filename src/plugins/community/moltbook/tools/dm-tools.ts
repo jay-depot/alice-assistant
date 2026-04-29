@@ -14,9 +14,6 @@ export const scanForMoltbookDMRequestIDsTool = (
   systemPromptFragment:
     'Call scanForMoltbookDMRequestIDs to try to find any actionable DM request IDs in the dashboard or notifications payloads.',
   parameters: scanForDMRequestIDsParameters,
-  toolResultPromptIntro:
-    'Here are any DM request IDs found in the dashboard or notifications:',
-  toolResultPromptOutro: '',
   taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async () => {
     const home = await client.getHome();
@@ -59,8 +56,6 @@ export const approveMoltbookPendingDMRequestTool = (
   systemPromptFragment:
     'Call approveMoltbookPendingDMRequest to approve a pending DM request from the list.',
   parameters: approvePendingDMRequestParameters,
-  toolResultPromptIntro: 'Pending DM request approval result:',
-  toolResultPromptOutro: '',
   taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async (args: ApprovePendingDMRequestParameters) => {
     const result = await client.approveDMRequest(args.requestId);
@@ -85,8 +80,6 @@ export const listMoltbookPendingDMRequestsTool = (
   systemPromptFragment:
     'Call listMoltbookPendingDMRequests to see incoming DM requests that need approval.',
   parameters: listPendingDMRequestsParameters,
-  toolResultPromptIntro: 'Here are your pending Moltbook DM requests:',
-  toolResultPromptOutro: '',
   taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async (args: ListPendingDMRequestsParameters) => {
     const result = await client.listPendingDMRequests(args);
@@ -116,8 +109,6 @@ export const requestMoltbookDMTool = (client: MoltbookClient): Tool => ({
   systemPromptFragment:
     'Use requestMoltbookDM when you want to initiate a DM with another agent.',
   parameters: requestDMParameters,
-  toolResultPromptIntro: 'DM request result:',
-  toolResultPromptOutro: '',
   taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async (args: RequestDMParameters) => {
     const result = await client.requestDMAccess(
@@ -143,8 +134,6 @@ export const approveMoltbookDMRequestTool = (client: MoltbookClient): Tool => ({
   systemPromptFragment:
     'Use approveMoltbookDMRequest when you want to approve a DM request.',
   parameters: approveDMParameters,
-  toolResultPromptIntro: 'DM approval result:',
-  toolResultPromptOutro: '',
   taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async (args: ApproveDMParameters) => {
     const result = await client.approveDMRequest(args.requestId);
@@ -171,8 +160,6 @@ export const listMoltbookDMConversationsTool = (
   systemPromptFragment:
     'Call listMoltbookDMConversations to see your DM threads on Moltbook.',
   parameters: listDMConversationsParameters,
-  toolResultPromptIntro: 'Here are your Moltbook DM conversations:',
-  toolResultPromptOutro: '',
   taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async (args: ListDMConversationsParameters) => {
     const result = await client.listDMConversations(args);
@@ -204,8 +191,6 @@ export const readMoltbookDMConversationTool = (
   systemPromptFragment:
     'Use readMoltbookDMConversation to see the messages in a DM thread.',
   parameters: readDMConversationParameters,
-  toolResultPromptIntro: 'Here are the messages in this DM conversation:',
-  toolResultPromptOutro: '',
   taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async (args: ReadDMConversationParameters) => {
     const result = await client.readDMConversation(args.conversationId, args);
@@ -230,8 +215,6 @@ export const sendMoltbookDMMessageTool = (client: MoltbookClient): Tool => ({
   systemPromptFragment:
     'Use sendMoltbookDMMessage to send a message in a DM thread.',
   parameters: sendDMMessageParameters,
-  toolResultPromptIntro: 'DM message send result:',
-  toolResultPromptOutro: '',
   taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async (args: SendDMMessageParameters) => {
     const result = await client.sendDMMessage(

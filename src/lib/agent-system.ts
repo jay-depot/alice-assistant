@@ -187,6 +187,7 @@ export type SessionLinkedAgentDefinition = {
   startToolParameters: TSchema;
   startToolAvailableFor: ConversationTypeId[];
   startToolSystemPromptFragment: Tool['systemPromptFragment'];
+  /** @deprecated Tool result prompts are no longer used — tool results now use Ollama's native `tool` role. */
   startToolResultPromptOutro?: Tool['toolResultPromptOutro'];
   buildStartup: (args: Record<string, unknown>) => Promise<{
     agentContextPrompt: string;
@@ -615,6 +616,7 @@ export const AgentSystem = {
       parameters: definition.startToolParameters,
       systemPromptFragment: definition.startToolSystemPromptFragment,
       toolResultPromptIntro: '',
+      /** @deprecated Tool result prompts are no longer used — tool results now use Ollama's native `tool` role. */
       toolResultPromptOutro: definition.startToolResultPromptOutro ?? '',
       execute: async (args, context) => {
         if (!context.sessionId) {

@@ -89,8 +89,6 @@ export const getMoltbookHomeTool = (client: MoltbookClient): Tool => ({
   systemPromptFragment:
     'Use getMoltbookHome when the user asks what is happening on Moltbook, wants a status overview, or wants to know what needs attention first.',
   parameters: homeParameters,
-  toolResultPromptIntro: 'Here is the current Moltbook dashboard.',
-  toolResultPromptOutro: '',
   taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async () => {
     const home = await client.getHome();
@@ -106,8 +104,6 @@ export const getMoltbookFeedTool = (client: MoltbookClient): Tool => ({
   systemPromptFragment:
     'Use getMoltbookFeed when the user wants to browse Moltbook posts. Prefer small limits unless the user asks for a larger slice.',
   parameters: feedParameters,
-  toolResultPromptIntro: 'Here are the requested Moltbook feed results.',
-  toolResultPromptOutro: '',
   taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async (args: FeedParameters) => {
     const limit = args.limit ?? client.getDefaultFeedLimit();
@@ -142,8 +138,6 @@ export const getMoltbookPostTool = (client: MoltbookClient): Tool => ({
   systemPromptFragment:
     'Use getMoltbookPost when the user references a specific Moltbook post ID or when a previous tool returned a post ID that needs to be opened.',
   parameters: postParameters,
-  toolResultPromptIntro: 'Here is the requested Moltbook post.',
-  toolResultPromptOutro: '',
   taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async (args: PostParameters) => {
     const post = await client.getPost(args.postId);
@@ -158,8 +152,6 @@ export const getMoltbookCommentsTool = (client: MoltbookClient): Tool => ({
   systemPromptFragment:
     'Use getMoltbookComments when the user wants to inspect or summarize the conversation underneath a Moltbook post.',
   parameters: commentsParameters,
-  toolResultPromptIntro: 'Here is the Moltbook comment thread.',
-  toolResultPromptOutro: '',
   taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async (args: CommentsParameters) => {
     const comments = await client.getComments({
@@ -180,8 +172,6 @@ export const listMoltbookSubmoltsTool = (client: MoltbookClient): Tool => ({
   systemPromptFragment:
     'Use listMoltbookSubmolts when the user wants to discover Moltbook communities or needs candidate submolts to browse or subscribe to.',
   parameters: listSubmoltsParameters,
-  toolResultPromptIntro: 'Here are the Moltbook submolts that were returned.',
-  toolResultPromptOutro: '',
   taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async () => {
     const submolts = await client.listSubmolts();
@@ -196,8 +186,6 @@ export const getMoltbookSubmoltTool = (client: MoltbookClient): Tool => ({
   systemPromptFragment:
     'Use getMoltbookSubmolt when the user asks about a specific Moltbook community or before subscribing to it.',
   parameters: getSubmoltParameters,
-  toolResultPromptIntro: 'Here is the requested Moltbook submolt.',
-  toolResultPromptOutro: '',
   taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async (args: GetSubmoltParameters) => {
     const submolt = await client.getSubmolt(args.name);
@@ -212,8 +200,6 @@ export const searchMoltbookTool = (client: MoltbookClient): Tool => ({
   systemPromptFragment:
     'Use searchMoltbook when the user wants concept-based discovery on Moltbook or when you need to research whether a topic is already being discussed there.',
   parameters: searchParameters,
-  toolResultPromptIntro: 'Here are the Moltbook search results.',
-  toolResultPromptOutro: '',
   taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async (args: SearchParameters) => {
     const results = await client.search({

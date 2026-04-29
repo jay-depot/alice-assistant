@@ -223,8 +223,6 @@ const webSimpleFetchPlugin: AlicePlugin = {
       availableFor: ['chat', 'voice', 'autonomy'],
       systemPromptFragment: '',
       parameters: SimpleFetchToolParametersSchema,
-      toolResultPromptIntro: '',
-      toolResultPromptOutro: '',
       taintStatus: 'tainted', // Arbitrary internet content. Always taint.
       execute: async function (
         args: SimpleFetchToolParameters
@@ -290,8 +288,6 @@ const webSimpleFetchPlugin: AlicePlugin = {
       availableFor: ['chat', 'voice', 'autonomy'],
       systemPromptFragment: '',
       parameters: SimplePostToolParametersSchema,
-      toolResultPromptIntro: '',
-      toolResultPromptOutro: '',
       taintStatus: 'tainted', // Arbitrary internet content. Always taint.
       execute: async function (
         args: SimplePostToolParameters
@@ -369,8 +365,6 @@ const webSimpleFetchPlugin: AlicePlugin = {
       availableFor: ['chat', 'voice', 'autonomy'],
       systemPromptFragment: '',
       parameters: Type.Object({}),
-      toolResultPromptIntro: '',
-      toolResultPromptOutro: '',
       execute: async function (): Promise<string> {
         const cachedPosts = Array.from(postResponseCache.values())
           .filter(

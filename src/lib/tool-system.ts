@@ -7,6 +7,9 @@ type ToolPromptFragmentFunction =
   | string
   | ((type: DynamicPromptConversationType) => string);
 
+/** @deprecated Tool result prompts are no longer used — tool results now use Ollama's native `tool` role. */
+type ToolResultPromptFragmentFunction = ToolPromptFragmentFunction;
+
 type OllamaRequestToolsPropItem = {
   type: 'function';
   function: {
@@ -34,8 +37,10 @@ export type Tool = {
   description: string;
   systemPromptFragment: ToolPromptFragmentFunction;
   parameters: TSchema;
-  toolResultPromptIntro: ToolPromptFragmentFunction;
-  toolResultPromptOutro: ToolPromptFragmentFunction;
+  /** @deprecated Tool result prompts are no longer used — tool results now use Ollama's native `tool` role. Kept for backward compatibility with existing plugin code. */
+  toolResultPromptIntro?: ToolResultPromptFragmentFunction;
+  /** @deprecated Tool result prompts are no longer used — tool results now use Ollama's native `tool` role. Kept for backward compatibility with existing plugin code. */
+  toolResultPromptOutro?: ToolResultPromptFragmentFunction;
   /**
    * Defaults to clean if not provided. Tainted tools taint the conversation context
    * and prevent secure tools from running. Secure tools can only run in

@@ -149,7 +149,7 @@ const testAgentsPlugin: AlicePlugin = {
         'Start a no-op session-linked agent that returns success immediately. Call when the user indicates they want to test session-linked agent dispatch.',
       startToolParameters: Type.Object({}),
       startToolSystemPromptFragment: '',
-      startToolResultPromptOutro: '',
+
       buildStartup: async () => ({
         agentContextPrompt:
           'This is a no-op session-linked agent run. Return success immediately.',

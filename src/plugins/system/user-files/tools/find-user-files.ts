@@ -127,8 +127,6 @@ const findUserFilesTool: (config) => Tool = config => ({
     `namePattern set to "*resume*" and extensions set to [".pdf", ".docx"]. The search is limited to user-configured ` +
     `allowed directories for security.`,
   parameters,
-  toolResultPromptIntro: ``,
-  toolResultPromptOutro: '',
   execute: async (args: Static<typeof parameters>) => {
     const allowedFilePaths = config.allowedFilePaths || [];
 
