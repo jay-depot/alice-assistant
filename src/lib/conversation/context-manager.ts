@@ -104,8 +104,11 @@ export class ConversationContextManager {
       ];
     }
 
+    const summaryMessages = this.conv.compactedContext.filter(m =>
+      m.content.startsWith(SUMMARY_HEADER)
+    );
     await PluginHookInvocations.invokeOnContextCompactionSummariesWillBeDeleted(
-      this.conv.compactedContext,
+      summaryMessages,
       this.conv.type
     );
   }

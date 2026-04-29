@@ -326,7 +326,7 @@ const memoryPlugin: AlicePlugin = {
             return JSON.stringify({ memory: null });
           }
 
-          const randomMemory = JSON.stringify(memory);
+          const randomMemory = memory;
 
           return JSON.stringify({ memory: randomMemory });
         },

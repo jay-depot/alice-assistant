@@ -187,7 +187,7 @@ export class Conversation {
     await this.appendToContext({
       role: 'assistant',
       content: response.message.content,
-      tool_calls: toolCalls,
+      tool_calls: toolCalls && toolCalls.length > 0 ? toolCalls : undefined,
     });
 
     if (toolCalls && toolCalls.length > 0) {
@@ -275,6 +275,13 @@ export class Conversation {
       return;
     }
 
+    await this.runToolCallBatch(toolCalls);
+  }
+
+  // ── internal helpers ──────────────────────────────────────────────
+
+  private async runToolCallBatch(toolCalls: ToolCall[]): Promise<void> {
+    const callBatchId = randomUUID();
     const { toolResultMessages, taintedToolNamesAdded } = await executeTools({
       toolCalls,
       conversationType: this.type,
@@ -283,7 +290,7 @@ export class Conversation {
       sessionId: this.sessionId,
       taskAssistantId: this.taskAssistantId,
       agentInstanceId: this.agentInstanceId,
-      callBatchId: randomUUID(),
+      callBatchId,
     });
 
     for (const toolName of taintedToolNamesAdded) {
@@ -294,8 +301,6 @@ export class Conversation {
       await this.appendToContext(msg);
     }
   }
-
-  // ── internal helpers ──────────────────────────────────────────────
 
   private async handleToolCalls(
     response: ChatResponse,
@@ -322,26 +327,7 @@ export class Conversation {
       );
     }
 
-    const callBatchId = randomUUID();
-
-    const { toolResultMessages, taintedToolNamesAdded } = await executeTools({
-      toolCalls,
-      conversationType: this.type,
-      isTainted: this.isTainted,
-      taintedToolNames: this.taintedToolNames,
-      sessionId: this.sessionId,
-      taskAssistantId: this.taskAssistantId,
-      agentInstanceId: this.agentInstanceId,
-      callBatchId,
-    });
-
-    for (const toolName of taintedToolNamesAdded) {
-      this.taintedToolNames.add(toolName);
-    }
-
-    for (const msg of toolResultMessages) {
-      await this.appendToContext(msg);
-    }
+    await this.runToolCallBatch(toolCalls);
 
     // Recurse with fresh prompt context
     const promptCtx: PromptAssemblerContext = {
@@ -369,7 +355,11 @@ export class Conversation {
     await this.appendToContext({
       role: 'assistant',
       content: nextResponse.message.content,
-      tool_calls: nextResponse.message.tool_calls,
+      tool_calls:
+        nextResponse.message.tool_calls &&
+        nextResponse.message.tool_calls.length > 0
+          ? nextResponse.message.tool_calls
+          : undefined,
     });
 
     if (
@@ -418,7 +408,11 @@ export class Conversation {
     await this.appendToContext({
       role: 'assistant',
       content: fallbackResponse.message.content,
-      tool_calls: fallbackResponse.message.tool_calls,
+      tool_calls:
+        fallbackResponse.message.tool_calls &&
+        fallbackResponse.message.tool_calls.length > 0
+          ? fallbackResponse.message.tool_calls
+          : undefined,
     });
 
     return fallbackResponse.message.content || '';

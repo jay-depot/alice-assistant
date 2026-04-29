@@ -917,7 +917,6 @@ describe('webUiPlugin', () => {
         session: expect.objectContaining({
           id: '2',
           title: 'Detailed Session',
-          assistantMood: 'happy',
         }),
       })
     );

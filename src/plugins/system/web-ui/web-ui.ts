@@ -7,6 +7,7 @@ import {
   TaskAssistants,
   AgentSystem,
   ToolCallEvents,
+  PluginHookInvocations,
   systemLogger,
 } from '../../../lib.js';
 import { WebSocket } from 'ws';
@@ -394,6 +395,10 @@ const webUiPlugin: AlicePlugin = {
       }
 
       await flushCachedConversation(sessionId);
+      await PluginHookInvocations.invokeOnUserConversationWillEnd(
+        conversation,
+        'chat'
+      );
       await conversation.closeConversation();
       evictCachedConversation(sessionId);
     };
@@ -1043,6 +1048,18 @@ const webUiPlugin: AlicePlugin = {
 
             const llmTransaction = getOrCreateCachedConversation(queuedSession);
 
+            // Fire the hook once when this is the first user message in the conversation.
+            // We detect "first message" by checking if there are no prior user messages.
+            const hasPriorUserMessages = queuedSession.rounds
+              .getItems()
+              .some(round => round.role === 'user');
+            if (!hasPriorUserMessages) {
+              await PluginHookInvocations.invokeOnUserConversationWillBegin(
+                llmTransaction,
+                'chat'
+              );
+            }
+
             await llmTransaction.appendExternalMessage({
               role: 'user',
               content: message,
@@ -1226,7 +1243,6 @@ const webUiPlugin: AlicePlugin = {
             title: session.title,
             createdAt: session.createdAt,
             updatedAt: session.updatedAt,
-            assistantMood: 'happy', // This will pull from the global "mood" state the assistant can set through tools. It's common across all assistant conversations.
             messages: session.rounds
               .getItems()
               .filter(round => round.role !== 'system' && round.role !== 'tool')

@@ -3,7 +3,6 @@ import { Type, Static } from 'typebox';
 export const SystemConfigBasic = Type.Object({
   wakeWord: Type.String(),
   assistantName: Type.String(),
-  location: Type.String(), // TODO: This needs to be moved into the static-location plugin config
   webInterface: Type.Object({
     enabled: Type.Boolean(),
     port: Type.Number(),

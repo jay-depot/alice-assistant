@@ -248,16 +248,6 @@ const voicePlugin: AlicePlugin = {
         'onAssistantWillStopAcceptingRequests: Completed voice runtime shutdown.'
       );
     });
-
-    plugin.hooks.onPluginsWillUnload(async () => {
-      plugin.logger.log(
-        'onPluginsWillUnload: Starting final voice runtime shutdown.'
-      );
-      await closeVoiceRuntime();
-      plugin.logger.log(
-        'onPluginsWillUnload: Completed final voice runtime shutdown.'
-      );
-    });
   },
 };
 

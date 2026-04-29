@@ -23,7 +23,6 @@ const agentsPlugin: AlicePlugin = {
     name: 'Agent Engine',
     brandColor: '#76ee4a',
     version: 'LATEST',
-    builtInCategory: 'system',
     description:
       'Provides the session-linked agent runtime and the framework tools ' +
       '(agentReportProgress, agentReturnResult) that all session-linked agents use.',

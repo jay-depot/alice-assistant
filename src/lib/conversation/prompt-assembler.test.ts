@@ -49,26 +49,25 @@ describe('assembleFullContext', () => {
 
     const result = await assembleFullContext(baseCtx, compacted);
 
-    // First two entries should be the mocked header prompts
-    expect(result[0].content).toBe('# Header prompt 1');
-    expect(result[1].content).toBe('# Header prompt 2');
+    // Header prompts are merged into a single system message
+    expect(result[0].content).toBe('# Header prompt 1\n\n# Header prompt 2');
 
     // Then the compacted context
-    expect(result[2].content).toBe('Hello');
-    expect(result[3].content).toBe('Hi!');
+    expect(result[1].content).toBe('Hello');
+    expect(result[2].content).toBe('Hi!');
 
     // Then the footer prompt
-    expect(result[4].content).toBe('# Footer prompt');
+    expect(result[3].content).toBe('# Footer prompt');
 
-    // Total: 2 headers + 2 compacted + 1 footer = 5
-    expect(result.length).toBe(5);
+    // Total: 1 merged header + 2 compacted + 1 footer = 4
+    expect(result.length).toBe(4);
   });
 
   it('returns only prompts when compactedContext is empty', async () => {
     const result = await assembleFullContext(baseCtx, []);
 
-    expect(result.length).toBe(3); // 2 headers + 1 footer
-    expect(result[0].content).toBe('# Header prompt 1');
-    expect(result[2].content).toBe('# Footer prompt');
+    expect(result.length).toBe(2); // 1 merged header + 1 footer
+    expect(result[0].content).toBe('# Header prompt 1\n\n# Header prompt 2');
+    expect(result[1].content).toBe('# Footer prompt');
   });
 });

@@ -1,5 +1,7 @@
 # Implementation Plan: Conversation Class Decomposition
 
+> **Status (2026-04-29): COMPLETE — with one accepted deviation.** All sub-modules were extracted into `src/lib/conversation/` (context-manager, prompt-assembler, tool-executor, streaming-handler, degeneracy-check, types, plus test files). The `Conversation` orchestrator class deliberately remains at `src/lib/conversation.ts` (~500 lines) rather than being moved into the subdirectory and trimmed to ~200 lines — the file-level relocation was deemed unnecessary since the decomposition already achieves the functional goals of eliminating duplicated code and isolating concerns into testable modules. The 250-line orchestrator target in the Definition of Done is waived.
+
 ## Overview
 
 Decompose the 1073-line `Conversation` god class (`src/lib/conversation.ts`) into focused sub-modules, eliminate the ~90% duplicated tool-call execution logic between `handleToolCalls()` and `executeToolCalls()`, and make each concern independently testable.

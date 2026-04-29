@@ -35,15 +35,17 @@ export async function assembleFullContext(
     availableTools: ctx.availableTools,
   });
 
-  return [
-    ...headerPrompts.map(prompt => ({
-      role: 'system' as const,
-      content: prompt,
-    })),
-    ...compactedContext,
-    ...footerPrompts.map(prompt => ({
-      role: 'system' as const,
-      content: prompt,
-    })),
-  ];
+  const result: Message[] = [];
+
+  if (headerPrompts.length > 0) {
+    result.push({ role: 'system', content: headerPrompts.join('\n\n') });
+  }
+
+  result.push(...compactedContext);
+
+  if (footerPrompts.length > 0) {
+    result.push({ role: 'system', content: footerPrompts.join('\n\n') });
+  }
+
+  return result;
 }

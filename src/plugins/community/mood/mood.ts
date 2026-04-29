@@ -112,6 +112,9 @@ const moodPlugin: AlicePlugin = {
       }
     }
 
+    // Mood state is a single key-value pair that benefits from surviving restarts
+    // but does not warrant a full database entity. File-based persistence is
+    // acceptable for this class of very simple plugin state.
     function saveMood(mood: string, reason: string) {
       const moodData = { mood, reason };
       fs.mkdirSync(toolConfigPath, { recursive: true });
