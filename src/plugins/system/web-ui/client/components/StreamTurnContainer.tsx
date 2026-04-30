@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { classNames } from '../utils.js';
@@ -25,25 +25,15 @@ export function StreamTurnContainer({
 }: StreamTurnContainerProps) {
   const containerKey = `turn-${turn.turnIndex}`;
   const isExpanded = expandedKeys.has(containerKey);
-  const [wasEverCurrent, setWasEverCurrent] = useState(false);
 
-  // Auto-expand when this turn becomes the current one or is expanded by user
+  // Auto-expand when this turn becomes the current one (streaming).
+  // Once expanded, the toggle is user-controlled — we don't auto-collapse
+  // on completion so the reasoning and tool calls stay visible.
   useEffect(() => {
-    if (isCurrent) {
-      setWasEverCurrent(true);
-      if (!isExpanded) {
-        onSetExpanded(containerKey, true);
-      }
+    if (isCurrent && !isExpanded) {
+      onSetExpanded(containerKey, true);
     }
   }, [isCurrent, isExpanded, containerKey, onSetExpanded]);
-
-  // Auto-collapse when complete and was previously the current turn
-  useEffect(() => {
-    if (isComplete && wasEverCurrent && isExpanded && !isCurrent) {
-      onSetExpanded(containerKey, false);
-    }
-    // Only run when isComplete transitions
-  }, [isComplete]);
 
   const hasContent =
     turn.reasoning.length > 0 ||

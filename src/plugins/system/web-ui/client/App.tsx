@@ -186,11 +186,21 @@ function AppShell() {
     onError: setErrorMessage,
   });
 
-  const { turns, currentTurn, finalContent, finalReasoning, isStreaming } =
-    useStreamingSession(currentSessionId);
+  const {
+    turns,
+    currentTurn,
+    finalContent,
+    finalReasoning,
+    isStreaming,
+    reset: resetStreaming,
+  } = useStreamingSession(currentSessionId);
 
-  const { toolCallBatches, pendingAssistantMessage, agentMonologue } =
-    useToolCallEvents(currentSessionId, isProcessingMessage, messages);
+  const {
+    toolCallBatches,
+    pendingAssistantMessage,
+    agentMonologue,
+    clear: clearToolCalls,
+  } = useToolCallEvents(currentSessionId, messages);
 
   const pluginRoutes = routes.filter(route => route.path !== '/');
 
@@ -201,8 +211,12 @@ function AppShell() {
     }
 
     setDraft('');
+    // Clear the previous message cycle's transient state before the
+    // new send so turns and tool batches don't bleed across messages.
+    resetStreaming();
+    clearToolCalls();
     sendMessage(trimmedDraft);
-  }, [draft, sendMessage]);
+  }, [draft, sendMessage, resetStreaming, clearToolCalls]);
 
   return (
     <>

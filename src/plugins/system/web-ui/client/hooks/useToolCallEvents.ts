@@ -5,7 +5,6 @@ import { useWebSocket } from './useWebSocket.js';
 
 export function useToolCallEvents(
   sessionId: number | string | null,
-  isProcessing: boolean,
   messages: Message[]
 ) {
   const [toolCallBatches, setToolCallBatches] = useState<
@@ -18,12 +17,8 @@ export function useToolCallEvents(
     new Map()
   );
   const assistantTurnStartedRef = useRef(false);
-  const prevIsProcessingRef = useRef(false);
 
   // ── Dedup: remove real-time batches already persisted in messages ──────
-  // Must run BEFORE the clearing effect below so batches already represented
-  // in the persisted messages are removed from the live display first; the
-  // clearing effect then sweeps up whatever is left.
   useEffect(() => {
     const persistedBatchIds = new Set(
       messages
@@ -46,16 +41,6 @@ export function useToolCallEvents(
       return changed ? next : prev;
     });
   }, [messages]);
-
-  // ── Clear all batches when processing transitions true → false ────────
-  useEffect(() => {
-    if (prevIsProcessingRef.current && !isProcessing) {
-      setToolCallBatches(new Map());
-      setPendingAssistantMessage(null);
-      assistantTurnStartedRef.current = false;
-    }
-    prevIsProcessingRef.current = isProcessing;
-  }, [isProcessing]);
 
   const handleEvent = useCallback((event: WsToolCallEvent) => {
     if (event.type === 'assistant_turn_started') {
@@ -151,5 +136,22 @@ export function useToolCallEvents(
     });
   }, [sessionId, handleEvent, subscribe]);
 
-  return { toolCallBatches, pendingAssistantMessage, agentMonologue };
+  const clearAll = useCallback(() => {
+    setToolCallBatches(new Map());
+    setPendingAssistantMessage(null);
+    setAgentMonologue(new Map());
+    assistantTurnStartedRef.current = false;
+  }, []);
+
+  // Reset when session changes
+  useEffect(() => {
+    clearAll();
+  }, [sessionId, clearAll]);
+
+  return {
+    toolCallBatches,
+    pendingAssistantMessage,
+    agentMonologue,
+    clear: clearAll,
+  };
 }
