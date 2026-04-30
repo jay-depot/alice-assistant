@@ -1,4 +1,5 @@
 import { useLayoutEffect, useMemo, useRef, useState, useCallback } from 'react';
+import React from 'react';
 import { MessageBubble } from './MessageBubble.js';
 import { ProcessingStatus } from './ProcessingStatus.js';
 import { RegionSlot } from './RegionSlot.js';
@@ -117,11 +118,33 @@ export function MessagesArea({
     [visibleMessages]
   );
 
-  // Collect real-time tool call batches as an array for rendering
+  // Collect real-time tool call batches as a map for O(1) lookups.
+  // We'll consume each batch when rendering its linked turn,
+  // leaving only orphan batches (no linked turn) for the bottom.
   const realtimeBatches = useMemo(
     () => [...toolCallBatches.entries()],
     [toolCallBatches]
   );
+
+  // Build a set of batch IDs already claimed by completed turns so
+  // we don't render them again as orphans at the bottom.
+  const turnBatchIds = useMemo(
+    () =>
+      new Set(
+        completedTurns.map(t => t.callBatchId).filter(Boolean) as string[]
+      ),
+    [completedTurns]
+  );
+
+  // Suppress the handoff bubble once its content exists in persisted messages
+  // (arrived via session_updated).
+  const finalIdentityKey = getMessageIdentityKey({
+    role: 'assistant',
+    content: finalContent,
+  });
+  const isFinalPersisted =
+    finalContent.length > 0 &&
+    visibleMessages.some(m => getMessageIdentityKey(m) === finalIdentityKey);
 
   // ── Expanded message keys (parent-managed so it survives stream→persisted) ─
   const [expandedMessageKeys, setExpandedMessageKeys] = useState<Set<string>>(
@@ -205,16 +228,22 @@ export function MessagesArea({
             ));
           })}
 
-          {/* ── Completed stream turns (multi-turn blocks) ── */}
+          {/* ── Completed stream turns with interleaved tool-call batches ── */}
           {completedTurns.map(turn => (
-            <StreamTurnContainer
-              key={`completed-turn-${turn.turnIndex}`}
-              turn={turn}
-              isCurrent={false}
-              isComplete={true}
-              expandedKeys={expandedMessageKeys}
-              onSetExpanded={handleSetExpanded}
-            />
+            <React.Fragment key={`completed-turn-${turn.turnIndex}`}>
+              <StreamTurnContainer
+                turn={turn}
+                isCurrent={false}
+                isComplete={true}
+                expandedKeys={expandedMessageKeys}
+                onSetExpanded={handleSetExpanded}
+              />
+              {/* Render the tool-call batch linked to this turn right after,
+                  before the next turn's reasoning appears. */}
+              {turn.callBatchId && toolCallBatches.has(turn.callBatchId) ? (
+                <ToolCallBatch calls={toolCallBatches.get(turn.callBatchId)!} />
+              ) : null}
+            </React.Fragment>
           ))}
 
           {/* ── Current stream turn (receiving deltas) ── */}
@@ -248,16 +277,18 @@ export function MessagesArea({
             />
           ) : null}
 
-          {/* ── Real-time tool call batches ── */}
-          {realtimeBatches.map(([batchId, calls]) => (
-            <ToolCallBatch key={`realtime-${batchId}`} calls={calls} />
-          ))}
+          {/* ── Orphan tool call batches (not linked to any completed turn) ── */}
+          {realtimeBatches
+            .filter(([batchId]) => !turnBatchIds.has(batchId))
+            .map(([batchId, calls]) => (
+              <ToolCallBatch key={`realtime-${batchId}`} calls={calls} />
+            ))}
 
           {/* ── Final content handoff bubble ──────────────────────────────
                Rendered after stream_done but before the persisted message
-               arrives via session_updated. Shares the same identity key
-               as the persisted message, so expanded state survives. ── */}
-          {!isStreaming && finalContent ? (
+               arrives via session_updated. Suppressed once the persisted
+               message is visible. ── */}
+          {!isStreaming && finalContent && !isFinalPersisted ? (
             <MessageBubble
               message={{
                 role: 'assistant',
@@ -266,12 +297,7 @@ export function MessagesArea({
                 reasoning: finalReasoning,
                 timestamp: '',
               }}
-              isExpanded={expandedMessageKeys.has(
-                getMessageIdentityKey({
-                  role: 'assistant',
-                  content: finalContent,
-                })
-              )}
+              isExpanded={expandedMessageKeys.has(finalIdentityKey)}
               onSetExpanded={handleSetExpanded}
             />
           ) : null}

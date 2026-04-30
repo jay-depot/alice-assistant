@@ -9,6 +9,9 @@ export interface StreamTurn {
   reasoning: string;
   content: string;
   isComplete: boolean;
+  /** callBatchId from stream_turn_complete — links this turn to the tool
+   *  call batch that follows.  Null when this turn did not trigger tools. */
+  callBatchId: string | null;
 }
 
 export interface StreamingState {
@@ -77,6 +80,7 @@ export function useStreamingSession(
               reasoning: '',
               content: '',
               isComplete: false,
+              callBatchId: null,
             }))();
           return { ...turn, reasoning: turn.reasoning + msg.delta };
         });
@@ -90,16 +94,22 @@ export function useStreamingSession(
               reasoning: '',
               content: '',
               isComplete: false,
+              callBatchId: null,
             }))();
           return { ...turn, content: turn.content + msg.delta };
         });
       } else if (msg.type === 'stream_tool_calls') {
         setIsStreaming(true);
       } else if (msg.type === 'stream_turn_complete') {
-        // Finalize the current turn and allocate the next turn slot.
+        // Finalize the current turn, stamping its callBatchId so the
+        // UI can interleave the tool-call batch between turns.
         setCurrentTurn(prev => {
           if (!prev) return prev;
-          const completedTurn = { ...prev, isComplete: true };
+          const completedTurn = {
+            ...prev,
+            isComplete: true,
+            callBatchId: msg.callBatchId,
+          };
           setTurns(prevTurns => [...prevTurns, completedTurn]);
           nextTurnIndexRef.current += 1;
           const nextIndex = nextTurnIndexRef.current;
@@ -108,6 +118,7 @@ export function useStreamingSession(
             reasoning: '',
             content: '',
             isComplete: false,
+            callBatchId: null,
           };
         });
       } else if (msg.type === 'stream_done') {

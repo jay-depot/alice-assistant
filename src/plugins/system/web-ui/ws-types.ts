@@ -115,6 +115,9 @@ export type WsServerMessage =
       sessionId: number;
       turnIndex: number;
       hasToolCalls: boolean;
+      /** UUID linking this turn boundary to the tool call batch that follows.
+       *  Clients use this to interleave tool call indicators between turns. */
+      callBatchId: string;
     }
   | { type: 'session_created'; session: WsSession }
   | { type: 'session_ended'; sessionId: number };

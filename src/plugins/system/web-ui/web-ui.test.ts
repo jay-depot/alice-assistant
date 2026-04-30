@@ -599,7 +599,9 @@ describe('webUiPlugin', () => {
     // routes and the compaction endpoint remain as HTTP handlers.
     expect(getRegisteredRouteHandler('get', '/api/chat')).toBeDefined();
     expect(getRegisteredRouteHandler('get', '/api/chat/:id')).toBeDefined();
-    expect(getRegisteredRouteHandler('post', '/api/chat/:id/compact')).toBeDefined();
+    expect(
+      getRegisteredRouteHandler('post', '/api/chat/:id/compact')
+    ).toBeDefined();
     expect(getRegisteredRouteHandler('get', '/api/extensions')).toBeDefined();
   });
 
@@ -694,14 +696,14 @@ describe('webUiPlugin', () => {
       (c: any[]) => c[0] === 'message'
     )?.[1] as ((data: Buffer) => void) | undefined;
     expect(messageHandler).toBeDefined();
-    messageHandler!(
-      Buffer.from(JSON.stringify({ type: 'create_session' }))
-    );
+    messageHandler!(Buffer.from(JSON.stringify({ type: 'create_session' })));
 
     // Let async handlers complete
     await new Promise(r => setTimeout(r, 50));
 
-    const sent = wsClient.send.mock.calls.map((c: [string]) => JSON.parse(c[0]));
+    const sent = wsClient.send.mock.calls.map((c: [string]) =>
+      JSON.parse(c[0])
+    );
     const created = sent.find((m: any) => m.type === 'session_created');
     expect(created).toBeDefined();
     expect(created.session.title).toBe('New Conversation');
@@ -860,7 +862,9 @@ describe('webUiPlugin', () => {
     );
     expect(parentSendUserMessage).toHaveBeenCalled();
 
-    const sent = wsClient.send.mock.calls.map((c: [string]) => JSON.parse(c[0]));
+    const sent = wsClient.send.mock.calls.map((c: [string]) =>
+      JSON.parse(c[0])
+    );
     const updated = sent.find((m: any) => m.type === 'session_updated');
     expect(updated).toBeDefined();
     expect(updated.session.title).toBe('Task Session Updated');
@@ -994,14 +998,14 @@ describe('webUiPlugin', () => {
     )?.[1] as ((data: Buffer) => void) | undefined;
     expect(messageHandler).toBeDefined();
     messageHandler!(
-      Buffer.from(
-        JSON.stringify({ type: 'end_session', sessionId: 404 })
-      )
+      Buffer.from(JSON.stringify({ type: 'end_session', sessionId: 404 }))
     );
 
     await new Promise(r => setTimeout(r, 50));
 
-    const sent = wsClient.send.mock.calls.map((c: [string]) => JSON.parse(c[0]));
+    const sent = wsClient.send.mock.calls.map((c: [string]) =>
+      JSON.parse(c[0])
+    );
     const ended = sent.find((m: any) => m.type === 'session_ended');
     expect(ended).toBeDefined();
     expect(ended.sessionId).toBe(404);
@@ -1035,14 +1039,14 @@ describe('webUiPlugin', () => {
     )?.[1] as ((data: Buffer) => void) | undefined;
     expect(messageHandler).toBeDefined();
     messageHandler!(
-      Buffer.from(
-        JSON.stringify({ type: 'end_session', sessionId: 3 })
-      )
+      Buffer.from(JSON.stringify({ type: 'end_session', sessionId: 3 }))
     );
 
     await new Promise(r => setTimeout(r, 50));
 
-    const sent = wsClient.send.mock.calls.map((c: [string]) => JSON.parse(c[0]));
+    const sent = wsClient.send.mock.calls.map((c: [string]) =>
+      JSON.parse(c[0])
+    );
     const ended = sent.find((m: any) => m.type === 'session_ended');
     expect(ended).toBeDefined();
     expect(ended.sessionId).toBe(3);

@@ -21,7 +21,7 @@ import type {
 import { Express, static as serveStatic } from 'express';
 import * as fs from 'fs';
 import * as path from 'path';
-import { createHash } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import { fileURLToPath } from 'url';
 import type { MikroORM } from '@mikro-orm/sqlite';
 import { UserConfig } from '../../../lib/user-config.js';
@@ -1043,18 +1043,23 @@ const webUiPlugin: AlicePlugin = {
                   break;
                 }
 
-                // Signal turn boundary so the client wraps this turn's reasoning
-                // in a collapsible block and prepares the next turn slot.
+                // Signal turn boundary so the client wraps this turn's
+                // reasoning in a collapsible block, links it to the
+                // tool call batch that follows, and prepares the next
+                // turn slot.
+                const turnBatchId = randomUUID();
                 broadcastWs({
                   type: 'stream_turn_complete',
                   sessionId: session.id,
                   turnIndex: streamDepth,
                   hasToolCalls: true,
+                  callBatchId: turnBatchId,
                 });
 
                 await llmTransaction.executeToolCalls(
                   turn.toolCalls,
-                  streamDepth
+                  streamDepth,
+                  turnBatchId
                 );
                 streamDepth++;
               }

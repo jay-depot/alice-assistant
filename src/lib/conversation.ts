@@ -261,7 +261,11 @@ export class Conversation {
     return { content, thinking, toolCalls };
   }
 
-  async executeToolCalls(toolCalls: ToolCall[], depth = 0): Promise<void> {
+  async executeToolCalls(
+    toolCalls: ToolCall[],
+    depth = 0,
+    callBatchId?: string
+  ): Promise<void> {
     const maxToolCallDepth =
       getConversationTypeDefinition(this.type)?.maxToolCallDepth ??
       MAX_TOOL_CALL_DEPTH;
@@ -275,13 +279,16 @@ export class Conversation {
       return;
     }
 
-    await this.runToolCallBatch(toolCalls);
+    await this.runToolCallBatch(toolCalls, callBatchId);
   }
 
   // ── internal helpers ──────────────────────────────────────────────
 
-  private async runToolCallBatch(toolCalls: ToolCall[]): Promise<void> {
-    const callBatchId = randomUUID();
+  private async runToolCallBatch(
+    toolCalls: ToolCall[],
+    callBatchId?: string
+  ): Promise<void> {
+    const batchId = callBatchId ?? randomUUID();
     const { toolResultMessages, taintedToolNamesAdded } = await executeTools({
       toolCalls,
       conversationType: this.type,
@@ -290,7 +297,7 @@ export class Conversation {
       sessionId: this.sessionId,
       taskAssistantId: this.taskAssistantId,
       agentInstanceId: this.agentInstanceId,
-      callBatchId,
+      callBatchId: batchId,
     });
 
     for (const toolName of taintedToolNamesAdded) {
