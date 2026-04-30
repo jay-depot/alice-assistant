@@ -1048,6 +1048,15 @@ const webUiPlugin: AlicePlugin = {
                 // tool call batch that follows, and prepares the next
                 // turn slot.
                 const turnBatchId = randomUUID();
+
+                await llmTransaction.executeToolCalls(
+                  turn.toolCalls,
+                  streamDepth,
+                  turnBatchId
+                );
+
+                // Signal turn boundary AFTER tool execution so the
+                // client already has the batch data when it renders.
                 broadcastWs({
                   type: 'stream_turn_complete',
                   sessionId: session.id,
@@ -1056,11 +1065,6 @@ const webUiPlugin: AlicePlugin = {
                   callBatchId: turnBatchId,
                 });
 
-                await llmTransaction.executeToolCalls(
-                  turn.toolCalls,
-                  streamDepth,
-                  turnBatchId
-                );
                 streamDepth++;
               }
 

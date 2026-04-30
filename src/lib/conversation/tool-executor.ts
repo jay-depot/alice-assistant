@@ -73,7 +73,7 @@ async function executeSingleTool(
       agentInstanceId: input.agentInstanceId,
     });
 
-    void ToolCallEvents.dispatchToolCallEvent({
+    await ToolCallEvents.dispatchToolCallEvent({
       type: 'tool_call_completed',
       callBatchId: input.callBatchId,
       toolName,
@@ -95,7 +95,7 @@ async function executeSingleTool(
   } catch (e) {
     const errorMessage = e instanceof Error ? e.message : String(e);
 
-    void ToolCallEvents.dispatchToolCallEvent({
+    await ToolCallEvents.dispatchToolCallEvent({
       type: 'tool_call_error',
       callBatchId: input.callBatchId,
       toolName,
