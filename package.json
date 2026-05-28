@@ -65,7 +65,7 @@
     "retry-as-promised": "^7.1.1",
     "semver": "^7.7.4",
     "typebox": "^1.1.8",
-    "ws": "^8.20.0"
+    "ws": "^8.20.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.5",
