@@ -4,6 +4,7 @@
 
 import { AgentSystem } from '../../../../lib/agent-system.js';
 import type { Message } from '../../../../lib/conversation.js';
+import type { LlmImageAttachment } from '../../../../lib/llm-provider.js';
 import type { ChatSession, ChatSessionRound } from '../db-schemas/index.js';
 import type { WsSession, WsMessage, WsActiveAgent } from '../ws-types.js';
 
@@ -18,6 +19,7 @@ export function serializeRound(round: ChatSessionRound): {
   senderName: string | null;
   toolCallData: unknown;
   toolName: string | null;
+  attachments: unknown;
 } {
   return {
     role: round.role,
@@ -28,6 +30,7 @@ export function serializeRound(round: ChatSessionRound): {
     senderName: round.senderName,
     toolCallData: round.toolCallData,
     toolName: round.toolName,
+    attachments: round.attachments,
   };
 }
 
@@ -79,6 +82,9 @@ export function restoreConversationMessages(
     .map(round => ({
       role: round.role,
       content: round.content,
+      images:
+        (round.attachments as unknown as LlmImageAttachment[] | null) ??
+        undefined,
       reasoning: round.reasoning ?? undefined,
       ...(round.toolName ? { tool_name: round.toolName } : {}),
     }));

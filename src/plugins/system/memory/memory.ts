@@ -127,12 +127,17 @@ async function saveMemory(
   content: string,
   conversationType?: string
 ) {
+  if (!content.trim()) {
+    return;
+  }
+
   const em = orm.em.fork();
   // Start by extracting keywords:
   const keywords = content
     .split(' ')
     .map(word => word.toLowerCase())
     .map(word => word.replace(/[^a-zA-Z0-9]/g, ''))
+    .filter(word => word.length > 0)
     .filter(word => {
       // Filter out common words, articles, pronouns, and other "filler" words that aren't useful as keywords.
       // This is a very naive implementation, and could be improved with a more sophisticated NLP approach, but it should work decently for now.

@@ -25,7 +25,14 @@ type EnabledPluginsConfig = {
 const defaultEnabledPlugins: EnabledPluginsConfig = {
   system: {
     datetime: true,
+    'model-vision': true,
+    'model-chat': true,
+    'model-voice': true,
+    'model-autonomy': true,
+    'model-deep-research': true,
     'system-info': true,
+    'llm-provider-broker': true,
+    'ollama-provider': true,
     personality: true,
     memory: true,
     'scratch-files': true,
@@ -61,6 +68,8 @@ const defaultEnabledPlugins: EnabledPluginsConfig = {
     'user-skills': false,
     'lightpanda-browser': false,
     'web-simple-fetch': false,
+    'openrouter-provider': false,
+    'desktop-peek': false,
   },
   user: {
     enableUserPlugins: false,

@@ -25,6 +25,13 @@ export interface Message {
   timestamp: string;
   senderName?: string | null;
   toolCallData?: ToolCallData; // present when messageKind === 'tool_call'
+  attachments?: ImageAttachment[];
+}
+
+export interface ImageAttachment {
+  mimeType: string;
+  dataUrl: string;
+  name?: string;
 }
 
 export interface ActiveSessionAgent {

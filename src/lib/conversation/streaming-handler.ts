@@ -1,11 +1,10 @@
-import type { ChatResponse, ToolCall } from 'ollama';
-import type { AbortableAsyncIterator } from 'ollama';
+import type { LlmStreamChunk, LlmToolCall } from '../llm-provider.js';
 import type { ConversationStreamingCallbacks } from './types.js';
 
 export type StreamingResult = {
   content: string;
   thinking: string;
-  toolCalls: ToolCall[];
+  toolCalls: LlmToolCall[];
 };
 
 /**
@@ -14,18 +13,23 @@ export type StreamingResult = {
  * callbacks after each chunk.
  */
 export async function iterateStream(
-  streamIterator: AbortableAsyncIterator<ChatResponse>,
+  streamIterator: AsyncIterable<LlmStreamChunk>,
   callbacks: ConversationStreamingCallbacks
 ): Promise<StreamingResult> {
   let content = '';
   let thinking = '';
-  let toolCalls: ToolCall[] = [];
+  let toolCalls: LlmToolCall[] = [];
 
   try {
     for await (const chunk of streamIterator) {
-      const deltaThinking = chunk.message.thinking ?? '';
-      const deltaContent = chunk.message.content ?? '';
-      const deltaToolCalls = chunk.message.tool_calls;
+      const deltaThinking =
+        chunk.message?.reasoning ??
+        ('thinking' in (chunk.message ?? {}) &&
+        typeof (chunk.message as { thinking?: unknown }).thinking === 'string'
+          ? ((chunk.message as { thinking?: string }).thinking ?? '')
+          : '');
+      const deltaContent = chunk.message?.content ?? '';
+      const deltaToolCalls = chunk.message?.tool_calls;
 
       if (deltaThinking) {
         thinking += deltaThinking;
@@ -39,6 +43,7 @@ export async function iterateStream(
 
       if (deltaToolCalls && deltaToolCalls.length > 0) {
         toolCalls = deltaToolCalls;
+        callbacks.onToolCalls(deltaToolCalls);
       }
 
       if (chunk.done) {

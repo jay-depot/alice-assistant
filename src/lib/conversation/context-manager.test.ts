@@ -1,11 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('ollama', () => ({
-  default: {
-    chat: vi.fn(),
-  },
-}));
-
 vi.mock('../plugin-hooks.js', () => ({
   PluginHooks: vi.fn(() => ({})),
   PluginHookInvocations: {
@@ -19,6 +13,7 @@ vi.mock('../plugin-hooks.js', () => ({
 
 import { ConversationContextManager } from './context-manager.js';
 import type { IConversationHost, SummarizerFn } from './context-manager.js';
+import { SUMMARY_PROMPT } from './degeneracy-check.js';
 
 function makeHost(
   overrides: Partial<IConversationHost> = {}
@@ -39,22 +34,17 @@ describe('ConversationContextManager', () => {
   let host: IConversationHost;
   let summarizer: SummarizerFn;
   let mgr: ConversationContextManager;
-  let mockChat: ReturnType<typeof vi.fn>;
-
-  const llmConnection = {
-    host: 'http://localhost:11434',
-    model: 'test-model',
-    options: { num_ctx: 4096 },
-  };
+  const approximateContextWindow = 4096;
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    const OllamaClient = (await import('ollama')).default;
-    mockChat = vi.mocked(OllamaClient.chat);
-
     host = makeHost();
     summarizer = makeSummarizer();
-    mgr = new ConversationContextManager(host, llmConnection, summarizer);
+    mgr = new ConversationContextManager(
+      host,
+      approximateContextWindow,
+      summarizer
+    );
   });
 
   // ── restoreContext ─────────────────────────────────────────────────
@@ -96,7 +86,11 @@ describe('ConversationContextManager', () => {
     host.rawContext = [];
     host.compactedContext = [];
     // Manually set state without restore
-    mgr = new ConversationContextManager(host, llmConnection, summarizer);
+    mgr = new ConversationContextManager(
+      host,
+      approximateContextWindow,
+      summarizer
+    );
     host.rawContext.push({ role: 'user', content: 'new' });
     expect(mgr.getUnsynchronizedMessages()).toHaveLength(1);
     mgr.markUnsynchronizedMessagesSynchronized();
@@ -115,7 +109,7 @@ describe('ConversationContextManager', () => {
   });
 
   it('compactContext("normal") triggers summarizer when context is large', async () => {
-    // llmConnection has num_ctx=4096, threshold is 1024 words.
+    // approximateContextWindow is 4096, threshold is 1024 words.
     // Create a lot of words to trigger compaction.
     const bigMsg = {
       role: 'user' as const,
@@ -123,13 +117,10 @@ describe('ConversationContextManager', () => {
     };
     mgr.restoreContext([bigMsg, bigMsg]);
     // 1200 words > 1024 threshold — should compact
-    mockChat.mockResolvedValue({
-      message: { role: 'assistant', content: 'This is a summary.' },
-    });
 
     const result = await mgr.compactContext('normal');
     expect(result).toBe(true);
-    expect(mockChat).toHaveBeenCalled();
+    expect(summarizer).toHaveBeenCalled();
   });
 
   // ── compactContext('full') ─────────────────────────────────────────
@@ -143,6 +134,14 @@ describe('ConversationContextManager', () => {
     const result = await mgr.compactContext('full');
     expect(result).toBe(true);
     expect(summarizer).toHaveBeenCalled();
+    const summaryRequest = vi.mocked(summarizer).mock.calls[0]?.[0];
+    expect(summaryRequest).toHaveLength(1);
+    expect(summaryRequest?.[0].role).toBe('system');
+    expect(summaryRequest?.[0].content).toContain(SUMMARY_PROMPT);
+    expect(summaryRequest?.[0].content).toContain('USER: Tell me about cats.');
+    expect(summaryRequest?.[0].content).toContain(
+      'ASSISTANT: Cats are wonderful pets.'
+    );
     expect(host.compactedContext).toHaveLength(1);
     expect(host.compactedContext[0].content).toContain('summary text');
   });
@@ -156,7 +155,11 @@ describe('ConversationContextManager', () => {
       },
     ];
     host.rawContext = [...host.compactedContext];
-    mgr = new ConversationContextManager(host, llmConnection, summarizer);
+    mgr = new ConversationContextManager(
+      host,
+      approximateContextWindow,
+      summarizer
+    );
 
     const result = await mgr.compactContext('full');
     expect(result).toBe(false);
@@ -174,6 +177,14 @@ describe('ConversationContextManager', () => {
 
     const result = await mgr.compactContext('clear');
     expect(result).toBe(true);
+    const summaryRequest = vi.mocked(summarizer).mock.calls[0]?.[0];
+    expect(summaryRequest).toHaveLength(1);
+    expect(summaryRequest?.[0].role).toBe('system');
+    expect(summaryRequest?.[0].content).toContain(SUMMARY_PROMPT);
+    expect(summaryRequest?.[0].content).toContain('USER: Important question.');
+    expect(summaryRequest?.[0].content).toContain(
+      'ASSISTANT: Important answer.'
+    );
     expect(host.compactedContext).toHaveLength(0);
     expect(
       PluginHookInvocations.invokeOnContextCompactionSummariesWillBeDeleted
@@ -193,6 +204,12 @@ describe('ConversationContextManager', () => {
     await mgr.closeConversation();
 
     expect(summarizer).toHaveBeenCalled();
+    const summaryRequest = vi.mocked(summarizer).mock.calls[0]?.[0];
+    expect(summaryRequest).toHaveLength(1);
+    expect(summaryRequest?.[0].role).toBe('system');
+    expect(summaryRequest?.[0].content).toContain(SUMMARY_PROMPT);
+    expect(summaryRequest?.[0].content).toContain('USER: Last question.');
+    expect(summaryRequest?.[0].content).toContain('ASSISTANT: Last answer.');
     expect(
       PluginHookInvocations.invokeOnContextCompactionSummariesWillBeDeleted
     ).toHaveBeenCalled();

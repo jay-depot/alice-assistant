@@ -163,6 +163,19 @@ export function MessageBubble({
         )}
       >
         <Markdown remarkPlugins={[remarkGfm]}>{message.content}</Markdown>
+        {message.attachments && message.attachments.length > 0 ? (
+          <div className="message__attachments">
+            {message.attachments.map((attachment, index) => (
+              <img
+                key={`${attachment.name || 'attachment'}-${index}`}
+                src={attachment.dataUrl}
+                alt={attachment.name || `Uploaded image ${index + 1}`}
+                className="message__attachment-image"
+                loading="lazy"
+              />
+            ))}
+          </div>
+        ) : null}
       </div>
       {isLongMessage ? (
         <button

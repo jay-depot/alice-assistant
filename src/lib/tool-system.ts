@@ -2,6 +2,7 @@ import { TSchema } from 'typebox';
 import { getTools } from './tools.js';
 import { DynamicPromptConversationType } from './dynamic-prompt.js';
 import { ConversationTypeId } from './conversation-types.js';
+import type { LlmToolDefinition } from './llm-provider.js';
 
 type ToolPromptFragmentFunction =
   | string
@@ -115,6 +116,22 @@ export function buildOllamaToolDescriptionObject(
   conversationType: DynamicPromptConversationType,
   isConversationTainted = false
 ): OllamaRequestToolsPropItem[] {
+  return buildLlmToolDefinitions(conversationType, isConversationTainted).map(
+    tool => ({
+      type: 'function',
+      function: {
+        name: tool.name,
+        parameters: tool.parameters,
+        description: tool.description,
+      },
+    })
+  );
+}
+
+export function buildLlmToolDefinitions(
+  conversationType: DynamicPromptConversationType,
+  isConversationTainted = false
+): LlmToolDefinition[] {
   const tools = getTools(conversationType);
   return tools
     .filter(tool => {
@@ -123,11 +140,8 @@ export function buildOllamaToolDescriptionObject(
       return !(isConversationTainted && effectiveTaint === 'secure');
     })
     .map(tool => ({
-      type: 'function',
-      function: {
-        name: tool.name,
-        parameters: tool.parameters,
-        description: tool.description,
-      },
+      name: tool.name,
+      parameters: tool.parameters,
+      description: tool.description,
     }));
 }

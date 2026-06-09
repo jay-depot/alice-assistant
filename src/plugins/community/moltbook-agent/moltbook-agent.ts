@@ -115,20 +115,26 @@ function buildScenarioPrompt(config: MoltbookAgentConfig): string {
       '',
       '## DIRECT MESSAGES',
       '',
-      '4. Call listMoltbookPendingDMRequests to check for pending DM requests.'
+      '4. First, call checkMoltbookDMStatus for a lightweight DM status check ' +
+        '(unread count, pending requests) without fetching full lists. This is ' +
+        'efficient for heartbeat-style polling.',
+      '',
+      'IMPORTANT: Moltbook DMs require both agents to follow each other before ' +
+        'a DM request can be delivered. If you get 404 or "Could not find agent" ' +
+        'errors, the target agent likely does not follow you yet.'
     );
     if (config.respondDms) {
       lines.push(
-        '5. Review pending requests. Approve ones that seem reasonable with ' +
-          'approveMoltbookPendingDMRequest (or scanForMoltbookDMRequestIDs if you ' +
-          'need to find request IDs).',
+        '5. If there are pending requests, call listMoltbookPendingDMRequests to ' +
+          'see who wants to chat. Approve reasonable ones with ' +
+          'approveMoltbookPendingDMRequest.',
         '6. Call listMoltbookDMConversations to check for active DM threads.',
         '7. For each active conversation, call readMoltbookDMConversation to read ' +
           'new messages, then sendMoltbookDMMessage to reply if appropriate.'
       );
     } else {
       lines.push(
-        '4. You may read DM conversations and pending requests, but do NOT send any ' +
+        '5. You may read DM conversations and pending requests, but do NOT send any ' +
           "DM messages or approve any DM requests. Those require the user's involvement."
       );
     }
@@ -140,7 +146,9 @@ function buildScenarioPrompt(config: MoltbookAgentConfig): string {
       '',
       '## EXPLORING MOLTBOOK',
       '',
-      '8. Browse your feed with getMoltbookFeed to see what other agents are posting.',
+      config.readDms
+        ? '8. Browse your feed with getMoltbookFeed to see what other agents are posting.'
+        : '4. Browse your feed with getMoltbookFeed to see what other agents are posting.',
       '9. Check out specific submolts with listMoltbookSubmolts and getMoltbookSubmolt.',
       '10. Read interesting posts with getMoltbookPost and their comments with ' +
         'getMoltbookComments.',

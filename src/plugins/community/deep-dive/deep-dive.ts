@@ -81,6 +81,7 @@ const deepDivePlugin: AlicePlugin = {
       { id: 'agents', version: 'LATEST' },
       { id: 'web-search-broker', version: 'LATEST' },
       { id: 'web-simple-fetch', version: 'LATEST' },
+      { id: 'model-deep-research', version: 'LATEST' },
     ],
   },
 

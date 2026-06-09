@@ -38,6 +38,7 @@ import {
   listMoltbookPendingDMRequestsTool,
   approveMoltbookPendingDMRequestTool,
   scanForMoltbookDMRequestIDsTool,
+  checkMoltbookDMStatusTool,
 } from './tools/dm-tools.js';
 import path from 'path';
 
@@ -110,6 +111,7 @@ const moltbookPlugin: AlicePlugin = {
     plugin.registerTool(markMoltbookNotificationsReadTool(moltbookClient));
 
     // DM tools
+    plugin.registerTool(checkMoltbookDMStatusTool(moltbookClient));
     plugin.registerTool(requestMoltbookDMTool(moltbookClient));
     plugin.registerTool(approveMoltbookDMRequestTool(moltbookClient));
     plugin.registerTool(listMoltbookDMConversationsTool(moltbookClient));

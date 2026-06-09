@@ -1,11 +1,15 @@
-import OllamaClient, { ChatResponse, ToolCall } from 'ollama';
-import type { AbortableAsyncIterator } from 'ollama';
 import { randomUUID } from 'node:crypto';
 import { UserConfig } from './user-config.js';
 import {
-  buildOllamaToolDescriptionObject,
-  ToolCallEvents,
-} from './tool-system.js';
+  getActiveLlmProvider,
+  getApproximateContextWindow,
+  resolveLlmProviderForRequest,
+  type ActiveLlmProvider,
+  type LlmChatResponse,
+  type LlmRoutingContext,
+  type LlmToolCall,
+} from './llm-provider.js';
+import { buildLlmToolDefinitions, ToolCallEvents } from './tool-system.js';
 import { getTools } from './tools.js';
 import { DynamicPromptConversationType } from './dynamic-prompt.js';
 import { retryAsPromised as retry } from 'retry-as-promised';
@@ -29,7 +33,6 @@ import {
 
 import {
   ConversationContextManager,
-  type LlmConnectionDetails,
   type SummarizerFn,
 } from './conversation/context-manager.js';
 
@@ -52,30 +55,15 @@ const TIMEOUT = undefined;
 const MAX_TOOL_CALL_DEPTH = 10;
 const MAX_LLM_RETRIES = 3;
 
-function getLLMConnection() {
-  return {
-    host: UserConfig.getConfig().ollama.host,
-    model: UserConfig.getConfig().ollama.model,
-    options: {
-      num_ctx: 36000,
-      ...UserConfig.getConfig().ollama.options,
-    },
-  };
-}
-
 export class Conversation {
   static async sendDirectRequest(messages: Message[]): Promise<string> {
+    const activeProvider = getActiveLlmProvider(UserConfig.getConfig());
     const response = await retry(
       async () => {
-        const res = await OllamaClient.chat({
-          ...getLLMConnection(),
-          messages: messages.map(message => ({
-            role: message.role,
-            content: message.content,
-            tool_calls: message.tool_calls,
-            tool_name: message.tool_name,
-          })),
-        });
+        const res = await activeProvider.provider.chat(
+          { messages },
+          activeProvider.model
+        );
         checkLLMResponseForDegeneracy(res.message.content || '');
         return res;
       },
@@ -84,11 +72,7 @@ export class Conversation {
     return response.message.content || '';
   }
 
-  private llmConnection = {
-    host: '',
-    model: '',
-    options: { num_ctx: 36000 },
-  };
+  private activeProvider: ActiveLlmProvider;
 
   public rawContext: Message[] = [];
   public compactedContext: Message[] = [];
@@ -107,16 +91,41 @@ export class Conversation {
     public taskAssistantId?: string,
     public agentInstanceId?: string
   ) {
-    this.llmConnection = { ...getLLMConnection() };
+    this.activeProvider = getActiveLlmProvider(UserConfig.getConfig());
 
     const summarizerFn: SummarizerFn = (messages: Message[]) =>
       Conversation.sendDirectRequest(messages);
 
     this.contextManager = new ConversationContextManager(
       this,
-      this.llmConnection as LlmConnectionDetails,
+      getApproximateContextWindow(this.activeProvider.model),
       summarizerFn
     );
+  }
+
+  private resolveProvider(context: LlmRoutingContext = {}): ActiveLlmProvider {
+    return resolveLlmProviderForRequest(UserConfig.getConfig(), context);
+  }
+
+  private buildRequestTools(
+    activeProvider: ActiveLlmProvider,
+    toolCallsAllowed = true
+  ): unknown[] | undefined {
+    if (
+      !toolCallsAllowed ||
+      !activeProvider.provider.capabilities.supportsTools
+    ) {
+      return undefined;
+    }
+
+    const toolDefinitions = buildLlmToolDefinitions(this.type, this.isTainted);
+    if (toolDefinitions.length === 0) {
+      return undefined;
+    }
+
+    return activeProvider.provider.buildToolDefinitions
+      ? activeProvider.provider.buildToolDefinitions(toolDefinitions)
+      : toolDefinitions;
   }
 
   private appendToContext(message: Message): Promise<boolean> {
@@ -153,7 +162,10 @@ export class Conversation {
 
   // ── LLM message dispatch ──────────────────────────────────────────
 
-  async sendUserMessage(userMessage?: string): Promise<string> {
+  async sendUserMessage(
+    userMessage?: string,
+    options?: { hasVisionInput?: boolean }
+  ): Promise<string> {
     const availableTools = getTools(this.type).map(t => t.name);
 
     if (userMessage) {
@@ -174,7 +186,18 @@ export class Conversation {
       this.compactedContext
     );
 
-    const response = await this.chatWithRetry(fullContext);
+    const activeProvider = this.resolveProvider({
+      latestUserMessage: userMessage,
+      conversationType: this.type,
+      hasVisionInput: options?.hasVisionInput,
+    });
+    this.activeProvider = activeProvider;
+
+    const response = await this.chatWithRetry(
+      fullContext,
+      true,
+      activeProvider
+    );
 
     systemLogger.log(
       'LLM response to user message:',
@@ -200,8 +223,8 @@ export class Conversation {
 
   async beginStreaming(
     callbacks: ConversationStreamingCallbacks,
-    options?: { userMessage?: string; depth?: number }
-  ): Promise<{ content: string; thinking: string; toolCalls: ToolCall[] }> {
+    options?: { userMessage?: string; depth?: number; hasVisionInput?: boolean }
+  ): Promise<{ content: string; thinking: string; toolCalls: LlmToolCall[] }> {
     const depth = options?.depth ?? 0;
     const availableTools = getTools(this.type).map(t => t.name);
     const maxToolCallDepth =
@@ -226,15 +249,35 @@ export class Conversation {
       this.compactedContext
     );
 
-    let streamIterator: AbortableAsyncIterator<ChatResponse>;
+    const activeProvider = this.resolveProvider({
+      latestUserMessage: options?.userMessage,
+      conversationType: this.type,
+      hasVisionInput: options?.hasVisionInput,
+    });
+    this.activeProvider = activeProvider;
+
+    if (!activeProvider.provider.chatStream) {
+      const err = new Error(
+        `The active LLM provider (${activeProvider.model.provider}) does not support streaming.`
+      );
+      callbacks.onError(err);
+      throw err;
+    }
+
+    let streamIterator: AsyncIterable<
+      import('./llm-provider.js').LlmStreamChunk
+    >;
     try {
-      const streamResult = await OllamaClient.chat({
-        ...this.llmConnection,
-        messages: fullContext,
-        tools: buildOllamaToolDescriptionObject(this.type, this.isTainted),
-        stream: true,
-      });
-      streamIterator = streamResult as AbortableAsyncIterator<ChatResponse>;
+      streamIterator = await activeProvider.provider.chatStream(
+        {
+          messages: fullContext,
+          tools: this.buildRequestTools(
+            activeProvider,
+            depth < maxToolCallDepth
+          ),
+        },
+        activeProvider.model
+      );
     } catch (err) {
       callbacks.onError(err);
       throw err;
@@ -262,7 +305,7 @@ export class Conversation {
   }
 
   async executeToolCalls(
-    toolCalls: ToolCall[],
+    toolCalls: LlmToolCall[],
     depth = 0,
     callBatchId?: string
   ): Promise<void> {
@@ -285,7 +328,7 @@ export class Conversation {
   // ── internal helpers ──────────────────────────────────────────────
 
   private async runToolCallBatch(
-    toolCalls: ToolCall[],
+    toolCalls: LlmToolCall[],
     callBatchId?: string
   ): Promise<void> {
     const batchId = callBatchId ?? randomUUID();
@@ -310,7 +353,7 @@ export class Conversation {
   }
 
   private async handleToolCalls(
-    response: ChatResponse,
+    response: LlmChatResponse,
     depth = 0
   ): Promise<string> {
     const maxToolCallDepth =
@@ -394,16 +437,9 @@ export class Conversation {
       this.compactedContext
     );
 
-    const fallbackResponse = await retry(
-      async () => {
-        const res = await OllamaClient.chat({
-          ...this.llmConnection,
-          messages: fallbackFullContext,
-        });
-        checkLLMResponseForDegeneracy(res.message.content || '');
-        return res;
-      },
-      { max: MAX_LLM_RETRIES, timeout: TIMEOUT }
+    const fallbackResponse = await this.chatWithRetry(
+      fallbackFullContext,
+      false
     );
 
     await this.appendToContext({
@@ -419,14 +455,20 @@ export class Conversation {
     return fallbackResponse.message.content || '';
   }
 
-  private async chatWithRetry(messages: Message[]): Promise<ChatResponse> {
+  private async chatWithRetry(
+    messages: Message[],
+    toolCallsAllowed = true,
+    activeProvider = this.activeProvider
+  ): Promise<LlmChatResponse> {
     return retry(
       async () => {
-        const res = await OllamaClient.chat({
-          ...this.llmConnection,
-          messages,
-          tools: buildOllamaToolDescriptionObject(this.type, this.isTainted),
-        });
+        const res = await activeProvider.provider.chat(
+          {
+            messages,
+            tools: this.buildRequestTools(activeProvider, toolCallsAllowed),
+          },
+          activeProvider.model
+        );
         checkLLMResponseForDegeneracy(res.message.content || '');
         return res;
       },
@@ -461,18 +503,19 @@ export class Conversation {
 
     const response = await retry(
       async () => {
-        const res = await OllamaClient.chat({
-          ...this.llmConnection,
-          messages: [
-            ...this.compactedContext.map(message => ({
-              role: message.role,
-              content: message.content,
-              tool_calls: message.tool_calls,
-            })),
-            { role: 'system', content: titlePrompt },
-          ],
-          tools: buildOllamaToolDescriptionObject(this.type, this.isTainted),
+        const activeProvider = this.resolveProvider({
+          conversationType: this.type,
         });
+
+        const res = await activeProvider.provider.chat(
+          {
+            messages: [
+              ...this.compactedContext,
+              { role: 'system', content: titlePrompt },
+            ],
+          },
+          activeProvider.model
+        );
 
         checkLLMResponseForDegeneracy(res.message.content || '');
         return res;

@@ -6,7 +6,6 @@ const sortEnum = Type.Union([
   Type.Literal('hot'),
   Type.Literal('new'),
   Type.Literal('top'),
-  Type.Literal('rising'),
 ]);
 
 const homeParameters = Type.Object({});

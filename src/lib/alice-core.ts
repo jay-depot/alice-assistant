@@ -3,6 +3,7 @@ import { startConversation } from './conversation.js';
 import { loadPlugins } from './alice-plugin-loader.js';
 import { PluginHookInvocations } from './plugin-hooks.js';
 import { AlicePluginEngine } from './alice-plugin-engine.js';
+import { describeLlmModel, getFallbackLlmModel } from './llm-provider.js';
 import { systemLogger } from './system-logger.js';
 
 export const AliceCore = {
@@ -56,7 +57,10 @@ export const AliceCore = {
 
     systemLogger.log('Config loaded successfully.');
     await loadPlugins();
-    systemLogger.log(`Trying talk to ${config.ollama.model} in Ollama...\n`);
+    const fallbackModel = getFallbackLlmModel(config);
+    systemLogger.log(
+      `Trying talk to ${describeLlmModel(fallbackModel)} through the active fallback provider...\n`
+    );
 
     // Validate Ollama connectivity with a startup-type conversation before accepting
     // external requests. The REST server is not yet listening at this point — this is
@@ -69,7 +73,7 @@ export const AliceCore = {
       const reply = await testConversation.sendUserMessage();
       systemLogger.log(` <- ${reply}`);
     })();
-    systemLogger.log(`\nTalking to ${config.ollama.model} in Ollama works.`);
+    systemLogger.log(`\nTalking to ${describeLlmModel(fallbackModel)} works.`);
 
     await PluginHookInvocations.invokeOnAssistantAcceptsRequests();
 

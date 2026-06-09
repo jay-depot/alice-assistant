@@ -6,12 +6,18 @@
     "port": 47153,
     "bindToAddress": "127.0.0.1"
   },
-  "ollama": {
-    "host": "http://127.0.0.1:11434",
-    "model": "qwen2:7b",
-    "options": {
-      "num_ctx": 32000
-    }
+  "llm": {
+    "models": [
+      {
+        "provider": "ollama",
+        "useFor": "fallback",
+        "host": "http://127.0.0.1:11434",
+        "model": "qwen2:7b",
+        "options": {
+          "num_ctx": 32000
+        }
+      }
+    ]
   },
   "piperTts": {
     "host": "http://127.0.0.1:5000",

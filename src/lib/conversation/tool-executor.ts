@@ -1,11 +1,11 @@
-import type { ToolCall } from 'ollama';
+import type { LlmToolCall } from '../llm-provider.js';
 import { getTools } from '../tools.js';
 import { ToolCallEvents, type Tool } from '../tool-system.js';
 import { systemLogger } from '../system-logger.js';
 import type { DynamicPromptConversationType } from '../dynamic-prompt.js';
 
 export type ToolExecutionInput = {
-  toolCalls: ToolCall[];
+  toolCalls: LlmToolCall[];
   conversationType: DynamicPromptConversationType;
   isTainted: boolean;
   taintedToolNames: Set<string>;
@@ -19,6 +19,7 @@ export type ToolResultMessage = {
   role: 'tool';
   content: string;
   tool_name: string;
+  tool_call_id?: string;
 };
 
 export type ToolExecutionOutput = {
@@ -44,7 +45,7 @@ function truncateResult(result: string): string {
 }
 
 async function executeSingleTool(
-  toolCall: ToolCall,
+  toolCall: LlmToolCall,
   tool: Tool,
   input: ToolExecutionInput
 ): Promise<ToolResultMessage> {
@@ -91,6 +92,7 @@ async function executeSingleTool(
       role: 'tool' as const,
       content: callResult,
       tool_name: toolName,
+      tool_call_id: toolCall.id,
     };
   } catch (e) {
     const errorMessage = e instanceof Error ? e.message : String(e);
@@ -113,6 +115,7 @@ async function executeSingleTool(
       role: 'tool' as const,
       content: `Error: ${errorMessage}`,
       tool_name: toolName,
+      tool_call_id: toolCall.id,
     };
   }
 }
@@ -143,6 +146,7 @@ export async function executeTools(
           role: 'tool' as const,
           content: `Tool ${toolName} is not recognized.`,
           tool_name: toolName,
+          tool_call_id: toolCall.id,
         };
       }
 
@@ -152,6 +156,7 @@ export async function executeTools(
           role: 'tool' as const,
           content: buildSecureLockedMessage(toolName, input.taintedToolNames),
           tool_name: toolName,
+          tool_call_id: toolCall.id,
         };
       }
 

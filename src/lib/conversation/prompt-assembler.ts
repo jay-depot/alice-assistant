@@ -40,13 +40,19 @@ export async function assembleFullContext(
   const result: Message[] = [];
 
   if (headerPrompts.length > 0) {
-    result.push({ role: 'system', content: headerPrompts.join(SECTION_DIVIDER) });
+    result.push({
+      role: 'system',
+      content: headerPrompts.join(SECTION_DIVIDER),
+    });
   }
 
   result.push(...compactedContext);
 
   if (footerPrompts.length > 0) {
-    result.push({ role: 'system', content: footerPrompts.join(SECTION_DIVIDER) });
+    result.push({
+      role: 'system',
+      content: footerPrompts.join(SECTION_DIVIDER),
+    });
   }
 
   return result;

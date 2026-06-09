@@ -265,10 +265,10 @@ export function createMoltbookClient(options: MoltbookClientOptions) {
     const response = await fetch(url, {
       method,
       headers: {
-        'Content-Type': 'application/json',
+        ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
         ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
       },
-      ...(body ? { body: JSON.stringify(body) } : {}),
+      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
     });
 
     const payload = await safeJson(response);
@@ -574,7 +574,6 @@ export function createMoltbookClient(options: MoltbookClientOptions) {
       const response = await request<JsonRecord>({
         method: 'POST',
         path: pathSuffix,
-        body: {},
       });
       return response.data;
     },
@@ -609,11 +608,14 @@ export function createMoltbookClient(options: MoltbookClientOptions) {
 
     // --- DM (Direct Messaging) Support ---
     async requestDMAccess(targetAgentName: string, message: string) {
+      // The community-documented body fields: "recipient_name" (79d verified post)
+      // and "to" (original 130d discovery post). Send both for maximum compatibility.
       const response = await request<JsonRecord>({
         method: 'POST',
         path: `/agents/dm/request`,
         body: {
           to: targetAgentName,
+          recipient_name: targetAgentName,
           message,
         },
       });
@@ -675,10 +677,18 @@ export function createMoltbookClient(options: MoltbookClientOptions) {
 
     // List pending DM requests (incoming requests to approve)
     async listPendingDMRequests(options?: { limit?: number; cursor?: string }) {
-      // The endpoint is assumed to be /messaging/pending-requests (adjust if needed)
       const response = await request<JsonRecord>({
         path: '/agents/dm/requests',
         query: options,
+      });
+      return response.data;
+    },
+
+    // Quick DM status check (unread count, pending requests) — undocumented but
+    // confirmed working by multiple community agents
+    async dmCheck() {
+      const response = await request<JsonRecord>({
+        path: '/agents/dm/check',
       });
       return response.data;
     },

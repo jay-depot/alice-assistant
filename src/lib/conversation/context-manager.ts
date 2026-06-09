@@ -1,26 +1,10 @@
-import OllamaClient from 'ollama';
-import { retryAsPromised as retry } from 'retry-as-promised';
 import { systemLogger } from '../system-logger.js';
 import { PluginHookInvocations } from '../plugin-hooks.js';
-import {
-  SUMMARY_HEADER,
-  SUMMARY_PROMPT,
-  checkLLMResponseForDegeneracy,
-} from './degeneracy-check.js';
+import { SUMMARY_HEADER, SUMMARY_PROMPT } from './degeneracy-check.js';
 import type { Message } from './types.js';
 import type { DynamicPromptConversationType } from '../dynamic-prompt.js';
 
 const CONTEXT_LENGTH_FRACTION = 0.25;
-const MAX_SUMMARY_RETRIES = 3;
-const TIMEOUT = undefined;
-
-export type LlmConnectionDetails = {
-  host: string;
-  model: string;
-  options: {
-    num_ctx: number;
-  };
-};
 
 export type SummarizerFn = (messages: Message[]) => Promise<string>;
 
@@ -32,17 +16,17 @@ export interface IConversationHost {
 
 export class ConversationContextManager {
   private conv: IConversationHost;
-  private llmConnection: LlmConnectionDetails;
+  private approximateContextWindow: number;
   private summarizer: SummarizerFn;
   private synchronizedRawMessageCount = 0;
 
   constructor(
     conversation: IConversationHost,
-    llmConnection: LlmConnectionDetails,
+    approximateContextWindow: number,
     summarizer: SummarizerFn
   ) {
     this.conv = conversation;
-    this.llmConnection = llmConnection;
+    this.approximateContextWindow = approximateContextWindow;
     this.summarizer = summarizer;
   }
 
@@ -94,7 +78,7 @@ export class ConversationContextManager {
     );
 
     if (messagesToSummarize.length > 0) {
-      const summary = await this.summarizer(messagesToSummarize);
+      const summary = await this.runSummaryRequest(messagesToSummarize);
       this.conv.compactedContext = [
         ...this.conv.compactedContext.slice(0, firstNonSummaryMessageIndex),
         {
@@ -121,7 +105,7 @@ export class ConversationContextManager {
       0
     );
     const contextLengthThreshold =
-      (this.llmConnection.options.num_ctx ?? 16000) * CONTEXT_LENGTH_FRACTION;
+      this.approximateContextWindow * CONTEXT_LENGTH_FRACTION;
 
     if (approximateContextLength <= contextLengthThreshold) {
       return false;
@@ -204,7 +188,7 @@ export class ConversationContextManager {
       return false;
     }
 
-    const summary = await this.summarizer(messagesToSummarize);
+    const summary = await this.runSummaryRequest(messagesToSummarize);
 
     systemLogger.debug(`Conversation summary generated:\n${summary}`);
 
@@ -239,21 +223,6 @@ export class ConversationContextManager {
       SUMMARY_PROMPT +
       messages.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n');
 
-    const summaryResponse = await retry(
-      async () => {
-        const res = await OllamaClient.chat({
-          ...this.llmConnection,
-          messages: [{ role: 'system', content: summaryPrompt }],
-        });
-        checkLLMResponseForDegeneracy(res.message.content || '');
-        return res;
-      },
-      {
-        max: MAX_SUMMARY_RETRIES,
-        timeout: TIMEOUT,
-      }
-    );
-
-    return summaryResponse.message.content || '';
+    return this.summarizer([{ role: 'system', content: summaryPrompt }]);
   }
 }

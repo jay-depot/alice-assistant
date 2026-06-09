@@ -12,8 +12,56 @@
     "required": true
   },
   {
+    "id": "desktop-peek",
+    "name": "Desktop Peek",
+    "category": "community",
+    "required": false
+  },
+  {
+    "id": "model-vision",
+    "name": "Model Vision",
+    "category": "system",
+    "required": true
+  },
+  {
+    "id": "model-chat",
+    "name": "Model Chat",
+    "category": "system",
+    "required": true
+  },
+  {
+    "id": "model-voice",
+    "name": "Model Voice",
+    "category": "system",
+    "required": true
+  },
+  {
+    "id": "model-autonomy",
+    "name": "Model Autonomy",
+    "category": "system",
+    "required": true
+  },
+  {
+    "id": "model-deep-research",
+    "name": "Model Deep Research",
+    "category": "system",
+    "required": true
+  },
+  {
     "id": "system-info",
     "name": "System Info",
+    "category": "system",
+    "required": true
+  },
+  {
+    "id": "llm-provider-broker",
+    "name": "LLM Provider Broker",
+    "category": "system",
+    "required": true
+  },
+  {
+    "id": "ollama-provider",
+    "name": "Ollama Provider",
     "category": "system",
     "required": true
   },
@@ -248,6 +296,12 @@
   {
     "id": "brainstorm",
     "name": "Brainstorm",
+    "category": "community",
+    "required": false
+  },
+  {
+    "id": "openrouter-provider",
+    "name": "OpenRouter Provider",
     "category": "community",
     "required": false
   },

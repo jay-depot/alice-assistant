@@ -13,14 +13,37 @@ vi.mock('ollama', () => ({
 vi.mock('./user-config.js', () => ({
   UserConfig: {
     getConfig: vi.fn().mockReturnValue({
-      ollama: {
-        host: 'http://localhost:11434',
-        model: 'test-model',
-        options: {},
+      llm: {
+        models: [
+          {
+            provider: 'ollama',
+            useFor: 'fallback',
+            host: 'http://localhost:11434',
+            model: 'test-model',
+            options: {},
+          },
+        ],
       },
     }),
   },
 }));
+
+vi.mock('./llm-provider.js', async () => {
+  const actual =
+    await vi.importActual<typeof import('./llm-provider.js')>(
+      './llm-provider.js'
+    );
+
+  return {
+    ...actual,
+    getApproximateContextWindow: vi.fn().mockReturnValue(36000),
+    getActiveLlmProvider: vi.fn().mockImplementation(async () => {
+      throw new Error(
+        'getActiveLlmProvider mock should not be awaited directly'
+      );
+    }),
+  };
+});
 
 // plugin-hooks is pulled in transitively; stub it so no lib.js circular-import
 // issues surface during test collection.
@@ -41,8 +64,43 @@ vi.mock('./plugin-hooks.js', () => ({
 
 describe('Conversation state management', () => {
   let Conversation: typeof import('./conversation.js').Conversation;
+  let getActiveLlmProvider: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
+    const llmProvider = await import('./llm-provider.js');
+    getActiveLlmProvider = vi.mocked(llmProvider.getActiveLlmProvider);
+    getActiveLlmProvider.mockReturnValue({
+      model: {
+        provider: 'ollama',
+        useFor: 'fallback',
+        host: 'http://localhost:11434',
+        model: 'test-model',
+        options: {},
+      },
+      provider: {
+        id: 'ollama',
+        capabilities: {
+          supportsStreaming: true,
+          supportsTools: true,
+        },
+        buildToolDefinitions: vi.fn(definitions => definitions),
+        chat: vi.fn(async request => {
+          const OllamaClient = (await import('ollama')).default;
+          return (await OllamaClient.chat({
+            model: 'test-model',
+            messages: request.messages,
+          })) as Awaited<ReturnType<typeof OllamaClient.chat>>;
+        }),
+        chatStream: vi.fn(async request => {
+          const OllamaClient = (await import('ollama')).default;
+          return (await OllamaClient.chat({
+            model: 'test-model',
+            messages: request.messages,
+            stream: true,
+          })) as AsyncIterable<unknown>;
+        }),
+      },
+    });
     ({ Conversation } = await import('./conversation.js'));
   });
 
@@ -103,9 +161,44 @@ describe('Conversation state management', () => {
 describe('Conversation.sendDirectRequest', () => {
   let Conversation: typeof import('./conversation.js').Conversation;
   let mockChat: ReturnType<typeof vi.fn>;
+  let getActiveLlmProvider: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    const llmProvider = await import('./llm-provider.js');
+    getActiveLlmProvider = vi.mocked(llmProvider.getActiveLlmProvider);
+    getActiveLlmProvider.mockReturnValue({
+      model: {
+        provider: 'ollama',
+        useFor: 'fallback',
+        host: 'http://localhost:11434',
+        model: 'test-model',
+        options: {},
+      },
+      provider: {
+        id: 'ollama',
+        capabilities: {
+          supportsStreaming: true,
+          supportsTools: true,
+        },
+        buildToolDefinitions: vi.fn(definitions => definitions),
+        chat: vi.fn(async request => {
+          const OllamaClient = (await import('ollama')).default;
+          return (await OllamaClient.chat({
+            model: 'test-model',
+            messages: request.messages,
+          })) as Awaited<ReturnType<typeof OllamaClient.chat>>;
+        }),
+        chatStream: vi.fn(async request => {
+          const OllamaClient = (await import('ollama')).default;
+          return (await OllamaClient.chat({
+            model: 'test-model',
+            messages: request.messages,
+            stream: true,
+          })) as AsyncIterable<unknown>;
+        }),
+      },
+    });
     ({ Conversation } = await import('./conversation.js'));
     const OllamaClient = (await import('ollama')).default;
     mockChat = vi.mocked(OllamaClient.chat);
@@ -170,8 +263,43 @@ describe('Conversation.sendDirectRequest', () => {
 describe('compactContext', () => {
   let Conversation: typeof import('./conversation.js').Conversation;
   let mockChat: ReturnType<typeof vi.fn>;
+  let getActiveLlmProvider: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
+    const llmProvider = await import('./llm-provider.js');
+    getActiveLlmProvider = vi.mocked(llmProvider.getActiveLlmProvider);
+    getActiveLlmProvider.mockReturnValue({
+      model: {
+        provider: 'ollama',
+        useFor: 'fallback',
+        host: 'http://localhost:11434',
+        model: 'test-model',
+        options: {},
+      },
+      provider: {
+        id: 'ollama',
+        capabilities: {
+          supportsStreaming: true,
+          supportsTools: true,
+        },
+        buildToolDefinitions: vi.fn(definitions => definitions),
+        chat: vi.fn(async request => {
+          const OllamaClient = (await import('ollama')).default;
+          return (await OllamaClient.chat({
+            model: 'test-model',
+            messages: request.messages,
+          })) as Awaited<ReturnType<typeof OllamaClient.chat>>;
+        }),
+        chatStream: vi.fn(async request => {
+          const OllamaClient = (await import('ollama')).default;
+          return (await OllamaClient.chat({
+            model: 'test-model',
+            messages: request.messages,
+            stream: true,
+          })) as AsyncIterable<unknown>;
+        }),
+      },
+    });
     const mod = await import('ollama');
     mockChat = (mod.default as unknown as { chat: ReturnType<typeof vi.fn> })
       .chat;

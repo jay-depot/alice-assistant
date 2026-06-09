@@ -684,6 +684,22 @@ body {
   text-decoration: underline;
 }
 
+.message__attachments {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.message__attachment-image {
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-main);
+}
+
 .message--user .message__bubble {
   background: var(--bg-bubble-user);
   color: var(--text-primary);
@@ -953,6 +969,33 @@ body {
     transform 0.1s;
   line-height: 1;
   padding: 0 30px;
+}
+
+.input-area__aux-btn {
+  height: 42px;
+  flex-shrink: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-ui);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+}
+
+.input-area__aux-btn:hover:not(:disabled) {
+  color: var(--text-primary);
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.input-area__aux-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 #send-btn:hover:not(:disabled) {
   background: var(--bg-session-hover);

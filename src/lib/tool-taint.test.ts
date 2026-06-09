@@ -15,14 +15,64 @@ vi.mock('ollama', () => ({
 vi.mock('./user-config.js', () => ({
   UserConfig: {
     getConfig: vi.fn().mockReturnValue({
-      ollama: {
-        host: 'http://localhost:11434',
-        model: 'test-model',
-        options: {},
+      llm: {
+        models: [
+          {
+            provider: 'ollama',
+            useFor: 'fallback',
+            host: 'http://localhost:11434',
+            model: 'test-model',
+            options: {},
+          },
+        ],
       },
     }),
   },
 }));
+
+vi.mock('./llm-provider.js', async () => {
+  const actual =
+    await vi.importActual<typeof import('./llm-provider.js')>(
+      './llm-provider.js'
+    );
+
+  return {
+    ...actual,
+    getApproximateContextWindow: vi.fn().mockReturnValue(36000),
+    getActiveLlmProvider: vi.fn().mockReturnValue({
+      model: {
+        provider: 'ollama',
+        useFor: 'fallback',
+        host: 'http://localhost:11434',
+        model: 'test-model',
+        options: {},
+      },
+      provider: {
+        id: 'ollama',
+        capabilities: {
+          supportsStreaming: true,
+          supportsTools: true,
+        },
+        buildToolDefinitions: vi.fn(definitions => definitions),
+        chat: vi.fn(async request => {
+          const OllamaClient = (await import('ollama')).default;
+          return (await OllamaClient.chat({
+            model: 'test-model',
+            messages: request.messages,
+          })) as Awaited<ReturnType<typeof OllamaClient.chat>>;
+        }),
+        chatStream: vi.fn(async request => {
+          const OllamaClient = (await import('ollama')).default;
+          return (await OllamaClient.chat({
+            model: 'test-model',
+            messages: request.messages,
+            stream: true,
+          })) as AsyncIterable<unknown>;
+        }),
+      },
+    }),
+  };
+});
 
 vi.mock('./plugin-hooks.js', () => ({
   PluginHooks: vi.fn(() => ({})),

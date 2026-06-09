@@ -19,8 +19,13 @@ import { useSessions } from './hooks/useSessions.js';
 import { useStreamingSession } from './hooks/useStreamingSession.js';
 import type { StreamTurn } from './hooks/useStreamingSession.js';
 import { useToolCallEvents } from './hooks/useToolCallEvents.js';
+import {
+  MAX_IMAGE_ATTACHMENT_BYTES,
+  MAX_IMAGE_ATTACHMENTS_PER_MESSAGE,
+} from '../ws-types.js';
 import type {
   ActiveSessionAgent,
+  ImageAttachment,
   PluginClientRoute,
   ToolCallData,
 } from './types/index.js';
@@ -52,6 +57,9 @@ interface ChatWorkspaceProps {
   isInputDisabled: boolean;
   canSubmitMessage: boolean;
   inputPlaceholder: string;
+  attachments: ImageAttachment[];
+  onSelectFiles: (files: FileList | null) => void;
+  onClearAttachments: () => void;
 }
 
 function ChatWorkspace({
@@ -81,6 +89,9 @@ function ChatWorkspace({
   isInputDisabled,
   canSubmitMessage,
   inputPlaceholder,
+  attachments,
+  onSelectFiles,
+  onClearAttachments,
 }: ChatWorkspaceProps) {
   return (
     <main id="main">
@@ -117,6 +128,9 @@ function ChatWorkspace({
         value={draft}
         onChange={setDraft}
         onSubmit={submitDraft}
+        attachments={attachments}
+        onSelectFiles={onSelectFiles}
+        onClearAttachments={onClearAttachments}
         inputDisabled={isInputDisabled}
         submitDisabled={!canSubmitMessage}
         placeholder={inputPlaceholder}
@@ -158,6 +172,7 @@ function PluginRoutePage({
 
 function AppShell() {
   const [draft, setDraft] = useState('');
+  const [attachments, setAttachments] = useState<ImageAttachment[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const navigate = useNavigate();
@@ -204,19 +219,90 @@ function AppShell() {
 
   const pluginRoutes = routes.filter(route => route.path !== '/');
 
+  const validateAttachmentBatch = useCallback(
+    (files: File[]) => {
+      const imageFiles = files.filter(file => file.type.startsWith('image/'));
+
+      if (imageFiles.length !== files.length) {
+        setErrorMessage('Only image files can be attached to chat messages.');
+        return null;
+      }
+
+      if (
+        attachments.length + imageFiles.length >
+        MAX_IMAGE_ATTACHMENTS_PER_MESSAGE
+      ) {
+        setErrorMessage(
+          `You can attach at most ${MAX_IMAGE_ATTACHMENTS_PER_MESSAGE} images per message.`
+        );
+        return null;
+      }
+
+      const oversizedFile = imageFiles.find(
+        file => file.size > MAX_IMAGE_ATTACHMENT_BYTES
+      );
+      if (oversizedFile) {
+        setErrorMessage(
+          `Image "${oversizedFile.name}" is too large. The limit is ${Math.round(
+            MAX_IMAGE_ATTACHMENT_BYTES / (1024 * 1024)
+          )} MiB per image.`
+        );
+        return null;
+      }
+
+      return imageFiles;
+    },
+    [attachments.length]
+  );
+
+  const handleSelectFiles = useCallback(
+    async (files: FileList | null) => {
+      if (!files || files.length === 0) {
+        return;
+      }
+
+      const validatedFiles = validateAttachmentBatch([...files]);
+      if (!validatedFiles) {
+        return;
+      }
+
+      const converted = await Promise.all(
+        validatedFiles.map(
+          file =>
+            new Promise<ImageAttachment>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => {
+                resolve({
+                  name: file.name,
+                  mimeType: file.type,
+                  dataUrl: String(reader.result),
+                });
+              };
+              reader.onerror = () => reject(reader.error);
+              reader.readAsDataURL(file);
+            })
+        )
+      );
+
+      setAttachments(current => [...current, ...converted]);
+    },
+    [validateAttachmentBatch]
+  );
+
   const submitDraft = useCallback(() => {
     const trimmedDraft = draft.trim();
-    if (!trimmedDraft) {
+    if (!trimmedDraft && attachments.length === 0) {
       return;
     }
 
     setDraft('');
+    setAttachments([]);
     // Clear the previous message cycle's transient state before the
     // new send so turns and tool batches don't bleed across messages.
     resetStreaming();
     clearToolCalls();
-    sendMessage(trimmedDraft);
-  }, [draft, sendMessage, resetStreaming, clearToolCalls]);
+    sendMessage(trimmedDraft, attachments);
+  }, [attachments, draft, sendMessage, resetStreaming, clearToolCalls]);
 
   return (
     <>
@@ -267,6 +353,11 @@ function AppShell() {
               isInputDisabled={isInputDisabled}
               canSubmitMessage={canSubmitMessage}
               inputPlaceholder={inputPlaceholder}
+              attachments={attachments}
+              onSelectFiles={files => {
+                void handleSelectFiles(files);
+              }}
+              onClearAttachments={() => setAttachments([])}
             />
           }
         />

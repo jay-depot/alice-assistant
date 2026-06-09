@@ -9,6 +9,7 @@ import {
   PluginHookInvocations,
   systemLogger,
 } from '../../../../lib.js';
+import type { LlmImageAttachment } from '../../../../lib/llm-provider.js';
 import { ChatSession } from '../db-schemas/index.js';
 import {
   getOrCreateCachedConversation,
@@ -24,9 +25,70 @@ import {
   broadcastSessionsList,
 } from './ws-broadcast.js';
 import type { WebUiContext } from '../context.js';
-import type { WsClientMessage, WsServerMessage } from '../ws-types.js';
+import type {
+  WsClientMessage,
+  WsImageAttachment,
+  WsServerMessage,
+} from '../ws-types.js';
+import {
+  MAX_IMAGE_ATTACHMENT_BYTES,
+  MAX_IMAGE_ATTACHMENTS_PER_MESSAGE,
+} from '../ws-types.js';
 
 const WS_OPEN = WebSocket.OPEN;
+
+function normalizeImageAttachments(
+  attachments: WsImageAttachment[] | undefined
+): LlmImageAttachment[] {
+  if (!Array.isArray(attachments)) {
+    return [];
+  }
+
+  return attachments
+    .filter(
+      attachment =>
+        attachment &&
+        typeof attachment.mimeType === 'string' &&
+        attachment.mimeType.startsWith('image/') &&
+        typeof attachment.dataUrl === 'string' &&
+        attachment.dataUrl.startsWith('data:image/')
+    )
+    .map(attachment => ({
+      mimeType: attachment.mimeType,
+      dataUrl: attachment.dataUrl,
+      name: attachment.name,
+    }));
+}
+
+function validateImageAttachments(attachments: WsImageAttachment[]): void {
+  if (attachments.length > MAX_IMAGE_ATTACHMENTS_PER_MESSAGE) {
+    throw new Error(
+      `You can attach at most ${MAX_IMAGE_ATTACHMENTS_PER_MESSAGE} images per message.`
+    );
+  }
+
+  for (const attachment of attachments) {
+    if (!attachment.mimeType.startsWith('image/')) {
+      throw new Error('Only image files can be attached to chat messages.');
+    }
+
+    if (!attachment.dataUrl.startsWith('data:image/')) {
+      throw new Error(
+        `Attachment ${attachment.name || 'image'} is not a valid image data URL.`
+      );
+    }
+
+    const base64Data = attachment.dataUrl.split(',')[1] || '';
+    const byteLength = Buffer.byteLength(base64Data, 'base64');
+    if (byteLength > MAX_IMAGE_ATTACHMENT_BYTES) {
+      throw new Error(
+        `Image ${attachment.name || 'attachment'} is too large. The limit is ${Math.round(
+          MAX_IMAGE_ATTACHMENT_BYTES / (1024 * 1024)
+        )} MiB per image.`
+      );
+    }
+  }
+}
 
 // ── handleSendMessage ────────────────────────────────────────────────────
 
@@ -35,7 +97,12 @@ export async function handleSendMessage(
   ws: WebSocket,
   msg: WsClientMessage & { type: 'send_message' }
 ): Promise<void> {
-  const { sessionId, content, clientMessageKey } = msg;
+  const { sessionId, content, clientMessageKey, attachments } = msg;
+  if (attachments && attachments.length > 0) {
+    validateImageAttachments(attachments);
+  }
+  const imageAttachments = normalizeImageAttachments(attachments);
+  const hasVisionInput = imageAttachments.length > 0;
 
   // Acknowledge receipt immediately
   if (ws.readyState === WS_OPEN) {
@@ -95,6 +162,7 @@ export async function handleSendMessage(
           await activeInstance.conversation.appendExternalMessage({
             role: 'user',
             content,
+            images: imageAttachments.length > 0 ? imageAttachments : undefined,
           });
           await persistUnsynchronizedMessages(
             ctx,
@@ -104,7 +172,9 @@ export async function handleSendMessage(
             'chat',
             activeInstance.definition.name
           );
-          await activeInstance.conversation.sendUserMessage();
+          await activeInstance.conversation.sendUserMessage(undefined, {
+            hasVisionInput,
+          });
           await persistUnsynchronizedMessages(
             ctx,
             emInner,
@@ -165,6 +235,7 @@ export async function handleSendMessage(
         await llmTransaction.appendExternalMessage({
           role: 'user',
           content,
+          images: imageAttachments.length > 0 ? imageAttachments : undefined,
         });
         await persistUnsynchronizedMessages(
           ctx,
@@ -222,7 +293,7 @@ export async function handleSendMessage(
                 });
               },
             },
-            { depth: streamDepth }
+            { depth: streamDepth, hasVisionInput }
           );
 
           await persistUnsynchronizedMessages(

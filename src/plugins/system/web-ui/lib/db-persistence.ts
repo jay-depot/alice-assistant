@@ -40,6 +40,7 @@ export async function persistUnsynchronizedMessages(
       messageKind: message.role === 'assistant' ? assistantMessageKind : 'chat',
       timestamp: new Date(),
       content: message.content,
+      attachments: message.images ?? null,
       reasoning: message.reasoning ?? null,
       senderName: message.role === 'assistant' ? (senderName ?? null) : null,
       toolName: message.tool_name ?? null,

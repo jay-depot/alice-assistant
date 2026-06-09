@@ -57,12 +57,23 @@ type SetupSystemConfig = {
     port?: number;
     bindToAddress?: string;
   };
-  ollama?: {
-    host?: string;
-    model?: string;
-    options?: {
-      num_ctx?: number;
-    };
+  llm?: {
+    models?: Array<{
+      provider?: string;
+      useFor?: string;
+      model?: string;
+      host?: string;
+      options?: {
+        num_ctx?: number;
+      };
+      apiKey?: string;
+      baseUrl?: string;
+      temperature?: number;
+      topP?: number;
+      maxTokens?: number;
+      siteUrl?: string;
+      siteName?: string;
+    }>;
   };
   piperTts?: {
     host?: string;
@@ -416,6 +427,18 @@ function normalizeOllamaHost(rawValue: string, fallback: string): string {
   return value;
 }
 
+function normalizeProvider(
+  rawValue: string,
+  fallback: string
+): 'ollama' | 'openrouter' {
+  const normalized = rawValue.trim().toLowerCase() || fallback;
+  return normalized === 'openrouter' ? 'openrouter' : 'ollama';
+}
+
+function getFallbackModelEntry(currentConfig: SetupSystemConfig) {
+  return currentConfig.llm?.models?.find(model => model.useFor === 'fallback');
+}
+
 async function readJsonFile<T>(filePath: string): Promise<T> {
   const content = await fs.readFile(filePath, 'utf-8');
   return JSON.parse(content) as T;
@@ -640,6 +663,7 @@ async function configureCoreSettings(
   defaultsMode: boolean,
   currentConfig: SetupSystemConfig
 ): Promise<SetupSystemConfig> {
+  const currentFallbackModel = getFallbackModelEntry(currentConfig);
   const wakeWord = await askQuestion(
     session,
     'Wake word',
@@ -678,24 +702,116 @@ async function configureCoreSettings(
     defaultsMode
   );
 
-  const ollamaHostRaw = await askQuestion(
-    session,
-    'Ollama host',
-    currentConfig.ollama?.host ?? 'http://127.0.0.1:11434',
-    defaultsMode
+  const fallbackProvider = normalizeProvider(
+    await askQuestion(
+      session,
+      'Fallback LLM provider (ollama/openrouter)',
+      currentFallbackModel?.provider ?? 'ollama',
+      defaultsMode
+    ),
+    currentFallbackModel?.provider ?? 'ollama'
   );
-  const ollamaModel = await askQuestion(
-    session,
-    'Ollama model',
-    currentConfig.ollama?.model ?? 'qwen2:7b',
-    defaultsMode
-  );
-  const ollamaNumCtxRaw = await askQuestion(
-    session,
-    'Ollama num_ctx',
-    `${currentConfig.ollama?.options?.num_ctx ?? 32000}`,
-    defaultsMode
-  );
+
+  let fallbackModelEntry: NonNullable<
+    SetupSystemConfig['llm']
+  >['models'][number];
+  if (fallbackProvider === 'ollama') {
+    const ollamaHostRaw = await askQuestion(
+      session,
+      'Ollama host',
+      currentFallbackModel?.provider === 'ollama'
+        ? (currentFallbackModel.host ?? 'http://127.0.0.1:11434')
+        : 'http://127.0.0.1:11434',
+      defaultsMode
+    );
+    const ollamaModel = await askQuestion(
+      session,
+      'Ollama model',
+      currentFallbackModel?.model ?? 'qwen2:7b',
+      defaultsMode
+    );
+    const ollamaNumCtxRaw = await askQuestion(
+      session,
+      'Ollama num_ctx',
+      `${
+        currentFallbackModel?.provider === 'ollama'
+          ? (currentFallbackModel.options?.num_ctx ?? 32000)
+          : 32000
+      }`,
+      defaultsMode
+    );
+
+    fallbackModelEntry = {
+      provider: 'ollama',
+      useFor: 'fallback',
+      host: normalizeOllamaHost(
+        ollamaHostRaw,
+        currentFallbackModel?.provider === 'ollama'
+          ? (currentFallbackModel.host ?? 'http://127.0.0.1:11434')
+          : 'http://127.0.0.1:11434'
+      ),
+      model: ollamaModel,
+      options: {
+        num_ctx: toNumberOrDefault(
+          ollamaNumCtxRaw,
+          currentFallbackModel?.provider === 'ollama'
+            ? (currentFallbackModel.options?.num_ctx ?? 32000)
+            : 32000
+        ),
+      },
+    };
+  } else {
+    const openRouterModel = await askQuestion(
+      session,
+      'OpenRouter model',
+      currentFallbackModel?.model ?? 'openai/gpt-4o-mini',
+      defaultsMode
+    );
+    const openRouterApiKey = await askQuestion(
+      session,
+      'OpenRouter API key (blank to rely on OPENROUTER_API_KEY)',
+      currentFallbackModel?.provider === 'openrouter'
+        ? (currentFallbackModel.apiKey ?? '')
+        : '',
+      defaultsMode
+    );
+    const openRouterBaseUrl = await askQuestion(
+      session,
+      'OpenRouter base URL',
+      currentFallbackModel?.provider === 'openrouter'
+        ? (currentFallbackModel.baseUrl ?? 'https://openrouter.ai/api/v1')
+        : 'https://openrouter.ai/api/v1',
+      defaultsMode
+    );
+
+    fallbackModelEntry = {
+      provider: 'openrouter',
+      useFor: 'fallback',
+      model: openRouterModel,
+      apiKey: openRouterApiKey.trim() || undefined,
+      baseUrl: openRouterBaseUrl.trim() || 'https://openrouter.ai/api/v1',
+      siteName:
+        currentFallbackModel?.provider === 'openrouter'
+          ? currentFallbackModel.siteName
+          : undefined,
+      siteUrl:
+        currentFallbackModel?.provider === 'openrouter'
+          ? currentFallbackModel.siteUrl
+          : undefined,
+      temperature:
+        currentFallbackModel?.provider === 'openrouter'
+          ? currentFallbackModel.temperature
+          : undefined,
+      topP:
+        currentFallbackModel?.provider === 'openrouter'
+          ? currentFallbackModel.topP
+          : undefined,
+      maxTokens:
+        currentFallbackModel?.provider === 'openrouter'
+          ? currentFallbackModel.maxTokens
+          : undefined,
+    };
+  }
 
   const piperHost = await askQuestion(
     session,
@@ -723,9 +839,8 @@ async function configureCoreSettings(
     defaultsMode
   );
 
-  const normalizedOllamaHost = normalizeOllamaHost(
-    ollamaHostRaw,
-    currentConfig.ollama?.host ?? 'http://127.0.0.1:11434'
+  const preservedModels = (currentConfig.llm?.models ?? []).filter(
+    model => model.useFor !== 'fallback'
   );
 
   return {
@@ -741,17 +856,9 @@ async function configureCoreSettings(
       ),
       bindToAddress: webBind,
     },
-    ollama: {
-      ...(currentConfig.ollama ?? {}),
-      host: normalizedOllamaHost,
-      model: ollamaModel,
-      options: {
-        ...(currentConfig.ollama?.options ?? {}),
-        num_ctx: toNumberOrDefault(
-          ollamaNumCtxRaw,
-          currentConfig.ollama?.options?.num_ctx ?? 32000
-        ),
-      },
+    llm: {
+      ...(currentConfig.llm ?? {}),
+      models: [...preservedModels, fallbackModelEntry],
     },
     piperTts: {
       ...(currentConfig.piperTts ?? {}),
@@ -1005,9 +1112,11 @@ export async function runSetupProgram(argv: string[]): Promise<void> {
       pythonPath: voiceSetup?.pythonPath ?? null,
     });
 
-    const ollamaReachable = await probeOllama(
-      nextConfig.ollama?.host ?? 'http://127.0.0.1:11434'
-    );
+    const fallbackModel = getFallbackModelEntry(nextConfig);
+    const ollamaReachable =
+      fallbackModel?.provider === 'ollama' && fallbackModel.host
+        ? await probeOllama(fallbackModel.host)
+        : null;
 
     // Check credential vault integrity
     const vaultPath = path.join(configDir, 'credential-vault.json');
@@ -1062,6 +1171,11 @@ export async function runSetupProgram(argv: string[]): Promise<void> {
     session.printInfo(`Config directory: ${configDir}`);
     session.printInfo(`alice.json: ${aliceConfigPath}`);
     session.printInfo(`enabled-plugins.json: ${enabledPluginsPath}`);
+    if (fallbackModel) {
+      session.printInfo(
+        `Fallback LLM: ${fallbackModel.provider}:${fallbackModel.model ?? 'unknown-model'}`
+      );
+    }
     session.printInfo(
       `Voice plugin config: ${path.join(configDir, 'plugin-settings', 'voice', 'voice.json')}`
     );
@@ -1069,9 +1183,9 @@ export async function runSetupProgram(argv: string[]): Promise<void> {
       session.printInfo(`Voice venv: ${voiceSetup.venvPath}`);
       session.printInfo(`Voice python: ${voiceSetup.pythonPath}`);
     }
-    if (ollamaReachable) {
+    if (ollamaReachable === true) {
       session.printInfo('Ollama reachable: yes');
-    } else {
+    } else if (ollamaReachable === false) {
       session.printWarning('Ollama reachable: no');
     }
     session.printInfo('Next step: run alice-assistant-start');

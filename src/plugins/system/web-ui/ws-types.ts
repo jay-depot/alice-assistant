@@ -2,6 +2,9 @@
 // Imported by the web-ui server plugin (web-ui.ts) and the client-side hooks.
 // No runtime imports — pure type declarations that compile away entirely.
 
+export const MAX_IMAGE_ATTACHMENTS_PER_MESSAGE = 4;
+export const MAX_IMAGE_ATTACHMENT_BYTES = 8 * 1024 * 1024;
+
 // Minimal ToolCall shape mirroring Ollama’s interface so we can include it
 // in stream_tool_calls without pulling in the full ollama package here.
 export interface WsToolCall {
@@ -53,6 +56,13 @@ export interface WsMessage {
   senderName?: string | null;
   toolCallData?: WsToolCallData;
   toolName?: string | null;
+  attachments?: WsImageAttachment[];
+}
+
+export interface WsImageAttachment {
+  mimeType: string;
+  dataUrl: string;
+  name?: string;
 }
 
 export interface WsActiveAgent {
@@ -131,6 +141,7 @@ export type WsClientMessage =
       sessionId: number;
       content: string;
       clientMessageKey: string;
+      attachments?: WsImageAttachment[];
     }
   | { type: 'create_session' }
   | { type: 'end_session'; sessionId: number };

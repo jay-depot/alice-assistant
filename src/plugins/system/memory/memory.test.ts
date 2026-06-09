@@ -1,5 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { MikroORM } from '@mikro-orm/sqlite';
+import { UserConfig } from '../../../lib/user-config.js';
 
 // Memory plugin imports from lib.js which has a circular dependency with task-assistant
 // via plugin-hooks.ts. Mock plugin-hooks to prevent module-level side effects.
@@ -26,54 +28,56 @@ function createMockPluginInterface() {
   const offeredCapabilities: Record<string, any> = {};
   const registeredTools: Tool[] = [];
   const configValues: Record<string, any> = {};
+  const plugin = {
+    logger: {
+      log: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+    },
+    registerTool: (tool: Tool) => {
+      registeredTools.push(tool);
+    },
+    registerHeaderSystemPrompt: vi.fn(),
+    registerFooterSystemPrompt: vi.fn(),
+    registerConversationType: vi.fn(),
+    registerTaskAssistant: vi.fn(),
+    addToolToConversationType: vi.fn(),
+    config: async (schema: any, defaults: any) => {
+      return {
+        getPluginConfig: () => configValues.plugin || defaults,
+        getSystemConfig: () => ({
+          assistantName: 'Alice',
+        }),
+      };
+    },
+    hooks: {
+      onAllPluginsLoaded: vi.fn(),
+      onAssistantWillAcceptRequests: vi.fn(),
+      onAssistantAcceptsRequests: vi.fn(),
+      onAssistantWillStopAcceptingRequests: vi.fn(),
+      onAssistantStoppedAcceptingRequests: vi.fn(),
+      onPluginsWillUnload: vi.fn(),
+      onTaskAssistantWillBegin: vi.fn(),
+      onTaskAssistantWillEnd: vi.fn(),
+      onUserConversationWillBegin: vi.fn(),
+      onUserConversationWillEnd: vi.fn(),
+      onContextCompactionSummariesWillBeDeleted: vi.fn(),
+    },
+    offer: (capabilities: any) => {
+      offeredCapabilities['memory'] = capabilities;
+    },
+    request: vi.fn(),
+  };
 
   return {
     offeredCapabilities,
     registeredTools,
     configValues,
+    plugin,
     registerPlugin: async () => {
-      return {
-        logger: {
-          log: vi.fn(),
-          info: vi.fn(),
-          warn: vi.fn(),
-          error: vi.fn(),
-          debug: vi.fn(),
-        },
-        registerTool: (tool: Tool) => {
-          registeredTools.push(tool);
-        },
-        registerHeaderSystemPrompt: vi.fn(),
-        registerFooterSystemPrompt: vi.fn(),
-        registerConversationType: vi.fn(),
-        registerTaskAssistant: vi.fn(),
-        addToolToConversationType: vi.fn(),
-        config: async (schema: any, defaults: any) => {
-          return {
-            getPluginConfig: () => configValues.plugin || defaults,
-            getSystemConfig: () => ({
-              assistantName: 'Alice',
-            }),
-          };
-        },
-        hooks: {
-          onAllPluginsLoaded: vi.fn(),
-          onAssistantWillAcceptRequests: vi.fn(),
-          onAssistantAcceptsRequests: vi.fn(),
-          onAssistantWillStopAcceptingRequests: vi.fn(),
-          onAssistantStoppedAcceptingRequests: vi.fn(),
-          onPluginsWillUnload: vi.fn(),
-          onTaskAssistantWillBegin: vi.fn(),
-          onTaskAssistantWillEnd: vi.fn(),
-          onUserConversationWillBegin: vi.fn(),
-          onUserConversationWillEnd: vi.fn(),
-          onContextCompactionSummariesWillBeDeleted: vi.fn(),
-        },
-        offer: (capabilities: any) => {
-          offeredCapabilities['memory'] = capabilities;
-        },
-        request: vi.fn(),
-      };
+      return plugin;
     },
   };
 }
@@ -84,9 +88,65 @@ describe('memoryPlugin', () => {
 
   beforeEach(async () => {
     vi.resetModules();
+    vi.restoreAllMocks();
     const module = await import('./memory.js');
     memoryPlugin = module.default;
     mockInterface = createMockPluginInterface();
+  });
+
+  it('skips whitespace-only summaries when persisting compacted memories', async () => {
+    const createSpy = vi.fn();
+    const persistSpy = vi.fn();
+    const flushSpy = vi.fn().mockResolvedValue(undefined);
+    const findOneSpy = vi.fn().mockResolvedValue(null);
+    const ormStub = {
+      em: {
+        fork: vi.fn(() => ({
+          findOne: findOneSpy,
+          create: createSpy,
+          persist: persistSpy,
+          flush: flushSpy,
+        })),
+      },
+      schema: {
+        update: vi.fn().mockResolvedValue(undefined),
+      },
+      close: vi.fn().mockResolvedValue(undefined),
+    };
+
+    vi.spyOn(MikroORM, 'init').mockResolvedValue(ormStub as any);
+    vi.spyOn(UserConfig, 'getConfigPath').mockReturnValue('/tmp');
+
+    await memoryPlugin.registerPlugin(
+      mockInterface as unknown as AlicePluginInterface
+    );
+
+    const onAllPluginsLoaded =
+      mockInterface.plugin.hooks.onAllPluginsLoaded.mock.calls[0]?.[0];
+    expect(onAllPluginsLoaded).toBeTypeOf('function');
+    await onAllPluginsLoaded();
+
+    const onSummariesDeleted =
+      mockInterface.plugin.hooks.onContextCompactionSummariesWillBeDeleted.mock
+        .calls[0]?.[0];
+    expect(onSummariesDeleted).toBeTypeOf('function');
+
+    await onSummariesDeleted(
+      [
+        {
+          role: 'system',
+          content: '# Summary of earlier conversation:\n \n\n\t  ',
+        },
+      ],
+      'chat'
+    );
+
+    expect(createSpy).not.toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ content: expect.any(String) })
+    );
+    expect(findOneSpy).not.toHaveBeenCalled();
+    expect(flushSpy).not.toHaveBeenCalled();
   });
 
   it('has correct plugin metadata', () => {

@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { fetchSession } from '../api/sessions.js';
-import type { ActiveSessionAgent, Message, Session } from '../types/index.js';
+import type {
+  ActiveSessionAgent,
+  ImageAttachment,
+  Message,
+  Session,
+} from '../types/index.js';
 import { getMessageIdentityKey } from '../utils.js';
 import { useWebSocket } from './useWebSocket.js';
 
@@ -115,10 +120,10 @@ export function useSession({ onError }: UseSessionOptions = {}) {
   }, [isEndingSession, isProcessingMessage, isSessionBusy, send]);
 
   const sendMessage = useCallback(
-    (content: string) => {
+    (content: string, attachments: ImageAttachment[] = []) => {
       const message = content.trim();
       if (
-        !message ||
+        (!message && attachments.length === 0) ||
         isSessionBusy ||
         isProcessingMessage ||
         isEndingSession ||
@@ -131,6 +136,7 @@ export function useSession({ onError }: UseSessionOptions = {}) {
         role: 'user',
         messageKind: 'chat',
         content: message,
+        attachments: attachments.length > 0 ? attachments : undefined,
         timestamp: new Date().toISOString(),
       };
       const optimisticMessageKey = getMessageIdentityKey(optimisticMessage);
@@ -149,6 +155,7 @@ export function useSession({ onError }: UseSessionOptions = {}) {
         sessionId: numericSessionId,
         content: message,
         clientMessageKey: optimisticMessageKey,
+        attachments: attachments.length > 0 ? attachments : undefined,
       });
       // The session_updated WS message applies state and clears
       // isProcessingMessage / pendingMessageKey in the subscription below.

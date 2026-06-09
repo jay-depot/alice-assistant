@@ -1,17 +1,11 @@
-import type { ToolCall } from 'ollama';
+import type { LlmMessage, LlmToolCall } from '../llm-provider.js';
 
-export type Message = {
-  role: string;
-  content: string;
-  reasoning?: string;
-  tool_calls?: ToolCall[];
-  tool_name?: string;
-};
+export type Message = LlmMessage;
 
 export type ConversationStreamingCallbacks = {
   onThinking: (delta: string) => void;
   onContent: (delta: string) => void;
-  onToolCalls: (toolCalls: ToolCall[]) => void;
+  onToolCalls: (toolCalls: LlmToolCall[]) => void;
   onError: (err: unknown) => void;
 };
 
