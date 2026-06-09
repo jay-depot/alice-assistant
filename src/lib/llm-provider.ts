@@ -140,8 +140,29 @@ const registeredUseFor = new Map<LlmUseFor, LlmUseForRegistration>([
 ]);
 let providerRegistrationClosed = false;
 let useForRegistrationClosed = false;
+let pendingUseForOverride: LlmUseFor | undefined;
+
+/**
+ * Set a useFor override that will be applied on the next provider resolution.
+ * Typically called from tool execution to switch models mid-session.
+ * Cleared automatically after one resolution via consumePendingUseForOverride().
+ */
+export function setPendingUseForOverride(useFor: LlmUseFor | undefined): void {
+  pendingUseForOverride = useFor;
+}
+
+/**
+ * Consume and clear the pending override. Called internally by
+ * resolveLlmProviderForRequest so the override is single-shot.
+ */
+function consumePendingUseForOverride(): LlmUseFor | undefined {
+  const value = pendingUseForOverride;
+  pendingUseForOverride = undefined;
+  return value;
+}
 
 export function clearLlmProviderRegistry(): void {
+  pendingUseForOverride = undefined;
   registeredProviders.clear();
   registeredUseFor.clear();
   registeredUseFor.set(FALLBACK_USE_FOR, {
@@ -357,6 +378,15 @@ export function resolveLlmProviderForRequest(
 ): ActiveLlmProvider {
   const fallbackModel = getFallbackLlmModel(config);
   const fallbackProvider = buildActiveProvider(fallbackModel, FALLBACK_USE_FOR);
+
+  const override = consumePendingUseForOverride();
+  if (override) {
+    const overrideModel = getSingleConfiguredModelByUseFor(config, override);
+    if (overrideModel) {
+      return buildActiveProvider(overrideModel, override);
+    }
+    // Override useFor has no configured model, fall back to normal resolution
+  }
 
   const resolvedUseFor = resolveQualifiedUseFor(context);
   if (!resolvedUseFor || resolvedUseFor === FALLBACK_USE_FOR) {

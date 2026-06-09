@@ -30,6 +30,7 @@ const defaultEnabledPlugins: EnabledPluginsConfig = {
     'model-voice': true,
     'model-autonomy': true,
     'model-deep-research': true,
+    'model-deep-thinking': true,
     'system-info': true,
     'llm-provider-broker': true,
     'ollama-provider': true,
@@ -69,6 +70,7 @@ const defaultEnabledPlugins: EnabledPluginsConfig = {
     'lightpanda-browser': false,
     'web-simple-fetch': false,
     'openrouter-provider': false,
+    'think-deeply': false,
     'desktop-peek': false,
   },
   user: {

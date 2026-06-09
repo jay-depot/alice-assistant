@@ -7,6 +7,7 @@
     "model-voice": true,
     "model-autonomy": true,
     "model-deep-research": true,
+    "model-deep-thinking": true,
     "system-info": true,
     "llm-provider-broker": true,
     "ollama-provider": true,
@@ -54,7 +55,8 @@
     "gmail": false,
     "google-calendar": false,
     "openrouter-provider": false,
-    "desktop-peek": false
+    "desktop-peek": false,
+    "think-deeply": false
   },
   "user": {
     "enableUserPlugins": false,

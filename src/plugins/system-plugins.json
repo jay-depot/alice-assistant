@@ -18,6 +18,18 @@
     "required": false
   },
   {
+    "id": "model-deep-research",
+    "name": "Model Deep Research",
+    "category": "system",
+    "required": true
+  },
+  {
+    "id": "model-deep-thinking",
+    "name": "Model Deep Thinking",
+    "category": "system",
+    "required": false
+  },
+  {
     "id": "model-vision",
     "name": "Model Vision",
     "category": "system",
@@ -38,12 +50,6 @@
   {
     "id": "model-autonomy",
     "name": "Model Autonomy",
-    "category": "system",
-    "required": true
-  },
-  {
-    "id": "model-deep-research",
-    "name": "Model Deep Research",
     "category": "system",
     "required": true
   },
@@ -302,6 +308,12 @@
   {
     "id": "openrouter-provider",
     "name": "OpenRouter Provider",
+    "category": "community",
+    "required": false
+  },
+  {
+    "id": "think-deeply",
+    "name": "Think Deeply",
     "category": "community",
     "required": false
   },
