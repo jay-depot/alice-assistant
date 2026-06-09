@@ -1062,6 +1062,18 @@ def create_wake_word_model(Model, model_path: str):
     raise RuntimeError('Unsupported openwakeword Model constructor shape. Unable to initialize wake-word model safely.')
 
 
+def _sleep_aware_clock() -> float:
+    """Monotonic clock that advances during system sleep, unlike time.monotonic().
+
+    Uses CLOCK_BOOTTIME on Linux (time since boot including suspended time).
+    Falls back to time.time() on platforms that don't have it.
+    """
+    try:
+        return time.clock_gettime(time.CLOCK_BOOTTIME)  # type: ignore[attr-defined]
+    except (AttributeError, OSError):
+        return time.time()
+
+
 def get_wake_word_reset_interval_seconds() -> float:
     try:
         return max(60.0, float(os.environ.get('ALICE_VOICE_WAKE_RESET_INTERVAL_SECONDS', '300').strip()))
@@ -1082,44 +1094,72 @@ def wait_for_wake_word(
     The model and timer are owned by the caller so they survive across
     detections. Without this, each conversation turn creates a fresh model
     and the periodic reset that prevents CPU creep never fires.
+
+    The audio stream is reopened whenever a sleep/wake cycle is detected.
+    time.monotonic() does not advance during system suspend, so CLOCK_BOOTTIME
+    is used to measure the real elapsed time between stream reads.  A gap
+    larger than SLEEP_DETECT_THRESHOLD_SECONDS means the system was suspended
+    while stream.read() was blocking; in that case the PortAudio buffer is
+    stale and the wake-word model has accumulated garbage, so both are reset
+    and the stream is reopened from scratch.
     """
     threshold = get_wake_threshold()
     chunk_size = 1280
+    sleep_detect_threshold = 5.0  # seconds; far larger than any normal read gap
 
-    with sd.RawInputStream(samplerate=16000, channels=1, dtype='int16', blocksize=chunk_size) as stream:
-        while not shutdown_requested:
-            audio_chunk, overflowed = stream.read(chunk_size)
+    while not shutdown_requested:
+        with sd.RawInputStream(samplerate=16000, channels=1, dtype='int16', blocksize=chunk_size) as stream:
+            last_read_boot = _sleep_aware_clock()
 
-            # Check the reset timer before the overflow skip so that a
-            # sustained overflow storm cannot starve the periodic reset.
-            # Without this guard, high CPU from buffer bloat causes more
-            # overflows, which skip the reset, which causes more bloat.
-            now = time.monotonic()
-            if now - last_reset_time >= reset_interval_seconds:
-                wake_model.reset()
-                last_reset_time = now
-                print('voice client: reset wake word model buffers to prevent CPU creep.')
+            while not shutdown_requested:
+                audio_chunk, overflowed = stream.read(chunk_size)
 
-            if overflowed:
-                # Brief yield so a sustained overflow storm doesn't tight-spin
-                # the CPU and starve the audio callback thread.
-                time.sleep(0.001)
-                continue
+                now_boot = _sleep_aware_clock()
 
-            prediction_input = np.frombuffer(audio_chunk, dtype=np.int16)
-            predict_start = time.monotonic()
-            prediction = wake_model.predict(prediction_input)
-            predict_elapsed = time.monotonic() - predict_start
-            if predict_elapsed > 0.05:
-                print(
-                    f'voice client: predict() took {predict_elapsed * 1000:.1f}ms '
-                    f'(threshold is 50ms); wake word model may be bloated.'
-                )
-            score = max((float(value) for value in prediction.values()), default=0.0)
+                # Detect sleep/wake: CLOCK_BOOTTIME advances during suspend but
+                # stream.read() blocks without time.monotonic() ticking.  A gap
+                # much larger than the chunk duration means the system slept.
+                if now_boot - last_read_boot > sleep_detect_threshold:
+                    print(
+                        f'voice client: detected sleep/wake cycle '
+                        f'({now_boot - last_read_boot:.1f}s gap); restarting audio stream.'
+                    )
+                    wake_model.reset()
+                    last_reset_time = time.monotonic()
+                    break  # exit inner loop; outer loop reopens the stream
 
-            if score >= threshold:
-                print(f'voice client: wake word detected with score {score:.3f}')
-                return last_reset_time
+                last_read_boot = now_boot
+
+                # Check the reset timer before the overflow skip so that a
+                # sustained overflow storm cannot starve the periodic reset.
+                # Without this guard, high CPU from buffer bloat causes more
+                # overflows, which skip the reset, which causes more bloat.
+                now = time.monotonic()
+                if now - last_reset_time >= reset_interval_seconds:
+                    wake_model.reset()
+                    last_reset_time = now
+                    print('voice client: reset wake word model buffers to prevent CPU creep.')
+
+                if overflowed:
+                    # Brief yield so a sustained overflow storm doesn't tight-spin
+                    # the CPU and starve the audio callback thread.
+                    time.sleep(0.001)
+                    continue
+
+                prediction_input = np.frombuffer(audio_chunk, dtype=np.int16)
+                predict_start = time.monotonic()
+                prediction = wake_model.predict(prediction_input)
+                predict_elapsed = time.monotonic() - predict_start
+                if predict_elapsed > 0.05:
+                    print(
+                        f'voice client: predict() took {predict_elapsed * 1000:.1f}ms '
+                        f'(threshold is 50ms); wake word model may be bloated.'
+                    )
+                score = max((float(value) for value in prediction.values()), default=0.0)
+
+                if score >= threshold:
+                    print(f'voice client: wake word detected with score {score:.3f}')
+                    return last_reset_time
 
     return last_reset_time
 
