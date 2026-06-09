@@ -49,8 +49,8 @@ describe('assembleFullContext', () => {
 
     const result = await assembleFullContext(baseCtx, compacted);
 
-    // Header prompts are merged into a single system message
-    expect(result[0].content).toBe('# Header prompt 1\n\n# Header prompt 2');
+    // Header prompts are merged into a single system message with section dividers
+    expect(result[0].content).toBe('# Header prompt 1\n\n---\n\n# Header prompt 2');
 
     // Then the compacted context
     expect(result[1].content).toBe('Hello');
@@ -67,7 +67,7 @@ describe('assembleFullContext', () => {
     const result = await assembleFullContext(baseCtx, []);
 
     expect(result.length).toBe(2); // 1 merged header + 1 footer
-    expect(result[0].content).toBe('# Header prompt 1\n\n# Header prompt 2');
+    expect(result[0].content).toBe('# Header prompt 1\n\n---\n\n# Header prompt 2');
     expect(result[1].content).toBe('# Footer prompt');
   });
 });

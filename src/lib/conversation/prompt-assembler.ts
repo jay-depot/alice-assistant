@@ -35,16 +35,18 @@ export async function assembleFullContext(
     availableTools: ctx.availableTools,
   });
 
+  const SECTION_DIVIDER = '\n\n---\n\n';
+
   const result: Message[] = [];
 
   if (headerPrompts.length > 0) {
-    result.push({ role: 'system', content: headerPrompts.join('\n\n') });
+    result.push({ role: 'system', content: headerPrompts.join(SECTION_DIVIDER) });
   }
 
   result.push(...compactedContext);
 
   if (footerPrompts.length > 0) {
-    result.push({ role: 'system', content: footerPrompts.join('\n\n') });
+    result.push({ role: 'system', content: footerPrompts.join(SECTION_DIVIDER) });
   }
 
   return result;

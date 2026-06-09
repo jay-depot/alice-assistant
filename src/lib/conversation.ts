@@ -328,12 +328,6 @@ export class Conversation {
       return this.fallbackAfterToolCallLimit();
     }
 
-    if (depth > MAX_TOOL_CALL_DEPTH) {
-      throw new Error(
-        'Maximum tool call depth exceeded. Possible infinite loop detected.'
-      );
-    }
-
     await this.runToolCallBatch(toolCalls);
 
     // Recurse with fresh prompt context
