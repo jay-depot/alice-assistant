@@ -88,6 +88,12 @@ const deepDivePlugin: AlicePlugin = {
   registerPlugin: async api => {
     const plugin = await api.registerPlugin();
 
+    // Register this conversation type for agent-tier deep-research model routing
+    const deepResearch = plugin.request('model-deep-research');
+    if (deepResearch) {
+      deepResearch.registerDeepResearchConversationType('deep-dive-research');
+    }
+
     const webUi = plugin.request('web-ui');
 
     webUi.registerStylesheet(path.join(import.meta.dirname, 'deep-dive.css'));

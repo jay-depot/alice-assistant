@@ -21,7 +21,7 @@
     "id": "model-deep-research",
     "name": "Model Deep Research",
     "category": "system",
-    "required": true
+    "required": false
   },
   {
     "id": "model-deep-thinking",
