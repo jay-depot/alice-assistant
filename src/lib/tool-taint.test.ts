@@ -66,8 +66,6 @@ function makeTool(
     description: `${name} tool`,
     systemPromptFragment: '',
     parameters: { type: 'object', properties: {} } as unknown as TSchema,
-    toolResultPromptIntro: '',
-    toolResultPromptOutro: '',
     taintStatus,
     execute: vi.fn().mockResolvedValue(result),
   };

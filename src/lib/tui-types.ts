@@ -42,12 +42,13 @@ export interface WsToolCallData {
 }
 
 export interface WsMessage {
-  role: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'tool';
   messageKind: 'chat' | 'notification' | 'tool_call';
   content: string;
   timestamp: string;
   senderName?: string | null;
   toolCallData?: WsToolCallData;
+  toolName?: string | null;
 }
 
 export interface WsActiveAgent {

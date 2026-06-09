@@ -1,16 +1,25 @@
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { formatTime } from '../utils.js';
-import { classNames } from '../utils.js';
-import { normalizeCssToken } from '../utils.js';
+import {
+  formatTime,
+  classNames,
+  normalizeCssToken,
+  getMessageIdentityKey,
+} from '../utils.js';
 import { humanizeToolName } from '../utils/tool-call-batch.js';
 import type { Message } from '../types/index.js';
 import { useEffect, useState } from 'react';
 import { ReadReceiptIcon } from './ReadReceiptIcon.js';
+import { ThinkingBlock } from './ThinkingBlock.js';
 
 interface MessageBubbleProps {
   message: Message;
   receiptStatus?: 'sent' | 'read' | null;
+  /** When provided, the expanded state is controlled by the parent
+   *  (e.g. MessagesArea) so it survives streaming→persisted handoff.
+   *  If omitted the component manages its own internal state. */
+  isExpanded?: boolean;
+  onSetExpanded?: (key: string, expanded: boolean) => void;
 }
 
 const LONG_MESSAGE_CHAR_THRESHOLD = 1200;
@@ -19,8 +28,12 @@ const LONG_MESSAGE_LINE_THRESHOLD = 14;
 export function MessageBubble({
   message,
   receiptStatus = null,
+  isExpanded: isExpandedProp,
+  onSetExpanded,
 }: MessageBubbleProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  // Always declare the state hook — conditionally wire it to parent or
+  // internal management below.
+  const [selfExpanded, setSelfExpanded] = useState(false);
 
   const agentClassToken =
     message.role === 'assistant' && message.senderName
@@ -32,22 +45,29 @@ export function MessageBubble({
     message.content.length >= LONG_MESSAGE_CHAR_THRESHOLD ||
     lineCount >= LONG_MESSAGE_LINE_THRESHOLD;
 
-  useEffect(() => {
-    if (!isExpanded) {
-      return;
+  // Determine effective expanded state and setter:
+  //  Parent-managed → use props, fire callback on toggle.
+  //  Self-managed   → use internal useState.
+  const isExpanded = onSetExpanded ? (isExpandedProp ?? false) : selfExpanded;
+
+  const identityKey = getMessageIdentityKey(message);
+
+  const setExpanded = (open: boolean) => {
+    if (onSetExpanded) {
+      onSetExpanded(identityKey, open);
+    } else {
+      setSelfExpanded(open);
     }
+  };
 
+  useEffect(() => {
+    if (!isExpanded) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setIsExpanded(false);
-      }
+      if (event.key === 'Escape') setExpanded(false);
     };
-
     window.addEventListener('keydown', onKeyDown);
-    return () => {
-      window.removeEventListener('keydown', onKeyDown);
-    };
-  }, [isExpanded]);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isExpanded, onSetExpanded, identityKey]);
 
   // Tool call messages render as a compact inline indicator
   if (message.messageKind === 'tool_call' && message.toolCallData) {
@@ -98,12 +118,16 @@ export function MessageBubble({
         {toolCallData.status === 'error' && toolCallData.error ? (
           <div className="tool-call-indicator__error">{toolCallData.error}</div>
         ) : null}
-        <div className="message__meta">
-          <span>{formatTime(message.timestamp)}</span>
-        </div>
+        {message.timestamp ? (
+          <div className="message__meta">
+            <span>{formatTime(message.timestamp)}</span>
+          </div>
+        ) : null}
       </div>
     );
   }
+
+  const isStreaming = message.timestamp === '';
 
   return (
     <div
@@ -128,6 +152,9 @@ export function MessageBubble({
           </div>
         </div>
       ) : null}
+      {message.role === 'assistant' && message.reasoning ? (
+        <ThinkingBlock content={message.reasoning} isThinking={isStreaming} />
+      ) : null}
       <div
         className={classNames(
           'message__bubble',
@@ -141,13 +168,15 @@ export function MessageBubble({
         <button
           type="button"
           className={classNames('message__expand', agentClassToken)}
-          onClick={() => setIsExpanded(true)}
+          onClick={() => setExpanded(true)}
         >
           Open full message
         </button>
       ) : null}
       <div className="message__meta">
-        <span>{formatTime(message.timestamp)}</span>
+        {message.timestamp ? (
+          <span>{formatTime(message.timestamp)}</span>
+        ) : null}
         {message.role === 'user' && receiptStatus ? (
           <span
             className={classNames(
@@ -170,7 +199,7 @@ export function MessageBubble({
           role="dialog"
           aria-modal="true"
           aria-label="Full message"
-          onClick={() => setIsExpanded(false)}
+          onClick={() => setExpanded(false)}
         >
           <div
             className={classNames(
@@ -187,7 +216,7 @@ export function MessageBubble({
               <button
                 type="button"
                 className="message-modal__close"
-                onClick={() => setIsExpanded(false)}
+                onClick={() => setExpanded(false)}
               >
                 Close
               </button>

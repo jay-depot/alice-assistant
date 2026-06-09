@@ -501,6 +501,78 @@ body {
   color: var(--accent);
 }
 
+/* ── Thinking block ───────────────────────────────────────────────────── */
+.thinking-block {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--bg-bubble-bot) 80%, var(--bg-main));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  margin-bottom: 8px;
+  overflow: hidden;
+  max-width: 100%;
+}
+
+.thinking-block__toggle {
+  display: block;
+  width: 100%;
+  padding: 6px 12px;
+  background: color-mix(in srgb, var(--border) 10%, transparent);
+  color: var(--text-secondary);
+  border: none;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s;
+}
+
+.thinking-block__toggle:hover {
+  background: color-mix(in srgb, var(--border) 25%, transparent);
+  color: var(--text-primary);
+}
+
+.thinking-block--expanded .thinking-block__content {
+  max-height: 300px;
+  padding: 8px 12px;
+  overflow-y: auto;
+}
+
+.thinking-block--collapsed .thinking-block__content {
+  max-height: 0;
+  padding: 0 12px;
+  overflow: hidden;
+}
+
+.thinking-block__content {
+  transition:
+    max-height 0.25s ease,
+    padding 0.25s ease;
+}
+
+.thinking-block__content pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Scrollbar style for thinking block content */
+.thinking-block__content::-webkit-scrollbar {
+  width: 4px;
+}
+
+.thinking-block__content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.thinking-block__content::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
 /* ── Message bubbles ─────────────────────────────────────────────────── */
 .message {
   font-family: var(--font-mono);
@@ -1100,6 +1172,102 @@ body {
   flex-direction: column;
   gap: 4px;
   margin-top: 6px;
+}
+
+/* ── Stream turn container ────────────────────────────────────────────── */
+.stream-turn {
+  align-self: stretch;
+  margin: 4px 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--bg-main) 80%, transparent);
+  overflow: hidden;
+}
+
+.stream-turn--current {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+}
+
+.stream-turn--complete {
+  border-color: var(--border);
+}
+
+.stream-turn__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 10px;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.stream-turn__header:hover {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.stream-turn__toggle {
+  width: 14px;
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.stream-turn__spinner {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+.stream-turn__label {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.stream-turn--current .stream-turn__label {
+  color: var(--accent);
+}
+
+.stream-turn__body {
+  padding: 8px 12px 10px;
+  border-top: 1px solid var(--border);
+}
+
+.stream-turn__reasoning {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  max-height: 300px;
+  overflow-y: auto;
+  margin-bottom: 8px;
+  padding: 6px 8px;
+  background: color-mix(in srgb, var(--bg-main) 50%, transparent);
+  border-radius: var(--radius-sm);
+}
+
+.stream-turn__reasoning p {
+  margin: 0 0 4px;
+}
+
+.stream-turn__content {
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  line-height: 1.6;
+}
+
+.stream-turn__content p {
+  margin: 0 0 6px;
 }
 
 /* ── Tool call indicator ────────────────────────────────────────────── */

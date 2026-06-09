@@ -33,8 +33,6 @@ const registeredHooks: {
   onAssistantWillStopAcceptingRequests: Array<() => Promise<void>>;
   onAssistantStoppedAcceptingRequests: Array<() => Promise<void>>;
   onPluginsWillUnload: Array<() => Promise<void>>;
-  onUserPluginsUnloaded: Array<() => Promise<void>>;
-  onSystemPluginsWillUnload: Array<() => Promise<void>>;
   onTaskAssistantWillBegin: Array<
     (instance: ActiveTaskAssistantInstance) => Promise<void>
   >;
@@ -54,8 +52,6 @@ const registeredHooks: {
   onAssistantWillStopAcceptingRequests: [],
   onAssistantStoppedAcceptingRequests: [],
   onPluginsWillUnload: [],
-  onUserPluginsUnloaded: [],
-  onSystemPluginsWillUnload: [],
   onTaskAssistantWillBegin: [],
   onTaskAssistantWillEnd: [],
 };
@@ -70,8 +66,8 @@ const isRegistrationOpenForHook = {
   onAssistantWillStopAcceptingRequests: true,
   onAssistantStoppedAcceptingRequests: true,
   onPluginsWillUnload: true,
-  onUserPluginsUnloaded: true,
-  onSystemPluginsWillUnload: true,
+  onTaskAssistantWillBegin: true,
+  onTaskAssistantWillEnd: true,
 };
 
 export const PluginHooks: (
@@ -164,6 +160,14 @@ export const PluginHooks: (
   onTaskAssistantWillBegin: (
     callback: (instance: ActiveTaskAssistantInstance) => Promise<void>
   ) => {
+    if (!isRegistrationOpenForHook.onTaskAssistantWillBegin) {
+      throw new Error(
+        `${pluginId} tried to register onTaskAssistantWillBegin too late. ` +
+          `The onTaskAssistantWillBegin hook can only be registered before the first ` +
+          `task assistant session begins. Please disable ${pluginId} to fix your assistant. ` +
+          `If you are developing this plugin, check your hook timings.`
+      );
+    }
     registeredHooks.onTaskAssistantWillBegin.push(callback);
   },
   onTaskAssistantWillEnd: (
@@ -172,6 +176,14 @@ export const PluginHooks: (
       result: TaskAssistantResult
     ) => Promise<void>
   ) => {
+    if (!isRegistrationOpenForHook.onTaskAssistantWillEnd) {
+      throw new Error(
+        `${pluginId} tried to register onTaskAssistantWillEnd too late. ` +
+          `The onTaskAssistantWillEnd hook can only be registered before the first ` +
+          `task assistant session ends. Please disable ${pluginId} to fix your assistant. ` +
+          `If you are developing this plugin, check your hook timings.`
+      );
+    }
     registeredHooks.onTaskAssistantWillEnd.push(callback);
   },
 });
@@ -277,6 +289,7 @@ export const PluginHookInvocations = {
 
 // Wire TaskAssistantEvents so that task assistant lifecycle events fan out to registered plugin hooks.
 TaskAssistantEvents.onBegin(async (instance: ActiveTaskAssistantInstance) => {
+  isRegistrationOpenForHook.onTaskAssistantWillBegin = false;
   systemLogger.log(
     `[plugin-hooks] onTaskAssistantWillBegin: Starting callback dispatch (${registeredHooks.onTaskAssistantWillBegin.length} callback(s)) for session ${instance.parentSessionId}.`
   );
@@ -293,6 +306,7 @@ TaskAssistantEvents.onEnd(
     instance: ActiveTaskAssistantInstance,
     result: TaskAssistantResult
   ) => {
+    isRegistrationOpenForHook.onTaskAssistantWillEnd = false;
     systemLogger.log(
       `[plugin-hooks] onTaskAssistantWillEnd: Starting callback dispatch (${registeredHooks.onTaskAssistantWillEnd.length} callback(s)) for session ${instance.parentSessionId} with status ${result.status}.`
     );

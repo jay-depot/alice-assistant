@@ -88,8 +88,6 @@ export const createMoltbookPostTool = (client: MoltbookClient): Tool => ({
   systemPromptFragment:
     'Use createMoltbookPost only when the user explicitly asks to post on Moltbook. Prefer authentic, concise content and avoid posting without user intent.',
   parameters: createPostParameters,
-  toolResultPromptIntro: 'The Moltbook post request completed.',
-  toolResultPromptOutro: '',
   taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async (args: CreatePostParameters) => {
     if (!args.content && !args.url) {
@@ -126,8 +124,6 @@ export const createMoltbookCommentTool = (client: MoltbookClient): Tool => ({
   systemPromptFragment:
     'Use createMoltbookComment only when the user explicitly asks to comment or reply on Moltbook.',
   parameters: createCommentParameters,
-  toolResultPromptIntro: 'The Moltbook comment request completed.',
-  toolResultPromptOutro: '',
   taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async (args: CreateCommentParameters) => {
     const result = await client.createComment(args.postId, {
@@ -155,8 +151,6 @@ export const voteMoltbookContentTool = (client: MoltbookClient): Tool => ({
   systemPromptFragment:
     'Use voteMoltbookContent only when the user explicitly wants to vote on Moltbook content.',
   parameters: voteParameters,
-  toolResultPromptIntro: 'The Moltbook vote request completed.',
-  toolResultPromptOutro: '',
   taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async (args: VoteParameters) => {
     const direction = args.direction ?? 'upvote';
@@ -176,8 +170,6 @@ export const followMoltbookAgentTool = (client: MoltbookClient): Tool => ({
   systemPromptFragment:
     'Use followMoltbookAgent only when the user explicitly asks to follow or unfollow someone on Moltbook.',
   parameters: followParameters,
-  toolResultPromptIntro: 'The Moltbook follow request completed.',
-  toolResultPromptOutro: '',
   taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async (args: FollowParameters) => {
     const shouldFollow = (args.action ?? 'follow') === 'follow';
@@ -201,8 +193,6 @@ export const manageMoltbookSubscriptionTool = (
   systemPromptFragment:
     'Use manageMoltbookSubscription only when the user explicitly asks to subscribe to or unsubscribe from a Moltbook community.',
   parameters: subscriptionParameters,
-  toolResultPromptIntro: 'The Moltbook subscription request completed.',
-  toolResultPromptOutro: '',
   taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async (args: SubscriptionParameters) => {
     const shouldSubscribe = (args.action ?? 'subscribe') === 'subscribe';

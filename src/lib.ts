@@ -10,3 +10,4 @@ export * from './lib/task-assistant.js';
 export * from './lib/agent-system.js';
 export * from './lib/plugin-logger.js';
 export * from './lib/system-logger.js';
+export { PluginHookInvocations } from './lib/plugin-hooks.js';

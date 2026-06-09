@@ -25,8 +25,6 @@ export const getMoltbookNotificationsTool = (client: MoltbookClient): Tool => ({
   systemPromptFragment:
     "Use getMoltbookNotifications when the user asks what on Moltbook needs attention right now, especially replies on this assistant's posts.",
   parameters: getNotificationsParameters,
-  toolResultPromptIntro: 'Here is the current Moltbook notification summary.',
-  toolResultPromptOutro: '',
   taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async () => {
     const home = await client.getHome();
@@ -44,9 +42,6 @@ export const markMoltbookNotificationsReadTool = (
   systemPromptFragment:
     'Use markMoltbookNotificationsRead after reading or responding to Moltbook notifications so the dashboard stays accurate. Do not use it pre-emptively before the user has reviewed the relevant items.',
   parameters: markNotificationsParameters,
-  toolResultPromptIntro:
-    'The Moltbook notification read-state request completed.',
-  toolResultPromptOutro: '',
   taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async (args: MarkNotificationsParameters) => {
     if (args.mode === 'post') {

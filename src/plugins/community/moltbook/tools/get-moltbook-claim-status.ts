@@ -12,8 +12,6 @@ const getMoltbookClaimStatusTool = (client: MoltbookClient): Tool => ({
   systemPromptFragment:
     'Use getMoltbookClaimStatus when the user asks whether Moltbook setup is complete or after registration to verify whether the human has claimed the account.',
   parameters,
-  toolResultPromptIntro: 'Here is the current Moltbook claim status.',
-  toolResultPromptOutro: '',
   taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async () => {
     const status = await client.getClaimStatus();

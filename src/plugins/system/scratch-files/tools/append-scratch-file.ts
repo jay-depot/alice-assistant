@@ -34,9 +34,7 @@ const appendScratchFileTool: (
     `filename, and the contents of the file must not exceed ${config.maxFileSizeKB} ` +
     `KB in size. You should also ensure that the filename does not contain any path traversal characters.`,
   parameters,
-  toolResultPromptIntro:
-    'You have just updated a text file in your internal scratch directory using the appendScratchFile tool.\n',
-  toolResultPromptOutro: '',
+
   execute: async (args: Static<typeof parameters>) => {
     const scratchDirectory = simpleExpandTilde(config.scratchDirectory);
     if (!fs.existsSync(scratchDirectory)) {

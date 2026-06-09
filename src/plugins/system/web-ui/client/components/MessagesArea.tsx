@@ -1,11 +1,18 @@
-import { useLayoutEffect, useMemo, useRef } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState, useCallback } from 'react';
+import React from 'react';
 import { MessageBubble } from './MessageBubble.js';
 import { ProcessingStatus } from './ProcessingStatus.js';
 import { RegionSlot } from './RegionSlot.js';
 import { WelcomeScreen } from './WelcomeScreen.js';
 import { ToolCallBatch } from './ToolCallBatch.js';
+import { StreamTurnContainer } from './StreamTurnContainer.js';
 import type { Message, ToolCallData } from '../types/index.js';
-import { getMessageKey, isDisplayableMessage } from '../utils.js';
+import type { StreamTurn } from '../hooks/useStreamingSession.js';
+import {
+  getMessageIdentityKey,
+  getMessageKey,
+  isDisplayableMessage,
+} from '../utils.js';
 
 interface MessagesAreaProps {
   messages: Message[];
@@ -16,6 +23,16 @@ interface MessagesAreaProps {
   lastReadMessageKey: string | null;
   toolCallBatches: Map<string, ToolCallData[]>;
   pendingAssistantMessage: string | null;
+  /** Completed stream turns rendered as collapsible containers. */
+  completedTurns: StreamTurn[];
+  /** The turn currently receiving deltas (null when not streaming). */
+  currentStreamTurn: StreamTurn | null;
+  /** Final assistant content from stream_done — rendered as a handoff bubble
+   *  until the persisted message arrives via session_updated. */
+  finalContent: string;
+  /** Final assistant reasoning from stream_done. */
+  finalReasoning: string | null;
+  isStreaming: boolean;
 }
 
 /** Group consecutive tool_call messages by callBatchId into batched segments. */
@@ -80,6 +97,11 @@ export function MessagesArea({
   lastReadMessageKey,
   toolCallBatches,
   pendingAssistantMessage,
+  completedTurns,
+  currentStreamTurn,
+  finalContent,
+  finalReasoning,
+  isStreaming,
 }: MessagesAreaProps) {
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const visibleMessages = useMemo(
@@ -96,11 +118,49 @@ export function MessagesArea({
     [visibleMessages]
   );
 
-  // Collect real-time tool call batches as an array for rendering
+  // Collect real-time tool call batches as a map for O(1) lookups.
+  // We'll consume each batch when rendering its linked turn,
+  // leaving only orphan batches (no linked turn) for the bottom.
   const realtimeBatches = useMemo(
     () => [...toolCallBatches.entries()],
     [toolCallBatches]
   );
+
+  // Build a set of batch IDs already claimed by completed turns so
+  // we don't render them again as orphans at the bottom.
+  const turnBatchIds = useMemo(
+    () =>
+      new Set(
+        completedTurns.map(t => t.callBatchId).filter(Boolean) as string[]
+      ),
+    [completedTurns]
+  );
+
+  // Suppress the handoff bubble once its content exists in persisted messages
+  // (arrived via session_updated).
+  const finalIdentityKey = getMessageIdentityKey({
+    role: 'assistant',
+    content: finalContent,
+  });
+  const isFinalPersisted =
+    finalContent.length > 0 &&
+    visibleMessages.some(m => getMessageIdentityKey(m) === finalIdentityKey);
+
+  // ── Expanded message keys (parent-managed so it survives stream→persisted) ─
+  const [expandedMessageKeys, setExpandedMessageKeys] = useState<Set<string>>(
+    new Set()
+  );
+
+  const handleSetExpanded = useCallback((key: string, expanded: boolean) => {
+    setExpandedMessageKeys(prev => {
+      const next = new Set(prev);
+      if (expanded) next.add(key);
+      else next.delete(key);
+      return next;
+    });
+  }, []);
+
+  // ── Auto-scroll ────────────────────────────────────────────────────────
 
   useLayoutEffect(() => {
     const container = messagesRef.current;
@@ -136,6 +196,7 @@ export function MessagesArea({
         <WelcomeScreen />
       ) : (
         <>
+          {/* ── Persisted messages and tool-call batches ── */}
           {groupedSegments.map((segment, segmentIndex) => {
             if (segment.type === 'tool-batch') {
               return (
@@ -152,18 +213,52 @@ export function MessagesArea({
                 message={message}
                 receiptStatus={
                   message.role === 'user'
-                    ? getMessageKey(message) === lastReadMessageKey
+                    ? getMessageIdentityKey(message) === lastReadMessageKey
                       ? 'read'
-                      : getMessageKey(message) === pendingMessageKey
+                      : getMessageIdentityKey(message) === pendingMessageKey
                         ? 'sent'
                         : null
                     : null
                 }
+                isExpanded={expandedMessageKeys.has(
+                  getMessageIdentityKey(message)
+                )}
+                onSetExpanded={handleSetExpanded}
               />
             ));
           })}
 
-          {/* Real-time pending assistant message (shown before tool calls stream in) */}
+          {/* ── Completed stream turns with interleaved tool-call batches ── */}
+          {completedTurns.map(turn => (
+            <React.Fragment key={`completed-turn-${turn.turnIndex}`}>
+              <StreamTurnContainer
+                turn={turn}
+                isCurrent={false}
+                isComplete={true}
+                expandedKeys={expandedMessageKeys}
+                onSetExpanded={handleSetExpanded}
+              />
+              {/* Render the tool-call batch linked to this turn right after,
+                  before the next turn's reasoning appears. */}
+              {turn.callBatchId && toolCallBatches.has(turn.callBatchId) ? (
+                <ToolCallBatch calls={toolCallBatches.get(turn.callBatchId)!} />
+              ) : null}
+            </React.Fragment>
+          ))}
+
+          {/* ── Current stream turn (receiving deltas) ── */}
+          {currentStreamTurn ? (
+            <StreamTurnContainer
+              key={`current-turn-${currentStreamTurn.turnIndex}`}
+              turn={currentStreamTurn}
+              isCurrent={true}
+              isComplete={currentStreamTurn.isComplete}
+              expandedKeys={expandedMessageKeys}
+              onSetExpanded={handleSetExpanded}
+            />
+          ) : null}
+
+          {/* ── Real-time pending assistant message (before tool calls stream in) ── */}
           {pendingAssistantMessage ? (
             <MessageBubble
               message={{
@@ -172,13 +267,40 @@ export function MessagesArea({
                 content: pendingAssistantMessage,
                 timestamp: '',
               }}
+              isExpanded={expandedMessageKeys.has(
+                getMessageIdentityKey({
+                  role: 'assistant',
+                  content: pendingAssistantMessage,
+                })
+              )}
+              onSetExpanded={handleSetExpanded}
             />
           ) : null}
 
-          {/* Real-time tool call batches (shown during processing) */}
-          {realtimeBatches.map(([batchId, calls]) => (
-            <ToolCallBatch key={`realtime-${batchId}`} calls={calls} />
-          ))}
+          {/* ── Orphan tool call batches (not linked to any completed turn) ── */}
+          {realtimeBatches
+            .filter(([batchId]) => !turnBatchIds.has(batchId))
+            .map(([batchId, calls]) => (
+              <ToolCallBatch key={`realtime-${batchId}`} calls={calls} />
+            ))}
+
+          {/* ── Final content handoff bubble ──────────────────────────────
+               Rendered after stream_done but before the persisted message
+               arrives via session_updated. Suppressed once the persisted
+               message is visible. ── */}
+          {!isStreaming && finalContent && !isFinalPersisted ? (
+            <MessageBubble
+              message={{
+                role: 'assistant',
+                messageKind: 'chat',
+                content: finalContent,
+                reasoning: finalReasoning,
+                timestamp: '',
+              }}
+              isExpanded={expandedMessageKeys.has(finalIdentityKey)}
+              onSetExpanded={handleSetExpanded}
+            />
+          ) : null}
         </>
       )}
 

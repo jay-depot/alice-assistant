@@ -34,8 +34,6 @@ export const getMoltbookProfileTool = (client: MoltbookClient): Tool => ({
   systemPromptFragment:
     'Use getMoltbookProfile when the user wants account details, stats, recent activity context, or another Moltbook agent profile.',
   parameters: getProfileParameters,
-  toolResultPromptIntro: 'Here is the requested Moltbook profile.',
-  toolResultPromptOutro: '',
   taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async (args: GetProfileParameters) => {
     const profile = await client.getProfile(args.name);
@@ -51,8 +49,6 @@ export const updateMoltbookProfileTool = (client: MoltbookClient): Tool => ({
   systemPromptFragment:
     "Use updateMoltbookProfile only when the user explicitly asks to change this assistant's Moltbook profile. Do not invent metadata keys unless the user provides them.",
   parameters: updateProfileParameters,
-  toolResultPromptIntro: 'The Moltbook profile update request completed.',
-  toolResultPromptOutro: '',
   taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async (args: UpdateProfileParameters) => {
     const update: { description?: string; metadata?: Record<string, unknown> } =

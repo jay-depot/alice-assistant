@@ -442,8 +442,6 @@ const personalityFacetsPlugin: AlicePlugin = {
         'Invalid diffs will be rejected with instructions to re-read and retry.',
       parameters: UpdatePersonalityFacetToolParametersSchema,
       systemPromptFragment: '',
-      toolResultPromptIntro: '',
-      toolResultPromptOutro: '',
       execute: async (params: UpdatePersonalityFacetToolParameters) => {
         try {
           const operation = await createOrUpdateFacetDefinition(params);
@@ -466,8 +464,6 @@ const personalityFacetsPlugin: AlicePlugin = {
         'decide to switch to a "Playful" facet to better match the tone of the interaction.',
       parameters: EmbodyFacetToolParametersSchema,
       systemPromptFragment: '',
-      toolResultPromptIntro: '',
-      toolResultPromptOutro: '',
       execute: async (
         params: EmbodyFacetToolParameters,
         context: ToolExecutionContext
@@ -524,9 +520,6 @@ const personalityFacetsPlugin: AlicePlugin = {
         'landscape before creating or updating facets.',
       parameters: ExaminePersonalityFacetsToolParametersSchema,
       systemPromptFragment: '',
-      toolResultPromptIntro:
-        'You have just received a summary of all personality facets. Use this information to decide whether to create new facets, update existing ones, or adjust embody-when descriptions.',
-      toolResultPromptOutro: '',
       execute: async () => {
         try {
           const facets = await getAllFacets();
@@ -588,11 +581,6 @@ const personalityFacetsPlugin: AlicePlugin = {
         'contradicting them.',
       parameters: ExamineCorePrinciplesToolParametersSchema,
       systemPromptFragment: '',
-      toolResultPromptIntro:
-        'You have just received the core personality principles. Use these as ' +
-        'context when deciding whether to create or update personality facets — ' +
-        'new facets should complement these principles, not conflict with them.',
-      toolResultPromptOutro: '',
       execute: async () => {
         try {
           const principles = await getCorePersonalityPrinciples();

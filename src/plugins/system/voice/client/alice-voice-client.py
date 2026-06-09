@@ -809,10 +809,15 @@ def send_voice_turn(message: str) -> dict:
     if not isinstance(continue_conversation, bool):
         continue_conversation = not end_conversation
 
+    active_task_assistant = response_json.get('activeTaskAssistant')
+    active_agents = response_json.get('activeAgents')
+
     return {
         'reply': reply,
         'endConversation': end_conversation,
         'continueConversation': continue_conversation,
+        'activeTaskAssistant': active_task_assistant if isinstance(active_task_assistant, dict) else None,
+        'activeAgents': active_agents if isinstance(active_agents, list) else [],
     }
 
 
@@ -834,6 +839,32 @@ def check_health() -> dict:
         raise RuntimeError('Voice API health check did not return ok=true.')
 
     return response_json
+
+
+def fetch_set_aside_sessions() -> list[dict]:
+    """Fetch set-aside voice sessions that can be resumed from the web UI."""
+    base_url = os.environ.get('ALICE_VOICE_BASE_URL', '').rstrip('/')
+    token = os.environ.get('ALICE_VOICE_TOKEN', '')
+    request = urllib.request.Request(
+        f'{base_url}/api/voice/set-aside-sessions',
+        headers={
+            'authorization': f'Bearer {token}',
+        },
+        method='GET',
+    )
+
+    try:
+        with urllib.request.urlopen(request) as response:
+            response_json = json.loads(response.read().decode('utf-8'))
+
+        if not response_json.get('ok'):
+            return []
+
+        sessions = response_json.get('sessions')
+        return sessions if isinstance(sessions, list) else []
+    except Exception as error:
+        print(f'voice client: failed to fetch set-aside sessions: {error}')
+        return []
 
 
 def fetch_voice_events(after_sequence: int) -> tuple[list[dict], int]:
@@ -921,7 +952,13 @@ def announce_archival_progress(after_sequence: int, system_config: dict, voice_p
     return current_sequence
 
 
-def notify_continuation_timeout() -> bool:
+def notify_continuation_timeout() -> dict:
+    """Notify the server that the continuation turn ended in silence.
+
+    Returns a dict with:
+      - closed_conversation: bool — whether a conversation was closed/set aside
+      - set_aside: bool — whether the conversation was set aside (can be resumed later)
+    """
     base_url = os.environ.get('ALICE_VOICE_BASE_URL', '').rstrip('/')
     token = os.environ.get('ALICE_VOICE_TOKEN', '')
     request = urllib.request.Request(
@@ -938,7 +975,14 @@ def notify_continuation_timeout() -> bool:
         response_json = json.loads(response.read().decode('utf-8'))
 
     closed_conversation = response_json.get('closedConversation')
-    return bool(closed_conversation) if isinstance(closed_conversation, bool) else False
+    closed = bool(closed_conversation) if isinstance(closed_conversation, bool) else False
+
+    # The server sets aside sessions on timeout rather than archiving them,
+    # so a closed conversation means it was set aside for possible resume.
+    return {
+        'closed_conversation': closed,
+        'set_aside': closed,
+    }
 
 
 def capture_transcript_from_microphone(
@@ -1018,29 +1062,106 @@ def create_wake_word_model(Model, model_path: str):
     raise RuntimeError('Unsupported openwakeword Model constructor shape. Unable to initialize wake-word model safely.')
 
 
-def wait_for_wake_word(system_config: dict) -> None:
-    np, sd, Model = import_wake_word_runtime()
-    model_path = get_open_wake_word_model_path(system_config)
+def _sleep_aware_clock() -> float:
+    """Monotonic clock that advances during system sleep, unlike time.monotonic().
+
+    Uses CLOCK_BOOTTIME on Linux (time since boot including suspended time).
+    Falls back to time.time() on platforms that don't have it.
+    """
+    try:
+        return time.clock_gettime(time.CLOCK_BOOTTIME)  # type: ignore[attr-defined]
+    except (AttributeError, OSError):
+        return time.time()
+
+
+def get_wake_word_reset_interval_seconds() -> float:
+    try:
+        return max(60.0, float(os.environ.get('ALICE_VOICE_WAKE_RESET_INTERVAL_SECONDS', '300').strip()))
+    except ValueError:
+        return 300.0
+
+
+def wait_for_wake_word(
+    system_config: dict,
+    wake_model,
+    np,
+    sd,
+    last_reset_time: float,
+    reset_interval_seconds: float,
+) -> float:
+    """Listen for the wake word, returning the (possibly updated) last_reset_time.
+
+    The model and timer are owned by the caller so they survive across
+    detections. Without this, each conversation turn creates a fresh model
+    and the periodic reset that prevents CPU creep never fires.
+
+    The audio stream is reopened whenever a sleep/wake cycle is detected.
+    time.monotonic() does not advance during system suspend, so CLOCK_BOOTTIME
+    is used to measure the real elapsed time between stream reads.  A gap
+    larger than SLEEP_DETECT_THRESHOLD_SECONDS means the system was suspended
+    while stream.read() was blocking; in that case the PortAudio buffer is
+    stale and the wake-word model has accumulated garbage, so both are reset
+    and the stream is reopened from scratch.
+    """
     threshold = get_wake_threshold()
     chunk_size = 1280
+    sleep_detect_threshold = 5.0  # seconds; far larger than any normal read gap
 
-    print(f'voice client: listening for wake word using model {model_path}')
+    while not shutdown_requested:
+        with sd.RawInputStream(samplerate=16000, channels=1, dtype='int16', blocksize=chunk_size) as stream:
+            last_read_boot = _sleep_aware_clock()
 
-    wake_model = create_wake_word_model(Model, model_path)
+            while not shutdown_requested:
+                audio_chunk, overflowed = stream.read(chunk_size)
 
-    with sd.RawInputStream(samplerate=16000, channels=1, dtype='int16', blocksize=chunk_size) as stream:
-        while not shutdown_requested:
-            audio_chunk, overflowed = stream.read(chunk_size)
-            if overflowed:
-                continue
+                now_boot = _sleep_aware_clock()
 
-            prediction_input = np.frombuffer(audio_chunk, dtype=np.int16)
-            prediction = wake_model.predict(prediction_input)
-            score = max((float(value) for value in prediction.values()), default=0.0)
+                # Detect sleep/wake: CLOCK_BOOTTIME advances during suspend but
+                # stream.read() blocks without time.monotonic() ticking.  A gap
+                # much larger than the chunk duration means the system slept.
+                if now_boot - last_read_boot > sleep_detect_threshold:
+                    print(
+                        f'voice client: detected sleep/wake cycle '
+                        f'({now_boot - last_read_boot:.1f}s gap); restarting audio stream.'
+                    )
+                    wake_model.reset()
+                    last_reset_time = time.monotonic()
+                    break  # exit inner loop; outer loop reopens the stream
 
-            if score >= threshold:
-                print(f'voice client: wake word detected with score {score:.3f}')
-                return
+                last_read_boot = now_boot
+
+                # Check the reset timer before the overflow skip so that a
+                # sustained overflow storm cannot starve the periodic reset.
+                # Without this guard, high CPU from buffer bloat causes more
+                # overflows, which skip the reset, which causes more bloat.
+                now = time.monotonic()
+                if now - last_reset_time >= reset_interval_seconds:
+                    wake_model.reset()
+                    last_reset_time = now
+                    print('voice client: reset wake word model buffers to prevent CPU creep.')
+
+                if overflowed:
+                    # Brief yield so a sustained overflow storm doesn't tight-spin
+                    # the CPU and starve the audio callback thread.
+                    time.sleep(0.001)
+                    continue
+
+                prediction_input = np.frombuffer(audio_chunk, dtype=np.int16)
+                predict_start = time.monotonic()
+                prediction = wake_model.predict(prediction_input)
+                predict_elapsed = time.monotonic() - predict_start
+                if predict_elapsed > 0.05:
+                    print(
+                        f'voice client: predict() took {predict_elapsed * 1000:.1f}ms '
+                        f'(threshold is 50ms); wake word model may be bloated.'
+                    )
+                score = max((float(value) for value in prediction.values()), default=0.0)
+
+                if score >= threshold:
+                    print(f'voice client: wake word detected with score {score:.3f}')
+                    return last_reset_time
+
+    return last_reset_time
 
 
 def run_manual_loop(system_config: dict, voice_plugin_config: dict, last_event_sequence: int) -> None:
@@ -1113,8 +1234,21 @@ def run_wake_word_loop(system_config: dict, voice_plugin_config: dict, last_even
     audio_capture_closed_sound = get_optional_sound_path(voice_plugin_config, 'audioCaptureClosedSoundPath')
     print(f'ALICE voice client ready. Waiting for wake word: {wake_word}')
 
+    np, sd, Model = import_wake_word_runtime()
+    model_path = get_open_wake_word_model_path(system_config)
+    wake_model = create_wake_word_model(Model, model_path)
+    reset_interval_seconds = get_wake_word_reset_interval_seconds()
+    last_reset_time = time.monotonic()
+
     while not shutdown_requested:
-        wait_for_wake_word(system_config)
+        last_reset_time = wait_for_wake_word(
+            system_config,
+            wake_model,
+            np,
+            sd,
+            last_reset_time,
+            reset_interval_seconds,
+        )
 
         transcript = capture_transcript_from_microphone(
             voice_plugin_config,
@@ -1132,6 +1266,16 @@ def run_wake_word_loop(system_config: dict, voice_plugin_config: dict, last_even
             print(f'ALICE: {reply}')
             speak_text(reply, system_config)
 
+            # Log task assistant and agent activity if present
+            active_task_assistant = turn_result.get('activeTaskAssistant')
+            if active_task_assistant:
+                print(f'voice client: task assistant active: {active_task_assistant.get("name", "unknown")}')
+
+            active_agents = turn_result.get('activeAgents', [])
+            if active_agents:
+                agent_names = ', '.join(agent.get('agentName', 'unknown') for agent in active_agents)
+                print(f'voice client: agents active: {agent_names}')
+
             if turn_result['endConversation']:
                 last_event_sequence = announce_archival_progress(last_event_sequence, system_config, voice_plugin_config)
                 break
@@ -1146,10 +1290,16 @@ def run_wake_word_loop(system_config: dict, voice_plugin_config: dict, last_even
             if transcript is not None:
                 continue
 
-            print('voice client: no follow-up transcript detected during continuation; closing conversation.')
-            if notify_continuation_timeout():
-                speak_text(get_continuation_silence_prompt(voice_plugin_config), system_config)
-                last_event_sequence = announce_archival_progress(last_event_sequence, system_config, voice_plugin_config)
+            print('voice client: no follow-up transcript detected during continuation; setting conversation aside.')
+            timeout_result = notify_continuation_timeout()
+            if timeout_result.get('closed_conversation'):
+                if timeout_result.get('set_aside'):
+                    # Session was set aside — it can be resumed from the web UI later
+                    speak_text(get_continuation_silence_prompt(voice_plugin_config), system_config)
+                else:
+                    # Session was archived immediately
+                    speak_text(get_continuation_silence_prompt(voice_plugin_config), system_config)
+                    last_event_sequence = announce_archival_progress(last_event_sequence, system_config, voice_plugin_config)
             break
 
 
@@ -1162,6 +1312,15 @@ def main() -> int:
         last_event_sequence = health_response.get('latestEventSequence', 0)
         if not isinstance(last_event_sequence, int) or last_event_sequence < 0:
             last_event_sequence = 0
+
+        # Log set-aside session info from the health check
+        set_aside_count = health_response.get('setAsideSessionCount')
+        if isinstance(set_aside_count, int) and set_aside_count > 0:
+            print(f'voice client: {set_aside_count} set-aside voice session(s) available for resume via web UI.')
+
+        active_agent_count = health_response.get('activeAgentCount')
+        if isinstance(active_agent_count, int) and active_agent_count > 0:
+            print(f'voice client: {active_agent_count} active agent(s) running.')
         if os.environ.get('ALICE_VOICE_MANUAL', '').strip() == '1':
             run_manual_loop(system_config, voice_plugin_config, last_event_sequence)
         else:

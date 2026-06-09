@@ -16,6 +16,8 @@ import { Sidebar } from './components/Sidebar.js';
 import { useExtensionContext } from './context/ExtensionContext.js';
 import { useSession } from './hooks/useSession.js';
 import { useSessions } from './hooks/useSessions.js';
+import { useStreamingSession } from './hooks/useStreamingSession.js';
+import type { StreamTurn } from './hooks/useStreamingSession.js';
 import { useToolCallEvents } from './hooks/useToolCallEvents.js';
 import type {
   ActiveSessionAgent,
@@ -39,6 +41,11 @@ interface ChatWorkspaceProps {
   lastReadMessageKey: string | null;
   toolCallBatches: Map<string, ToolCallData[]>;
   pendingAssistantMessage: string | null;
+  completedTurns: StreamTurn[];
+  currentStreamTurn: StreamTurn | null;
+  finalContent: string;
+  finalReasoning: string | null;
+  isStreaming: boolean;
   draft: string;
   setDraft: (value: string) => void;
   submitDraft: () => void;
@@ -63,6 +70,11 @@ function ChatWorkspace({
   lastReadMessageKey,
   toolCallBatches,
   pendingAssistantMessage,
+  completedTurns,
+  currentStreamTurn,
+  finalContent,
+  finalReasoning,
+  isStreaming,
   draft,
   setDraft,
   submitDraft,
@@ -95,6 +107,11 @@ function ChatWorkspace({
         lastReadMessageKey={lastReadMessageKey}
         toolCallBatches={toolCallBatches}
         pendingAssistantMessage={pendingAssistantMessage}
+        completedTurns={completedTurns}
+        currentStreamTurn={currentStreamTurn}
+        finalContent={finalContent}
+        finalReasoning={finalReasoning}
+        isStreaming={isStreaming}
       />
       <InputArea
         value={draft}
@@ -145,7 +162,7 @@ function AppShell() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const navigate = useNavigate();
   const { routes } = useExtensionContext();
-  const { sessions, refreshSessions } = useSessions(setErrorMessage);
+  const { sessions } = useSessions(setErrorMessage);
   const {
     currentSessionId,
     messages,
@@ -167,23 +184,39 @@ function AppShell() {
     showWelcome,
   } = useSession({
     onError: setErrorMessage,
-    refreshSessions,
   });
 
-  const { toolCallBatches, pendingAssistantMessage, agentMonologue } =
-    useToolCallEvents(currentSessionId, isProcessingMessage, messages);
+  const {
+    turns,
+    currentTurn,
+    finalContent,
+    finalReasoning,
+    isStreaming,
+    reset: resetStreaming,
+  } = useStreamingSession(currentSessionId);
+
+  const {
+    toolCallBatches,
+    pendingAssistantMessage,
+    agentMonologue,
+    clear: clearToolCalls,
+  } = useToolCallEvents(currentSessionId, messages);
 
   const pluginRoutes = routes.filter(route => route.path !== '/');
 
-  const submitDraft = useCallback(async () => {
+  const submitDraft = useCallback(() => {
     const trimmedDraft = draft.trim();
     if (!trimmedDraft) {
       return;
     }
 
     setDraft('');
-    await sendMessage(trimmedDraft);
-  }, [draft, sendMessage]);
+    // Clear the previous message cycle's transient state before the
+    // new send so turns and tool batches don't bleed across messages.
+    resetStreaming();
+    clearToolCalls();
+    sendMessage(trimmedDraft);
+  }, [draft, sendMessage, resetStreaming, clearToolCalls]);
 
   return (
     <>
@@ -223,11 +256,14 @@ function AppShell() {
               lastReadMessageKey={lastReadMessageKey}
               toolCallBatches={toolCallBatches}
               pendingAssistantMessage={pendingAssistantMessage}
+              completedTurns={turns}
+              currentStreamTurn={currentTurn}
+              finalContent={finalContent}
+              finalReasoning={finalReasoning}
+              isStreaming={isStreaming}
               draft={draft}
               setDraft={setDraft}
-              submitDraft={() => {
-                void submitDraft();
-              }}
+              submitDraft={submitDraft}
               isInputDisabled={isInputDisabled}
               canSubmitMessage={canSubmitMessage}
               inputPlaceholder={inputPlaceholder}

@@ -49,9 +49,7 @@ const writeUserTextFileTool: (config: {
     `my notes.". If the response to a query would be too long for a single message, you MAY OFFER TO write the response to a file ` +
     `in the user's home directory using this tool.`,
   parameters,
-  toolResultPromptIntro:
-    "You have just written a text file to the user's filesystem using the writeUserTextFile tool.\n",
-  toolResultPromptOutro: '',
+
   execute: async (args: Static<typeof parameters>) => {
     const filename = args.path;
     const contents = args.contents;
@@ -86,10 +84,7 @@ const writeUserTextFileTool: (config: {
     }
 
     const extension = pathLib.extname(absolutePath).toLowerCase();
-    if (
-      allowedWriteExtensions.length > 0 &&
-      !allowedWriteExtensions.includes(extension)
-    ) {
+    if (!allowedWriteExtensions.includes(extension)) {
       return JSON.stringify({
         error: `File type not allowed for writing. Allowed extensions: ${allowedWriteExtensions.join(', ')}`,
       });

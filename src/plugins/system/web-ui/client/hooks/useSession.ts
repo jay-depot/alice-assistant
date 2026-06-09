@@ -1,17 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  createSession,
-  endSession,
-  fetchSession,
-  patchSession,
-} from '../api/sessions.js';
+import { fetchSession } from '../api/sessions.js';
 import type { ActiveSessionAgent, Message, Session } from '../types/index.js';
-import { getMessageKey } from '../utils.js';
+import { getMessageIdentityKey } from '../utils.js';
 import { useWebSocket } from './useWebSocket.js';
 
 interface UseSessionOptions {
   onError?: (message: string) => void;
-  refreshSessions?: () => Promise<void>;
 }
 
 const DEFAULT_TITLE = 'A.L.I.C.E.';
@@ -27,17 +21,14 @@ function getLastReadMessageKey(messages: Message[]): string | null {
     }
 
     if (message.role === 'user' && hasTrailingAssistantMessage) {
-      return getMessageKey(message);
+      return getMessageIdentityKey(message);
     }
   }
 
   return null;
 }
 
-export function useSession({
-  onError,
-  refreshSessions,
-}: UseSessionOptions = {}) {
+export function useSession({ onError }: UseSessionOptions = {}) {
   const [currentSessionId, setCurrentSessionId] = useState<
     number | string | null
   >(null);
@@ -103,7 +94,9 @@ export function useSession({
     ]
   );
 
-  const handleNewChat = useCallback(async () => {
+  const { subscribe, send } = useWebSocket();
+
+  const handleNewChat = useCallback(() => {
     if (isSessionBusy || isProcessingMessage || isEndingSession) {
       return;
     }
@@ -116,31 +109,13 @@ export function useSession({
     setActiveAgents([]);
     setIsSessionBusy(true);
 
-    try {
-      const session = await createSession();
-      applySessionState(session);
-      await refreshSessions?.();
-    } catch (error) {
-      setMessages([]);
-      setSessionTitle(DEFAULT_TITLE);
-      setPendingMessageKey(null);
-      setLastReadMessageKey(null);
-      setActiveAgents([]);
-      reportError('Failed to start new conversation.', error);
-    } finally {
-      setIsSessionBusy(false);
-    }
-  }, [
-    applySessionState,
-    isEndingSession,
-    isProcessingMessage,
-    isSessionBusy,
-    refreshSessions,
-    reportError,
-  ]);
+    send({ type: 'create_session' });
+    // The session_created or session_updated WS message applies state and
+    // clears isSessionBusy in the subscription handler below.
+  }, [isEndingSession, isProcessingMessage, isSessionBusy, send]);
 
   const sendMessage = useCallback(
-    async (content: string) => {
+    (content: string) => {
       const message = content.trim();
       if (
         !message ||
@@ -158,41 +133,36 @@ export function useSession({
         content: message,
         timestamp: new Date().toISOString(),
       };
-      const optimisticMessageKey = getMessageKey(optimisticMessage);
+      const optimisticMessageKey = getMessageIdentityKey(optimisticMessage);
 
       setMessages(currentMessages => [...currentMessages, optimisticMessage]);
       setPendingMessageKey(optimisticMessageKey);
       setIsProcessingMessage(true);
 
-      try {
-        const session = await patchSession(currentSessionId, message);
-        applySessionState(session);
-        await refreshSessions?.();
-      } catch (error) {
-        reportError('Failed to send message. Please try again.', error);
-        try {
-          await reloadSession(currentSessionId);
-        } catch (reloadError) {
-          reportError('Failed to reload conversation.', reloadError);
-        }
-      } finally {
-        setPendingMessageKey(null);
-        setIsProcessingMessage(false);
-      }
+      const numericSessionId =
+        typeof currentSessionId === 'string'
+          ? parseInt(currentSessionId)
+          : currentSessionId;
+
+      send({
+        type: 'send_message',
+        sessionId: numericSessionId,
+        content: message,
+        clientMessageKey: optimisticMessageKey,
+      });
+      // The session_updated WS message applies state and clears
+      // isProcessingMessage / pendingMessageKey in the subscription below.
     },
     [
-      applySessionState,
       currentSessionId,
       isEndingSession,
       isProcessingMessage,
       isSessionBusy,
-      refreshSessions,
-      reloadSession,
-      reportError,
+      send,
     ]
   );
 
-  const deleteSession = useCallback(async () => {
+  const deleteSession = useCallback(() => {
     if (
       currentSessionId === null ||
       isSessionBusy ||
@@ -212,27 +182,19 @@ export function useSession({
 
     setIsEndingSession(true);
 
-    try {
-      await endSession(currentSessionId);
-      setCurrentSessionId(null);
-      setMessages([]);
-      setSessionTitle(DEFAULT_TITLE);
-      setPendingMessageKey(null);
-      setLastReadMessageKey(null);
-      setActiveAgents([]);
-      await refreshSessions?.();
-    } catch (error) {
-      reportError('Failed to end session.', error);
-    } finally {
-      setIsEndingSession(false);
-    }
+    const numericSessionId =
+      typeof currentSessionId === 'string'
+        ? parseInt(currentSessionId)
+        : currentSessionId;
+
+    send({ type: 'end_session', sessionId: numericSessionId });
+    // The session_ended WS message triggers state cleanup in the subscription.
   }, [
     currentSessionId,
     isEndingSession,
     isProcessingMessage,
     isSessionBusy,
-    refreshSessions,
-    reportError,
+    send,
   ]);
 
   const resetToWelcome = useCallback(() => {
@@ -256,14 +218,18 @@ export function useSession({
     return 'Type a message... (Enter to send, Shift+Enter for newline)';
   }, [currentSessionId, isSessionBusy]);
 
-  const { subscribe } = useWebSocket();
+  // ── WebSocket event subscriptions ────────────────────────────────────────
+  // Server pushes session state via WS. We use these to complete the async
+  // round-trip for sendMessage / handleNewChat / deleteSession.
 
-  // Real-time session updates pushed by the server over WebSocket.
-  // Covers agent messages, notifications, PATCH completions on other tabs,
-  // and the page-reload / deep-dive agent reload regression.
   useEffect(() => {
     if (currentSessionId === null) {
-      return;
+      return subscribe(msg => {
+        if (msg.type === 'session_created') {
+          applySessionState(msg.session as unknown as Session);
+          setIsSessionBusy(false);
+        }
+      });
     }
 
     const numericSessionId =
@@ -272,15 +238,51 @@ export function useSession({
         : currentSessionId;
 
     return subscribe(msg => {
-      if (
-        msg.type !== 'session_updated' ||
-        msg.sessionId !== numericSessionId
-      ) {
-        return;
+      switch (msg.type) {
+        case 'session_updated':
+          if (msg.sessionId === numericSessionId) {
+            applySessionState(msg.session as unknown as Session);
+            // Clear transport-level busy flags — safe even if triggered by
+            // another tab's update (false → false is a React no-op).
+            setIsProcessingMessage(false);
+            setPendingMessageKey(null);
+            setIsSessionBusy(false);
+          }
+          break;
+
+        case 'session_created':
+          applySessionState(msg.session as unknown as Session);
+          setIsSessionBusy(false);
+          break;
+
+        case 'session_ended':
+          if (msg.sessionId === numericSessionId) {
+            resetToWelcome();
+            setIsEndingSession(false);
+          }
+          break;
+
+        case 'message_error':
+          if (msg.sessionId === numericSessionId || currentSessionId === 0) {
+            reportError('Failed to send message. Please try again.', msg.error);
+            if (currentSessionId !== null && currentSessionId !== 0) {
+              void reloadSession(currentSessionId);
+            }
+            setIsProcessingMessage(false);
+            setPendingMessageKey(null);
+            setIsSessionBusy(false);
+          }
+          break;
       }
-      applySessionState(msg.session as unknown as Session);
     });
-  }, [currentSessionId, subscribe, applySessionState]);
+  }, [
+    currentSessionId,
+    applySessionState,
+    reloadSession,
+    reportError,
+    resetToWelcome,
+    subscribe,
+  ]);
 
   return {
     currentSessionId,

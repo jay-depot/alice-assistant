@@ -70,9 +70,7 @@ const updateUserTextFileTool: (config: {
     `re-reading. If the response to a query would be too long for a single message, you MAY ` +
     `OFFER TO write the response to a file in the user's home directory using this tool.`,
   parameters,
-  toolResultPromptIntro:
-    "You have just updated a text file in the user's filesystem using the updateUserTextFile tool.\n",
-  toolResultPromptOutro: '',
+
   execute: async (args: Static<typeof parameters>) => {
     const filename = args.path;
     const contents = args.contents;

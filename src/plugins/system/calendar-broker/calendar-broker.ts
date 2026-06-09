@@ -383,8 +383,6 @@ const calendarBrokerPlugin: AlicePlugin = {
         "You can check the user's calendar using the getCalendarEvents tool. " +
         'Use it when the user asks about their schedule, upcoming events, or availability. ' +
         'Events are returned chronologically with time, title, location, and attendee information.',
-      toolResultPromptIntro: 'Calendar events:\n',
-      toolResultPromptOutro: '',
       taintStatus: 'tainted',
       parameters: GetCalendarEventsToolParameters,
       execute: async (parameters: GetCalendarEventsToolParameters) => {
@@ -475,9 +473,6 @@ const calendarBrokerPlugin: AlicePlugin = {
         '2. When inviting other people (attendees), be especially careful — calendar invitations are sent automatically. ' +
         '3. Make sure the time zone is correct. ' +
         '4. Only create events when the user explicitly asks you to.',
-      toolResultPromptIntro: '',
-      toolResultPromptOutro:
-        'Remember: calendar events may trigger notifications and invitations to attendees.',
       taintStatus: 'tainted',
       parameters: CreateCalendarEventToolParameters,
       execute: async (parameters: CreateCalendarEventToolParameters) => {
@@ -544,8 +539,6 @@ const calendarBrokerPlugin: AlicePlugin = {
         '1. ALWAYS confirm the proposed changes with the user before updating an event. ' +
         '2. Be especially careful when modifying events that have other attendees — they may receive notification emails. ' +
         '3. You need the event ID, which you can get from getCalendarEvents results.',
-      toolResultPromptIntro: '',
-      toolResultPromptOutro: '',
       taintStatus: 'tainted',
       parameters: UpdateCalendarEventToolParameters,
       execute: async (parameters: UpdateCalendarEventToolParameters) => {

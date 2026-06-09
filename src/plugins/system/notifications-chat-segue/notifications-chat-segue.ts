@@ -117,9 +117,6 @@ const notificationsConversationPlugin: AlicePlugin = {
       parameters: MarkNotificationsDeliveredParameters,
       systemPromptFragment:
         'Call markNotificationsDelivered only after you have already worked one or more pending notifications into the conversation clearly enough that the user has effectively received them.',
-      toolResultPromptIntro:
-        'You have updated the delivery state of pending chat notifications.',
-      toolResultPromptOutro: '',
       execute: async args => {
         const { notificationIds } = args as { notificationIds: string[] };
 

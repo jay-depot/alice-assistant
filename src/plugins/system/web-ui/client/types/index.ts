@@ -21,6 +21,7 @@ export interface Message {
   role: MessageRole;
   messageKind: MessageKind;
   content: string;
+  reasoning?: string | null;
   timestamp: string;
   senderName?: string | null;
   toolCallData?: ToolCallData; // present when messageKind === 'tool_call'

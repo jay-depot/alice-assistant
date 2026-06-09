@@ -194,9 +194,6 @@ const deepDivePlugin: AlicePlugin = {
         'Use startDeepDiveResearch when the user asks for thorough research on a topic ' +
         'that would require many searches and page reads. The agent runs in the background ' +
         'and reports progress and a final result in subsequent messages.',
-      startToolResultPromptOutro:
-        'Let the user know that the Deep-Dive Research Agent has started and will report ' +
-        'back with findings.',
 
       buildStartup: async args => {
         const typedArgs = args as {
@@ -269,8 +266,6 @@ const deepDivePlugin: AlicePlugin = {
       description:
         'Call deepDiveManageSource when you want to track a source for your research, to mark it as "to visit" or "visited". Use this proactively to help keep your research organized.',
       systemPromptFragment: '',
-      toolResultPromptIntro: '',
-      toolResultPromptOutro: '',
       parameters: DeepDiveManageSourceToolParameterSchema,
       availableFor: ['deep-dive-research'],
       execute: async (

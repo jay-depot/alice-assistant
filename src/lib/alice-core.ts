@@ -57,6 +57,11 @@ export const AliceCore = {
     systemLogger.log('Config loaded successfully.');
     await loadPlugins();
     systemLogger.log(`Trying talk to ${config.ollama.model} in Ollama...\n`);
+
+    // Validate Ollama connectivity with a startup-type conversation before accepting
+    // external requests. The REST server is not yet listening at this point — this is
+    // an internal-only connectivity check. If the LLM is unreachable or produces a
+    // degenerate response, the assistant will fail fast before opening any ports.
     await PluginHookInvocations.invokeOnAssistantWillAcceptRequests();
     await (async () => {
       const testConversation = startConversation('startup');

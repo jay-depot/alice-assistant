@@ -59,20 +59,6 @@ const getDirectoryListingTool: (config: {
     `call getDirectoryListing with the "path" argument set to "~/Documents". If the user says "I can't find my resume, do you know ` +
     `where it is?", you might call getDirectoryListing with the "path" argument set to "~/" and the "filter" argument set to "resume"`,
   parameters,
-  toolResultPromptIntro:
-    'You have just received the results of a call to the getDirectoryListing tool. The results are in JSON format and have the following structure:\n' +
-    '{\n' +
-    '    "path": "The path that was listed",\n' +
-    '    "items": [\n' +
-    '        {\n' +
-    '            "name": "Name of the file or folder",\n' +
-    '            "type": "file or folder"\n' +
-    '        },\n' +
-    '        ...\n' +
-    '    ]\n' +
-    '}\n\n' +
-    `The "path" field is a string representing the directory that was listed. The "items" field is an array of objects, each representing a file or folder in the listed directory. Each object has a "name" field, which is a string containing the name of the file or folder, and a "type" field, which is a string that is either "file" or "folder" indicating whether the item is a file or a folder. Use this information to answer the user's query, and remember that your response will be synthesized into speech, so keep it punchy and short.`,
-  toolResultPromptOutro: '',
   execute: async (args: Static<typeof parameters>) => {
     const path = args.path;
     const filter = args.filter;

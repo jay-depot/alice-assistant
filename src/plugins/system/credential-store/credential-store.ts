@@ -76,8 +76,6 @@ const manageCredentialsTool: Tool = {
     'Credential values are never revealed in tool results. Use this tool when the user asks you to set up ' +
     'or manage API keys, tokens, or other secrets.',
   parameters: manageCredentialsParameters,
-  toolResultPromptIntro: 'Result of managing credentials:\n',
-  toolResultPromptOutro: '',
   taintStatus: 'secure',
   execute: async (args: Static<typeof manageCredentialsParameters>) => {
     const { action, key, value } = args;

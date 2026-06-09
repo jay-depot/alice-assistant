@@ -54,6 +54,19 @@ export function getMessageKey({
   return `${role}:${messageKind}:${timestamp}:${content}`;
 }
 
+/** Timestamp-free identity key — matches streaming bubbles to their persisted
+ *  counterparts so read receipts and modal expanded state survive the transition
+ *  from transient streaming message to persisted message. */
+export function getMessageIdentityKey({
+  role,
+  content,
+}: {
+  role: string;
+  content: string;
+}): string {
+  return `${role}:${content}`;
+}
+
 export function isDisplayableMessage({
   role,
   messageKind,
