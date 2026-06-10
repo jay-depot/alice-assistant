@@ -25,7 +25,7 @@ const agentsPlugin: AlicePlugin = {
     version: 'LATEST',
     description:
       'Provides the session-linked agent runtime and the framework tools ' +
-      '(agentReportProgress, agentReturnResult) that all session-linked agents use.',
+      '(agents.report_progress, agents.return_result) that all session-linked agents use.',
     dependencies: [
       { id: 'web-ui', version: 'LATEST' },
       { id: 'memory', version: 'LATEST' },
@@ -46,7 +46,7 @@ const agentsPlugin: AlicePlugin = {
       : Promise.resolve(undefined);
 
     plugin.registerTool({
-      name: 'agentReportProgress',
+      name: 'report_progress',
       availableFor: [],
       description:
         'Report a progress update from within a session-linked agent. ' +
@@ -75,7 +75,7 @@ const agentsPlugin: AlicePlugin = {
     });
 
     plugin.registerTool({
-      name: 'agentReturnResult',
+      name: 'return_result',
       availableFor: [],
       description:
         'Return the final result from a session-linked agent. ' +
@@ -109,7 +109,7 @@ const agentsPlugin: AlicePlugin = {
     });
 
     plugin.registerTool({
-      name: 'agentSleep',
+      name: 'sleep',
       availableFor: [],
       description:
         'Signal that the independent agent has no more work to do and should ' +
@@ -143,10 +143,10 @@ const agentsPlugin: AlicePlugin = {
     });
 
     plugin.registerTool({
-      name: 'getAllIndependentAgentStatuses',
+      name: 'statuses',
       availableFor: ['chat', 'voice'],
       description:
-        'Call getAllIndependentAgentStatuses to get the current status of all ' +
+        'Call agents.statuses to get the current status of all ' +
         'active independent agents when needed to answer a user question or request.',
       parameters: Type.Object({}),
       systemPromptFragment: '',

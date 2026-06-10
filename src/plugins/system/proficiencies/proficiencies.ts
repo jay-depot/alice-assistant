@@ -65,7 +65,7 @@ const UpdateProficiencyParametersSchema = Type.Object({
       Type.Literal('diff', {
         description:
           'The contents field contains a unified diff patch to apply to the existing contents. ' +
-          'Re-call recallProficiency first to get the current content, then produce a diff. ' +
+          'Re-call proficiencies.recall first to get the current content, then produce a diff. ' +
           'Prefer this over format=full for updates.',
       }),
     ])
@@ -234,7 +234,7 @@ const proficienciesPlugin: AlicePlugin = {
     });
 
     plugin.registerTool({
-      name: 'recallProficiency',
+      name: 'recall',
       availableFor: ['chat', 'voice', 'autonomy'],
       description:
         'Recall one of your stored proficiencies by name so you can apply it to the current task.',
@@ -245,7 +245,7 @@ const proficienciesPlugin: AlicePlugin = {
       execute: async (args: RecallProficiencyParameters) => {
         const proficiencyName = validateProficiencyName(args.proficiencyName);
         if (!proficiencyName) {
-          return 'Provide a non-empty proficiency name when calling recallProficiency.';
+          return 'Provide a non-empty proficiency name when calling proficiencies.recall.';
         }
 
         return withDatabase(async orm => {
@@ -268,7 +268,7 @@ const proficienciesPlugin: AlicePlugin = {
     });
 
     plugin.registerTool({
-      name: 'createProficiency',
+      name: 'create',
       availableFor: ['chat', 'voice', 'autonomy'],
       description:
         'Create a new proficiency with a name, recall trigger, and reusable ' +
@@ -284,11 +284,11 @@ const proficienciesPlugin: AlicePlugin = {
         const recallWhen = validateRecallWhen(args.recallWhen);
 
         if (!proficiencyName) {
-          return 'Provide a non-empty proficiency name when calling createProficiency.';
+          return 'Provide a non-empty proficiency name when calling proficiencies.create.';
         }
 
         if (!recallWhen) {
-          return 'Provide a non-empty recall trigger when calling createProficiency.';
+          return 'Provide a non-empty recall trigger when calling proficiencies.create.';
         }
 
         return withDatabase(async orm => {
@@ -331,7 +331,7 @@ const proficienciesPlugin: AlicePlugin = {
     });
 
     plugin.registerTool({
-      name: 'updateProficiency',
+      name: 'update',
       availableFor: ['chat', 'voice', 'autonomy'],
       description:
         'Update the recall trigger and or contents of an existing proficiency.',
@@ -404,7 +404,7 @@ const proficienciesPlugin: AlicePlugin = {
         if (
           !context ||
           !context.availableTools?.length ||
-          !context.availableTools?.includes('recallProficiency')
+          !context.availableTools?.includes('proficiencies.recall')
         ) {
           return false;
         }
@@ -451,8 +451,8 @@ const proficienciesPlugin: AlicePlugin = {
         if (
           !context ||
           !context.availableTools?.length ||
-          (!context.availableTools?.includes('recallProficiency') &&
-            !context.availableTools?.includes('updateProficiency'))
+          (!context.availableTools?.includes('proficiencies.recall') &&
+            !context.availableTools?.includes('proficiencies.update'))
         ) {
           return false;
         }

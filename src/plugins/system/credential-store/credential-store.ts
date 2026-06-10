@@ -65,14 +65,14 @@ const manageCredentialsParameters = Type.Object({
 });
 
 const manageCredentialsTool: Tool = {
-  name: 'manageCredentials',
+  name: 'manage',
   availableFor: ['chat', 'autonomy'],
   description:
     'Manage credentials stored in the encrypted vault. Use "list" to see all stored credential keys, ' +
     '"store" to add or update a credential, and "delete" to remove one. Stored values are encrypted and ' +
     'never revealed — this tool will not echo back any secret values.',
   systemPromptFragment:
-    'The manageCredentials tool allows you to store, list, and delete credentials in an encrypted vault. ' +
+    'The credential_store.manage tool allows you to store, list, and delete credentials in an encrypted vault. ' +
     'Credential values are never revealed in tool results. Use this tool when the user asks you to set up ' +
     'or manage API keys, tokens, or other secrets.',
   parameters: manageCredentialsParameters,

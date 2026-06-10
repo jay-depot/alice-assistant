@@ -7,6 +7,17 @@ import {
 
 const tools: Tool[] = [];
 
+/**
+ * Converts a kebab-case plugin ID to snake_case and joins with the tool name
+ * to produce the canonical tool name (e.g., "user-files" + "read" → "user_files.read").
+ */
+export function getCanonicalToolName(
+  pluginId: string,
+  toolName: string
+): string {
+  return `${pluginId.replace(/-/g, '_')}.${toolName}`;
+}
+
 export function addTool(tool: Tool) {
   const unknownConversationType = tool.availableFor.find(
     conversationType => !hasConversationType(conversationType)
@@ -31,6 +42,11 @@ export function getTools(
 
 export function hasTool(toolName: string): boolean {
   return tools.some(tool => tool.name === toolName);
+}
+
+/** Check whether a tool exists by canonical name. */
+export function hasToolByCanonicalName(canonicalName: string): boolean {
+  return tools.some(tool => tool.canonicalName === canonicalName);
 }
 
 export function addConversationTypeToTool(

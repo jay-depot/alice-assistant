@@ -166,7 +166,7 @@ export class Conversation {
     userMessage?: string,
     options?: { hasVisionInput?: boolean }
   ): Promise<string> {
-    const availableTools = getTools(this.type).map(t => t.name);
+    const availableTools = getTools(this.type).map(t => t.canonicalName ?? t.name);
 
     if (userMessage) {
       await this.appendToContext({
@@ -226,7 +226,7 @@ export class Conversation {
     options?: { userMessage?: string; depth?: number; hasVisionInput?: boolean }
   ): Promise<{ content: string; thinking: string; toolCalls: LlmToolCall[] }> {
     const depth = options?.depth ?? 0;
-    const availableTools = getTools(this.type).map(t => t.name);
+    const availableTools = getTools(this.type).map(t => t.canonicalName ?? t.name);
     const maxToolCallDepth =
       getConversationTypeDefinition(this.type)?.maxToolCallDepth ??
       MAX_TOOL_CALL_DEPTH;
@@ -360,7 +360,7 @@ export class Conversation {
       getConversationTypeDefinition(this.type)?.maxToolCallDepth ??
       MAX_TOOL_CALL_DEPTH;
     const callsStillAllowed = depth < maxToolCallDepth;
-    const availableTools = getTools(this.type).map(t => t.name);
+    const availableTools = getTools(this.type).map(t => t.canonicalName ?? t.name);
     const toolCalls = response.message.tool_calls;
 
     if (!toolCalls || toolCalls.length === 0) {
@@ -423,7 +423,7 @@ export class Conversation {
         'The model attempted to make additional tool calls after the tool-call limit was reached. Answer the user in character using the information already available. Do not make any more tool calls for this conversation turn.',
     });
 
-    const availableTools = getTools(this.type).map(t => t.name);
+    const availableTools = getTools(this.type).map(t => t.canonicalName ?? t.name);
     const promptCtx: PromptAssemblerContext = {
       conversationType: this.type,
       sessionId: this.sessionId,

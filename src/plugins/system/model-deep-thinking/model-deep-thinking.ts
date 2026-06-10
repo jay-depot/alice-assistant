@@ -29,7 +29,7 @@ const modelDeepThinkingPlugin: AlicePlugin = {
       id: 'deep-thinking',
       tier: 'task',
       description:
-        'Task-level route for deep-thinking / high-capability model selected explicitly via thinkDeeply tool.',
+        'Task-level route for deep-thinking / high-capability model selected explicitly via think_deeply.begin tool.',
       qualifies: () => false, // Never auto-match — only switched to via setPendingUseForOverride
     });
     plugin.logger.log(

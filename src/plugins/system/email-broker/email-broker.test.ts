@@ -104,11 +104,11 @@ describe('emailBrokerPlugin', () => {
     expect(typeof api.requestEmailSend).toBe('function');
   });
 
-  it('registers searchEmail, readEmail, and sendEmail tools', () => {
+  it('registers search, read, and send tools', () => {
     const toolNames = mockInterface.registeredTools.map((t: any) => t.name);
-    expect(toolNames).toContain('searchEmail');
-    expect(toolNames).toContain('readEmail');
-    expect(toolNames).toContain('sendEmail');
+    expect(toolNames).toContain('search');
+    expect(toolNames).toContain('read');
+    expect(toolNames).toContain('send');
   });
 
   it('all tools have tainted status', () => {
@@ -125,9 +125,9 @@ describe('emailBrokerPlugin', () => {
     }
   });
 
-  it('sendEmail tool has user-confirmation instruction in systemPromptFragment', () => {
+  it('send tool has user-confirmation instruction in systemPromptFragment', () => {
     const sendTool = mockInterface.registeredTools.find(
-      (t: any) => t.name === 'sendEmail'
+      (t: any) => t.name === 'send'
     );
     expect(sendTool).toBeDefined();
     expect(sendTool!.systemPromptFragment).toContain('NEVER send an email');
@@ -359,10 +359,10 @@ describe('emailBrokerPlugin', () => {
   });
 
   describe('LLM tool execution', () => {
-    describe('searchEmail tool', () => {
+    describe('search tool', () => {
       it('returns no-providers message when no providers registered', async () => {
         const searchTool = mockInterface.registeredTools.find(
-          (t: any) => t.name === 'searchEmail'
+          (t: any) => t.name === 'search'
         );
         const result = await searchTool.execute({ query: 'test' });
         expect(result).toContain('No email providers');
@@ -388,7 +388,7 @@ describe('emailBrokerPlugin', () => {
         api.registerEmailProvider('gmail:personal', provider);
 
         const searchTool = mockInterface.registeredTools.find(
-          (t: any) => t.name === 'searchEmail'
+          (t: any) => t.name === 'search'
         );
         const result = await searchTool.execute({ query: 'hello' });
 
@@ -398,10 +398,10 @@ describe('emailBrokerPlugin', () => {
       });
     });
 
-    describe('readEmail tool', () => {
+    describe('read tool', () => {
       it('returns no-providers message when no providers registered', async () => {
         const readTool = mockInterface.registeredTools.find(
-          (t: any) => t.name === 'readEmail'
+          (t: any) => t.name === 'read'
         );
         const result = await readTool.execute({ messageId: '123' });
         expect(result).toContain('No email providers');
@@ -428,7 +428,7 @@ describe('emailBrokerPlugin', () => {
         api.registerEmailProvider('gmail:personal', provider);
 
         const readTool = mockInterface.registeredTools.find(
-          (t: any) => t.name === 'readEmail'
+          (t: any) => t.name === 'read'
         );
         const result = await readTool.execute({ messageId: '1' });
 
@@ -441,10 +441,10 @@ describe('emailBrokerPlugin', () => {
       });
     });
 
-    describe('sendEmail tool', () => {
+    describe('send tool', () => {
       it('returns no-providers message when no providers registered', async () => {
         const sendTool = mockInterface.registeredTools.find(
-          (t: any) => t.name === 'sendEmail'
+          (t: any) => t.name === 'send'
         );
         const result = await sendTool.execute({
           to: ['test@test.com'],
@@ -468,7 +468,7 @@ describe('emailBrokerPlugin', () => {
         api.registerEmailProvider('gmail:personal', provider);
 
         const sendTool = mockInterface.registeredTools.find(
-          (t: any) => t.name === 'sendEmail'
+          (t: any) => t.name === 'send'
         );
         const result = await sendTool.execute({
           to: ['test@test.com'],

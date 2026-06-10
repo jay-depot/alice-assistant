@@ -13,7 +13,12 @@ import { SystemConfigFull } from './types/system-config-full.js';
 import { PluginHooks } from './plugin-hooks.js';
 import { addHeaderPrompt } from './header-prompts.js';
 import { addFooterPrompt } from './footer-prompts.js';
-import { addConversationTypeToTool, addTool, hasTool } from './tools.js';
+import {
+  addConversationTypeToTool,
+  addTool,
+  getCanonicalToolName,
+  hasTool,
+} from './tools.js';
 import { exists, mkdir, writeFile } from './node/fs-promised.js';
 import path from 'node:path';
 import { readFile } from 'node:fs/promises';
@@ -36,7 +41,9 @@ const loadedPlugins: AlicePlugin[] = [];
 const registeredPlugins: Record<string, AlicePlugin> = {};
 const registeredHeaderPromptNames: Record<string, string> = {};
 const registeredFooterPromptNames: Record<string, string> = {};
-const registeredToolNames: Record<string, string> = {};
+const registeredCanonicalToolNames: Record<string, string> = {};
+/** Tracks which local tool names are owned by which plugin for tool-link resolution. */
+const registeredToolOwners = new Map<string, Set<string>>();
 const registeredWebSocketPaths: Record<string, string> = {};
 const registeredWebSocketServers: Array<{
   wss: WebSocketServer;
@@ -123,17 +130,33 @@ function createPluginInterface(
         registerTool: (toolDefinition: Tool) => {
           assertRegistrationOpen(`tool ${toolDefinition.name}`);
 
-          if (registeredToolNames[toolDefinition.name]) {
+          // Compute and stamp the canonical name
+          const canonicalName = getCanonicalToolName(
+            pluginMetadata.id,
+            toolDefinition.name
+          );
+          toolDefinition.canonicalName = canonicalName;
+
+          // Only canonical names must be unique — different plugins may share
+          // the same local name (e.g. "fetch" from web-simple-fetch and lightpanda-browser)
+          // since their canonical names differ (web_simple_fetch.fetch vs lightpanda_browser.fetch).
+          if (registeredCanonicalToolNames[canonicalName]) {
             throw new Error(
-              `Plugin ${pluginMetadata.id} attempted to register a tool with name ` +
-                `"${toolDefinition.name}", but that name is already registered by plugin ` +
-                `${registeredToolNames[toolDefinition.name]}. Disable one of these plugins to fix ` +
+              `Plugin ${pluginMetadata.id} attempted to register a tool with canonical name ` +
+                `"${canonicalName}", but that canonical name is already registered by plugin ` +
+                `${registeredCanonicalToolNames[canonicalName]}. Disable one of these plugins to fix ` +
                 `your assistant. If you are developing one of these plugins, change the name of ` +
                 `this tool.`
             );
           }
 
-          registeredToolNames[toolDefinition.name] = pluginMetadata.id;
+          // Track local name ownership for tool-link resolution
+          const owners =
+            registeredToolOwners.get(toolDefinition.name) ?? new Set();
+          owners.add(pluginMetadata.id);
+          registeredToolOwners.set(toolDefinition.name, owners);
+
+          registeredCanonicalToolNames[canonicalName] = pluginMetadata.id;
           addTool(toolDefinition);
         },
 
@@ -513,11 +536,10 @@ export const AlicePluginEngine = {
         return;
       }
 
-      const registeredToolOwner = registeredToolNames[toolLink.toolName];
-      if (
-        !hasTool(toolLink.toolName) ||
-        registeredToolOwner !== toolLink.sourcePluginId
-      ) {
+      const toolOwners = registeredToolOwners.get(toolLink.toolName);
+      const sourcePluginOwnsTool =
+        toolOwners?.has(toolLink.sourcePluginId) ?? false;
+      if (!hasTool(toolLink.toolName) || !sourcePluginOwnsTool) {
         throw new Error(
           `Plugin ${toolLink.requestingPluginId} attempted to add tool ${toolLink.sourcePluginId}.${toolLink.toolName} to conversation type ${toolLink.conversationTypeId}, but plugin ${toolLink.sourcePluginId} is enabled and does not provide that tool. Disable ${toolLink.requestingPluginId} to fix your assistant, or correct the requested plugin/tool name if you are developing this plugin.`
         );

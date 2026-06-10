@@ -14,14 +14,14 @@ const parameters = Type.Object({
 const appendScratchFileTool: (
   config: ScratchFilesPluginConfigSchema
 ) => Tool = config => ({
-  name: 'appendScratchFile',
+  name: 'append',
   availableFor: ['autonomy', 'chat', 'voice'],
   description:
     'Allows the assistant to write notes for itself in an internal scratch directory. This is meant to be used in conjunction with the ' +
-    'readScratchFile tool, which can read back the contents of files the assistant has written. The files the assistant writes with this tool ' +
+    'scratch_files.read tool, which can read back the contents of files the assistant has written. The files the assistant writes with this tool ' +
     'will not be directly accessible to user, and are meant to be a place for the assistant to write "notes to itself" for later.',
   systemPromptFragment:
-    `Call appendScratchFile when you want to add text to the end of a file in your internal scratch ` +
+    `Call scratch_files.append when you want to add text to the end of a file in your internal scratch ` +
     `directory. These are notes you write to yourself, so there is no need to mention them to the user. Use ` +
     `this tool to store information that should be preserved between sessions. Do not use this tool to store ` +
     `interaction summaries. That is handled by other tools. Use this at your discretion to enhance your performance, ` +
@@ -29,7 +29,7 @@ const appendScratchFileTool: (
     `for yourself or the user, exact quotes, precise interaction transcriptions, and notes to yourself for ` +
     `long-term planning or task management. You must provide the filename and the contents of the file as ` +
     `arguments. For example, if you add a reminder to the end of a file called "reminders.md", you would call ` +
-    `appendScratchFile with the filename set to "reminders.txt" and the contents set to the text you want to add. ` +
+    `scratch_files.append with the filename set to "reminders.txt" and the contents set to the text you want to add. ` +
     `You may only use the extensions ${config.allowedFileTypes.join(', ')} for the ` +
     `filename, and the contents of the file must not exceed ${config.maxFileSizeKB} ` +
     `KB in size. You should also ensure that the filename does not contain any path traversal characters.`,
@@ -73,9 +73,9 @@ const appendScratchFileTool: (
           `${contents.length} bytes, maximum allowed size is ${maxFileSizeKB * 1024} bytes.\n` +
           `Consider writing the content to a new file instead, or reducing the size of the ` +
           `content you are trying to append. You can also try reading the existing contents of ` +
-          `the file using the readScratchFile tool, combine that with the content you want to ` +
+          `the file using the scratch_files.read tool, combine that with the content you want to ` +
           `append, and then add using the combined contents to produce a smaller output overwrite ` +
-          `the existing file with that content using the writeScratchFile tool.`
+          `the existing file with that content using the scratch_files.write tool.`
         );
       }
 

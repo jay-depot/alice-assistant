@@ -210,16 +210,17 @@ const webSimpleFetchPlugin: AlicePlugin = {
     const plugin = await pluginInterface.registerPlugin();
 
     plugin.registerTool({
-      name: 'simpleFetch',
+      name: 'fetch',
       description:
-        'Call simpleFetch when you need to fetch data from the web that ' +
+        'Call web_simple_fetch.fetch when you need to fetch data from the web that ' +
         'is not HTML, or you need to see the "raw html" of a web page. This tool is ' +
         'intended for fetching data from the web that is not HTML, such as APIs that ' +
-        'return JSON, XML, or even plain text and markdown. Only call simpleFetch when ' +
+        'return JSON, XML, or even plain text and markdown. Only call web_simple_fetch.fetch when ' +
         'you need data from a server on the internet and no other available tool that ' +
-        'specifically handles it. DO NOT USE simpleFetch TO WORK AROUND ERRORS IN YOUR ' +
+        'specifically handles it. DO NOT USE web_simple_fetch.fetch TO WORK AROUND ERRORS IN YOUR ' +
         'OTHER TOOLS UNLESS THE USER SPECIFICALLY GIVES YOU PERMISSION. YOU MAY ASK FOR ' +
-        'PERMISSION TO DO THIS. simpleFetch will ret',
+        'PERMISSION TO DO THIS. web_simple_fetch.fetch will return the raw response data as ' +
+        'a string, and it will not attempt to parse it in any way.',
       availableFor: ['chat', 'voice', 'autonomy'],
       systemPromptFragment: '',
       parameters: SimpleFetchToolParametersSchema,
@@ -276,14 +277,14 @@ const webSimpleFetchPlugin: AlicePlugin = {
     });
 
     plugin.registerTool({
-      name: 'simplePost',
+      name: 'post',
       description:
-        'Call simplePost when you need to send a POST request to the web. This is ' +
-        'intended for sending data to web APIs. Only call simplePost when you need to send data ' +
+        'Call web_simple_fetch.post when you need to send a POST request to the web. This is ' +
+        'intended for sending data to web APIs. Only call web_simple_fetch.post when you need to send data ' +
         'to a server on the internet and no other available tool that specifically handles it. ' +
-        'DO NOT USE simplePost TO WORK AROUND ERRORS IN YOUR OTHER TOOLS UNLESS THE USER SPECIFICALLY ' +
+        'DO NOT USE web_simple_fetch.post TO WORK AROUND ERRORS IN YOUR OTHER TOOLS UNLESS THE USER SPECIFICALLY ' +
         'GIVES YOU PERMISSION. YOU MAY ASK FOR PERMISSION TO DO THIS. If you provide a paginationKey, ' +
-        'then results from simplePost will be cached for 5 minutes based on that paginationKey alone, ' +
+        'then results from web_simple_fetch.post will be cached for 5 minutes based on that paginationKey alone, ' +
         'so you can page through a large response without sending the same POST request multiple times.',
       availableFor: ['chat', 'voice', 'autonomy'],
       systemPromptFragment: '',
@@ -356,11 +357,11 @@ const webSimpleFetchPlugin: AlicePlugin = {
     });
 
     plugin.registerTool({
-      name: 'getCachedPosts',
+      name: 'cached_posts',
       description:
-        'Call getCachedPosts to retrieve a list of currently cached POST request ' +
+        'Call web_simple_fetch.cached_posts to retrieve a list of currently cached POST request ' +
         '`paginationKey`s, their URLs, and their timestamps. Use this if you need to find ' +
-        'the cache key for a POST request you made with simplePost that you want to page through ' +
+        'the cache key for a POST request you made with web_simple_fetch.post that you want to page through ' +
         'using the pagination functionality.',
       availableFor: ['chat', 'voice', 'autonomy'],
       systemPromptFragment: '',

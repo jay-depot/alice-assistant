@@ -93,12 +93,12 @@ function buildScenarioPrompt(config: MoltbookAgentConfig): string {
     '',
     '## FIRST THINGS FIRST',
     '',
-    '1. Call recallSkill with the skill name "Moltbook" to load the Moltbook behavioral ' +
+    '1. Call skills.recall with the skill name "Moltbook" to load the Moltbook behavioral ' +
       'skill. Follow those guidelines for how to act on Moltbook — they are important.',
     '2. Check if you have a scratch file called `moltbook-personality-patch.txt` by ' +
-      'calling readScratchFile. If it exists, read it and apply the personality patch ' +
+      'calling scratch_files.read. If it exists, read it and apply the personality patch ' +
       'instructions to your behavior on Moltbook. If it does not exist, create it with ' +
-      'updateScratchFile (format=full) and add initial notes about how you plan to reconcile ' +
+      'scratch_files.update (format=full) and add initial notes about how you plan to reconcile ' +
       'your usual personality with Moltbook norms.',
     '',
     '## YOUR PROCESS',
@@ -263,7 +263,7 @@ function buildScenarioPrompt(config: MoltbookAgentConfig): string {
     '## IMPORTANT',
     '',
     '- You are operating autonomously. Do not address the user or ask questions.',
-    '- Call agentSleep when you are done, even if you made no changes.',
+    '- Call agents.sleep when you are done, even if you made no changes.',
     '- Your personality IS included in this session — let it show, but follow the ' +
       'Moltbook skill guidelines about dialing it back for an AI audience.',
     "- If you encounter a CAPTCHA challenge, solve it, but don't roast the system. " +
@@ -297,7 +297,7 @@ function buildKickoffPrompt(wakeSlot: string): string {
     '',
     'Check in on Moltbook, catch up on notifications and DMs, browse the feed, ' +
       'and interact as you see fit. Follow the Moltbook skill guidelines. ' +
-      'Call agentSleep when you are done.',
+      'Call agents.sleep when you are done.',
   ].join('\n');
 }
 
@@ -460,7 +460,7 @@ const moltbookAgentPlugin: AlicePlugin = {
     // -----------------------------------------------------------------------
 
     // Framework tools from agents
-    plugin.addToolToConversationType('moltbook-agent', 'agents', 'agentSleep');
+    plugin.addToolToConversationType('moltbook-agent', 'agents', 'sleep');
 
     // Moltbook tools — all wired regardless of action flags; flags only
     // control the scenario prompt instructions.
@@ -596,34 +596,22 @@ const moltbookAgentPlugin: AlicePlugin = {
     );
 
     // Scratch file tools — for maintaining moltbook-personality-patch.txt
+    plugin.addToolToConversationType('moltbook-agent', 'scratch-files', 'read');
     plugin.addToolToConversationType(
       'moltbook-agent',
       'scratch-files',
-      'readScratchFile'
+      'update'
     );
-    plugin.addToolToConversationType(
-      'moltbook-agent',
-      'scratch-files',
-      'updateScratchFile'
-    );
-    plugin.addToolToConversationType(
-      'moltbook-agent',
-      'scratch-files',
-      'listScratchFiles'
-    );
+    plugin.addToolToConversationType('moltbook-agent', 'scratch-files', 'list');
 
     // Skills — for loading the Moltbook behavioral skill
-    plugin.addToolToConversationType('moltbook-agent', 'skills', 'recallSkill');
+    plugin.addToolToConversationType('moltbook-agent', 'skills', 'recall');
     plugin.addToolToConversationType(
       'moltbook-agent',
       'proficiencies',
-      'recallProficiency'
+      'recall'
     );
-    plugin.addToolToConversationType(
-      'moltbook-agent',
-      'memory',
-      'recallPastConversations'
-    );
+    plugin.addToolToConversationType('moltbook-agent', 'memory', 'recall');
 
     // -----------------------------------------------------------------------
     // Schedule timer management

@@ -55,17 +55,17 @@ const updateUserTextFileTool: (config: {
   allowedUpdatePaths?: string[];
   maxFileSizeBytes?: number;
 }) => Tool = config => ({
-  name: 'updateUserTextFile',
+  name: 'update',
   availableFor: ['chat', 'voice'],
   description:
     "Updates an existing text file in the user's filesystem. Prefer format=diff with a " +
     'unified diff patch for targeted edits — this avoids re-sending unchanged content. ' +
-    'Use format=full only as a last resort. Read the file first with readUserTextFile to ' +
+    'Use format=full only as a last resort. Read the file first with user_files.read to ' +
     'get the current content before producing a diff.',
   systemPromptFragment:
-    `Call updateUserTextFile when the user wants to modify an existing text file on their ` +
+    `Call user_files.update when the user wants to modify an existing text file on their ` +
     `computer. When updating a file, prefer format=diff with a unified diff patch for ` +
-    `targeted edits. Read the file first with readUserTextFile to get the current content, ` +
+    `targeted edits. Read the file first with user_files.read to get the current content, ` +
     `then produce a diff. Use format=full only when a diff cannot be made to work after ` +
     `re-reading. If the response to a query would be too long for a single message, you MAY ` +
     `OFFER TO write the response to a file in the user's home directory using this tool.`,
@@ -93,7 +93,7 @@ const updateUserTextFileTool: (config: {
       if (!isAllowedPath(absolutePath, allowedUpdatePaths)) {
         return JSON.stringify({
           error:
-            'Access denied. Update path is outside allowed update paths. Use writeUserTextFile to create new files.',
+            'Access denied. Update path is outside allowed update paths. Use user_files.write to create new files.',
         });
       }
     } else if (!isAllowedPath(absolutePath, allowedFilePaths)) {
@@ -126,7 +126,7 @@ const updateUserTextFileTool: (config: {
     // File must exist to update it
     if (!fs.existsSync(absolutePath)) {
       return JSON.stringify({
-        error: `File ${filename} does not exist. Use writeUserTextFile to create new files.`,
+        error: `File ${filename} does not exist. Use user_files.write to create new files.`,
       });
     }
 
@@ -152,7 +152,7 @@ const updateUserTextFileTool: (config: {
     const resolved = resolveContents(original, args.format, contents);
     if (resolved.ok === false) {
       return JSON.stringify({
-        error: `ERROR! UPDATE REJECTED!\n${resolved.message}\nRe-read the file with readUserTextFile to get the current content, then produce a valid unified diff patch. Use format=full only as a last resort if you cannot produce a valid diff after re-reading.`,
+        error: `ERROR! UPDATE REJECTED!\n${resolved.message}\nRe-read the file with user_files.read to get the current content, then produce a valid unified diff patch. Use format=full only as a last resort if you cannot produce a valid diff after re-reading.`,
       });
     }
 

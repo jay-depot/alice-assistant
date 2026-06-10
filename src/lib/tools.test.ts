@@ -121,6 +121,31 @@ describe('hasTool', () => {
   });
 });
 
+describe('getCanonicalToolName', () => {
+  let getCanonicalToolName: typeof import('./tools.js').getCanonicalToolName;
+
+  beforeEach(async () => {
+    vi.resetModules();
+    await import('./conversation-types.js');
+    const tools = await import('./tools.js');
+    getCanonicalToolName = tools.getCanonicalToolName;
+  });
+
+  it('converts kebab-case plugin id to snake_case and joins with tool name', () => {
+    expect(getCanonicalToolName('user-files', 'read')).toBe('user_files.read');
+    expect(getCanonicalToolName('think-deeply', 'begin')).toBe(
+      'think_deeply.begin'
+    );
+  });
+
+  it('leaves plugin ids without hyphens unchanged', () => {
+    expect(getCanonicalToolName('memory', 'recall')).toBe('memory.recall');
+    expect(getCanonicalToolName('proficiencies', 'create')).toBe(
+      'proficiencies.create'
+    );
+  });
+});
+
 describe('addConversationTypeToTool', () => {
   let tools: ToolsModule;
 

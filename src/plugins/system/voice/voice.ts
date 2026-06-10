@@ -83,16 +83,16 @@ const voicePlugin: AlicePlugin = {
     };
 
     plugin.registerTool({
-      name: 'endVoiceConversation',
+      name: 'end',
       availableFor: ['voice'],
       description:
-        'Use endVoiceConversation only when the user clearly indicates the conversation is over, such as saying "that will be all," "that is it," or "thanks, that is all." Do not call it just because a task is complete if the user still appears to be engaged.',
+        'Use voice.end only when the user clearly indicates the conversation is over, such as saying "that will be all," "that is it," or "thanks, that is all." Do not call it just because a task is complete if the user still appears to be engaged.',
       systemPromptFragment: '',
       parameters: Type.Object({}),
       execute: async (_args, context) => {
         if (context.conversationType !== 'voice') {
           throw new Error(
-            'endVoiceConversation can only be used during voice conversations.'
+            'voice.end can only be used during voice conversations.'
           );
         }
 

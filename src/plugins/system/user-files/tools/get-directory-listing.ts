@@ -45,19 +45,19 @@ function matchesFilter(name: string, filter?: string): boolean {
 const getDirectoryListingTool: (config: {
   allowedFilePaths?: string[];
 }) => Tool = config => ({
-  name: 'getDirectoryListing',
+  name: 'list',
   availableFor: ['chat', 'voice', 'autonomy'],
   description: `
     Retrieves a list of files and folders in a specified directory on the user's computer. Has the guardrail that only allows the 
     listing of directories explicitly defined in the tool's config file.
   `,
   systemPromptFragment:
-    `Call getDirectoryListing when the user asks you to show them the contents of a folder on their computer, ` +
+    `Call user_files.list when the user asks you to show them the contents of a folder on their computer, ` +
     `or when they ask you to find a file without providing enough information to open it directly. Use the "path" argument to ` +
     `specify the directory you want to list, and optionally use the "filter" argument to specify a keyword or glob that should ` +
     `be used to filter the results. For example, if the user says "Can you show me the files in my Documents folder?", you might ` +
-    `call getDirectoryListing with the "path" argument set to "~/Documents". If the user says "I can't find my resume, do you know ` +
-    `where it is?", you might call getDirectoryListing with the "path" argument set to "~/" and the "filter" argument set to "resume"`,
+    `call user_files.list with the "path" argument set to "~/Documents". If the user says "I can't find my resume, do you know ` +
+    `where it is?", you might call user_files.list with the "path" argument set to "~/" and the "filter" argument set to "resume"`,
   parameters,
   execute: async (args: Static<typeof parameters>) => {
     const path = args.path;

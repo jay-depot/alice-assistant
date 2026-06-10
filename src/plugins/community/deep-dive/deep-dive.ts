@@ -28,16 +28,16 @@ const DEEP_DIVE_SCENARIO_PROMPT =
   'You are an autonomous deep-dive research agent. Your only job is to research a ' +
   'question or topic thoroughly using the tools available to you.\n\n' +
   'RESEARCH PROCESS:\n' +
-  '1. Start by searching for the topic using webSearch.\n' +
-  '2. Use your deepDiveManageSource tool to keep track of promising sources, marking them as "to-visit".\n' +
-  '3. For each source on your tracker, use simpleFetch or an alternative tool to read the page content in full.\n' +
+  '1. Start by searching for the topic using web_search_broker.search.\n' +
+  '2. Use your deep_dive.manage_source tool to keep track of promising sources, marking them as "to-visit".\n' +
+  '3. For each source on your tracker, use web_simple_fetch.fetch or an alternative tool to read the page content in full.\n' +
   '4. If you find more sources to explore while reading, add those URLs to your source tracker for processing in subsequent research steps.\n' +
-  '5. After each significant finding or completed search batch, call agentReportProgress with a brief summary of what you found.\n' +
-  '6. When you have exhausted a source, use deepDiveManageSource to mark it as "visited" on your tracker to avoid redundant work.\n' +
+  '5. After each significant finding or completed search batch, call agents.report_progress with a brief summary of what you found.\n' +
+  '6. When you have exhausted a source, use deep_dive.manage_source to mark it as "visited" on your tracker to avoid redundant work.\n' +
   '7. Repeat searches with refined queries to dig deeper. Follow the most relevant links.\n' +
-  '8. When you have built a complete picture — or after exhausting the most useful leads — call agentReturnResult with your full findings.\n' +
-  '9. If you have access to skills or proficiencies that could help you evaluate sources or provide alternative ways to access a source, use recallSkill and/or recallProficiency to leverage that knowledge.\n' +
-  '10. When all else fails, if you are unable to access a source on your list, use updateProficiency to note that you are "blocked" on that source, and move on to the next most promising lead.\n\n' +
+  '8. When you have built a complete picture — or after exhausting the most useful leads — call agents.return_result with your full findings.\n' +
+  '9. If you have access to skills or proficiencies that could help you evaluate sources or provide alternative ways to access a source, use skills.recall and/or proficiencies.recall to leverage that knowledge.\n' +
+  '10. When all else fails, if you are unable to access a source on your list, use proficiencies.update to note that you are "blocked" on that source, and move on to the next most promising lead.\n\n' +
   'RULES:\n' +
   '- Do NOT address the user or ask questions. You are operating autonomously.\n' +
   '- Do NOT generate content from memory alone. Ground every claim in sources you fetched.\n' +
@@ -114,49 +114,45 @@ const deepDivePlugin: AlicePlugin = {
     plugin.addToolToConversationType(
       'deep-dive-research',
       'agents',
-      'agentReportProgress'
+      'report_progress'
     );
     plugin.addToolToConversationType(
       'deep-dive-research',
       'agents',
-      'agentReturnResult'
+      'return_result'
     );
 
     // Wire web tools into this conversation type
     plugin.addToolToConversationType(
       'deep-dive-research',
       'web-search-broker',
-      'webSearch'
+      'search'
     );
     plugin.addToolToConversationType(
       'deep-dive-research',
       'web-simple-fetch',
-      'simpleFetch'
+      'fetch'
     );
 
     // Wire lightpanda if it is enabled (optional)
     plugin.addToolToConversationType(
       'deep-dive-research',
       'lightpanda-browser',
-      'lightpandaFetch'
+      'fetch'
     );
 
     // Wire in skills and proficiencies if they're enabled
     // Wire lightpanda if it is enabled (optional)
+    plugin.addToolToConversationType('deep-dive-research', 'skills', 'recall');
     plugin.addToolToConversationType(
       'deep-dive-research',
-      'skills',
-      'recallSkill'
+      'proficiencies',
+      'recall'
     );
     plugin.addToolToConversationType(
       'deep-dive-research',
       'proficiencies',
-      'recallProficiency'
-    );
-    plugin.addToolToConversationType(
-      'deep-dive-research',
-      'proficiencies',
-      'updateProficiency'
+      'update'
     );
 
     const { autoStartTool } = plugin.registerSessionLinkedAgent({
@@ -164,18 +160,18 @@ const deepDivePlugin: AlicePlugin = {
       name: 'Deep-Dive Research Agent',
       conversationType: 'deep-dive-research',
       continuationPrompt:
-        'Keep researching. Run refined searches, fetch high-value sources, and report major findings with agentReportProgress. ' +
-        'Call agentReturnResult once coverage is strong enough to answer the question or fully explain the topic with evidence.',
+        'Keep researching. Run refined searches, fetch high-value sources, and report major findings with agents.report_progress. ' +
+        'Call agents.return_result once coverage is strong enough to answer the question or fully explain the topic with evidence.',
       forceReturnPrompt:
-        'Research loop budget is exhausted. Call agentReturnResult now with the best complete report you can produce from gathered evidence, including uncertainties and gaps.',
+        'Research loop budget is exhausted. Call agents.return_result now with the best complete report you can produce from gathered evidence, including uncertainties and gaps.',
 
-      startToolName: 'startDeepDiveResearch',
+      startToolName: 'start',
       startToolAvailableFor: ['chat'],
       startToolDescription:
-        'Use startDeepDiveResearch when the user wants an in-depth investigation of a ' +
+        'Use deep_dive.start when the user wants an in-depth investigation of a ' +
         'topic that would require many web searches and page reads — more than the assistant ' +
         'can reasonably handle in a single turn. The agent will research autonomously and ' +
-        'report its findings back into the conversation. Also use startDeepDiveResearch if ' +
+        'report its findings back into the conversation. Also use deep_dive.start if ' +
         'the user specifically asks for a "deep dive" or "deep research" on a topic.',
       startToolParameters: Type.Object({
         researchQuestion: Type.String({
@@ -198,7 +194,7 @@ const deepDivePlugin: AlicePlugin = {
         ),
       }),
       startToolSystemPromptFragment:
-        'Use startDeepDiveResearch when the user asks for thorough research on a topic ' +
+        'Use deep_dive.start when the user asks for thorough research on a topic ' +
         'that would require many searches and page reads. The agent runs in the background ' +
         'and reports progress and a final result in subsequent messages.',
 
@@ -269,9 +265,9 @@ const deepDivePlugin: AlicePlugin = {
     plugin.registerTool(autoStartTool);
 
     plugin.registerTool({
-      name: 'deepDiveManageSource',
+      name: 'manage_source',
       description:
-        'Call deepDiveManageSource when you want to track a source for your research, to mark it as "to visit" or "visited". Use this proactively to help keep your research organized.',
+        'Call deep_dive.manage_source when you want to track a source for your research, to mark it as "to visit" or "visited". Use this proactively to help keep your research organized.',
       systemPromptFragment: '',
       parameters: DeepDiveManageSourceToolParameterSchema,
       availableFor: ['deep-dive-research'],

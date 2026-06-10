@@ -167,18 +167,16 @@ describe('memoryPlugin', () => {
     expect(memoryPlugin.pluginMetadata.required).toBe(true);
   });
 
-  it('registers the recallPastConversations tool', async () => {
+  it('registers the recall tool', async () => {
     await memoryPlugin.registerPlugin(
       mockInterface as unknown as AlicePluginInterface
     );
 
     expect(mockInterface.registeredTools).toHaveLength(1);
-    expect(mockInterface.registeredTools[0].name).toBe(
-      'recallPastConversations'
-    );
+    expect(mockInterface.registeredTools[0].name).toBe('recall');
   });
 
-  it('recallPastConversations tool is available for chat, voice, and autonomy', async () => {
+  it('recall tool is available for chat, voice, and autonomy', async () => {
     await memoryPlugin.registerPlugin(
       mockInterface as unknown as AlicePluginInterface
     );

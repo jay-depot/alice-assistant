@@ -44,23 +44,23 @@ const FACET_GARDENER_SCENARIO_PROMPT = [
   '',
   '## YOUR PROCESS',
   '',
-  '1. Call examineCorePrinciples to understand the foundational values and rules that guide ' +
+  '1. Call personality_facets.principles to understand the foundational values and rules that guide ' +
     "the assistant's behavior. New facets should complement these principles, not contradict them.",
-  '2. Call examinePersonalityFacets to review the current facet landscape.',
-  '3. Call recallPastConversations to review recent conversation memories. Use keyword-based ',
+  '2. Call personality_facets.examine to review the current facet landscape.',
+  '3. Call memory.recall to review recent conversation memories. Use keyword-based ',
   '   searches for common interaction themes (e.g. "frustrated", "joking", "teaching", ',
   '   "troubleshooting", "creative", "emotional support", "technical support") or date ',
   '   filters with recently past dates.',
   '4. For each recurring pattern you find, check if an existing facet already covers it.',
   '5. If a pattern is NOT well-covered:',
-  '   - Create a new facet with updatePersonalityFacet, giving it a descriptive name, ',
+  '   - Create a new facet with personality_facets.update, giving it a descriptive name, ',
   '     a clear embodyWhen description, and any instructions you can discern, even if ',
   '     those instructions are just "figure it out as you go and update this when ',
   '     things you do and say seem to land effectively."',
   "   - OR update an existing facet's embodyWhen or instructions if it almost covers the pattern.",
   '6. If you find facets that have never been embodied and seem redundant or poorly defined, ',
   '   consider updating their embodyWhen descriptions to make them more useful.',
-  '7. When you have reviewed enough memories and tended the garden, call agentSleep with a ',
+  '7. When you have reviewed enough memories and tended the garden, call agents.sleep with a ' +
   '   summary of what you did.',
   '',
   '## GUIDELINES',
@@ -81,7 +81,7 @@ const FACET_GARDENER_SCENARIO_PROMPT = [
   '## IMPORTANT',
   '',
   '- You are operating autonomously. Do not address the user or ask questions.',
-  '- Call agentSleep when you are done, even if you made no changes.',
+  '- Call agents.sleep when you are done, even if you made no changes.',
   '- If you are unsure whether a pattern warrants a facet, create a minimal one ',
   '  with notes to keep working on it later.',
   '- Your purpose here is to give the main interactive assistant a base on which ',
@@ -248,35 +248,35 @@ const facetGardenerPlugin: AlicePlugin = {
     // -----------------------------------------------------------------------
 
     // Framework tools from agents
-    plugin.addToolToConversationType('facet-gardener', 'agents', 'agentSleep');
+    plugin.addToolToConversationType('facet-gardener', 'agents', 'sleep');
 
     // Memory recall from memory plugin
     plugin.addToolToConversationType(
       'facet-gardener',
       'memory',
-      'recallPastConversations'
+      'recall'
     );
 
     // Facet tools from personality-facets plugin
     plugin.addToolToConversationType(
       'facet-gardener',
       'personality-facets',
-      'updatePersonalityFacet'
+      'update'
     );
     plugin.addToolToConversationType(
       'facet-gardener',
       'personality-facets',
-      'embodyPersonalityFacet'
+      'embody'
     );
     plugin.addToolToConversationType(
       'facet-gardener',
       'personality-facets',
-      'examinePersonalityFacets'
+      'examine'
     );
     plugin.addToolToConversationType(
       'facet-gardener',
       'personality-facets',
-      'examineCorePrinciples'
+      'principles'
     );
 
     // -----------------------------------------------------------------------

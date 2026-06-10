@@ -19,7 +19,7 @@ const UserFilesPluginConfigSchema = Type.Object(
       'Configuration for the user files plugin. Allows the user to specify ' +
       'which file paths and file types the assistant is allowed to access. If left empty, ' +
       'the assistant will not be able to access any files. allowedUpdatePaths further ' +
-      'restricts where updateUserTextFile can write, enabling scenarios like shared folders.',
+      'restricts where user_files.update can write, enabling scenarios like shared folders.',
   }
 );
 

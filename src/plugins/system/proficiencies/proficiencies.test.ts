@@ -184,11 +184,11 @@ describe('proficienciesPlugin', () => {
   // Tool registration
   // -------------------------------------------------------------------------
 
-  it('registers recallProficiency, createProficiency, and updateProficiency tools', () => {
+  it('registers recall, create, and update tools', () => {
     const names = mockInterface.registeredTools.map(t => t.name);
-    expect(names).toContain('recallProficiency');
-    expect(names).toContain('createProficiency');
-    expect(names).toContain('updateProficiency');
+    expect(names).toContain('recall');
+    expect(names).toContain('create');
+    expect(names).toContain('update');
   });
 
   it('all tools are available for chat, voice, and autonomy', () => {
@@ -227,10 +227,10 @@ describe('proficienciesPlugin', () => {
   });
 
   // -------------------------------------------------------------------------
-  // recallProficiency
+  // recall
   // -------------------------------------------------------------------------
 
-  it('recallProficiency returns formatted proficiency when found', async () => {
+  it('recall returns formatted proficiency when found', async () => {
     mockInterface = createMockPluginInterface({
       initialRows: [
         {
@@ -249,9 +249,7 @@ describe('proficienciesPlugin', () => {
       mockInterface as unknown as AlicePluginInterface
     );
 
-    const tool = mockInterface.registeredTools.find(
-      t => t.name === 'recallProficiency'
-    );
+    const tool = mockInterface.registeredTools.find(t => t.name === 'recall');
     const result = await tool.execute({ proficiencyName: 'BakingTips' });
 
     expect(result).toContain('BakingTips');
@@ -259,7 +257,7 @@ describe('proficienciesPlugin', () => {
     expect(result).toContain('baking');
   });
 
-  it('recallProficiency increments usageCount on each recall', async () => {
+  it('recall increments usageCount on each recall', async () => {
     const now = new Date();
     mockInterface = createMockPluginInterface({
       initialRows: [
@@ -279,9 +277,7 @@ describe('proficienciesPlugin', () => {
       mockInterface as unknown as AlicePluginInterface
     );
 
-    const tool = mockInterface.registeredTools.find(
-      t => t.name === 'recallProficiency'
-    );
+    const tool = mockInterface.registeredTools.find(t => t.name === 'recall');
     await tool.execute({ proficiencyName: 'Cooking' });
 
     const row = mockInterface.orm.rows.find(
@@ -290,31 +286,25 @@ describe('proficienciesPlugin', () => {
     expect(row?.usageCount).toBe(4);
   });
 
-  it('recallProficiency returns a not-found message for an unknown name', async () => {
-    const tool = mockInterface.registeredTools.find(
-      t => t.name === 'recallProficiency'
-    );
+  it('recall returns a not-found message for an unknown name', async () => {
+    const tool = mockInterface.registeredTools.find(t => t.name === 'recall');
     const result = await tool.execute({ proficiencyName: 'DoesNotExist' });
     expect(result).toMatch(/DoesNotExist/);
     expect(result).toMatch(/not found|no proficiency/i);
   });
 
-  it('recallProficiency returns an error for an empty name', async () => {
-    const tool = mockInterface.registeredTools.find(
-      t => t.name === 'recallProficiency'
-    );
+  it('recall returns an error for an empty name', async () => {
+    const tool = mockInterface.registeredTools.find(t => t.name === 'recall');
     const result = await tool.execute({ proficiencyName: '   ' });
     expect(result).toMatch(/non-empty/i);
   });
 
   // -------------------------------------------------------------------------
-  // createProficiency
+  // create
   // -------------------------------------------------------------------------
 
-  it('createProficiency creates a new entry and returns a success message', async () => {
-    const tool = mockInterface.registeredTools.find(
-      t => t.name === 'createProficiency'
-    );
+  it('create creates a new entry and returns a success message', async () => {
+    const tool = mockInterface.registeredTools.find(t => t.name === 'create');
     const result = await tool.execute({
       proficiencyName: 'CssGrid',
       recallWhen: 'user asks about CSS layouts',
@@ -327,10 +317,8 @@ describe('proficienciesPlugin', () => {
     expect(row?.normalizedName).toBe('cssgrid');
   });
 
-  it('createProficiency returns an error for an empty name', async () => {
-    const tool = mockInterface.registeredTools.find(
-      t => t.name === 'createProficiency'
-    );
+  it('create returns an error for an empty name', async () => {
+    const tool = mockInterface.registeredTools.find(t => t.name === 'create');
     const result = await tool.execute({
       proficiencyName: '',
       recallWhen: 'always',
@@ -339,10 +327,8 @@ describe('proficienciesPlugin', () => {
     expect(result).toMatch(/non-empty/i);
   });
 
-  it('createProficiency returns an error for an empty recallWhen', async () => {
-    const tool = mockInterface.registeredTools.find(
-      t => t.name === 'createProficiency'
-    );
+  it('create returns an error for an empty recallWhen', async () => {
+    const tool = mockInterface.registeredTools.find(t => t.name === 'create');
     const result = await tool.execute({
       proficiencyName: 'SomeSkill',
       recallWhen: '   ',
@@ -351,7 +337,7 @@ describe('proficienciesPlugin', () => {
     expect(result).toMatch(/non-empty/i);
   });
 
-  it('createProficiency returns an error when a proficiency with the same name already exists', async () => {
+  it('create returns an error when a proficiency with the same name already exists', async () => {
     const now = new Date();
     mockInterface = createMockPluginInterface({
       initialRows: [
@@ -371,9 +357,7 @@ describe('proficienciesPlugin', () => {
       mockInterface as unknown as AlicePluginInterface
     );
 
-    const tool = mockInterface.registeredTools.find(
-      t => t.name === 'createProficiency'
-    );
+    const tool = mockInterface.registeredTools.find(t => t.name === 'create');
     const result = await tool.execute({
       proficiencyName: 'TypeScript',
       recallWhen: 'TS',
@@ -384,7 +368,7 @@ describe('proficienciesPlugin', () => {
     expect(result).toContain('TypeScript');
   });
 
-  it('createProficiency removes the least-used entry when maxProficiencies is exceeded', async () => {
+  it('create removes the least-used entry when maxProficiencies is exceeded', async () => {
     const oldDate = new Date('2020-01-01T00:00:00Z');
     mockInterface = createMockPluginInterface({
       maxProficiencies: 1,
@@ -405,9 +389,7 @@ describe('proficienciesPlugin', () => {
       mockInterface as unknown as AlicePluginInterface
     );
 
-    const tool = mockInterface.registeredTools.find(
-      t => t.name === 'createProficiency'
-    );
+    const tool = mockInterface.registeredTools.find(t => t.name === 'create');
     const result = await tool.execute({
       proficiencyName: 'NewProficiency',
       recallWhen: 'new stuff',
@@ -418,7 +400,7 @@ describe('proficienciesPlugin', () => {
     expect(result).toContain('OldProficiency');
   });
 
-  it('createProficiency keeps the newly created proficiency when trimming to maxProficiencies', async () => {
+  it('create keeps the newly created proficiency when trimming to maxProficiencies', async () => {
     const now = new Date('2026-04-12T00:00:00Z');
     mockInterface = createMockPluginInterface({
       maxProficiencies: 1,
@@ -439,9 +421,7 @@ describe('proficienciesPlugin', () => {
       mockInterface as unknown as AlicePluginInterface
     );
 
-    const tool = mockInterface.registeredTools.find(
-      t => t.name === 'createProficiency'
-    );
+    const tool = mockInterface.registeredTools.find(t => t.name === 'create');
     await tool.execute({
       proficiencyName: 'KeepMe',
       recallWhen: 'new workflow',
@@ -460,10 +440,10 @@ describe('proficienciesPlugin', () => {
   });
 
   // -------------------------------------------------------------------------
-  // updateProficiency
+  // update
   // -------------------------------------------------------------------------
 
-  it('updateProficiency updates the recallWhen field', async () => {
+  it('update updates the recallWhen field', async () => {
     const now = new Date();
     mockInterface = createMockPluginInterface({
       initialRows: [
@@ -483,9 +463,7 @@ describe('proficienciesPlugin', () => {
       mockInterface as unknown as AlicePluginInterface
     );
 
-    const tool = mockInterface.registeredTools.find(
-      t => t.name === 'updateProficiency'
-    );
+    const tool = mockInterface.registeredTools.find(t => t.name === 'update');
     const result = await tool.execute({
       proficiencyName: 'Regex',
       recallWhen: 'user asks about regex patterns',
@@ -496,7 +474,7 @@ describe('proficienciesPlugin', () => {
     expect(row?.recallWhen).toBe('user asks about regex patterns');
   });
 
-  it('updateProficiency replaces contents by default', async () => {
+  it('update replaces contents by default', async () => {
     const now = new Date();
     mockInterface = createMockPluginInterface({
       initialRows: [
@@ -516,16 +494,14 @@ describe('proficienciesPlugin', () => {
       mockInterface as unknown as AlicePluginInterface
     );
 
-    const tool = mockInterface.registeredTools.find(
-      t => t.name === 'updateProficiency'
-    );
+    const tool = mockInterface.registeredTools.find(t => t.name === 'update');
     await tool.execute({ proficiencyName: 'Notes', contents: 'Replaced.' });
 
     const row = mockInterface.orm.rows.find(r => r.normalizedName === 'notes');
     expect(row?.contents).toBe('Replaced.');
   });
 
-  it('updateProficiency replaces contents when format is full', async () => {
+  it('update replaces contents when format is full', async () => {
     const now = new Date();
     mockInterface = createMockPluginInterface({
       initialRows: [
@@ -545,9 +521,7 @@ describe('proficienciesPlugin', () => {
       mockInterface as unknown as AlicePluginInterface
     );
 
-    const tool = mockInterface.registeredTools.find(
-      t => t.name === 'updateProficiency'
-    );
+    const tool = mockInterface.registeredTools.find(t => t.name === 'update');
     // Use format=full to replace contents (simulating the old append: true behavior
     // is now done via format=full with the combined text)
     await tool.execute({
@@ -561,10 +535,8 @@ describe('proficienciesPlugin', () => {
     expect(row?.contents).toContain('Appended.');
   });
 
-  it('updateProficiency returns a not-found message for an unknown name', async () => {
-    const tool = mockInterface.registeredTools.find(
-      t => t.name === 'updateProficiency'
-    );
+  it('update returns a not-found message for an unknown name', async () => {
+    const tool = mockInterface.registeredTools.find(t => t.name === 'update');
     const result = await tool.execute({
       proficiencyName: 'Ghost',
       contents: 'Update.',
@@ -573,18 +545,14 @@ describe('proficienciesPlugin', () => {
     expect(result).toMatch(/not found|no proficiency/i);
   });
 
-  it('updateProficiency returns an error when neither recallWhen nor contents are provided', async () => {
-    const tool = mockInterface.registeredTools.find(
-      t => t.name === 'updateProficiency'
-    );
+  it('update returns an error when neither recallWhen nor contents are provided', async () => {
+    const tool = mockInterface.registeredTools.find(t => t.name === 'update');
     const result = await tool.execute({ proficiencyName: 'Something' });
     expect(result).toMatch(/recallWhen|contents/);
   });
 
-  it('updateProficiency returns an error for an empty name', async () => {
-    const tool = mockInterface.registeredTools.find(
-      t => t.name === 'updateProficiency'
-    );
+  it('update returns an error for an empty name', async () => {
+    const tool = mockInterface.registeredTools.find(t => t.name === 'update');
     const result = await tool.execute({
       proficiencyName: '   ',
       contents: 'Update.',
@@ -614,7 +582,7 @@ describe('proficienciesPlugin', () => {
     const result = await header.getPrompt({
       conversationType: 'chat',
       sessionId: 'x',
-      availableTools: ['recallProficiency'],
+      availableTools: ['proficiencies.recall'],
     });
     expect(typeof result).toBe('string');
     expect(result).toContain('ProficienciesWelcome');
@@ -647,7 +615,7 @@ describe('proficienciesPlugin', () => {
     const result = await header.getPrompt({
       conversationType: 'chat',
       sessionId: 'x',
-      availableTools: ['recallProficiency'],
+      availableTools: ['proficiencies.recall'],
     });
 
     expect(result).toContain('CssGrid');
@@ -676,7 +644,7 @@ describe('proficienciesPlugin', () => {
     const result = await footer.getPrompt({
       conversationType: 'chat',
       sessionId: 'x',
-      availableTools: ['recallProficiency', 'updateProficiency'],
+      availableTools: ['proficiencies.recall', 'proficiencies.update'],
     });
     expect(typeof result).toBe('string');
     expect(result).toMatch(/update/i);

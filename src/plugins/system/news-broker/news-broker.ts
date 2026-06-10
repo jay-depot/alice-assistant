@@ -115,7 +115,7 @@ const newsBrokerPlugin: AlicePlugin = {
     });
 
     plugin.registerTool({
-      name: 'getNews',
+      name: 'get',
       parameters: NewsToolParametersSchema,
       availableFor: ['chat', 'voice', 'autonomy'],
       description:

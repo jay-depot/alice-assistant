@@ -140,7 +140,7 @@ export async function executeTools(
       const toolArgs = toolCall.function.arguments;
       systemLogger.log(JSON.stringify({ toolName, toolArgs }));
 
-      const tool = tools.find(t => t.name === toolName);
+      const tool = tools.find(t => t.name === toolName || t.canonicalName === toolName);
       if (!tool) {
         return {
           role: 'tool' as const,

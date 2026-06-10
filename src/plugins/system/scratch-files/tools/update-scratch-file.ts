@@ -36,7 +36,7 @@ const parameters = Type.Object({
 const updateScratchFileTool: (
   config: ScratchFilesPluginConfigSchema
 ) => Tool = config => ({
-  name: 'updateScratchFile',
+  name: 'update',
   availableFor: ['autonomy', 'chat', 'voice'],
   description:
     "Writes or updates a note in the assistant's internal scratch directory. " +
@@ -44,9 +44,9 @@ const updateScratchFileTool: (
     'targeted edits — this avoids re-sending unchanged content. Use format=full only for ' +
     'new files or as a last resort.',
   systemPromptFragment:
-    `Call updateScratchFile when you want to write or update a note in your internal scratch ` +
+    `Call scratch_files.update when you want to write or update a note in your internal scratch ` +
     `directory. When updating an existing file, prefer format=diff with a unified diff ` +
-    `patch for targeted edits. Read the file first with readScratchFile to get the current ` +
+    `patch for targeted edits. Read the file first with scratch_files.read to get the current ` +
     `content, then produce a diff. Use format=full only for new files or when a diff ` +
     `cannot be made to work after re-reading. You may only use the extensions [${config.allowedFileTypes.join(', ')}] for the ` +
     `filename, and the contents must not exceed ${config.maxFileSizeKB} KB in size. ` +
@@ -98,7 +98,7 @@ const updateScratchFileTool: (
       logger.warn(
         `updateScratchFile: ${msg} Suggest re-reading the file and producing a valid diff.`
       );
-      return `ERROR! UPDATE REJECTED.\n${msg}\nRe-read the file with readScratchFile to get the current content, then produce a valid unified diff patch. Use format=full only as a last resort if you cannot produce a valid diff after re-reading.`;
+      return `ERROR! UPDATE REJECTED.\n${msg}\nRe-read the file with scratch_files.read to get the current content, then produce a valid unified diff patch. Use format=full only as a last resort if you cannot produce a valid diff after re-reading.`;
     }
 
     const newContents = resolved.contents;

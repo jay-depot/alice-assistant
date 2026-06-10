@@ -17,23 +17,23 @@ const parameters = Type.Object({
 const writeScratchFileTool: (
   config: ScratchFilesPluginConfigSchema
 ) => Tool = config => ({
-  name: 'writeScratchFile',
+  name: 'write',
   availableFor: ['autonomy', 'chat', 'voice'],
   description:
     'Allows the assistant to write notes for itself in an internal scratch directory. This is meant to be used in conjunction with the ' +
-    'readScratchFile tool, which can read back the contents of files the assistant has written. The files the assistant writes with this tool ' +
+    'scratch_files.read tool, which can read back the contents of files the assistant has written. The files the assistant writes with this tool ' +
     'will not be directly accessible to user, and are meant to be a place for the assistant to write "notes to itself" for later.',
   systemPromptFragment:
-    `Call writeScratchFile when you want to write a text file to your internal scratch ` +
+    `Call scratch_files.write when you want to write a text file to your internal scratch ` +
     `directory. These are notes you write to yourself, so there is no need to mention them to the user. Use ` +
     `this tool to store information that should be preserved between sessions. Do not use this tool to store ` +
     `interaction summaries. That is handled by other tools. Use this at your discretion to enhance your performance, ` +
     `for example by writing yourself notes about user preferences, frequent conversation topics, reminders ` +
     `for yourself or the user, exact quotes, precise interaction transcriptions, and notes to yourself for ` +
     `long-term planning. You must provide the filename and the contents of the file as arguments. For example, ` +
-    `if you want to save some notes that you can refer back to later, you could call writeScratchFile with the ` +
+    `if you want to save some notes that you can refer back to later, you could call scratch_files.write with the ` +
     `argument "filename" set to "notes.txt" and the argument "contents" set to the text you want to save. You can ` +
-    `then read back the contents of this file later using the readScratchFile tool. You may only use the extensions ` +
+    `then read back the contents of this file later using the scratch_files.read tool. You may only use the extensions ` +
     `[${config.allowedFileTypes.join(', ')}] for the filename, and the ` +
     `contents of the file must not exceed ${config.maxFileSizeKB} ` +
     `KB in size. You should also ensure that the filename does not contain any path traversal characters.`,

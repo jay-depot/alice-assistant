@@ -100,17 +100,13 @@ describe('webSearchBrokerPlugin', () => {
     expect(typeof api.getPreferredProviderId).toBe('function');
   });
 
-  it('registers the webSearch tool', () => {
-    const tool = mockInterface.registeredTools.find(
-      t => t.name === 'webSearch'
-    );
+  it('registers the search tool', () => {
+    const tool = mockInterface.registeredTools.find(t => t.name === 'search');
     expect(tool).toBeDefined();
   });
 
-  it('webSearch tool is available for chat, voice, and autonomy', () => {
-    const tool = mockInterface.registeredTools.find(
-      t => t.name === 'webSearch'
-    );
+  it('search tool is available for chat, voice, and autonomy', () => {
+    const tool = mockInterface.registeredTools.find(t => t.name === 'search');
     expect(tool.availableFor).toContain('chat');
     expect(tool.availableFor).toContain('voice');
     expect(tool.availableFor).toContain('autonomy');
@@ -187,7 +183,7 @@ describe('webSearchBrokerPlugin', () => {
     await expect(api.getPreferredProviderId()).resolves.toBe('');
   });
 
-  it('webSearch tool formats multi-provider results with sections and numbered results', async () => {
+  it('search tool formats multi-provider results with sections and numbered results', async () => {
     api.registerWebSearchProvider('provider-a', async () => [
       {
         title: 'First title',
@@ -208,9 +204,7 @@ describe('webSearchBrokerPlugin', () => {
       },
     ]);
 
-    const tool = mockInterface.registeredTools.find(
-      t => t.name === 'webSearch'
-    );
+    const tool = mockInterface.registeredTools.find(t => t.name === 'search');
     const result = await tool.execute({ query: 'best tea kettle' });
 
     expect(result).toContain('## Results from provider-a');
@@ -222,10 +216,8 @@ describe('webSearchBrokerPlugin', () => {
     expect(result).toContain('URL: https://second.example');
   });
 
-  it('webSearch tool returns empty string when no providers are available', async () => {
-    const tool = mockInterface.registeredTools.find(
-      t => t.name === 'webSearch'
-    );
+  it('search tool returns empty string when no providers are available', async () => {
+    const tool = mockInterface.registeredTools.find(t => t.name === 'search');
     const result = await tool.execute({ query: 'anything' });
     expect(result).toBe('');
   });

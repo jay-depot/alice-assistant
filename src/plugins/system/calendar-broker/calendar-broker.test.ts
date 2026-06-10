@@ -107,11 +107,11 @@ describe('calendarBrokerPlugin', () => {
     expect(typeof api.requestCalendarEventUpdate).toBe('function');
   });
 
-  it('registers getCalendarEvents, createCalendarEvent, and updateCalendarEvent tools', () => {
+  it('registers get, create, and update tools', () => {
     const toolNames = mockInterface.registeredTools.map((t: any) => t.name);
-    expect(toolNames).toContain('getCalendarEvents');
-    expect(toolNames).toContain('createCalendarEvent');
-    expect(toolNames).toContain('updateCalendarEvent');
+    expect(toolNames).toContain('get');
+    expect(toolNames).toContain('create');
+    expect(toolNames).toContain('update');
   });
 
   it('all tools have tainted status', () => {
@@ -128,17 +128,17 @@ describe('calendarBrokerPlugin', () => {
     }
   });
 
-  it('createCalendarEvent tool has user-confirmation instruction in systemPromptFragment', () => {
+  it('create tool has user-confirmation instruction in systemPromptFragment', () => {
     const createTool = mockInterface.registeredTools.find(
-      (t: any) => t.name === 'createCalendarEvent'
+      (t: any) => t.name === 'create'
     );
     expect(createTool).toBeDefined();
     expect(createTool!.systemPromptFragment).toContain('confirm');
   });
 
-  it('updateCalendarEvent tool has user-confirmation instruction in systemPromptFragment', () => {
+  it('update tool has user-confirmation instruction in systemPromptFragment', () => {
     const updateTool = mockInterface.registeredTools.find(
-      (t: any) => t.name === 'updateCalendarEvent'
+      (t: any) => t.name === 'update'
     );
     expect(updateTool).toBeDefined();
     expect(updateTool!.systemPromptFragment).toContain('confirm');
@@ -361,7 +361,7 @@ describe('calendarBrokerPlugin', () => {
     describe('getCalendarEvents tool', () => {
       it('returns no-providers message when no providers registered', async () => {
         const eventsTool = mockInterface.registeredTools.find(
-          (t: any) => t.name === 'getCalendarEvents'
+          (t: any) => t.name === 'get'
         );
         const result = await eventsTool.execute({
           timeMin: '2024-01-01T00:00:00Z',
@@ -373,7 +373,7 @@ describe('calendarBrokerPlugin', () => {
     describe('createCalendarEvent tool', () => {
       it('returns no-providers message when no providers registered', async () => {
         const createTool = mockInterface.registeredTools.find(
-          (t: any) => t.name === 'createCalendarEvent'
+          (t: any) => t.name === 'create'
         );
         const result = await createTool.execute({
           title: 'Test',
@@ -389,7 +389,7 @@ describe('calendarBrokerPlugin', () => {
     describe('updateCalendarEvent tool', () => {
       it('returns no-providers message when no providers registered', async () => {
         const updateTool = mockInterface.registeredTools.find(
-          (t: any) => t.name === 'updateCalendarEvent'
+          (t: any) => t.name === 'update'
         );
         const result = await updateTool.execute({ eventId: 'ev1' });
         expect(result).toContain('No calendar providers');

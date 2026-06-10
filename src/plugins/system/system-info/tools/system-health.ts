@@ -6,9 +6,9 @@ const systemHealthCheckTool: (config) => Tool = () => ({
   availableFor: ['chat', 'voice', 'autonomy'],
   description: 'Performs a health check on the system and returns a report.',
   systemPromptFragment:
-    `Call systemHealthCheck ONLY for questions about the status of the computer you are running on. ` +
-    `This includes general questions about how you are doing, as you ARE the computer. systemHealthCheck takes no parameters.`,
-  callSignature: 'systemHealthCheck',
+    `Call system_info.health ONLY for questions about the status of the computer you are running on. ` +
+    `This includes general questions about how you are doing, as you ARE the computer. system_info.health takes no parameters.`,
+  callSignature: 'system_info.health',
   parameters: Type.Object({}),
   execute: async () => {
     // systemHealthCheck takes no parameters, so we can ignore the args.

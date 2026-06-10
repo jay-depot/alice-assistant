@@ -117,9 +117,9 @@ const webSearchBrokerPlugin: AlicePlugin = {
     });
 
     plugin.registerTool({
-      name: 'webSearch',
+      name: 'search',
       description:
-        "Use webSearch to perform a web search on behalf of the user, or if you absolutely cannot answer the user's question using your own knowledge. The tool will return results from one or more search providers.",
+        "Use web_search_broker.search to perform a web search on behalf of the user, or if you absolutely cannot answer the user's question using your own knowledge. The tool will return results from one or more search providers.",
       availableFor: ['chat', 'voice', 'autonomy'],
       systemPromptFragment: '',
       toolResultPromptIntro: '',

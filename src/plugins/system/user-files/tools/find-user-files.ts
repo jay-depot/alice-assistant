@@ -113,17 +113,17 @@ function searchDirectory(
 }
 
 const findUserFilesTool: (config) => Tool = config => ({
-  name: 'findUserFiles',
+  name: 'find',
   availableFor: ['chat', 'voice', 'autonomy'],
   description:
     `Recursively searches allowed directories for files matching a name pattern, with optional filters for ` +
     `file extensions, text content, and modification date.`,
   systemPromptFragment:
-    `Call findUserFiles when the user asks you to find a file by name or pattern. You must provide ` +
+    `Call user_files.find when the user asks you to find a file by name or pattern. You must provide ` +
     `the "namePattern" argument. You can optionally use "extensions" to filter by file type (e.g., [".txt", ".pdf"]), ` +
     `"containsText" to search for files containing specific text in the filename, "modifiedAfter" to find recently ` +
     `modified files (use ISO 8601 format like "2024-03-20"), and "limit" to control the maximum number of results ` +
-    `(default is 50). For example, if the user says "find my resume", you might call findUserFiles with ` +
+    `(default is 50). For example, if the user says "find my resume", you might call user_files.find with ` +
     `namePattern set to "*resume*" and extensions set to [".pdf", ".docx"]. The search is limited to user-configured ` +
     `allowed directories for security.`,
   parameters,

@@ -432,7 +432,7 @@ const personalityFacetsPlugin: AlicePlugin = {
     });
 
     plugin.registerTool({
-      name: 'updatePersonalityFacet',
+      name: 'update',
       availableFor: ['autonomy', 'chat', 'voice'],
       description:
         'Create a new personality facet or update an existing one. When updating, ' +
@@ -455,10 +455,10 @@ const personalityFacetsPlugin: AlicePlugin = {
     });
 
     plugin.registerTool({
-      name: 'embodyPersonalityFacet',
+      name: 'embody',
       availableFor: ['autonomy', 'chat', 'voice'],
       description:
-        'Call embodyFacet when a different facet than you are currently embodying ' +
+        'Call personality_facets.embody when a different facet than you are currently embodying ' +
         'would be more appropriate for the current situation. For example, if you are currently ' +
         'embodying a "Professional" facet and the user just asked you to tell a joke, you might ' +
         'decide to switch to a "Playful" facet to better match the tone of the interaction.',
@@ -512,7 +512,7 @@ const personalityFacetsPlugin: AlicePlugin = {
     const ExaminePersonalityFacetsToolParametersSchema = Type.Object({});
 
     plugin.registerTool({
-      name: 'examinePersonalityFacets',
+      name: 'examine',
       availableFor: ['autonomy'],
       description:
         'List all personality facets with their names, embody-when descriptions, ' +
@@ -571,7 +571,7 @@ const personalityFacetsPlugin: AlicePlugin = {
     const ExamineCorePrinciplesToolParametersSchema = Type.Object({});
 
     plugin.registerTool({
-      name: 'examineCorePrinciples',
+      name: 'principles',
       availableFor: ['autonomy'],
       description:
         "Read the core personality principles that guide the assistant's " +

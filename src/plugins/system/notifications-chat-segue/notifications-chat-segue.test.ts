@@ -218,7 +218,7 @@ describe('notificationsChatSeguePlugin', () => {
     const header = mockInterface.headerPrompts[0];
     const result = await header.getPrompt({
       conversationType: 'chat',
-      availableTools: ['markNotificationsDelivered'],
+      availableTools: ['mark_delivered'],
     });
 
     expect(result).toContain('# PENDING NOTIFICATIONS');
@@ -227,49 +227,49 @@ describe('notificationsChatSeguePlugin', () => {
     expect(result).toContain('Dentist tomorrow');
   });
 
-  it('registers markNotificationsDelivered tool for chat', async () => {
+  it('registers mark_delivered tool for chat', async () => {
     const mockInterface = createMockPluginInterface();
     await notificationsChatSeguePlugin.registerPlugin(
       mockInterface as unknown as AlicePluginInterface
     );
 
     const tool = mockInterface.tools.find(
-      toolDef => toolDef.name === 'markNotificationsDelivered'
+      toolDef => toolDef.name === 'mark_delivered'
     );
 
     expect(tool).toBeDefined();
     expect(tool.availableFor).toEqual(['chat']);
   });
 
-  it('markNotificationsDelivered handles missing IDs', async () => {
+  it('mark_delivered handles missing IDs', async () => {
     const mockInterface = createMockPluginInterface();
     await notificationsChatSeguePlugin.registerPlugin(
       mockInterface as unknown as AlicePluginInterface
     );
 
     const tool = mockInterface.tools.find(
-      toolDef => toolDef.name === 'markNotificationsDelivered'
+      toolDef => toolDef.name === 'mark_delivered'
     );
     const result = await tool.execute({ notificationIds: [] });
 
     expect(result).toMatch(/No notification IDs were provided/i);
   });
 
-  it('markNotificationsDelivered handles non-integer IDs', async () => {
+  it('mark_delivered handles non-integer IDs', async () => {
     const mockInterface = createMockPluginInterface();
     await notificationsChatSeguePlugin.registerPlugin(
       mockInterface as unknown as AlicePluginInterface
     );
 
     const tool = mockInterface.tools.find(
-      toolDef => toolDef.name === 'markNotificationsDelivered'
+      toolDef => toolDef.name === 'mark_delivered'
     );
     const result = await tool.execute({ notificationIds: ['foo', 'bar'] });
 
     expect(result).toMatch(/valid integers/i);
   });
 
-  it('markNotificationsDelivered returns no-match message when IDs do not match pending rows', async () => {
+  it('mark_delivered returns no-match message when IDs do not match pending rows', async () => {
     const now = new Date('2026-04-12T00:00:00Z');
     const mockInterface = createMockPluginInterface([
       {
@@ -287,14 +287,14 @@ describe('notificationsChatSeguePlugin', () => {
     );
 
     const tool = mockInterface.tools.find(
-      toolDef => toolDef.name === 'markNotificationsDelivered'
+      toolDef => toolDef.name === 'mark_delivered'
     );
     const result = await tool.execute({ notificationIds: ['9'] });
 
     expect(result).toMatch(/No pending notifications matched/i);
   });
 
-  it('markNotificationsDelivered updates status and returns summary', async () => {
+  it('mark_delivered updates status and returns summary', async () => {
     const now = new Date('2026-04-12T00:00:00Z');
     const mockInterface = createMockPluginInterface([
       {
@@ -321,7 +321,7 @@ describe('notificationsChatSeguePlugin', () => {
     );
 
     const tool = mockInterface.tools.find(
-      toolDef => toolDef.name === 'markNotificationsDelivered'
+      toolDef => toolDef.name === 'mark_delivered'
     );
     const result = await tool.execute({ notificationIds: ['2', '3'] });
 

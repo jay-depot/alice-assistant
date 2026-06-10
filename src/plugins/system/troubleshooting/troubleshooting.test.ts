@@ -84,14 +84,14 @@ describe('troubleshootingPlugin', () => {
     expect(troubleshootingPlugin.pluginMetadata.dependencies).toEqual([]);
   });
 
-  it('registers getAssistantDebugInfo tool for chat and voice', async () => {
+  it('registers get_info tool for chat and voice', async () => {
     const mockInterface = createMockPluginInterface();
     await troubleshootingPlugin.registerPlugin(
       mockInterface as unknown as AlicePluginInterface
     );
 
     const tool = mockInterface.tools.find(
-      toolDef => toolDef.name === 'getAssistantDebugInfo'
+      toolDef => toolDef.name === 'get_info'
     );
 
     expect(tool).toBeDefined();
@@ -103,14 +103,14 @@ describe('troubleshootingPlugin', () => {
     });
   });
 
-  it('getAssistantDebugInfo returns loaded plugins and conversation types', async () => {
+  it('get_info returns loaded plugins and conversation types', async () => {
     const mockInterface = createMockPluginInterface();
     await troubleshootingPlugin.registerPlugin(
       mockInterface as unknown as AlicePluginInterface
     );
 
     const tool = mockInterface.tools.find(
-      toolDef => toolDef.name === 'getAssistantDebugInfo'
+      toolDef => toolDef.name === 'get_info'
     );
     const result = await tool.execute();
 
@@ -135,9 +135,9 @@ describe('troubleshootingPlugin', () => {
     expect(footer.weight).toBe(0);
 
     const prompt = footer.getPrompt({
-      availableTools: ['getAssistantDebugInfo'],
+      availableTools: ['troubleshooting.get_info'],
     });
-    expect(prompt).toContain('getAssistantDebugInfo');
+    expect(prompt).toContain('get_info');
     expect(prompt).toContain('ALICE.md');
     expect(prompt).toContain('troubleshooting');
   });

@@ -79,16 +79,16 @@ describe('newsBrokerPlugin', () => {
     });
   });
 
-  it('registers the getNews tool', async () => {
+  it('registers the get tool', async () => {
     await newsBrokerPlugin.registerPlugin(
       mockInterface as unknown as AlicePluginInterface
     );
 
     expect(mockInterface.registeredTools).toHaveLength(1);
-    expect(mockInterface.registeredTools[0].name).toBe('getNews');
+    expect(mockInterface.registeredTools[0].name).toBe('get');
   });
 
-  it('getNews tool has correct parameters schema', async () => {
+  it('get tool has correct parameters schema', async () => {
     await newsBrokerPlugin.registerPlugin(
       mockInterface as unknown as AlicePluginInterface
     );
@@ -104,7 +104,7 @@ describe('newsBrokerPlugin', () => {
     );
   });
 
-  it('getNews tool is available for chat, voice, and autonomy', async () => {
+  it('get tool is available for chat, voice, and autonomy', async () => {
     await newsBrokerPlugin.registerPlugin(
       mockInterface as unknown as AlicePluginInterface
     );
@@ -255,7 +255,7 @@ describe('newsBrokerPlugin', () => {
     expect(result['provider-with-news']).toHaveLength(1);
   });
 
-  it('getNews tool returns "No news data available" when no data', async () => {
+  it('get tool returns "No news data available" when no data', async () => {
     await newsBrokerPlugin.registerPlugin(
       mockInterface as unknown as AlicePluginInterface
     );
@@ -267,7 +267,7 @@ describe('newsBrokerPlugin', () => {
     expect(result).toBe('No news data available for this query.');
   });
 
-  it('getNews tool formats news items correctly', async () => {
+  it('get tool formats news items correctly', async () => {
     await newsBrokerPlugin.registerPlugin(
       mockInterface as unknown as AlicePluginInterface
     );
@@ -295,7 +295,7 @@ describe('newsBrokerPlugin', () => {
     expect(result).toContain('A significant update in the tech industry');
   });
 
-  it('getNews tool formats multiple providers', async () => {
+  it('get tool formats multiple providers', async () => {
     await newsBrokerPlugin.registerPlugin(
       mockInterface as unknown as AlicePluginInterface
     );

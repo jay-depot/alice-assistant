@@ -133,14 +133,9 @@ describe('userFilesPlugin', () => {
   it('registers the expected tool names', () => {
     const toolNames = mockInterface.registeredTools.map(tool => tool.name);
     expect(toolNames).toEqual(
-      expect.arrayContaining([
-        'findUserFiles',
-        'getDirectoryListing',
-        'readUserTextFile',
-        'writeUserTextFile',
-      ])
+      expect.arrayContaining(['find', 'list', 'read', 'write'])
     );
-    expect(toolNames).not.toContain('previewUserTextFile');
+    expect(toolNames).not.toContain('preview');
   });
 
   it('offers user-files capabilities and returns config-backed values', async () => {
@@ -176,9 +171,9 @@ describe('userFilesPlugin', () => {
     expect(types.filter((t: string) => t === '.txt')).toHaveLength(1);
   });
 
-  it('getDirectoryListing lists folders/files, excludes hidden entries, and sorts folders first', async () => {
+  it('list lists folders/files, excludes hidden entries, and sorts folders first', async () => {
     const tool = mockInterface.registeredTools.find(
-      toolDef => toolDef.name === 'getDirectoryListing'
+      toolDef => toolDef.name === 'list'
     )!;
 
     const result = parseToolJson(await tool.execute({ path: tmpDir }));
@@ -200,9 +195,9 @@ describe('userFilesPlugin', () => {
     expect(docsIndex).toBeLessThan(notesIndex);
   });
 
-  it('getDirectoryListing supports filter with wildcard and substring', async () => {
+  it('list supports filter with wildcard and substring', async () => {
     const tool = mockInterface.registeredTools.find(
-      toolDef => toolDef.name === 'getDirectoryListing'
+      toolDef => toolDef.name === 'list'
     )!;
 
     const wildcardResult = parseToolJson(
@@ -220,18 +215,18 @@ describe('userFilesPlugin', () => {
     ]);
   });
 
-  it('getDirectoryListing blocks paths outside allowedFilePaths', async () => {
+  it('list blocks paths outside allowedFilePaths', async () => {
     const tool = mockInterface.registeredTools.find(
-      toolDef => toolDef.name === 'getDirectoryListing'
+      toolDef => toolDef.name === 'list'
     )!;
 
     const result = parseToolJson(await tool.execute({ path: '/tmp' }));
     expect(result.error).toMatch(/outside allowed file paths/i);
   });
 
-  it('readUserTextFile returns file content with offset and maxBytes controls', async () => {
+  it('read returns file content with offset and maxBytes controls', async () => {
     const tool = mockInterface.registeredTools.find(
-      toolDef => toolDef.name === 'readUserTextFile'
+      toolDef => toolDef.name === 'read'
     )!;
 
     const result = parseToolJson(
@@ -248,9 +243,9 @@ describe('userFilesPlugin', () => {
     expect(result.message).toMatch(/Complete file contents/i);
   });
 
-  it('readUserTextFile rejects offsets beyond EOF', async () => {
+  it('read rejects offsets beyond EOF', async () => {
     const tool = mockInterface.registeredTools.find(
-      toolDef => toolDef.name === 'readUserTextFile'
+      toolDef => toolDef.name === 'read'
     )!;
 
     const result = parseToolJson(
@@ -263,9 +258,9 @@ describe('userFilesPlugin', () => {
     expect(result.error).toMatch(/beyond end of file/i);
   });
 
-  it('writeUserTextFile writes file contents and returns metadata', async () => {
+  it('write writes file contents and returns metadata', async () => {
     const tool = mockInterface.registeredTools.find(
-      toolDef => toolDef.name === 'writeUserTextFile'
+      toolDef => toolDef.name === 'write'
     )!;
 
     const targetPath = path.join(tmpDir, 'new-note.txt');
@@ -278,9 +273,9 @@ describe('userFilesPlugin', () => {
     expect(fs.readFileSync(targetPath, 'utf-8')).toBe('hello world');
   });
 
-  it('writeUserTextFile blocks file types outside allowedFileTypesWrite', async () => {
+  it('write blocks file types outside allowedFileTypesWrite', async () => {
     const tool = mockInterface.registeredTools.find(
-      toolDef => toolDef.name === 'writeUserTextFile'
+      toolDef => toolDef.name === 'write'
     )!;
 
     const result = parseToolJson(
@@ -293,9 +288,9 @@ describe('userFilesPlugin', () => {
     expect(result.error).toMatch(/File type not allowed for writing/i);
   });
 
-  it('writeUserTextFile blocks writes to hidden files/directories', async () => {
+  it('write blocks writes to hidden files/directories', async () => {
     const tool = mockInterface.registeredTools.find(
-      toolDef => toolDef.name === 'writeUserTextFile'
+      toolDef => toolDef.name === 'write'
     )!;
 
     const hiddenFileResult = parseToolJson(
@@ -315,9 +310,9 @@ describe('userFilesPlugin', () => {
     expect(hiddenDirResult.error).toMatch(/hidden files/i);
   });
 
-  it('writeUserTextFile creates parent directories recursively', async () => {
+  it('write creates parent directories recursively', async () => {
     const tool = mockInterface.registeredTools.find(
-      toolDef => toolDef.name === 'writeUserTextFile'
+      toolDef => toolDef.name === 'write'
     )!;
 
     const nestedTarget = path.join(tmpDir, 'new', 'deep', 'file.txt');
@@ -330,9 +325,9 @@ describe('userFilesPlugin', () => {
     expect(fs.readFileSync(nestedTarget, 'utf-8')).toBe('nested write');
   });
 
-  it('findUserFiles returns files matching name pattern within allowed roots', async () => {
+  it('find returns files matching name pattern within allowed roots', async () => {
     const tool = mockInterface.registeredTools.find(
-      toolDef => toolDef.name === 'findUserFiles'
+      toolDef => toolDef.name === 'find'
     )!;
 
     const result = parseToolJson(

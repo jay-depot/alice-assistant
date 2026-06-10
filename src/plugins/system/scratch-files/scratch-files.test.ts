@@ -114,10 +114,10 @@ describe('scratchFilesPlugin', () => {
       mockInterface as unknown as AlicePluginInterface
     );
     const names = mockInterface.registeredTools.map(t => t.name);
-    expect(names).toContain('updateScratchFile');
-    expect(names).toContain('readScratchFile');
-    expect(names).toContain('deleteScratchFile');
-    expect(names).toContain('listScratchFiles');
+    expect(names).toContain('update');
+    expect(names).toContain('read');
+    expect(names).toContain('delete');
+    expect(names).toContain('list');
   });
 });
 
@@ -125,7 +125,7 @@ describe('scratchFilesPlugin', () => {
 // Tool tests (using a real temp directory)
 // ---------------------------------------------------------------------------
 
-describe('readScratchFile', () => {
+describe('read (scratch file)', () => {
   let tmpDir: string;
   let config: ScratchFilesPluginConfigSchema;
   let execute: (args: any) => Promise<string>;
@@ -168,7 +168,7 @@ describe('readScratchFile', () => {
 
 // ---------------------------------------------------------------------------
 
-describe('deleteScratchFile', () => {
+describe('delete (scratch file)', () => {
   let tmpDir: string;
   let config: ScratchFilesPluginConfigSchema;
   let execute: (args: any) => Promise<string>;
@@ -266,7 +266,7 @@ describe('listScratchFiles', () => {
 
 // ---------------------------------------------------------------------------
 
-describe('updateScratchFile', () => {
+describe('update (scratch file)', () => {
   type UpdateScratchFileArgs = {
     filename: string;
     format: 'full' | 'diff';

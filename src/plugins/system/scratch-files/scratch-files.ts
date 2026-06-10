@@ -95,7 +95,7 @@ const scratchFilesPlugin: AlicePlugin = {
           !context ||
           !context.availableTools?.length ||
           !context.availableTools?.some(
-            t => t === 'readScratchFile' || t === 'updateScratchFile'
+            t => t === 'scratch_files.read' || t === 'scratch_files.update'
           )
         ) {
           return false;

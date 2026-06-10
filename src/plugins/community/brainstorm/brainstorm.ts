@@ -21,10 +21,10 @@ const brainstormPlugin: AlicePlugin = {
     const brainstormTools = createTaskAssistantToolPair({
       start: {
         definitionId: 'brainstorm',
-        name: 'startBrainstormSession',
+        name: 'start',
         availableFor: ['chat', 'voice'],
         description:
-          'Use startBrainstormSession when the user wants to brainstorm something. ' +
+          'Use brainstorm.start when the user wants to brainstorm something. ' +
           'The brainstorm assistant will take over the conversation, capture their thoughts, ' +
           'and return structured notes only after the brainstorm is finished.',
         parameters: Type.Object({
@@ -47,9 +47,9 @@ const brainstormPlugin: AlicePlugin = {
         },
       },
       complete: {
-        name: 'completeBrainstormSession',
+        name: 'complete',
         description:
-          'Call completeBrainstormSession as soon as the user indicates they are finished brainstorming. ' +
+          'Call brainstorm.complete as soon as the user indicates they are finished brainstorming. ' +
           'Provide an organized version of their notes using their own words as much as possible.',
         parameters: Type.Object({
           summary: Type.String({
@@ -131,7 +131,7 @@ const brainstormPlugin: AlicePlugin = {
         '- Bad responses: "That\'s a great point! You could also consider...", ' +
         '"Building on your idea about X...", "Here\'s a related thought:"\n' +
         '- When the user indicates they are done (e.g., "that\'s all", "done", "finished", ' +
-        '"I think that\'s it", "that\'s everything"), call the completeBrainstormSession tool.\n' +
+        '"I think that\'s it", "that\'s everything"), call the brainstorm.complete tool.\n' +
         '- Do NOT include any markdown formatting in your conversational responses — just plain ' +
         'text encouragement.\n' +
         '- NEVER generate ideas for the user. Your only job is to listen and encourage.',

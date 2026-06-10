@@ -61,7 +61,7 @@ const remindMePlugin: AlicePlugin = {
       plugin.request('reminders-broker')!;
 
     plugin.registerTool({
-      name: 'createReminder',
+      name: 'create',
       description:
         'Creates a new one-shot reminder with the given message and schedule.',
       parameters: CreateReminderToolParametersSchema,
@@ -81,7 +81,7 @@ const remindMePlugin: AlicePlugin = {
     });
 
     plugin.registerTool({
-      name: 'updateReminder',
+      name: 'update',
       description:
         'Updates an existing one-shot reminder with the given ID and new details.',
       parameters: UpdateReminderToolParametersSchema,
@@ -105,7 +105,7 @@ const remindMePlugin: AlicePlugin = {
     });
 
     plugin.registerTool({
-      name: 'cancelReminder',
+      name: 'cancel',
       description: 'Cancels an existing one-shot reminder with the given ID.',
       parameters: CancelReminderToolParametersSchema,
       availableFor: ['chat', 'voice', 'autonomy'],

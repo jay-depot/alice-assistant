@@ -228,10 +228,10 @@ const memoryPlugin: AlicePlugin = {
     });
 
     plugin.registerTool({
-      name: 'recallPastConversations',
+      name: 'recall',
       availableFor: ['chat', 'voice', 'autonomy'],
       description:
-        `Call recallPastConversations when you need information from past conversations. ` +
+        `Call memory.recall when you need information from past conversations. ` +
         `Do not use this tool for idle banter, or additional context unless you have been asked about ` +
         `prior interactions. The call takes one parameter, which is either a keyword, a list of ` +
         `keywords joined with commas, or a date, if the parameter is a keyword or list of keywords, ` +
@@ -300,10 +300,10 @@ const memoryPlugin: AlicePlugin = {
 
     if (config.getPluginConfig().enableRandomRecallTool) {
       plugin.registerTool({
-        name: 'recallRandomConversation',
+        name: 'recall_random',
         availableFor: ['chat', 'voice'],
         description:
-          `Call recallRandomConversation to recall a random past conversation. ` +
+          `Call memory.recall_random to recall a random past conversation. ` +
           `This tool is for finding organic connections to the current moment. Do not use ` +
           `this tool to retrieve specific information. Use it when you want to make a reference, ` +
           `callback, or inside joke that creates a sense of shared history. If the random ` +
@@ -368,7 +368,7 @@ const memoryPlugin: AlicePlugin = {
         if (
           !context ||
           !context.availableTools?.length ||
-          !context.availableTools?.includes('recallPastConversations')
+          !context.availableTools?.includes('memory.recall')
         ) {
           return false;
         }

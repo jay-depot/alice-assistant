@@ -16,11 +16,11 @@ const TASK_SCENARIO_PROMPT =
   '2. Have a brief friendly exchange with them.\n' +
   '3. As soon as the user says anything that indicates they are done — such as ' +
   '"done", "finish", "end", "goodbye", "that\'s all", "complete", or similar — ' +
-  'immediately call completeTestTaskAssistant. Do not ask for confirmation; just call it.';
+  'immediately call test_agents.complete. Do not ask for confirmation; just call it.';
 
 const AGENT_SCENARIO_PROMPT =
   'You are a no-op session-linked agent used only for plumbing tests. ' +
-  'Immediately call agentReturnResult with a brief success summary and report.';
+  'Immediately call agents.return_result with a brief success summary and report.';
 
 const INDEPENDENT_AGENT_SCENARIO_PROMPT =
   'You are a no-op independent agent used only for plumbing tests. ' +
@@ -69,10 +69,10 @@ const testAgentsPlugin: AlicePlugin = {
     const testTaskAssistantTools = createTaskAssistantToolPair({
       start: {
         definitionId: 'test-task-assistant',
-        name: 'startTestTaskAssistant',
+        name: 'start',
         availableFor: ['chat'],
         description:
-          'Call startTestTaskAssistant when the user indicates they want to test task assistant dispatch. ' +
+          'Call test_agents.start when the user indicates they want to test task assistant dispatch. ' +
           'This launches an interactive sub-conversation to verify the task assistant workflow end-to-end.',
         parameters: Type.Object({}),
         systemPromptFragment: '',
@@ -84,9 +84,9 @@ const testAgentsPlugin: AlicePlugin = {
         }),
       },
       complete: {
-        name: 'completeTestTaskAssistant',
+        name: 'complete',
         description:
-          'Call completeTestTaskAssistant when the user indicates the test conversation is over.',
+          'Call test_agents.complete when the user indicates the test conversation is over.',
         parameters: Type.Object({
           summary: Type.String({
             description: 'Brief summary of the test conversation.',
@@ -131,7 +131,7 @@ const testAgentsPlugin: AlicePlugin = {
     plugin.addToolToConversationType(
       'test-session-linked-agent',
       'agents',
-      'agentReturnResult'
+      'return_result'
     );
 
     const { autoStartTool } = plugin.registerSessionLinkedAgent({
@@ -140,10 +140,10 @@ const testAgentsPlugin: AlicePlugin = {
       conversationType: 'test-session-linked-agent',
       maxIterations: 1,
       continuationPrompt:
-        'Immediately call agentReturnResult with a success summary and report.',
+        'Immediately call agents.return_result with a success summary and report.',
       forceReturnPrompt:
-        'Call agentReturnResult now with a success summary and report.',
-      startToolName: 'startTestSessionLinkedAgent',
+        'Call agents.return_result now with a success summary and report.',
+      startToolName: 'start',
       startToolAvailableFor: ['chat'],
       startToolDescription:
         'Start a no-op session-linked agent that returns success immediately. Call when the user indicates they want to test session-linked agent dispatch.',
@@ -154,7 +154,7 @@ const testAgentsPlugin: AlicePlugin = {
         agentContextPrompt:
           'This is a no-op session-linked agent run. Return success immediately.',
         kickoffUserMessage:
-          'Please call agentReturnResult immediately with a successful summary and a short report.',
+          'Please call agents.return_result immediately with a successful summary and a short report.',
       }),
       buildResult: async rawResult => ({
         handbackMessage:

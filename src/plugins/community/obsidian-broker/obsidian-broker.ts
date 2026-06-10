@@ -488,44 +488,44 @@ const obsidianBrokerPlugin: AlicePlugin = {
     plugin.addToolToConversationType(
       'obsidian',
       'memory',
-      'recallPastConversations'
+      'recall'
     );
     plugin.addToolToConversationType(
       'obsidian',
       'web-search-broker',
-      'webSearch'
+      'search'
     );
-    plugin.addToolToConversationType('obsidian', 'skills', 'recallSkill');
+    plugin.addToolToConversationType('obsidian', 'skills', 'recall');
     plugin.addToolToConversationType(
       'obsidian',
       'proficiencies',
-      'recallProficiency'
+      'recall'
     );
-    plugin.addToolToConversationType('obsidian', 'news-broker', 'getNews');
+    plugin.addToolToConversationType('obsidian', 'news-broker', 'get');
     plugin.addToolToConversationType(
       'obsidian',
       'scratch-files',
-      'readScratchFile'
-    );
-    plugin.addToolToConversationType(
-      'obsidian',
-      'scratch-files',
-      'updateScratchFile'
+      'read'
     );
     plugin.addToolToConversationType(
       'obsidian',
       'scratch-files',
-      'listScratchFiles'
+      'update'
     );
     plugin.addToolToConversationType(
       'obsidian',
       'scratch-files',
-      'deleteScratchFile'
+      'list'
+    );
+    plugin.addToolToConversationType(
+      'obsidian',
+      'scratch-files',
+      'delete'
     );
     plugin.addToolToConversationType(
       'obsidian',
       'personality-facets',
-      'embodyPersonalityFacet'
+      'embody'
     );
 
     plugin.registerTool({

@@ -103,10 +103,8 @@ describe('SkillsPlugin', () => {
     expect(typeof api.registerSkillFile).toBe('function');
   });
 
-  it('registers the recallSkill tool available for chat, voice, and autonomy', () => {
-    const tool = mockInterface.registeredTools.find(
-      t => t.name === 'recallSkill'
-    );
+  it('registers the recall tool available for chat, voice, and autonomy', () => {
+    const tool = mockInterface.registeredTools.find(t => t.name === 'recall');
     expect(tool).toBeDefined();
     expect(tool.availableFor).toContain('chat');
     expect(tool.availableFor).toContain('voice');
@@ -118,7 +116,7 @@ describe('SkillsPlugin', () => {
     expect(mockInterface.registeredHeaderPrompts[0].name).toBe('skills');
   });
 
-  it('registerSkill adds a skill accessible via recallSkill tool', async () => {
+  it('registerSkill adds a skill accessible via recall tool', async () => {
     const api = mockInterface.offeredCapabilities['skills'];
     api.registerSkill({
       id: 'test-skill',
@@ -126,9 +124,7 @@ describe('SkillsPlugin', () => {
       contents: 'Do the tests.',
     } satisfies RegisteredSkill);
 
-    const tool = mockInterface.registeredTools.find(
-      t => t.name === 'recallSkill'
-    );
+    const tool = mockInterface.registeredTools.find(t => t.name === 'recall');
     const result = await tool.execute({ skillId: 'test-skill' });
     expect(result).toBe('Do the tests.');
   });
@@ -145,24 +141,20 @@ describe('SkillsPlugin', () => {
     ).toThrow(/my-skill/);
   });
 
-  it('recallSkill returns the full skill contents by id', async () => {
+  it('recall returns the full skill contents by id', async () => {
     const api = mockInterface.offeredCapabilities['skills'];
     api.registerSkill({
       id: 'cooking',
       recallWhen: 'cooking topic',
       contents: 'Preheat oven to 350.',
     });
-    const tool = mockInterface.registeredTools.find(
-      t => t.name === 'recallSkill'
-    );
+    const tool = mockInterface.registeredTools.find(t => t.name === 'recall');
     const result = await tool.execute({ skillId: 'cooking' });
     expect(result).toBe('Preheat oven to 350.');
   });
 
-  it('recallSkill returns a not-found message for an unknown skill id', async () => {
-    const tool = mockInterface.registeredTools.find(
-      t => t.name === 'recallSkill'
-    );
+  it('recall returns a not-found message for an unknown skill id', async () => {
+    const tool = mockInterface.registeredTools.find(t => t.name === 'recall');
     const result = await tool.execute({ skillId: 'nonexistent' });
     expect(result).toMatch(/nonexistent/);
     expect(result).toMatch(/nonexistent found/i);
@@ -175,7 +167,7 @@ describe('SkillsPlugin', () => {
     const result = prompt.getPrompt({
       conversationType: 'startup',
       sessionId: 'x',
-      availableTools: ['recallSkill'],
+      availableTools: ['skills.recall'],
     });
     expect(result).toBe(false);
   });
@@ -200,7 +192,7 @@ describe('SkillsPlugin', () => {
     const result = prompt.getPrompt({
       conversationType: 'chat',
       sessionId: 'x',
-      availableTools: ['recallSkill'],
+      availableTools: ['skills.recall'],
     });
     expect(result).toContain('baking');
     expect(result).toContain('user asks about baking');
@@ -217,9 +209,7 @@ describe('SkillsPlugin', () => {
     const api = mockInterface.offeredCapabilities['skills'];
     await api.registerSkillFile(skillFilePath);
 
-    const tool = mockInterface.registeredTools.find(
-      t => t.name === 'recallSkill'
-    );
+    const tool = mockInterface.registeredTools.find(t => t.name === 'recall');
     const result = await tool.execute({ skillId: 'file-skill' });
     expect(result).toContain('File Skill');
   });
@@ -264,9 +254,7 @@ describe('SkillsPlugin', () => {
     const api = mockInterface.offeredCapabilities['skills'];
     await api.registerSkillFile(skillFilePath);
 
-    const tool = mockInterface.registeredTools.find(
-      t => t.name === 'recallSkill'
-    );
+    const tool = mockInterface.registeredTools.find(t => t.name === 'recall');
     const result = await tool.execute({ skillId: 'sep-skill' });
     expect(result).toContain('First section');
     expect(result).toContain('Second section');

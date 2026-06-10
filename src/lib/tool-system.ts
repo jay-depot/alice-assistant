@@ -34,6 +34,12 @@ export type ToolSecurityTaintStatus = 'tainted' | 'clean' | 'secure';
 
 export type Tool = {
   name: string;
+  /**
+   * Canonical tool name computed by the plugin engine during registration.
+   * Format: `<snake_case_plugin_id>.<tool_name>` (e.g., `user_files.read`).
+   * This is the name sent to the LLM and used for matching tool calls.
+   */
+  canonicalName?: string;
   availableFor: ConversationTypeId[];
   description: string;
   systemPromptFragment: ToolPromptFragmentFunction;
@@ -140,7 +146,7 @@ export function buildLlmToolDefinitions(
       return !(isConversationTainted && effectiveTaint === 'secure');
     })
     .map(tool => ({
-      name: tool.name,
+      name: tool.canonicalName ?? tool.name,
       parameters: tool.parameters,
       description: tool.description,
     }));

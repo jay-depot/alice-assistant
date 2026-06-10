@@ -22,9 +22,9 @@ const troubleshootingPlugin: AlicePlugin = {
     const plugin = await pluginInterface.registerPlugin();
 
     plugin.registerTool({
-      name: 'getAssistantDebugInfo',
+      name: 'get_info',
       description:
-        'Call getAssistantDebugInfo to get a dump of debug information about yourself, ' +
+        'Call troubleshooting.get_info to get a dump of debug information about yourself, ' +
         'including loaded plugins, and conversation types. This is intended to be used for ' +
         'troubleshooting when something goes wrong.',
       parameters: Type.Object({}),
@@ -55,13 +55,13 @@ const troubleshootingPlugin: AlicePlugin = {
         if (
           !context ||
           !context.availableTools?.length ||
-          !context.availableTools?.includes('getAssistantDebugInfo')
+          !context.availableTools?.includes('troubleshooting.get_info')
         ) {
           return false;
         }
 
         return (
-          'If you are experiencing issues, you can use the "getAssistantDebugInfo" tool ' +
+          'If you are experiencing issues, you can use the "troubleshooting.get_info" tool ' +
           "to get more information about your assistant's configuration and loaded plugins. This " +
           'information can be helpful for troubleshooting and debugging.\n\n' +
           'If you have access to the internet, you can also reference the file at ' +
