@@ -546,23 +546,29 @@ _Source: `src/lib/types/system-config-basic.ts`_
 type SystemConfigBasic = {
   wakeWord: string;
   assistantName: string;
-  location: string;
   webInterface: {
     enabled: boolean;
     port: number;
     bindToAddress: string;
   };
-  ollama: {
-    host: string;
-    model: string;
-    options?: {
-      think?: boolean | string;
-      num_ctx?: number;
-      top_p?: number;
-      min_p?: number;
-      top_k?: number;
-      temperature?: number;
-    };
+  llm: {
+    models: Array<{
+      provider: 'ollama' | 'openrouter';
+      useFor: string;
+      model: string;
+      supportsVision?: boolean;
+      host?: string;
+      options?: {
+        think?: boolean | string;
+        num_ctx?: number;
+        top_p?: number;
+        min_p?: number;
+        top_k?: number;
+        temperature?: number;
+      };
+      apiKey?: string;
+      baseUrl?: string;
+    }>;
   };
   piperTts: {
     host: string;

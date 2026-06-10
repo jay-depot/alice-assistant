@@ -44,14 +44,14 @@ The remaining roadmap, in no particular order, includes:
 - The implementation of the plan for progressive levels of agentic features.
 - Polishing the out-of-the-box experience that is now starting to exist.
 - A TUI might be in the near future.
-- Refactoring LLM connections into the plugin layer, so other services can be integrated
-- Add hooks to the LLM selection logic, so llm-router plugins could be developed
 - Tighten up the voice experience as I use it more and identify rough edges
 - Add more tests, especially for the core runtime and plugin system, as well as the plugins themselves.
 
+**Recently completed:** LLM providers have been refactored into the plugin layer. Providers (Ollama, OpenRouter) register via plugins through the `llm-provider-broker`. Model routing uses a tiered `useFor` system (task → agent → medium → fallback) with dedicated `model-*` plugins. Tools can switch models mid-session via the `think-deeply` plugin.
+
 ## Installation
 
-1. Install Ollama.
+1. Install Ollama (or configure an OpenRouter account for cloud models).
    See `MODELS.md` for notes on which models work well with Alice Assistant.
 2. Clone this repository.
 3. Run `npm install`.
@@ -75,13 +75,17 @@ web-interface customization files.
 By default, the assistant will:
 
 - load the default config from `~/.alice-assistant/`
-- attempt a startup conversation against your configured Ollama model
+- attempt a startup conversation against your configured fallback model
 - print that startup exchange to the terminal
 - start the web UI on `http://localhost:47153/` unless you changed the bind address or port
 
 Depending on which plugins you enable and configure, the assistant can also search the web, fetch
 news, manage reminders, store long-term memory, use scratch files, and expose plugin-provided UI
 regions in the web client. Tool calls are still logged to the terminal.
+
+### Model Configuration
+
+Models are configured in `~/.alice-assistant/alice.json` under `llm.models[]`. At minimum, a `fallback` model is required. You can add additional models for specific `useFor` values (chat, voice, autonomy, vision, deep-research, deep-thinking) by enabling the corresponding `model-*` plugins and adding entries to the array. Each entry specifies a `provider` (e.g., `ollama`, `openrouter`), a `useFor`, and a `model` name.
 
 ## Testing
 
@@ -108,5 +112,10 @@ Vitest is configured for the project.
   ollama fails, a feature enabled by explicit user request for a specific interaction/conversation,
   or a more permanent "fallback" option for those who want to use this on a machine that can't
   handle local models and understand the trade-off.
+
+  **Note:** LLM providers are now pluginized. To add a new provider, create a provider plugin
+  that registers with the `llm-provider-broker` via `registerLlmProvider()`. The `openrouter-provider`
+  community plugin serves as a reference implementation.
+
 - Beyond the above, the only other rule is this: Please do not open pull requests that will make
   me have to add new rules to this list.

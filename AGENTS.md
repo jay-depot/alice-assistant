@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-A.L.I.C.E. Assistant is a local-first, personality-driven AI assistant written in TypeScript (ESM) on Node.js v22+. Ollama is the default LLM backend. The app exposes a React-based web UI, a plugin architecture for extensibility, and a growing task-assistant and voice runtime surface.
+A.L.I.C.E. Assistant is a local-first, personality-driven AI assistant written in TypeScript (ESM) on Node.js v22+. Ollama is the default LLM backend, with OpenRouter as an optional community provider. LLM providers are pluginized — they register through the `llm-provider-broker` plugin. Model routing uses a tiered `useFor` system (task → agent → medium → fallback) with dedicated `model-*` plugins. The app exposes a React-based web UI, a plugin architecture for extensibility, and a growing task-assistant and voice runtime surface.
 
 ## Build Commands
 
@@ -95,6 +95,19 @@ import type { AlicePlugin } from './types/alice-plugin-interface.js';
 - Plugin dependencies are declared in `pluginMetadata.dependencies`. Use `offer()`/`request()` for typed inter-plugin capabilities.
 - The `memory` plugin owns database persistence. Other plugins should depend on `memory` rather than creating their own DB stacks.
 - Built-in plugins live in `src/plugins/system/` and `src/plugins/community/`. User plugins go in `~/.alice-assistant/user-plugins/`.
+
+### Model Routing
+
+LLM providers are registered via plugins (`ollama-provider`, `openrouter-provider`) through the `llm-provider-broker`. Model selection uses a tiered `useFor` system:
+
+1. **Task** — `model-vision` (vision), `model-deep-thinking` (deep-thinking override)
+2. **Agent** — `model-deep-research` (deep-research, registered via offered API)
+3. **Medium** — `model-chat` (chat), `model-voice` (voice), `model-autonomy` (autonomy)
+4. **Fallback** — The configured fallback model
+
+Each `model-*` plugin registers a `useFor` value. Users configure models in `alice.json` under `llm.models[]`. If no model is configured for a given `useFor`, the resolver falls through to the next tier.
+
+Tools can switch models mid-session via `setPendingUseForOverride()` (used by the `think-deeply` plugin's `thinkDeeply`/`returnToNormal` tools).
 
 ### Plugin Capability Augmentation
 
@@ -193,6 +206,7 @@ KeywordSchema.setClass(Keyword);
 - Plugin config: `~/.alice-assistant/plugin-settings/<plugin-id>/<plugin-id>.json`
 - Plugin enablement: `~/.alice-assistant/plugin-settings/enabled-plugins.json`
 - Personality files: `~/.alice-assistant/personality/` (markdown, loaded alphabetically)
+- LLM models: configured in `alice.json` under `llm.models[]` as an array of model entries, each with `provider`, `useFor`, and `model`
 
 ## Repository Layout (Key Paths)
 
@@ -200,6 +214,7 @@ KeywordSchema.setClass(Keyword);
 src/index.ts                          # Main entry point
 src/lib.ts                            # Public re-export surface
 src/lib/                              # Core framework modules
+src/lib/llm-provider.ts                # Provider registry, model config types, useFor routing
 src/lib/types/                         # Shared TypeScript types
 src/lib/node/                          # Promisified Node helpers
 src/plugins/system-plugins.json        # Built-in plugin registry

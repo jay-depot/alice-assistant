@@ -391,7 +391,7 @@ type SystemConfigFull = SystemConfigBasic & {
 };
 ```
 
-Where `SystemConfigBasic` includes: `wakeWord`, `assistantName`, `location`, `webInterface` (`enabled`, `port`, `bindToAddress`), `ollama` (`host`, `model`, `options`), `piperTts` (`host`, `model`, `speaker`), `openWakeWord` (`model`).
+Where `SystemConfigBasic` includes: `wakeWord`, `assistantName`, `webInterface` (`enabled`, `port`, `bindToAddress`), `llm` (`models[]` — array of model configs each with `provider`, `useFor`, `model`), `piperTts` (`host`, `model`, `speaker`), `openWakeWord` (`model`).
 
 ---
 

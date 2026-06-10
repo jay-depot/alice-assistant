@@ -194,6 +194,79 @@ if (reminders) {
 
 ---
 
+## `llm-provider-broker`
+
+**Plugin ID:** `llm-provider-broker` | **Required:** yes | **Dependencies:** none
+
+```typescript
+declare module '@/lib.js' {
+  export interface PluginCapabilities {
+    'llm-provider-broker': {
+      /** Register an LLM provider (e.g., ollama, openrouter). */
+      registerLlmProvider: (provider: LlmProviderRegistration) => void;
+      /** Register a useFor route (e.g., vision, chat, voice). */
+      registerLlmUseFor: (useFor: LlmUseForRegistration) => void;
+      /** List all registered provider IDs. */
+      listRegisteredLlmProviders: () => string[];
+      /** List all registered useFor route IDs. */
+      listRegisteredLlmUseFor: () => string[];
+      /** Get the active fallback provider. */
+      getActiveLlmProvider: () => ActiveLlmProvider;
+      /** Resolve a provider for a given routing context. */
+      resolveLlmProviderForRequest: (
+        context: LlmRoutingContext
+      ) => ActiveLlmProvider;
+      /** Override the useFor for the next provider resolution (single-shot). */
+      setPendingUseForOverride: (useFor: string | undefined) => void;
+    };
+  }
+}
+```
+
+**Usage (provider plugin):**
+
+```typescript
+const broker = plugin.request('llm-provider-broker');
+if (broker) {
+  broker.registerLlmProvider({
+    id: 'my-provider',
+    capabilities: {
+      supportsStreaming: true,
+      supportsTools: true,
+      supportsVision: false,
+    },
+    chat: async (request, model) => {
+      // Make the API call and return LlmChatResponse
+    },
+  });
+}
+```
+
+**Usage (model-route plugin):**
+
+```typescript
+const broker = plugin.request('llm-provider-broker');
+if (broker) {
+  broker.registerLlmUseFor({
+    id: 'my-route',
+    tier: 'medium',
+    description: 'My custom route.',
+    qualifies: context => context.conversationType === 'my-type',
+  });
+}
+```
+
+**Usage (tool-based model switch):**
+
+```typescript
+const broker = plugin.request('llm-provider-broker');
+if (broker) {
+  broker.setPendingUseForOverride('deep-thinking');
+}
+```
+
+---
+
 ## `rest-serve`
 
 **Plugin ID:** `rest-serve` | **Required:** yes | **Dependencies:** none

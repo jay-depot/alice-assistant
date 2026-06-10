@@ -2,9 +2,11 @@
 
 ## Project Overview
 
-A.L.I.C.E. Assistant is a local-first, personality-driven AI assistant written in TypeScript using ESM on Node.js v22+. Ollama is the default LLM backend. The app exposes a React-based web UI, a plugin architecture for extensibility, and a growing task-assistant and voice runtime surface.
+A.L.I.C.E. Assistant is a local-first, personality-driven AI assistant written in TypeScript using ESM on Node.js v22+. Ollama is the default LLM backend, with OpenRouter as an optional community provider. The app exposes a React-based web UI, a plugin architecture for extensibility, and a growing task-assistant and voice runtime surface.
 
 The project is still evolving. The web chat experience, plugin engine, task assistant infrastructure, and persistent memory are functional. Voice support now exists as a managed local client plus token-protected local endpoints, but that stack is still actively changing.
+
+LLM providers are now pluginized — providers register via plugins (ollama-provider, openrouter-provider) through the llm-provider-broker. Model routing uses a tiered useFor system (task → agent → medium → fallback) with dedicated model-\* plugins registering each route.
 
 ---
 
@@ -22,6 +24,7 @@ alice-assistant/
 │   │   ├── conversation.ts              # LLM conversation runtime
 │   │   ├── conversation-types.ts        # Built-in and plugin-defined conversation types
 │   │   ├── dynamic-prompt.ts            # Weighted prompt assembly
+│   │   ├── llm-provider.ts             # Provider registry, model config types, useFor routing
 │   │   ├── plugin-hooks.ts              # Lifecycle and event hook dispatch
 │   │   ├── task-assistant.ts            # Task assistant orchestration helpers
 │   │   ├── tools.ts                     # Tool registration and routing
@@ -255,13 +258,32 @@ Current required built-in plugins are:
 
 - `datetime`
 - `system-info`
+- `llm-provider-broker`
+- `ollama-provider`
 - `memory`
 - `scratch-files`
 - `location-broker`
 - `notifications-broker`
 - `reminders-broker`
+- `rest-serve`
 - `web-ui`
 - `voice`
+- `model-vision`
+- `model-chat`
+- `model-voice`
+- `model-autonomy`
+- `model-deep-research`
+
+### Model Routing Plugins
+
+Model routing is handled by dedicated `model-*` plugins that register `useFor` routes with the `llm-provider-broker`. Resolution follows a tiered order:
+
+1. **Task** — `model-vision` (vision), `model-deep-thinking` (deep-thinking override)
+2. **Agent** — `model-deep-research` (deep-research, registered via offered API)
+3. **Medium** — `model-chat` (chat), `model-voice` (voice), `model-autonomy` (autonomy)
+4. **Fallback** — The configured fallback model in `alice.json`
+
+Each `model-*` plugin registers a `useFor` value that users can configure in `alice.json` under `llm.models[]`. If no model is configured for a given `useFor`, the resolver falls through to the next tier.
 
 ### Web UI Extensions
 
@@ -359,6 +381,33 @@ Prefer explicit, user-actionable errors that name the offending plugin and descr
 - Plugin enablement lives in `~/.alice-assistant/plugin-settings/enabled-plugins.json`.
 - Legacy tool-level config still exists under `~/.alice-assistant/tool-settings/`.
 
+### LLM Model Configuration
+
+Models are configured in `alice.json` under `llm.models[]` as an array of model entries. Each entry specifies a `provider`, `useFor`, and `model` name:
+
+```json
+{
+  "llm": {
+    "models": [
+      {
+        "provider": "ollama",
+        "useFor": "fallback",
+        "host": "http://127.0.0.1:11434",
+        "model": "qwen2:7b"
+      },
+      {
+        "provider": "openrouter",
+        "useFor": "vision",
+        "model": "qwen/qwen3-vl-8b:free",
+        "supportsVision": true
+      }
+    ]
+  }
+}
+```
+
+Supported `useFor` values depend on which `model-*` plugins are enabled. The `fallback` entry is always required. Provider plugins (`ollama-provider`, `openrouter-provider`) register the provider implementations.
+
 ### Personality Files
 
 Personality content is scaffolded into `~/.alice-assistant/personality/`. The default set includes `intro.md`, `quirks.md`, and `user-wellbeing.md`, and additional markdown files are included in alphabetical order.
@@ -377,6 +426,7 @@ Keep these current repo realities in mind:
 | Config validation  | There is still a standing TODO to improve validation beyond the current approach                               |
 | DB typing          | Some database-related areas still need tighter typing                                                          |
 | Context compaction | Token counting is still estimated rather than based on true tokenizer output though this is unlikely to change |
+| Model routing      | LLM providers are pluginized; tiered useFor routing is implemented; agent-specific routing is a stub           |
 
 ---
 
