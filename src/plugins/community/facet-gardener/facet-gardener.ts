@@ -310,7 +310,7 @@ const facetGardenerPlugin: AlicePlugin = {
         // Wake the agent if it's sleeping
         if (instance.status === 'sleeping') {
           plugin.logger.log(
-            '[facet-gardener] Schedule trigger: Waking gardener.'
+            'Schedule trigger: Waking gardener.'
           );
           lastWakeDate = todayInTimezone(config.timezone);
           void handle.resume();
@@ -332,7 +332,7 @@ const facetGardenerPlugin: AlicePlugin = {
 
       start: async (control: IndependentAgentControl) => {
         plugin.logger.log(
-          '[facet-gardener] start: Gardener is hatching. Going to sleep to wait for schedule.'
+          'start: Gardener is hatching. Going to sleep to wait for schedule.'
         );
 
         // Don't run immediately — let the schedule timer handle the first
@@ -343,28 +343,28 @@ const facetGardenerPlugin: AlicePlugin = {
         // Start the schedule timer for future wake-ups
         startScheduleTimer();
         plugin.logger.log(
-          '[facet-gardener] start: Gardener is sleeping, waiting for schedule.'
+          'start: Gardener is sleeping, waiting for schedule.'
         );
       },
 
       stop: async () => {
         plugin.logger.log(
-          '[facet-gardener] stop: Gardener is shutting down...'
+          'stop: Gardener is shutting down...'
         );
         stopScheduleTimer();
-        plugin.logger.log('[facet-gardener] stop: Gardener stopped.');
+        plugin.logger.log('stop: Gardener stopped.');
       },
 
       onPause: async () => {
         plugin.logger.log(
-          '[facet-gardener] onPause: Stopping schedule timer...'
+          'onPause: Stopping schedule timer...'
         );
         stopScheduleTimer();
-        plugin.logger.log('[facet-gardener] onPause: Gardener is paused.');
+        plugin.logger.log('onPause: Gardener is paused.');
       },
 
       onResume: async (control: IndependentAgentControl) => {
-        plugin.logger.log('[facet-gardener] onResume: Waking gardener...');
+        plugin.logger.log('onResume: Waking gardener...');
 
         control.markRunning('Gardener woken by schedule or supervisor.');
 
@@ -375,7 +375,7 @@ const facetGardenerPlugin: AlicePlugin = {
             await conversation.compactContext('clear');
           } catch (error) {
             plugin.logger.log(
-              `[facet-gardener] onResume: Failed to compact context, starting fresh: ${error instanceof Error ? error.message : String(error)}`
+              `onResume: Failed to compact context, starting fresh: ${error instanceof Error ? error.message : String(error)}`
             );
             // If compaction fails (e.g. LLM unavailable for summarization),
             // start with a fresh conversation rather than letting the error
@@ -393,7 +393,7 @@ const facetGardenerPlugin: AlicePlugin = {
         }
 
         plugin.logger.log(
-          '[facet-gardener] onResume: Starting agent loop (non-blocking).'
+          'onResume: Starting agent loop (non-blocking).'
         );
 
         // Fire-and-forget: don't await so onResume returns immediately
@@ -403,7 +403,7 @@ const facetGardenerPlugin: AlicePlugin = {
           kickoffUserMessage: buildKickoffPrompt(),
           onSleep: async reason => {
             plugin.logger.log(
-              `[facet-gardener] onResume: Agent went to sleep: ${reason}`
+              `onResume: Agent went to sleep: ${reason}`
             );
             control.markSleeping(reason);
 
@@ -412,20 +412,20 @@ const facetGardenerPlugin: AlicePlugin = {
           },
         }).catch(error => {
           plugin.logger.log(
-            `[facet-gardener] onResume: Agent loop error: ${error instanceof Error ? error.message : String(error)}`
+            `onResume: Agent loop error: ${error instanceof Error ? error.message : String(error)}`
           );
         });
 
-        plugin.logger.log('[facet-gardener] onResume: Gardener loop started.');
+        plugin.logger.log('onResume: Gardener loop started.');
       },
 
       freeze: async () => {
-        plugin.logger.log('[facet-gardener] freeze: Saving gardener state...');
+        plugin.logger.log('freeze: Saving gardener state...');
         stopScheduleTimer();
 
         if (!conversation) {
           plugin.logger.log(
-            '[facet-gardener] freeze: No conversation to serialize.'
+            'freeze: No conversation to serialize.'
           );
           return { lastWakeDate };
         }
@@ -433,7 +433,7 @@ const facetGardenerPlugin: AlicePlugin = {
         const state = serializeConversationState(conversation, {
           lastWakeDate,
         });
-        plugin.logger.log('[facet-gardener] freeze: State saved.');
+        plugin.logger.log('freeze: State saved.');
         return state;
       },
 
@@ -441,7 +441,7 @@ const facetGardenerPlugin: AlicePlugin = {
         frozenState: Record<string, unknown>,
         control: IndependentAgentControl
       ) => {
-        plugin.logger.log('[facet-gardener] thaw: Restoring gardener state...');
+        plugin.logger.log('thaw: Restoring gardener state...');
 
         const instance = control.getInstance();
         const { conversation: restoredConversation, extra } =
@@ -455,24 +455,24 @@ const facetGardenerPlugin: AlicePlugin = {
         lastWakeDate = (extra.lastWakeDate as string | undefined) ?? undefined;
 
         plugin.logger.log(
-          '[facet-gardener] thaw: State restored. Marking sleeping.'
+          'thaw: State restored. Marking sleeping.'
         );
         control.markSleeping('Gardener thawed from frozen state.');
 
         // Restart schedule timer
         startScheduleTimer();
         plugin.logger.log(
-          `[facet-gardener] thaw: Gardener is ready for next wake cycle at ${configResult.getPluginConfig().wakeTime}`
+          `thaw: Gardener is ready for next wake cycle at ${configResult.getPluginConfig().wakeTime}`
         );
       },
 
       onSuspend: async () => {
         plugin.logger.log(
-          '[facet-gardener] onSuspend: Restarting schedule timer for suspension...'
+          'onSuspend: Restarting schedule timer for suspension...'
         );
         stopScheduleTimer();
         startScheduleTimer();
-        plugin.logger.log('[facet-gardener] onSuspend: Gardener is suspended.');
+        plugin.logger.log('onSuspend: Gardener is suspended.');
       },
     });
 
@@ -482,22 +482,22 @@ const facetGardenerPlugin: AlicePlugin = {
 
     plugin.hooks.onAssistantAcceptsRequests(async () => {
       plugin.logger.log(
-        '[facet-gardener] onAssistantAcceptsRequests: Starting gardener...'
+        'onAssistantAcceptsRequests: Starting gardener...'
       );
       await handle.start();
       plugin.logger.log(
-        '[facet-gardener] onAssistantAcceptsRequests: Gardener started.'
+        'onAssistantAcceptsRequests: Gardener started.'
       );
     });
 
     plugin.hooks.onPluginsWillUnload(async () => {
       plugin.logger.log(
-        '[facet-gardener] onPluginsWillUnload: Stopping gardener...'
+        'onPluginsWillUnload: Stopping gardener...'
       );
       stopScheduleTimer();
       await handle.stop();
       plugin.logger.log(
-        '[facet-gardener] onPluginsWillUnload: Gardener stopped.'
+        'onPluginsWillUnload: Gardener stopped.'
       );
     });
   },

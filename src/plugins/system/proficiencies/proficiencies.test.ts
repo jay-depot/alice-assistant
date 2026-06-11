@@ -561,6 +561,58 @@ describe('proficienciesPlugin', () => {
   });
 
   // -------------------------------------------------------------------------
+  // list
+  // -------------------------------------------------------------------------
+
+  it('list returns formatted list when proficiencies exist', async () => {
+    const now = new Date();
+    mockInterface = createMockPluginInterface({
+      initialRows: [
+        {
+          name: 'BakingTips',
+          normalizedName: 'bakingtips',
+          recallWhen: 'user asks about baking',
+          contents: 'Preheat oven to 350.',
+          usageCount: 0,
+          createdAt: now,
+          updatedAt: now,
+          lastAccessedAt: now,
+        },
+        {
+          name: 'CssGrid',
+          normalizedName: 'cssgrid',
+          recallWhen: 'user asks about CSS layouts',
+          contents: 'CSS grid cheat sheet.',
+          usageCount: 0,
+          createdAt: now,
+          updatedAt: now,
+          lastAccessedAt: now,
+        },
+      ],
+    });
+    await proficienciesPlugin.registerPlugin(
+      mockInterface as unknown as AlicePluginInterface
+    );
+
+    const tool = mockInterface.registeredTools.find(t => t.name === 'list');
+    const result = await tool.execute({});
+
+    expect(result).toContain('2 proficiencies');
+    expect(result).toContain('BakingTips');
+    expect(result).toContain('user asks about baking');
+    expect(result).toContain('CssGrid');
+    expect(result).toContain('CSS layouts');
+  });
+
+  it('list returns the seeded default proficiency when no others exist', async () => {
+    const tool = mockInterface.registeredTools.find(t => t.name === 'list');
+    const result = await tool.execute({});
+
+    expect(result).toContain('1 proficiencies');
+    expect(result).toContain('ProficienciesWelcome');
+  });
+
+  // -------------------------------------------------------------------------
   // Header system prompt
   // -------------------------------------------------------------------------
 

@@ -354,6 +354,12 @@
     "required": false
   },
   {
+    "id": "proficiencies-gardener",
+    "name": "Proficiencies Gardener",
+    "category": "community",
+    "required": false
+  },
+  {
     "id": "google-location",
     "name": "Google Location",
     "category": "community",

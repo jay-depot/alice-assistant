@@ -393,6 +393,41 @@ const proficienciesPlugin: AlicePlugin = {
       },
     });
 
+    plugin.registerTool({
+      name: 'list',
+      availableFor: ['chat', 'voice', 'autonomy'],
+      description:
+        'List all stored proficiencies with their names and recall triggers.',
+      systemPromptFragment: '',
+      toolResultPromptIntro: '',
+      toolResultPromptOutro: '',
+      parameters: Type.Object({}),
+      execute: async () => {
+        return withDatabase(async orm => {
+          const em = orm.em.fork();
+          const proficiencies = await em.find(
+            ProficienciesEntry,
+            {},
+            {
+              orderBy: { name: 'ASC' },
+            }
+          );
+
+          if (proficiencies.length === 0) {
+            return 'No proficiencies have been created yet.';
+          }
+
+          return [
+            `You have ${proficiencies.length} proficiencies:\n`,
+            ...proficiencies.map(
+              entry =>
+                `- **${entry.name}:** recall ${entry.name} when ${entry.recallWhen}`
+            ),
+          ].join('\n');
+        });
+      },
+    });
+
     plugin.registerHeaderSystemPrompt({
       name: 'proficiencies',
       weight: 60,
