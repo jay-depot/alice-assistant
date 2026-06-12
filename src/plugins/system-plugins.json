@@ -384,6 +384,12 @@
     "required": false
   },
   {
+    "id": "tasks-broker",
+    "name": "Tasks Broker",
+    "category": "system",
+    "required": false
+  },
+  {
     "id": "gmail",
     "name": "Gmail",
     "category": "community",

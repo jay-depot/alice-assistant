@@ -63,6 +63,9 @@ export type GoogleApisCapability = {
   getPeopleClient: (
     accountId: string
   ) => Promise<import('@googleapis/people').people_v1.People | null>;
+  getTasksClient: (
+    accountId: string
+  ) => Promise<import('@googleapis/tasks').tasks_v1.Tasks | null>;
   listAccounts: () => string[];
   getAccountInfo: (accountId: string) => GoogleAccount | null;
   initiateOAuthFlow: (accountId: string) => Promise<string>;
@@ -327,7 +330,7 @@ const googleApisPlugin: AlicePlugin = {
     name: 'Google APIs Plugin',
     brandColor: '#4285f4', // Google Blue
     description:
-      'Provides authenticated Google API clients (Gmail, Calendar, People) ' +
+      'Provides authenticated Google API clients (Gmail, Calendar, Tasks, People) ' +
       'for other plugins to use. Handles OAuth2 authentication with multi-account ' +
       'support and persists tokens in the credential vault.',
     version: 'LATEST',
@@ -399,6 +402,9 @@ const googleApisPlugin: AlicePlugin = {
       },
       getPeopleClient: (accountId: string) => {
         return oauthManager.getPeopleClient(accountId);
+      },
+      getTasksClient: (accountId: string) => {
+        return oauthManager.getTasksClient(accountId);
       },
       listAccounts: () => {
         const ids = accountStore.listAccountIds();

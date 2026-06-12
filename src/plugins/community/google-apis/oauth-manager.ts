@@ -11,9 +11,11 @@ import { OAuth2Client } from 'google-auth-library';
 import { gmail } from '@googleapis/gmail';
 import { calendar } from '@googleapis/calendar';
 import { people } from '@googleapis/people';
+import { tasks } from '@googleapis/tasks';
 import type { gmail_v1 } from '@googleapis/gmail';
 import type { calendar_v3 } from '@googleapis/calendar';
 import type { people_v1 } from '@googleapis/people';
+import type { tasks_v1 } from '@googleapis/tasks';
 import type { AccountStore } from './account-store.js';
 
 /**
@@ -23,6 +25,7 @@ import type { AccountStore } from './account-store.js';
 export const GOOGLE_SCOPES = [
   'https://www.googleapis.com/auth/gmail.modify',
   'https://www.googleapis.com/auth/calendar',
+  'https://www.googleapis.com/auth/tasks',
   'https://www.googleapis.com/auth/userinfo.profile',
   'https://www.googleapis.com/auth/userinfo.email',
   'https://www.googleapis.com/auth/contacts.readonly',
@@ -413,6 +416,16 @@ export class OAuthManager {
     const client = await this.getClient(accountId);
     if (!client) return null;
     return people({ version: 'v1', auth: client });
+  }
+
+  /**
+   * Get an authenticated Tasks client for a specific account.
+   * Returns null if the account is not available.
+   */
+  async getTasksClient(accountId: string): Promise<tasks_v1.Tasks | null> {
+    const client = await this.getClient(accountId);
+    if (!client) return null;
+    return tasks({ version: 'v1', auth: client });
   }
 
   /**
