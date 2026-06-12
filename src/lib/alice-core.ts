@@ -77,6 +77,18 @@ export const AliceCore = {
 
     await PluginHookInvocations.invokeOnAssistantAcceptsRequests();
 
+    if (process.env.ALICE_SMOKE_TEST) {
+      systemLogger.log(
+        'ALICE_SMOKE_TEST is set — running clean shutdown and exiting.'
+      );
+      await PluginHookInvocations.invokeOnAssistantWillStopAcceptingRequests();
+      await PluginHookInvocations.invokeOnAssistantStoppedAcceptingRequests();
+      await PluginHookInvocations.invokeOnPluginsWillUnload();
+      AlicePluginEngine.cleanupWebSocketServers();
+      systemLogger.log('Smoke test shutdown complete. Exiting successfully.');
+      return;
+    }
+
     await AliceCore.waitForShutdownSignal();
   },
 };

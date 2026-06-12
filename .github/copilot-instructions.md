@@ -101,6 +101,25 @@ Important runtime notes:
 - The voice plugin is a required built-in plugin and supervises a managed local voice client when enabled.
 - Optional external integrations still include services like Piper TTS, Whisper, OpenWakeWord, Brave Search, Currents, and Moltbook depending on plugin configuration.
 
+### Smoke Testing & Config Overrides
+
+Two environment variables support smoke testing and isolated config directories:
+
+| Variable           | Purpose                                                                                                                                                                                                                                                           |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ALICE_CONFIG_DIR` | Override the config directory path (default: `~/.alice-assistant`). Auto-scaffolds from `config-default/` if the directory does not exist.                                                                                                                        |
+| `ALICE_SMOKE_TEST` | When set to any truthy value, the assistant runs the full startup sequence (load plugins, startup conversation, REST server listen, voice client spawn), then executes the clean shutdown hook sequence and exits successfully instead of entering the main loop. |
+
+Example combined usage:
+
+```bash
+ALICE_CONFIG_DIR=/tmp/alice-smoke-test ALICE_SMOKE_TEST=1 npm start
+```
+
+When implementing new plugins, create a temporary config dir with your plugin (and its dependencies) enabled and run with `ALICE_CONFIG_DIR` pointed at it and with `ALICE_SMOKE_TEST=1` to test the full startup and shutdown sequences.
+
+**Before running the smoke test**, check that the fallback model configured in the temp config's `alice.json` is actually available in your local Ollama instance. The default scaffold uses `qwen2:7b` — if that model isn't pulled, the smoke test will fail at the final "talk to model" step with `model 'qwen2:7b' not found`. Run `ollama list` to see what's available, and either pull the configured model or edit the temp `alice.json` to use a model you already have (e.g. `granite4:latest` or `ministral-3:3b`).
+
 ---
 
 ## Testing

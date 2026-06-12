@@ -17,10 +17,13 @@ export const UserConfig = (() => {
   let config: SystemConfigFull; // TODO: Change this config to use convict, so we get type checking and validation for free. This will also allow us to easily add new config options in the future, and provide better error messages when the config is invalid.
   return {
     getConfigPath: () => {
-      const homeDir = os.homedir();
-      const configDir = path.join(homeDir, '.alice-assistant');
+      const envOverride = process.env.ALICE_CONFIG_DIR;
+      const configDir = envOverride
+        ? path.resolve(envOverride)
+        : path.join(os.homedir(), '.alice-assistant');
+
       if (!fs.existsSync(configDir)) {
-        fs.mkdirSync(configDir);
+        fs.mkdirSync(configDir, { recursive: true });
         // Copy the contents of the config-default folder into the new config directory. This will give the user a starting point for configuring their assistant, and also ensure that all necessary files are in place.
         const defaultConfigDir = path.join(
           currentDir,
