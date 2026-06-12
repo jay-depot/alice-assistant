@@ -15,7 +15,8 @@ const desktopPeekPlugin: AlicePlugin = {
     id: 'desktop-peek',
     name: 'Desktop Peek',
     brandColor: '#59d9a5',
-    description: 'Adds the desktop_peek.peek tool for chat and autonomy sessions.',
+    description:
+      'Adds the desktop_peek.peek tool for chat and autonomy sessions.',
     version: 'LATEST',
     dependencies: [{ id: 'model-vision', version: 'LATEST' }],
     required: false,

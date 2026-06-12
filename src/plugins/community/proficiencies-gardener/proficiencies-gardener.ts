@@ -170,7 +170,7 @@ function buildKickoffPrompt(): string {
   return [
     `It is ${dateStr} at ${timeStr}. Time for your weekly proficiency garden tending.`,
     '',
-    'Review the past week\'s conversation memories and agent run summaries. ',
+    "Review the past week's conversation memories and agent run summaries. ",
     'Your primary mission: look for multi-step tasks that required researching ',
     'or discovering the necessary steps, and create skeleton proficiencies for ',
     'any patterns not well-covered by existing proficiencies or skills.',
@@ -227,7 +227,9 @@ function currentWeekKey(timezone: string): string {
   // Get the ISO week number using the date's UTC methods to avoid
   // timezone offset issues. ISO weeks: week 1 is the week containing
   // the first Thursday.
-  const target = new Date(Date.UTC(nowTz.getFullYear(), nowTz.getMonth(), nowTz.getDate()));
+  const target = new Date(
+    Date.UTC(nowTz.getFullYear(), nowTz.getMonth(), nowTz.getDate())
+  );
   const dayNum = (target.getUTCDay() + 6) % 7; // Monday = 0
   target.setUTCDate(target.getUTCDate() - dayNum + 3);
   const firstThursday = new Date(Date.UTC(target.getUTCFullYear(), 0, 4));
@@ -431,9 +433,7 @@ const proficienciesGardenerPlugin: AlicePlugin = {
 
         // Wake the agent if it's sleeping
         if (instance.status === 'sleeping') {
-          plugin.logger.log(
-            'Schedule trigger: Waking gardener.'
-          );
+          plugin.logger.log('Schedule trigger: Waking gardener.');
           lastWakeWeek = currentWeekKey(config.timezone);
           void handle.resume();
         }
@@ -465,33 +465,23 @@ const proficienciesGardenerPlugin: AlicePlugin = {
 
         // Start the schedule timer for future wake-ups
         startScheduleTimer();
-        plugin.logger.log(
-          'start: Gardener is sleeping, waiting for schedule.'
-        );
+        plugin.logger.log('start: Gardener is sleeping, waiting for schedule.');
       },
 
       stop: async () => {
-        plugin.logger.log(
-          'stop: Gardener is shutting down...'
-        );
+        plugin.logger.log('stop: Gardener is shutting down...');
         stopScheduleTimer();
         plugin.logger.log('stop: Gardener stopped.');
       },
 
       onPause: async () => {
-        plugin.logger.log(
-          'onPause: Stopping schedule timer...'
-        );
+        plugin.logger.log('onPause: Stopping schedule timer...');
         stopScheduleTimer();
-        plugin.logger.log(
-          'onPause: Gardener is paused.'
-        );
+        plugin.logger.log('onPause: Gardener is paused.');
       },
 
       onResume: async (control: IndependentAgentControl) => {
-        plugin.logger.log(
-          'onResume: Waking gardener...'
-        );
+        plugin.logger.log('onResume: Waking gardener...');
 
         control.markRunning('Gardener woken by schedule or supervisor.');
 
@@ -519,9 +509,7 @@ const proficienciesGardenerPlugin: AlicePlugin = {
           });
         }
 
-        plugin.logger.log(
-          'onResume: Starting agent loop (non-blocking).'
-        );
+        plugin.logger.log('onResume: Starting agent loop (non-blocking).');
 
         // Fire-and-forget: don't await so onResume returns immediately
         void runIndependentAgentLoop({
@@ -529,9 +517,7 @@ const proficienciesGardenerPlugin: AlicePlugin = {
           agentId: 'proficiencies-gardener',
           kickoffUserMessage: buildKickoffPrompt(),
           onSleep: async reason => {
-            plugin.logger.log(
-              `onResume: Agent went to sleep: ${reason}`
-            );
+            plugin.logger.log(`onResume: Agent went to sleep: ${reason}`);
             control.markSleeping(reason);
 
             // Restart schedule timer after the loop exits
@@ -543,21 +529,15 @@ const proficienciesGardenerPlugin: AlicePlugin = {
           );
         });
 
-        plugin.logger.log(
-          'onResume: Gardener loop started.'
-        );
+        plugin.logger.log('onResume: Gardener loop started.');
       },
 
       freeze: async () => {
-        plugin.logger.log(
-          'freeze: Saving gardener state...'
-        );
+        plugin.logger.log('freeze: Saving gardener state...');
         stopScheduleTimer();
 
         if (!conversation) {
-          plugin.logger.log(
-            'freeze: No conversation to serialize.'
-          );
+          plugin.logger.log('freeze: No conversation to serialize.');
           return { lastWakeWeek };
         }
 
@@ -572,9 +552,7 @@ const proficienciesGardenerPlugin: AlicePlugin = {
         frozenState: Record<string, unknown>,
         control: IndependentAgentControl
       ) => {
-        plugin.logger.log(
-          'thaw: Restoring gardener state...'
-        );
+        plugin.logger.log('thaw: Restoring gardener state...');
 
         const instance = control.getInstance();
         const { conversation: restoredConversation, extra } =
@@ -585,12 +563,9 @@ const proficienciesGardenerPlugin: AlicePlugin = {
           );
 
         conversation = restoredConversation;
-        lastWakeWeek =
-          (extra.lastWakeWeek as string | undefined) ?? undefined;
+        lastWakeWeek = (extra.lastWakeWeek as string | undefined) ?? undefined;
 
-        plugin.logger.log(
-          'thaw: State restored. Marking sleeping.'
-        );
+        plugin.logger.log('thaw: State restored. Marking sleeping.');
         control.markSleeping('Gardener thawed from frozen state.');
 
         // Restart schedule timer
@@ -607,9 +582,7 @@ const proficienciesGardenerPlugin: AlicePlugin = {
         );
         stopScheduleTimer();
         startScheduleTimer();
-        plugin.logger.log(
-          'onSuspend: Gardener is suspended.'
-        );
+        plugin.logger.log('onSuspend: Gardener is suspended.');
       },
     });
 
@@ -618,24 +591,16 @@ const proficienciesGardenerPlugin: AlicePlugin = {
     // -----------------------------------------------------------------------
 
     plugin.hooks.onAssistantAcceptsRequests(async () => {
-      plugin.logger.log(
-        'onAssistantAcceptsRequests: Starting gardener...'
-      );
+      plugin.logger.log('onAssistantAcceptsRequests: Starting gardener...');
       await handle.start();
-      plugin.logger.log(
-        'onAssistantAcceptsRequests: Gardener started.'
-      );
+      plugin.logger.log('onAssistantAcceptsRequests: Gardener started.');
     });
 
     plugin.hooks.onPluginsWillUnload(async () => {
-      plugin.logger.log(
-        'onPluginsWillUnload: Stopping gardener...'
-      );
+      plugin.logger.log('onPluginsWillUnload: Stopping gardener...');
       stopScheduleTimer();
       await handle.stop();
-      plugin.logger.log(
-        'onPluginsWillUnload: Gardener stopped.'
-      );
+      plugin.logger.log('onPluginsWillUnload: Gardener stopped.');
     });
   },
 };

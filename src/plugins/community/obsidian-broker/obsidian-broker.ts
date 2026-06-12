@@ -485,43 +485,15 @@ const obsidianBrokerPlugin: AlicePlugin = {
 
     const GetNoteContentParametersSchema = Type.Object({});
 
-    plugin.addToolToConversationType(
-      'obsidian',
-      'memory',
-      'recall'
-    );
-    plugin.addToolToConversationType(
-      'obsidian',
-      'web-search-broker',
-      'search'
-    );
+    plugin.addToolToConversationType('obsidian', 'memory', 'recall');
+    plugin.addToolToConversationType('obsidian', 'web-search-broker', 'search');
     plugin.addToolToConversationType('obsidian', 'skills', 'recall');
-    plugin.addToolToConversationType(
-      'obsidian',
-      'proficiencies',
-      'recall'
-    );
+    plugin.addToolToConversationType('obsidian', 'proficiencies', 'recall');
     plugin.addToolToConversationType('obsidian', 'news-broker', 'get');
-    plugin.addToolToConversationType(
-      'obsidian',
-      'scratch-files',
-      'read'
-    );
-    plugin.addToolToConversationType(
-      'obsidian',
-      'scratch-files',
-      'update'
-    );
-    plugin.addToolToConversationType(
-      'obsidian',
-      'scratch-files',
-      'list'
-    );
-    plugin.addToolToConversationType(
-      'obsidian',
-      'scratch-files',
-      'delete'
-    );
+    plugin.addToolToConversationType('obsidian', 'scratch-files', 'read');
+    plugin.addToolToConversationType('obsidian', 'scratch-files', 'update');
+    plugin.addToolToConversationType('obsidian', 'scratch-files', 'list');
+    plugin.addToolToConversationType('obsidian', 'scratch-files', 'delete');
     plugin.addToolToConversationType(
       'obsidian',
       'personality-facets',

@@ -61,7 +61,7 @@ const FACET_GARDENER_SCENARIO_PROMPT = [
   '6. If you find facets that have never been embodied and seem redundant or poorly defined, ',
   '   consider updating their embodyWhen descriptions to make them more useful.',
   '7. When you have reviewed enough memories and tended the garden, call agents.sleep with a ' +
-  '   summary of what you did.',
+    '   summary of what you did.',
   '',
   '## GUIDELINES',
   '',
@@ -251,11 +251,7 @@ const facetGardenerPlugin: AlicePlugin = {
     plugin.addToolToConversationType('facet-gardener', 'agents', 'sleep');
 
     // Memory recall from memory plugin
-    plugin.addToolToConversationType(
-      'facet-gardener',
-      'memory',
-      'recall'
-    );
+    plugin.addToolToConversationType('facet-gardener', 'memory', 'recall');
 
     // Facet tools from personality-facets plugin
     plugin.addToolToConversationType(
@@ -309,9 +305,7 @@ const facetGardenerPlugin: AlicePlugin = {
 
         // Wake the agent if it's sleeping
         if (instance.status === 'sleeping') {
-          plugin.logger.log(
-            'Schedule trigger: Waking gardener.'
-          );
+          plugin.logger.log('Schedule trigger: Waking gardener.');
           lastWakeDate = todayInTimezone(config.timezone);
           void handle.resume();
         }
@@ -342,23 +336,17 @@ const facetGardenerPlugin: AlicePlugin = {
 
         // Start the schedule timer for future wake-ups
         startScheduleTimer();
-        plugin.logger.log(
-          'start: Gardener is sleeping, waiting for schedule.'
-        );
+        plugin.logger.log('start: Gardener is sleeping, waiting for schedule.');
       },
 
       stop: async () => {
-        plugin.logger.log(
-          'stop: Gardener is shutting down...'
-        );
+        plugin.logger.log('stop: Gardener is shutting down...');
         stopScheduleTimer();
         plugin.logger.log('stop: Gardener stopped.');
       },
 
       onPause: async () => {
-        plugin.logger.log(
-          'onPause: Stopping schedule timer...'
-        );
+        plugin.logger.log('onPause: Stopping schedule timer...');
         stopScheduleTimer();
         plugin.logger.log('onPause: Gardener is paused.');
       },
@@ -392,9 +380,7 @@ const facetGardenerPlugin: AlicePlugin = {
           });
         }
 
-        plugin.logger.log(
-          'onResume: Starting agent loop (non-blocking).'
-        );
+        plugin.logger.log('onResume: Starting agent loop (non-blocking).');
 
         // Fire-and-forget: don't await so onResume returns immediately
         void runIndependentAgentLoop({
@@ -402,9 +388,7 @@ const facetGardenerPlugin: AlicePlugin = {
           agentId: 'facet-gardener',
           kickoffUserMessage: buildKickoffPrompt(),
           onSleep: async reason => {
-            plugin.logger.log(
-              `onResume: Agent went to sleep: ${reason}`
-            );
+            plugin.logger.log(`onResume: Agent went to sleep: ${reason}`);
             control.markSleeping(reason);
 
             // Restart schedule timer after the loop exits
@@ -424,9 +408,7 @@ const facetGardenerPlugin: AlicePlugin = {
         stopScheduleTimer();
 
         if (!conversation) {
-          plugin.logger.log(
-            'freeze: No conversation to serialize.'
-          );
+          plugin.logger.log('freeze: No conversation to serialize.');
           return { lastWakeDate };
         }
 
@@ -454,9 +436,7 @@ const facetGardenerPlugin: AlicePlugin = {
         conversation = restoredConversation;
         lastWakeDate = (extra.lastWakeDate as string | undefined) ?? undefined;
 
-        plugin.logger.log(
-          'thaw: State restored. Marking sleeping.'
-        );
+        plugin.logger.log('thaw: State restored. Marking sleeping.');
         control.markSleeping('Gardener thawed from frozen state.');
 
         // Restart schedule timer
@@ -481,24 +461,16 @@ const facetGardenerPlugin: AlicePlugin = {
     // -----------------------------------------------------------------------
 
     plugin.hooks.onAssistantAcceptsRequests(async () => {
-      plugin.logger.log(
-        'onAssistantAcceptsRequests: Starting gardener...'
-      );
+      plugin.logger.log('onAssistantAcceptsRequests: Starting gardener...');
       await handle.start();
-      plugin.logger.log(
-        'onAssistantAcceptsRequests: Gardener started.'
-      );
+      plugin.logger.log('onAssistantAcceptsRequests: Gardener started.');
     });
 
     plugin.hooks.onPluginsWillUnload(async () => {
-      plugin.logger.log(
-        'onPluginsWillUnload: Stopping gardener...'
-      );
+      plugin.logger.log('onPluginsWillUnload: Stopping gardener...');
       stopScheduleTimer();
       await handle.stop();
-      plugin.logger.log(
-        'onPluginsWillUnload: Gardener stopped.'
-      );
+      plugin.logger.log('onPluginsWillUnload: Gardener stopped.');
     });
   },
 };

@@ -394,5 +394,11 @@
     "name": "Google Calendar",
     "category": "community",
     "required": false
+  },
+  {
+    "id": "teach",
+    "name": "Teach",
+    "category": "community",
+    "required": false
   }
 ]
