@@ -1,14 +1,21 @@
+import { useAssistantInfo } from '../context/AssistantInfoContext.js';
+
 interface ProcessingStatusProps {
   label?: string;
 }
 
-export function ProcessingStatus({
-  label = 'Alice is thinking',
-}: ProcessingStatusProps) {
+export function ProcessingStatus({ label }: ProcessingStatusProps) {
+  const { displayName } = useAssistantInfo();
+  const resolvedLabel = label ?? `${displayName} is thinking`;
+
   return (
-    <div className="processing-status" aria-live="polite" aria-label={label}>
+    <div
+      className="processing-status"
+      aria-live="polite"
+      aria-label={resolvedLabel}
+    >
       <span className="processing-status__dot" aria-hidden="true"></span>
-      <span className="processing-status__text">{label}</span>
+      <span className="processing-status__text">{resolvedLabel}</span>
     </div>
   );
 }

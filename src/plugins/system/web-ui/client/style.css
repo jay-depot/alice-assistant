@@ -97,6 +97,7 @@ body {
   letter-spacing: 0.2em;
   color: var(--accent);
   user-select: none;
+  margin: 0 auto;
 }
 
 #new-chat-btn {
@@ -1118,6 +1119,18 @@ body {
 .settings-panel__placeholder {
   font-size: 12px;
   color: var(--text-muted);
+}
+
+.settings-panel__nav {
+  padding: 0;
+  border-top: 0;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 12px;
+  margin-bottom: 0;
+}
+
+.settings-panel__nav .plugin-nav__title {
+  display: none;
 }
 
 /* ── Tool call batch ────────────────────────────────────────────────── */

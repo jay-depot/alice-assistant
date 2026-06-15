@@ -1,6 +1,7 @@
 {
   "wakeWord": "Hey ALICE",
   "assistantName": "ALICE",
+  "displayName": "A.L.I.C.E.",
   "webInterface": {
     "enabled": true,
     "port": 47153,

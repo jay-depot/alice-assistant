@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useAssistantInfo } from '../context/AssistantInfoContext.js';
 
 interface ThinkingBlockProps {
   content: string | null;
@@ -6,6 +7,7 @@ interface ThinkingBlockProps {
 }
 
 export function ThinkingBlock({ content, isThinking }: ThinkingBlockProps) {
+  const { displayName } = useAssistantInfo();
   const [showExpanded, setShowExpanded] = useState(isThinking);
 
   useEffect(() => {
@@ -33,7 +35,7 @@ export function ThinkingBlock({ content, isThinking }: ThinkingBlockProps) {
         onClick={() => setShowExpanded(prev => !prev)}
         aria-label={showExpanded ? 'Collapse reasoning' : 'Expand reasoning'}
       >
-        {isThinking ? 'Alice is reasoning...' : 'Reasoning'}
+        {isThinking ? `${displayName} is reasoning...` : 'Reasoning'}
       </button>
       <div className="thinking-block__content">
         <pre>{content}</pre>

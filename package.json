@@ -31,6 +31,9 @@
     "test:coverage": "vitest run --coverage",
     "prepare": "husky"
   },
+  "overrides": {
+    "google-auth-library": "$google-auth-library"
+  },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,mjs,cjs}": [
       "eslint --fix"

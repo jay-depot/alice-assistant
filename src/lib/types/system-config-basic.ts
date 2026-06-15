@@ -35,6 +35,7 @@ const OpenRouterLlmModelConfig = Type.Object({
 export const SystemConfigBasic = Type.Object({
   wakeWord: Type.String(),
   assistantName: Type.String(),
+  displayName: Type.Optional(Type.String()),
   webInterface: Type.Object({
     enabled: Type.Boolean(),
     port: Type.Number(),

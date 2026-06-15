@@ -8,12 +8,11 @@ import type {
 } from '../types/index.js';
 import { getMessageIdentityKey } from '../utils.js';
 import { useWebSocket } from './useWebSocket.js';
+import { useAssistantInfo } from '../context/AssistantInfoContext.js';
 
 interface UseSessionOptions {
   onError?: (message: string) => void;
 }
-
-const DEFAULT_TITLE = 'A.L.I.C.E.';
 
 function getLastReadMessageKey(messages: Message[]): string | null {
   let hasTrailingAssistantMessage = false;
@@ -34,11 +33,12 @@ function getLastReadMessageKey(messages: Message[]): string | null {
 }
 
 export function useSession({ onError }: UseSessionOptions = {}) {
+  const { displayName } = useAssistantInfo();
   const [currentSessionId, setCurrentSessionId] = useState<
     number | string | null
   >(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [sessionTitle, setSessionTitle] = useState(DEFAULT_TITLE);
+  const [sessionTitle, setSessionTitle] = useState(displayName);
   const [isSessionBusy, setIsSessionBusy] = useState(false);
   const [isProcessingMessage, setIsProcessingMessage] = useState(false);
   const [isEndingSession, setIsEndingSession] = useState(false);
@@ -180,7 +180,7 @@ export function useSession({ onError }: UseSessionOptions = {}) {
     }
 
     const confirmed = window.confirm(
-      'End this session? Alice will summarize and archive the conversation.'
+      `End this session? ${displayName} will summarize and archive the conversation.`
     );
 
     if (!confirmed) {
@@ -207,7 +207,7 @@ export function useSession({ onError }: UseSessionOptions = {}) {
   const resetToWelcome = useCallback(() => {
     setCurrentSessionId(null);
     setMessages([]);
-    setSessionTitle(DEFAULT_TITLE);
+    setSessionTitle(displayName);
     setPendingMessageKey(null);
     setLastReadMessageKey(null);
     setActiveAgents([]);

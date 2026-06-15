@@ -264,6 +264,15 @@ const webUiPlugin: AlicePlugin = {
       addExtensionsRoute(ctx);
       registerStaticRoutes(ctx, currentDir);
 
+      // ── GET /api/assistant-info — name info for the client ────────────
+      ctx.app.get('/api/assistant-info', (_req, res) => {
+        const config = UserConfig.getConfig();
+        res.json({
+          assistantName: config.assistantName,
+          displayName: config.displayName ?? config.assistantName,
+        });
+      });
+
       ctx.logger.log(
         'onAssistantAcceptsRequests: Completed web UI route and handler registration.'
       );

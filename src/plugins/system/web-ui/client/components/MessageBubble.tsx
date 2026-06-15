@@ -11,6 +11,7 @@ import type { Message } from '../types/index.js';
 import { useEffect, useState } from 'react';
 import { ReadReceiptIcon } from './ReadReceiptIcon.js';
 import { ThinkingBlock } from './ThinkingBlock.js';
+import { useAssistantInfo } from '../context/AssistantInfoContext.js';
 
 interface MessageBubbleProps {
   message: Message;
@@ -34,6 +35,7 @@ export function MessageBubble({
   // Always declare the state hook — conditionally wire it to parent or
   // internal management below.
   const [selfExpanded, setSelfExpanded] = useState(false);
+  const { displayName } = useAssistantInfo();
 
   const agentClassToken =
     message.role === 'assistant' && message.senderName
@@ -198,7 +200,9 @@ export function MessageBubble({
               receiptStatus === 'read' && 'message__status--read'
             )}
             aria-label={
-              receiptStatus === 'read' ? 'Read by Alice' : 'Sent to Alice'
+              receiptStatus === 'read'
+                ? `Read by ${displayName}`
+                : `Sent to ${displayName}`
             }
           >
             <ReadReceiptIcon variant={receiptStatus} />

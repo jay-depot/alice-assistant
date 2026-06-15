@@ -308,7 +308,6 @@ function AppShell() {
     <>
       <Sidebar
         sessions={sessions}
-        routes={pluginRoutes}
         currentSessionId={currentSessionId}
         onSelectSession={id => {
           navigate('/');
@@ -380,6 +379,7 @@ function AppShell() {
       <SettingsPanel
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
+        routes={pluginRoutes}
       />
       <ErrorToast
         message={errorMessage}

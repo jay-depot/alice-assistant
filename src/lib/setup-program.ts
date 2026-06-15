@@ -51,6 +51,7 @@ type VoiceSetupResult = {
 type SetupSystemConfig = {
   wakeWord?: string;
   assistantName?: string;
+  displayName?: string;
   location?: string;
   webInterface?: {
     enabled?: boolean;
@@ -676,6 +677,12 @@ async function configureCoreSettings(
     currentConfig.assistantName ?? 'ALICE',
     defaultsMode
   );
+  const displayName = await askQuestion(
+    session,
+    'Display name (shown in web UI, defaults to assistant name)',
+    currentConfig.displayName ?? currentConfig.assistantName ?? 'ALICE',
+    defaultsMode
+  );
   const location = await askQuestion(
     session,
     'Location',
@@ -847,6 +854,7 @@ async function configureCoreSettings(
     ...currentConfig,
     wakeWord,
     assistantName,
+    displayName,
     location,
     webInterface: {
       enabled: webEnabled,

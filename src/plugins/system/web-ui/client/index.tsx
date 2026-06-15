@@ -2,6 +2,7 @@ import * as React from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App.js';
 import { ExtensionProvider } from './context/ExtensionContext.js';
+import { AssistantInfoProvider } from './context/AssistantInfoContext.js';
 
 (globalThis as typeof globalThis & { React?: typeof React }).React = React;
 
@@ -12,7 +13,9 @@ if (!rootElement) {
 }
 
 createRoot(rootElement).render(
-  <ExtensionProvider>
-    <App />
-  </ExtensionProvider>
+  <AssistantInfoProvider>
+    <ExtensionProvider>
+      <App />
+    </ExtensionProvider>
+  </AssistantInfoProvider>
 );
