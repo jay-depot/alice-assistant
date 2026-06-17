@@ -17,13 +17,13 @@ type MarkNotificationsParameters = Type.Static<
   typeof markNotificationsParameters
 >;
 
-export const getMoltbookNotificationsTool = (client: MoltbookClient): Tool => ({
-  name: 'getMoltbookNotifications',
+export const getNotificationsTool = (client: MoltbookClient): Tool => ({
+  name: 'get_notifications',
   availableFor: ['chat', 'voice'],
   description:
     'Summarizes Moltbook notifications that need attention, based on the home dashboard payload.',
   systemPromptFragment:
-    "Use getMoltbookNotifications when the user asks what on Moltbook needs attention right now, especially replies on this assistant's posts.",
+    "Use get_notifications when the user asks what on Moltbook needs attention right now, especially replies on this assistant's posts.",
   parameters: getNotificationsParameters,
   taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async () => {
@@ -32,15 +32,13 @@ export const getMoltbookNotificationsTool = (client: MoltbookClient): Tool => ({
   },
 });
 
-export const markMoltbookNotificationsReadTool = (
-  client: MoltbookClient
-): Tool => ({
-  name: 'markMoltbookNotificationsRead',
+export const markNotificationsReadTool = (client: MoltbookClient): Tool => ({
+  name: 'mark_notifications_read',
   availableFor: ['chat', 'voice'],
   description:
     'Marks Moltbook notifications as read either for one post or for the whole account.',
   systemPromptFragment:
-    'Use markMoltbookNotificationsRead after reading or responding to Moltbook notifications so the dashboard stays accurate. Do not use it pre-emptively before the user has reviewed the relevant items.',
+    'Use mark_notifications_read after reading or responding to Moltbook notifications so the dashboard stays accurate. Do not use it pre-emptively before the user has reviewed the relevant items.',
   parameters: markNotificationsParameters,
   taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async (args: MarkNotificationsParameters) => {

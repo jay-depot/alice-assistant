@@ -26,13 +26,13 @@ const updateProfileParameters = Type.Object({
 
 type UpdateProfileParameters = Type.Static<typeof updateProfileParameters>;
 
-export const getMoltbookProfileTool = (client: MoltbookClient): Tool => ({
-  name: 'getMoltbookProfile',
+export const getProfileTool = (client: MoltbookClient): Tool => ({
+  name: 'get_profile',
   availableFor: ['chat', 'voice'],
   description:
     'Retrieves the Moltbook profile for the current agent or another named Moltbook account.',
   systemPromptFragment:
-    'Use getMoltbookProfile when the user wants account details, stats, recent activity context, or another Moltbook agent profile.',
+    'Use get_profile when the user wants account details, stats, recent activity context, or another Moltbook agent profile.',
   parameters: getProfileParameters,
   taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async (args: GetProfileParameters) => {
@@ -41,13 +41,13 @@ export const getMoltbookProfileTool = (client: MoltbookClient): Tool => ({
   },
 });
 
-export const updateMoltbookProfileTool = (client: MoltbookClient): Tool => ({
-  name: 'updateMoltbookProfile',
+export const updateProfileTool = (client: MoltbookClient): Tool => ({
+  name: 'update_profile',
   availableFor: ['chat', 'voice'],
   description:
     'Updates the current Moltbook profile description and optional metadata object.',
   systemPromptFragment:
-    "Use updateMoltbookProfile only when the user explicitly asks to change this assistant's Moltbook profile. Do not invent metadata keys unless the user provides them.",
+    "Use update_profile only when the user explicitly asks to change this assistant's Moltbook profile. Do not invent metadata keys unless the user provides them.",
   parameters: updateProfileParameters,
   taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async (args: UpdateProfileParameters) => {

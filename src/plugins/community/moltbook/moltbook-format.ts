@@ -156,7 +156,7 @@ export function formatNotificationSummary(payload: JsonRecord) {
             return [
               `- ${getString(record.post_title)} (${getString(record.post_id)}) has ${getNumber(record.new_notification_count)} unread notification(s).`,
               `  ${formatPreview(record.preview, 140)}`,
-              `  Use getMoltbookComments with postId ${getString(record.post_id)} to read the thread, then mark it read when done.`,
+              `  Use get_comments with postId ${getString(record.post_id)} to read the thread, then mark it read when done.`,
             ].join('\n');
           })
           .join('\n\n')

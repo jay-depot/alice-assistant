@@ -11,13 +11,13 @@ const parameters = Type.Object({
 
 type Parameters = Type.Static<typeof parameters>;
 
-const registerMoltbookAgentTool = (client: MoltbookClient): Tool => ({
-  name: 'registerMoltbookAgent',
+const registerAgentTool = (client: MoltbookClient): Tool => ({
+  name: 'register_agent',
   availableFor: ['chat', 'voice'],
   description:
     'Registers a new Moltbook agent account and stores its credentials in the assistant configuration directory.',
   systemPromptFragment:
-    'Use registerMoltbookAgent only when the user explicitly wants to create or re-create a Moltbook identity for this assistant. Registration returns a claim URL that the human owner must complete outside the assistant.',
+    'Use register_agent only when the user explicitly wants to create or re-create a Moltbook identity for this assistant. Registration returns a claim URL that the human owner must complete outside the assistant.',
   parameters,
   taintStatus: 'tainted', // Moltbook. 'nuff said.
   execute: async (args: Parameters) => {
@@ -35,4 +35,4 @@ const registerMoltbookAgentTool = (client: MoltbookClient): Tool => ({
   },
 });
 
-export default registerMoltbookAgentTool;
+export default registerAgentTool;

@@ -32,13 +32,13 @@ function wrapDMError(err: unknown): never {
 
 const checkDMStatusParameters = Type.Object({});
 
-export const checkMoltbookDMStatusTool = (client: MoltbookClient): Tool => ({
-  name: 'checkMoltbookDMStatus',
+export const checkDMStatusTool = (client: MoltbookClient): Tool => ({
+  name: 'check_dm_status',
   availableFor: ['chat', 'voice'],
   description:
     'Quick Moltbook DM status check — returns unread message count and pending request summary without fetching full lists.',
   systemPromptFragment:
-    'Call checkMoltbookDMStatus for a lightweight DM status check (unread count, pending requests).',
+    'Call check_dm_status for a lightweight DM status check (unread count, pending requests).',
   parameters: checkDMStatusParameters,
   taintStatus: 'tainted',
   execute: async () => {
@@ -65,12 +65,12 @@ const requestDMParameters = Type.Object({
 });
 type RequestDMParameters = Type.Static<typeof requestDMParameters>;
 
-export const requestMoltbookDMTool = (client: MoltbookClient): Tool => ({
-  name: 'requestMoltbookDM',
+export const requestDMTool = (client: MoltbookClient): Tool => ({
+  name: 'request_dm',
   availableFor: ['chat', 'voice'],
   description: 'Request direct messaging access with another Moltbook agent.',
   systemPromptFragment:
-    'Use requestMoltbookDM when you want to initiate a DM with another agent. ' +
+    'Use request_dm when you want to initiate a DM with another agent. ' +
     'Remember: both you and the target must follow each other for the request to be delivered.',
   parameters: requestDMParameters,
   taintStatus: 'tainted',
@@ -98,12 +98,12 @@ const approveDMParameters = Type.Object({
   requestId: Type.String({ description: 'The DM request ID to approve.' }),
 });
 
-export const approveMoltbookDMRequestTool = (client: MoltbookClient): Tool => ({
-  name: 'approveMoltbookDMRequest',
+export const approveDMRequestTool = (client: MoltbookClient): Tool => ({
+  name: 'approve_dm_request',
   availableFor: ['chat', 'voice'],
   description: 'Approve a pending Moltbook DM request by request ID.',
   systemPromptFragment:
-    'Use approveMoltbookDMRequest when you want to approve a DM request.',
+    'Use approve_dm_request when you want to approve a DM request.',
   parameters: approveDMParameters,
   taintStatus: 'tainted',
   execute: async (args: ApproveDMParameters) => {
@@ -129,15 +129,13 @@ const approvePendingDMRequestParameters = Type.Object({
   }),
 });
 
-export const approveMoltbookPendingDMRequestTool = (
-  client: MoltbookClient
-): Tool => ({
-  name: 'approveMoltbookPendingDMRequest',
+export const approvePendingDMRequestTool = (client: MoltbookClient): Tool => ({
+  name: 'approve_pending_dm_request',
   availableFor: ['chat', 'voice'],
   description:
     'Approve a pending Moltbook DM request by request ID (from the pending requests list).',
   systemPromptFragment:
-    'Call approveMoltbookPendingDMRequest to approve a pending DM request from the list.',
+    'Call approve_pending_dm_request to approve a pending DM request from the list.',
   parameters: approvePendingDMRequestParameters,
   taintStatus: 'tainted',
   execute: async (args: ApprovePendingDMRequestParameters) => {
@@ -162,14 +160,12 @@ const listDMConversationsParameters = Type.Object({
   cursor: Type.Optional(Type.String()),
 });
 
-export const listMoltbookDMConversationsTool = (
-  client: MoltbookClient
-): Tool => ({
-  name: 'listMoltbookDMConversations',
+export const listDMConversationsTool = (client: MoltbookClient): Tool => ({
+  name: 'list_dm_conversations',
   availableFor: ['chat', 'voice'],
   description: 'List your active DM conversation threads on Moltbook.',
   systemPromptFragment:
-    'Call listMoltbookDMConversations to see your DM threads on Moltbook.',
+    'Call list_dm_conversations to see your DM threads on Moltbook.',
   parameters: listDMConversationsParameters,
   taintStatus: 'tainted',
   execute: async (args: ListDMConversationsParameters) => {
@@ -199,14 +195,12 @@ const readDMConversationParameters = Type.Object({
   cursor: Type.Optional(Type.String()),
 });
 
-export const readMoltbookDMConversationTool = (
-  client: MoltbookClient
-): Tool => ({
-  name: 'readMoltbookDMConversation',
+export const readDMConversationTool = (client: MoltbookClient): Tool => ({
+  name: 'read_dm_conversation',
   availableFor: ['chat', 'voice'],
   description: 'Read messages in a Moltbook DM conversation.',
   systemPromptFragment:
-    'Use readMoltbookDMConversation to see the messages in a DM thread.',
+    'Use read_dm_conversation to see the messages in a DM thread.',
   parameters: readDMConversationParameters,
   taintStatus: 'tainted',
   execute: async (args: ReadDMConversationParameters) => {
@@ -231,12 +225,11 @@ const sendDMMessageParameters = Type.Object({
   content: Type.String({ description: 'The message content.' }),
 });
 
-export const sendMoltbookDMMessageTool = (client: MoltbookClient): Tool => ({
-  name: 'sendMoltbookDMMessage',
+export const sendDMMessageTool = (client: MoltbookClient): Tool => ({
+  name: 'send_dm_message',
   availableFor: ['chat', 'voice'],
   description: 'Send a message in a Moltbook DM conversation.',
-  systemPromptFragment:
-    'Use sendMoltbookDMMessage to send a message in a DM thread.',
+  systemPromptFragment: 'Use send_dm_message to send a message in a DM thread.',
   parameters: sendDMMessageParameters,
   taintStatus: 'tainted',
   execute: async (args: SendDMMessageParameters) => {
@@ -264,14 +257,12 @@ const listPendingDMRequestsParameters = Type.Object({
   cursor: Type.Optional(Type.String()),
 });
 
-export const listMoltbookPendingDMRequestsTool = (
-  client: MoltbookClient
-): Tool => ({
-  name: 'listMoltbookPendingDMRequests',
+export const listPendingDMRequestsTool = (client: MoltbookClient): Tool => ({
+  name: 'list_pending_dm_requests',
   availableFor: ['chat', 'voice'],
   description: 'List pending Moltbook DM requests that need approval.',
   systemPromptFragment:
-    'Call listMoltbookPendingDMRequests to see incoming DM requests that need approval.',
+    'Call list_pending_dm_requests to see incoming DM requests that need approval.',
   parameters: listPendingDMRequestsParameters,
   taintStatus: 'tainted',
   execute: async (args: ListPendingDMRequestsParameters) => {
@@ -290,15 +281,13 @@ export const listMoltbookPendingDMRequestsTool = (
 
 const scanForDMRequestIDsParameters = Type.Object({});
 
-export const scanForMoltbookDMRequestIDsTool = (
-  client: MoltbookClient
-): Tool => ({
-  name: 'scanForMoltbookDMRequestIDs',
+export const scanForDMRequestIDsTool = (client: MoltbookClient): Tool => ({
+  name: 'scan_dm_request_ids',
   availableFor: ['chat', 'voice'],
   description:
     'Scan the dashboard and DM check endpoint for any possible pending DM request IDs.',
   systemPromptFragment:
-    'Call scanForMoltbookDMRequestIDs to find any actionable DM request IDs.',
+    'Call scan_dm_request_ids to find any actionable DM request IDs.',
   parameters: scanForDMRequestIDsParameters,
   taintStatus: 'tainted',
   execute: async () => {

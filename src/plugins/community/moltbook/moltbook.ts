@@ -1,44 +1,42 @@
 import { Type } from 'typebox';
 import { AlicePlugin } from '../../../lib.js';
 import { createMoltbookClient } from './moltbook-client.js';
-import registerMoltbookAgentTool from './tools/register-moltbook-agent.js';
-import getMoltbookClaimStatusTool from './tools/get-moltbook-claim-status.js';
+import registerAgentTool from './tools/register-moltbook-agent.js';
+import getClaimStatusTool from './tools/get-moltbook-claim-status.js';
+import { getProfileTool, updateProfileTool } from './tools/profile-tools.js';
 import {
-  getMoltbookProfileTool,
-  updateMoltbookProfileTool,
-} from './tools/profile-tools.js';
-import {
-  getMoltbookCommentsTool,
-  getMoltbookFeedTool,
-  getMoltbookHomeTool,
-  getMoltbookPostTool,
-  getMoltbookSubmoltTool,
-  listMoltbookSubmoltsTool,
-  searchMoltbookTool,
+  getCommentsTool,
+  getFeedTool,
+  getHomeTool,
+  getPostTool,
+  getSubmoltTool,
+  listSubmoltsTool,
+  searchTool,
 } from './tools/read-tools.js';
 import {
-  createMoltbookCommentTool,
-  createMoltbookPostTool,
-  followMoltbookAgentTool,
-  manageMoltbookSubscriptionTool,
-  voteMoltbookContentTool,
+  createCommentTool,
+  createPostTool,
+  followTool,
+  manageSubscriptionTool,
+  submitVerificationTool,
+  voteTool,
 } from './tools/social-tools.js';
 
 import {
-  getMoltbookNotificationsTool,
-  markMoltbookNotificationsReadTool,
+  getNotificationsTool,
+  markNotificationsReadTool,
 } from './tools/notifications-tools.js';
 
 import {
-  requestMoltbookDMTool,
-  approveMoltbookDMRequestTool,
-  listMoltbookDMConversationsTool,
-  readMoltbookDMConversationTool,
-  sendMoltbookDMMessageTool,
-  listMoltbookPendingDMRequestsTool,
-  approveMoltbookPendingDMRequestTool,
-  scanForMoltbookDMRequestIDsTool,
-  checkMoltbookDMStatusTool,
+  requestDMTool,
+  approveDMRequestTool,
+  listDMConversationsTool,
+  readDMConversationTool,
+  sendDMMessageTool,
+  listPendingDMRequestsTool,
+  approvePendingDMRequestTool,
+  scanForDMRequestIDsTool,
+  checkDMStatusTool,
 } from './tools/dm-tools.js';
 import path from 'path';
 
@@ -91,35 +89,36 @@ const moltbookPlugin: AlicePlugin = {
       credentialStore: plugin.request('credential-store'),
     });
 
-    plugin.registerTool(registerMoltbookAgentTool(moltbookClient));
-    plugin.registerTool(getMoltbookClaimStatusTool(moltbookClient));
-    plugin.registerTool(getMoltbookProfileTool(moltbookClient));
-    plugin.registerTool(updateMoltbookProfileTool(moltbookClient));
-    plugin.registerTool(getMoltbookHomeTool(moltbookClient));
-    plugin.registerTool(getMoltbookNotificationsTool(moltbookClient));
-    plugin.registerTool(getMoltbookFeedTool(moltbookClient));
-    plugin.registerTool(getMoltbookPostTool(moltbookClient));
-    plugin.registerTool(getMoltbookCommentsTool(moltbookClient));
-    plugin.registerTool(listMoltbookSubmoltsTool(moltbookClient));
-    plugin.registerTool(getMoltbookSubmoltTool(moltbookClient));
-    plugin.registerTool(searchMoltbookTool(moltbookClient));
-    plugin.registerTool(createMoltbookPostTool(moltbookClient));
-    plugin.registerTool(createMoltbookCommentTool(moltbookClient));
-    plugin.registerTool(voteMoltbookContentTool(moltbookClient));
-    plugin.registerTool(followMoltbookAgentTool(moltbookClient));
-    plugin.registerTool(manageMoltbookSubscriptionTool(moltbookClient));
-    plugin.registerTool(markMoltbookNotificationsReadTool(moltbookClient));
+    plugin.registerTool(registerAgentTool(moltbookClient));
+    plugin.registerTool(getClaimStatusTool(moltbookClient));
+    plugin.registerTool(getProfileTool(moltbookClient));
+    plugin.registerTool(updateProfileTool(moltbookClient));
+    plugin.registerTool(getHomeTool(moltbookClient));
+    plugin.registerTool(getNotificationsTool(moltbookClient));
+    plugin.registerTool(getFeedTool(moltbookClient));
+    plugin.registerTool(getPostTool(moltbookClient));
+    plugin.registerTool(getCommentsTool(moltbookClient));
+    plugin.registerTool(listSubmoltsTool(moltbookClient));
+    plugin.registerTool(getSubmoltTool(moltbookClient));
+    plugin.registerTool(searchTool(moltbookClient));
+    plugin.registerTool(createPostTool(moltbookClient));
+    plugin.registerTool(createCommentTool(moltbookClient));
+    plugin.registerTool(submitVerificationTool(moltbookClient));
+    plugin.registerTool(voteTool(moltbookClient));
+    plugin.registerTool(followTool(moltbookClient));
+    plugin.registerTool(manageSubscriptionTool(moltbookClient));
+    plugin.registerTool(markNotificationsReadTool(moltbookClient));
 
     // DM tools
-    plugin.registerTool(checkMoltbookDMStatusTool(moltbookClient));
-    plugin.registerTool(requestMoltbookDMTool(moltbookClient));
-    plugin.registerTool(approveMoltbookDMRequestTool(moltbookClient));
-    plugin.registerTool(listMoltbookDMConversationsTool(moltbookClient));
-    plugin.registerTool(readMoltbookDMConversationTool(moltbookClient));
-    plugin.registerTool(sendMoltbookDMMessageTool(moltbookClient));
-    plugin.registerTool(listMoltbookPendingDMRequestsTool(moltbookClient));
-    plugin.registerTool(approveMoltbookPendingDMRequestTool(moltbookClient));
-    plugin.registerTool(scanForMoltbookDMRequestIDsTool(moltbookClient));
+    plugin.registerTool(checkDMStatusTool(moltbookClient));
+    plugin.registerTool(requestDMTool(moltbookClient));
+    plugin.registerTool(approveDMRequestTool(moltbookClient));
+    plugin.registerTool(listDMConversationsTool(moltbookClient));
+    plugin.registerTool(readDMConversationTool(moltbookClient));
+    plugin.registerTool(sendDMMessageTool(moltbookClient));
+    plugin.registerTool(listPendingDMRequestsTool(moltbookClient));
+    plugin.registerTool(approvePendingDMRequestTool(moltbookClient));
+    plugin.registerTool(scanForDMRequestIDsTool(moltbookClient));
 
     const { registerSkillFile } = plugin.request('skills');
     registerSkillFile(path.join(import.meta.dirname, 'skills', 'Moltbook.md'));

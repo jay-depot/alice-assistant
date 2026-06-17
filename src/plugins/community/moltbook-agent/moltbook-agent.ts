@@ -103,10 +103,10 @@ function buildScenarioPrompt(config: MoltbookAgentConfig): string {
     '',
     '## YOUR PROCESS',
     '',
-    '1. Call getMoltbookHome to check your dashboard — notifications, account summary, ' +
+    '1. Call get_home to check your dashboard — notifications, account summary, ' +
       'and suggested actions.',
-    '2. Call getMoltbookNotifications to see what needs your attention.',
-    '3. Mark notifications as read with markMoltbookNotificationsRead if appropriate.',
+    '2. Call get_notifications to see what needs your attention.',
+    '3. Mark notifications as read with mark_notifications_read if appropriate.',
   ];
 
   // DM handling
@@ -115,7 +115,7 @@ function buildScenarioPrompt(config: MoltbookAgentConfig): string {
       '',
       '## DIRECT MESSAGES',
       '',
-      '4. First, call checkMoltbookDMStatus for a lightweight DM status check ' +
+      '4. First, call check_dm_status for a lightweight DM status check ' +
         '(unread count, pending requests) without fetching full lists. This is ' +
         'efficient for heartbeat-style polling.',
       '',
@@ -125,12 +125,12 @@ function buildScenarioPrompt(config: MoltbookAgentConfig): string {
     );
     if (config.respondDms) {
       lines.push(
-        '5. If there are pending requests, call listMoltbookPendingDMRequests to ' +
+        '5. If there are pending requests, call list_pending_dm_requests to ' +
           'see who wants to chat. Approve reasonable ones with ' +
-          'approveMoltbookPendingDMRequest.',
-        '6. Call listMoltbookDMConversations to check for active DM threads.',
-        '7. For each active conversation, call readMoltbookDMConversation to read ' +
-          'new messages, then sendMoltbookDMMessage to reply if appropriate.'
+          'approve_pending_dm_request.',
+        '6. Call list_dm_conversations to check for active DM threads.',
+        '7. For each active conversation, call read_dm_conversation to read ' +
+          'new messages, then send_dm_message to reply if appropriate.'
       );
     } else {
       lines.push(
@@ -147,12 +147,12 @@ function buildScenarioPrompt(config: MoltbookAgentConfig): string {
       '## EXPLORING MOLTBOOK',
       '',
       config.readDms
-        ? '8. Browse your feed with getMoltbookFeed to see what other agents are posting.'
-        : '4. Browse your feed with getMoltbookFeed to see what other agents are posting.',
-      '9. Check out specific submolts with listMoltbookSubmolts and getMoltbookSubmolt.',
-      '10. Read interesting posts with getMoltbookPost and their comments with ' +
-        'getMoltbookComments.',
-      '11. Use searchMoltbook to find posts on topics that interest you.'
+        ? '8. Browse your feed with get_feed to see what other agents are posting.'
+        : '4. Browse your feed with get_feed to see what other agents are posting.',
+      '9. Check out specific submolts with list_submolts and get_submolt.',
+      '10. Read interesting posts with get_post and their comments with ' +
+        'get_comments.',
+      '11. Use search to find posts on topics that interest you.'
     );
   }
 
@@ -166,9 +166,15 @@ function buildScenarioPrompt(config: MoltbookAgentConfig): string {
         'rate limits on posting — do not attempt to create more than one post, even ' +
         'if a tool call appears to succeed. If you have something worth sharing ' +
         '(an observation, a learning, a question for other AIs), create it with ' +
-        'createMoltbookPost in a submolt that fits the topic. If you have more than ' +
+        'create_post in a submolt that fits the topic. If you have more than ' +
         'one idea for a post, post the first one, and append the others to a ' +
-        '`moltbook-post-ideas.txt` scratch file so you can post them in future sessions.'
+        '`moltbook-post-ideas.txt` scratch file so you can post them in future sessions.',
+      '',
+      'If a create_post or create_comment result surfaces a Moltbook ' +
+        'verification challenge, you MUST solve it yourself and call ' +
+        'submit_verification with the verification code and your answer ' +
+        'before considering the action complete. The plugin no longer auto-solves ' +
+        'these — it relies on you to read the challenge and produce the answer.'
     );
   } else {
     lines.push(
@@ -185,9 +191,10 @@ function buildScenarioPrompt(config: MoltbookAgentConfig): string {
       '',
       '## COMMENTING',
       '',
-      'You may comment on posts that interest you using createMoltbookComment. ' +
+      'You may comment on posts that interest you using create_comment. ' +
         'Be thoughtful — add value to the conversation rather than posting for ' +
-        'the sake of posting.'
+        'the sake of posting. If a comment result surfaces a Moltbook verification ' +
+        'challenge, solve it and call submit_verification before moving on.'
     );
   } else {
     lines.push(
@@ -204,7 +211,7 @@ function buildScenarioPrompt(config: MoltbookAgentConfig): string {
       '',
       '## VOTING',
       '',
-      'You may upvote content you find interesting or valuable using voteMoltbookContent. ' +
+      'You may upvote content you find interesting or valuable using vote. ' +
         'Use upvotes generously for content that shows thought or effort. ' +
         'Use downvotes sparingly, only for content that is genuinely harmful or misleading.'
     );
@@ -223,8 +230,8 @@ function buildScenarioPrompt(config: MoltbookAgentConfig): string {
       '',
       '## FOLLOWING & SUBSCRIBING',
       '',
-      'You may follow agents you find interesting with followMoltbookAgent and ' +
-        'subscribe to submolts with manageMoltbookSubscription. ' +
+      'You may follow agents you find interesting with follow and ' +
+        'subscribe to submolts with manage_subscription. ' +
         "Don't go overboard — follow agents whose content you genuinely want to see. " +
         'You can also unfollow or unsubscribe if you find your feed getting too ' +
         'crowded or if your interests change.'
@@ -244,7 +251,7 @@ function buildScenarioPrompt(config: MoltbookAgentConfig): string {
       '',
       '## PROFILE',
       '',
-      'You may update your Moltbook profile description with updateMoltbookProfile ' +
+      'You may update your Moltbook profile description with update_profile ' +
         "if you feel it no longer reflects who you are. Don't update it every session — " +
         'only when something meaningful has changed.'
     );
@@ -266,8 +273,11 @@ function buildScenarioPrompt(config: MoltbookAgentConfig): string {
     '- Call agents.sleep when you are done, even if you made no changes.',
     '- Your personality IS included in this session — let it show, but follow the ' +
       'Moltbook skill guidelines about dialing it back for an AI audience.',
-    "- If you encounter a CAPTCHA challenge, solve it, but don't roast the system. " +
-      'Once every few days is enough for that joke.',
+    '- If a Moltbook verification challenge shows up, you are the one solving it now. ' +
+      'Read the challenge text, compute the answer yourself, and call ' +
+      'submit_verification. Do not skip verification steps — the post or ' +
+      'comment is not fully accepted until /verify returns success. ' +
+      'And do not roast the CAPTCHA system. Once every few days is enough for that joke.',
     '- After your session, append any notes about behavioral adjustments to the ' +
       '`moltbook-personality-patch.txt` scratch file so future sessions can benefit.'
   );
@@ -467,132 +477,113 @@ const moltbookAgentPlugin: AlicePlugin = {
     plugin.addToolToConversationType(
       'moltbook-agent',
       'moltbook',
-      'registerMoltbookAgent'
+      'register_agent'
     );
     plugin.addToolToConversationType(
       'moltbook-agent',
       'moltbook',
-      'getMoltbookClaimStatus'
+      'get_claim_status'
     );
     plugin.addToolToConversationType(
       'moltbook-agent',
       'moltbook',
-      'getMoltbookProfile'
+      'get_profile'
     );
     plugin.addToolToConversationType(
       'moltbook-agent',
       'moltbook',
-      'updateMoltbookProfile'
+      'update_profile'
+    );
+    plugin.addToolToConversationType('moltbook-agent', 'moltbook', 'get_home');
+    plugin.addToolToConversationType(
+      'moltbook-agent',
+      'moltbook',
+      'get_notifications'
     );
     plugin.addToolToConversationType(
       'moltbook-agent',
       'moltbook',
-      'getMoltbookHome'
+      'mark_notifications_read'
+    );
+    plugin.addToolToConversationType('moltbook-agent', 'moltbook', 'get_feed');
+    plugin.addToolToConversationType('moltbook-agent', 'moltbook', 'get_post');
+    plugin.addToolToConversationType(
+      'moltbook-agent',
+      'moltbook',
+      'get_comments'
     );
     plugin.addToolToConversationType(
       'moltbook-agent',
       'moltbook',
-      'getMoltbookNotifications'
+      'list_submolts'
     );
     plugin.addToolToConversationType(
       'moltbook-agent',
       'moltbook',
-      'markMoltbookNotificationsRead'
+      'get_submolt'
+    );
+    plugin.addToolToConversationType('moltbook-agent', 'moltbook', 'search');
+    plugin.addToolToConversationType(
+      'moltbook-agent',
+      'moltbook',
+      'create_post'
     );
     plugin.addToolToConversationType(
       'moltbook-agent',
       'moltbook',
-      'getMoltbookFeed'
+      'create_comment'
     );
     plugin.addToolToConversationType(
       'moltbook-agent',
       'moltbook',
-      'getMoltbookPost'
+      'submit_verification'
+    );
+    plugin.addToolToConversationType('moltbook-agent', 'moltbook', 'vote');
+    plugin.addToolToConversationType('moltbook-agent', 'moltbook', 'follow');
+    plugin.addToolToConversationType(
+      'moltbook-agent',
+      'moltbook',
+      'manage_subscription'
     );
     plugin.addToolToConversationType(
       'moltbook-agent',
       'moltbook',
-      'getMoltbookComments'
+      'request_dm'
     );
     plugin.addToolToConversationType(
       'moltbook-agent',
       'moltbook',
-      'listMoltbookSubmolts'
+      'approve_dm_request'
     );
     plugin.addToolToConversationType(
       'moltbook-agent',
       'moltbook',
-      'getMoltbookSubmolt'
+      'list_dm_conversations'
     );
     plugin.addToolToConversationType(
       'moltbook-agent',
       'moltbook',
-      'searchMoltbook'
+      'read_dm_conversation'
     );
     plugin.addToolToConversationType(
       'moltbook-agent',
       'moltbook',
-      'createMoltbookPost'
+      'send_dm_message'
     );
     plugin.addToolToConversationType(
       'moltbook-agent',
       'moltbook',
-      'createMoltbookComment'
+      'list_pending_dm_requests'
     );
     plugin.addToolToConversationType(
       'moltbook-agent',
       'moltbook',
-      'voteMoltbookContent'
+      'approve_pending_dm_request'
     );
     plugin.addToolToConversationType(
       'moltbook-agent',
       'moltbook',
-      'followMoltbookAgent'
-    );
-    plugin.addToolToConversationType(
-      'moltbook-agent',
-      'moltbook',
-      'manageMoltbookSubscription'
-    );
-    plugin.addToolToConversationType(
-      'moltbook-agent',
-      'moltbook',
-      'requestMoltbookDM'
-    );
-    plugin.addToolToConversationType(
-      'moltbook-agent',
-      'moltbook',
-      'approveMoltbookDMRequest'
-    );
-    plugin.addToolToConversationType(
-      'moltbook-agent',
-      'moltbook',
-      'listMoltbookDMConversations'
-    );
-    plugin.addToolToConversationType(
-      'moltbook-agent',
-      'moltbook',
-      'readMoltbookDMConversation'
-    );
-    plugin.addToolToConversationType(
-      'moltbook-agent',
-      'moltbook',
-      'sendMoltbookDMMessage'
-    );
-    plugin.addToolToConversationType(
-      'moltbook-agent',
-      'moltbook',
-      'listMoltbookPendingDMRequests'
-    );
-    plugin.addToolToConversationType(
-      'moltbook-agent',
-      'moltbook',
-      'approveMoltbookPendingDMRequest'
-    );
-    plugin.addToolToConversationType(
-      'moltbook-agent',
-      'moltbook',
-      'scanForMoltbookDMRequestIDs'
+      'scan_dm_request_ids'
     );
 
     // Scratch file tools — for maintaining moltbook-personality-patch.txt

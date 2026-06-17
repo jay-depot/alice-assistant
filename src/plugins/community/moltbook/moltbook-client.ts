@@ -19,7 +19,6 @@ import {
   formatSubmolt,
   formatSubmoltList,
 } from './moltbook-format.js';
-import { solveMoltbookVerificationChallenge } from './moltbook-verification.js';
 import { createPluginLogger } from '../../../lib/plugin-logger.js';
 
 const logger = createPluginLogger('moltbook');
@@ -43,8 +42,25 @@ type RequestOptions = {
 };
 
 type VerificationOutcome = {
-  attempted: boolean;
-  success: boolean;
+  /**
+   * True if Moltbook returned a verification challenge in the response that
+   * the LLM still needs to solve and submit.
+   */
+  required: boolean;
+  /**
+   * The verification code from the Moltbook response. The LLM must pass
+   * this back to submit_verification.
+   */
+  verificationCode?: string;
+  /**
+   * The challenge text from the Moltbook response. The LLM must compute
+   * the answer to this and submit it via submit_verification.
+   */
+  challengeText?: string;
+  /**
+   * Human-readable status message, suitable for surfacing to the LLM
+   * alongside the challenge so it knows what to do next.
+   */
   message: string;
 };
 
@@ -309,8 +325,7 @@ export function createMoltbookClient(options: MoltbookClientOptions) {
     const content = data[contentType];
     if (!content || typeof content !== 'object') {
       return {
-        attempted: false,
-        success: true,
+        required: false,
         message: 'No verification step was required.',
       };
     }
@@ -319,8 +334,7 @@ export function createMoltbookClient(options: MoltbookClientOptions) {
     const verification = record.verification;
     if (!verification || typeof verification !== 'object') {
       return {
-        attempted: false,
-        success: true,
+        required: false,
         message: 'No verification step was required.',
       };
     }
@@ -338,47 +352,26 @@ export function createMoltbookClient(options: MoltbookClientOptions) {
 
     if (!verificationCode || !challengeText) {
       return {
-        attempted: false,
-        success: false,
+        required: true,
         message:
-          'Moltbook requested verification, but the challenge payload was incomplete.',
+          'Moltbook requested verification, but the challenge payload was incomplete. ' +
+          'The post or comment has not been fully accepted by Moltbook yet.',
       };
     }
 
-    const solution = solveMoltbookVerificationChallenge(challengeText);
-    if (!solution.success) {
-      return {
-        attempted: false,
-        success: false,
-        message: `Moltbook requested verification, but the plugin could not safely parse the challenge. Challenge: ${challengeText}`,
-      };
-    }
-
-    try {
-      await request({
-        method: 'POST',
-        path: '/verify',
-        body: {
-          verification_code: verificationCode,
-          answer: solution.answer,
-        },
-      });
-
-      return {
-        attempted: true,
-        success: true,
-        message: `Verification solved automatically with answer ${solution.answer}.`,
-      };
-    } catch (error) {
-      return {
-        attempted: true,
-        success: false,
-        message:
-          error instanceof Error
-            ? error.message
-            : 'Verification failed for an unknown reason.',
-      };
-    }
+    // The plugin no longer solves the challenge itself — it surfaces the
+    // challenge to the LLM and lets submit_verification do the actual
+    // POST /verify call after the model produces an answer.
+    return {
+      required: true,
+      verificationCode,
+      challengeText,
+      message:
+        `Moltbook requires a verification challenge to be solved before this ` +
+        `${contentType} is fully accepted. Read the challenge text, compute the ` +
+        `answer yourself, and call submit_verification with the verification ` +
+        `code and your answer.`,
+    };
   }
 
   return {
@@ -561,6 +554,23 @@ export function createMoltbookClient(options: MoltbookClientOptions) {
       });
       const verification = await maybeVerifyContent('comment', response.data);
       return { data: response.data, verification };
+    },
+    /**
+     * Submits an answer to a Moltbook verification challenge. The plugin
+     * does not solve the challenge itself — the LLM reads the challenge
+     * text from the post/comment tool result, computes the answer, and
+     * calls this method with the verification code and its answer.
+     */
+    async submitVerification(verificationCode: string, answer: string) {
+      const response = await request<JsonRecord>({
+        method: 'POST',
+        path: '/verify',
+        body: {
+          verification_code: verificationCode,
+          answer,
+        },
+      });
+      return response.data;
     },
     async vote(
       targetType: 'post' | 'comment',
