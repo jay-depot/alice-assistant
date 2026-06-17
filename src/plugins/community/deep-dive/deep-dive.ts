@@ -155,6 +155,44 @@ const deepDivePlugin: AlicePlugin = {
       'update'
     );
 
+    // Borrow deterministic utility tools when available.
+    plugin.addToolToConversationType(
+      'deep-dive-research',
+      'utils',
+      'evaluate_arithmetic'
+    );
+    plugin.addToolToConversationType(
+      'deep-dive-research',
+      'utils',
+      'count_words'
+    );
+    plugin.addToolToConversationType(
+      'deep-dive-research',
+      'utils',
+      'count_letters'
+    );
+    plugin.addToolToConversationType(
+      'deep-dive-research',
+      'utils',
+      'count_characters'
+    );
+    plugin.addToolToConversationType(
+      'deep-dive-research',
+      'utils',
+      'count_lines'
+    );
+    plugin.addToolToConversationType(
+      'deep-dive-research',
+      'utils',
+      'count_unique_words'
+    );
+    plugin.addToolToConversationType(
+      'deep-dive-research',
+      'utils',
+      'count_sentences_paragraphs'
+    );
+    plugin.addToolToConversationType('deep-dive-research', 'utils', 'spell');
+
     const { autoStartTool } = plugin.registerSessionLinkedAgent({
       id: 'deep-dive',
       name: 'Deep-Dive Research Agent',

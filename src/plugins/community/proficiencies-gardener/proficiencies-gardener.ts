@@ -421,6 +421,48 @@ const proficienciesGardenerPlugin: AlicePlugin = {
       'delete'
     );
 
+    // Borrow deterministic utility tools when available.
+    plugin.addToolToConversationType(
+      'proficiencies-gardener',
+      'utils',
+      'evaluate_arithmetic'
+    );
+    plugin.addToolToConversationType(
+      'proficiencies-gardener',
+      'utils',
+      'count_words'
+    );
+    plugin.addToolToConversationType(
+      'proficiencies-gardener',
+      'utils',
+      'count_letters'
+    );
+    plugin.addToolToConversationType(
+      'proficiencies-gardener',
+      'utils',
+      'count_characters'
+    );
+    plugin.addToolToConversationType(
+      'proficiencies-gardener',
+      'utils',
+      'count_lines'
+    );
+    plugin.addToolToConversationType(
+      'proficiencies-gardener',
+      'utils',
+      'count_unique_words'
+    );
+    plugin.addToolToConversationType(
+      'proficiencies-gardener',
+      'utils',
+      'count_sentences_paragraphs'
+    );
+    plugin.addToolToConversationType(
+      'proficiencies-gardener',
+      'utils',
+      'spell'
+    );
+
     // -----------------------------------------------------------------------
     // Schedule timer management
     // -----------------------------------------------------------------------

@@ -275,6 +275,36 @@ const facetGardenerPlugin: AlicePlugin = {
       'principles'
     );
 
+    // Borrow deterministic utility tools when available.
+    plugin.addToolToConversationType(
+      'facet-gardener',
+      'utils',
+      'evaluate_arithmetic'
+    );
+    plugin.addToolToConversationType('facet-gardener', 'utils', 'count_words');
+    plugin.addToolToConversationType(
+      'facet-gardener',
+      'utils',
+      'count_letters'
+    );
+    plugin.addToolToConversationType(
+      'facet-gardener',
+      'utils',
+      'count_characters'
+    );
+    plugin.addToolToConversationType('facet-gardener', 'utils', 'count_lines');
+    plugin.addToolToConversationType(
+      'facet-gardener',
+      'utils',
+      'count_unique_words'
+    );
+    plugin.addToolToConversationType(
+      'facet-gardener',
+      'utils',
+      'count_sentences_paragraphs'
+    );
+    plugin.addToolToConversationType('facet-gardener', 'utils', 'spell');
+
     // -----------------------------------------------------------------------
     // Schedule timer management
     // -----------------------------------------------------------------------

@@ -56,7 +56,8 @@
     "google-calendar": false,
     "openrouter-provider": false,
     "desktop-peek": false,
-    "think-deeply": false
+    "think-deeply": false,
+    "utils": true
   },
   "user": {
     "enableUserPlugins": false,

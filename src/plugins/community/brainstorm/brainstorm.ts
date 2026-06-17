@@ -137,6 +137,27 @@ const brainstormPlugin: AlicePlugin = {
         '- NEVER generate ideas for the user. Your only job is to listen and encourage.',
     });
 
+    plugin.addToolToConversationType(
+      'brainstorm',
+      'utils',
+      'evaluate_arithmetic'
+    );
+    plugin.addToolToConversationType('brainstorm', 'utils', 'count_words');
+    plugin.addToolToConversationType('brainstorm', 'utils', 'count_letters');
+    plugin.addToolToConversationType('brainstorm', 'utils', 'count_characters');
+    plugin.addToolToConversationType('brainstorm', 'utils', 'count_lines');
+    plugin.addToolToConversationType(
+      'brainstorm',
+      'utils',
+      'count_unique_words'
+    );
+    plugin.addToolToConversationType(
+      'brainstorm',
+      'utils',
+      'count_sentences_paragraphs'
+    );
+    plugin.addToolToConversationType('brainstorm', 'utils', 'spell');
+
     plugin.registerTaskAssistant({
       id: 'brainstorm',
       name: 'Brainstorm Assistant',

@@ -604,6 +604,36 @@ const moltbookAgentPlugin: AlicePlugin = {
     );
     plugin.addToolToConversationType('moltbook-agent', 'memory', 'recall');
 
+    // Borrow deterministic utility tools when available.
+    plugin.addToolToConversationType(
+      'moltbook-agent',
+      'utils',
+      'evaluate_arithmetic'
+    );
+    plugin.addToolToConversationType('moltbook-agent', 'utils', 'count_words');
+    plugin.addToolToConversationType(
+      'moltbook-agent',
+      'utils',
+      'count_letters'
+    );
+    plugin.addToolToConversationType(
+      'moltbook-agent',
+      'utils',
+      'count_characters'
+    );
+    plugin.addToolToConversationType('moltbook-agent', 'utils', 'count_lines');
+    plugin.addToolToConversationType(
+      'moltbook-agent',
+      'utils',
+      'count_unique_words'
+    );
+    plugin.addToolToConversationType(
+      'moltbook-agent',
+      'utils',
+      'count_sentences_paragraphs'
+    );
+    plugin.addToolToConversationType('moltbook-agent', 'utils', 'spell');
+
     // -----------------------------------------------------------------------
     // Schedule timer management
     // -----------------------------------------------------------------------

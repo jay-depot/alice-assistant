@@ -72,6 +72,7 @@ const defaultEnabledPlugins: EnabledPluginsConfig = {
     'openrouter-provider': false,
     'think-deeply': false,
     'desktop-peek': false,
+    utils: true,
   },
   user: {
     enableUserPlugins: false,

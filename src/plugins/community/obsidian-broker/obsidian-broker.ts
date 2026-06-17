@@ -499,6 +499,22 @@ const obsidianBrokerPlugin: AlicePlugin = {
       'personality-facets',
       'embody'
     );
+    plugin.addToolToConversationType(
+      'obsidian',
+      'utils',
+      'evaluate_arithmetic'
+    );
+    plugin.addToolToConversationType('obsidian', 'utils', 'count_words');
+    plugin.addToolToConversationType('obsidian', 'utils', 'count_letters');
+    plugin.addToolToConversationType('obsidian', 'utils', 'count_characters');
+    plugin.addToolToConversationType('obsidian', 'utils', 'count_lines');
+    plugin.addToolToConversationType('obsidian', 'utils', 'count_unique_words');
+    plugin.addToolToConversationType(
+      'obsidian',
+      'utils',
+      'count_sentences_paragraphs'
+    );
+    plugin.addToolToConversationType('obsidian', 'utils', 'spell');
 
     plugin.registerTool({
       name: 'suggest_obsidian_edit',

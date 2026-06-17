@@ -406,5 +406,11 @@
     "name": "Teach",
     "category": "community",
     "required": false
+  },
+  {
+    "id": "utils",
+    "name": "Utils",
+    "category": "system",
+    "required": false
   }
 ]

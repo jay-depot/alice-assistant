@@ -60,6 +60,43 @@ const testAgentsPlugin: AlicePlugin = {
       scenarioPrompt: TASK_SCENARIO_PROMPT,
     });
 
+    plugin.addToolToConversationType(
+      'test-task-assistant',
+      'utils',
+      'evaluate_arithmetic'
+    );
+    plugin.addToolToConversationType(
+      'test-task-assistant',
+      'utils',
+      'count_words'
+    );
+    plugin.addToolToConversationType(
+      'test-task-assistant',
+      'utils',
+      'count_letters'
+    );
+    plugin.addToolToConversationType(
+      'test-task-assistant',
+      'utils',
+      'count_characters'
+    );
+    plugin.addToolToConversationType(
+      'test-task-assistant',
+      'utils',
+      'count_lines'
+    );
+    plugin.addToolToConversationType(
+      'test-task-assistant',
+      'utils',
+      'count_unique_words'
+    );
+    plugin.addToolToConversationType(
+      'test-task-assistant',
+      'utils',
+      'count_sentences_paragraphs'
+    );
+    plugin.addToolToConversationType('test-task-assistant', 'utils', 'spell');
+
     plugin.registerTaskAssistant({
       id: 'test-task-assistant',
       name: 'Test Task Assistant',
@@ -118,6 +155,47 @@ const testAgentsPlugin: AlicePlugin = {
       scenarioPrompt: AGENT_SCENARIO_PROMPT,
     });
 
+    plugin.addToolToConversationType(
+      'test-session-linked-agent',
+      'utils',
+      'evaluate_arithmetic'
+    );
+    plugin.addToolToConversationType(
+      'test-session-linked-agent',
+      'utils',
+      'count_words'
+    );
+    plugin.addToolToConversationType(
+      'test-session-linked-agent',
+      'utils',
+      'count_letters'
+    );
+    plugin.addToolToConversationType(
+      'test-session-linked-agent',
+      'utils',
+      'count_characters'
+    );
+    plugin.addToolToConversationType(
+      'test-session-linked-agent',
+      'utils',
+      'count_lines'
+    );
+    plugin.addToolToConversationType(
+      'test-session-linked-agent',
+      'utils',
+      'count_unique_words'
+    );
+    plugin.addToolToConversationType(
+      'test-session-linked-agent',
+      'utils',
+      'count_sentences_paragraphs'
+    );
+    plugin.addToolToConversationType(
+      'test-session-linked-agent',
+      'utils',
+      'spell'
+    );
+
     plugin.registerConversationType({
       id: 'test-independent-agent',
       name: 'Test Independent Agent Session',
@@ -127,6 +205,47 @@ const testAgentsPlugin: AlicePlugin = {
       includePersonality: false,
       scenarioPrompt: INDEPENDENT_AGENT_SCENARIO_PROMPT,
     });
+
+    plugin.addToolToConversationType(
+      'test-independent-agent',
+      'utils',
+      'evaluate_arithmetic'
+    );
+    plugin.addToolToConversationType(
+      'test-independent-agent',
+      'utils',
+      'count_words'
+    );
+    plugin.addToolToConversationType(
+      'test-independent-agent',
+      'utils',
+      'count_letters'
+    );
+    plugin.addToolToConversationType(
+      'test-independent-agent',
+      'utils',
+      'count_characters'
+    );
+    plugin.addToolToConversationType(
+      'test-independent-agent',
+      'utils',
+      'count_lines'
+    );
+    plugin.addToolToConversationType(
+      'test-independent-agent',
+      'utils',
+      'count_unique_words'
+    );
+    plugin.addToolToConversationType(
+      'test-independent-agent',
+      'utils',
+      'count_sentences_paragraphs'
+    );
+    plugin.addToolToConversationType(
+      'test-independent-agent',
+      'utils',
+      'spell'
+    );
 
     plugin.addToolToConversationType(
       'test-session-linked-agent',
