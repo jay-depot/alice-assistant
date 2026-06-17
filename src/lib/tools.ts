@@ -40,6 +40,19 @@ export function getTools(
   return tools.filter(tool => tool.availableFor.includes(conversationType));
 }
 
+/**
+ * Returns the canonical names of all tools available for a conversation
+ * type. This is the list the LLM is told it can call. Useful for diagnostic
+ * logging by independent agents that want to verify their tool wiring.
+ */
+export function getAvailableToolNames(
+  conversationType: DynamicPromptConversationType
+): string[] {
+  return getTools(conversationType).map(
+    tool => tool.canonicalName ?? tool.name
+  );
+}
+
 export function hasTool(toolName: string): boolean {
   return tools.some(tool => tool.name === toolName);
 }

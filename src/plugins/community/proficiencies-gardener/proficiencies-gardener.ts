@@ -4,6 +4,7 @@ import {
   runIndependentAgentLoop,
   serializeConversationState,
   restoreConversationState,
+  getAvailableToolNames,
 } from '../../../lib.js';
 import type { IndependentAgentControl, Conversation } from '../../../lib.js';
 import Type from 'typebox';
@@ -310,6 +311,7 @@ const proficienciesGardenerPlugin: AlicePlugin = {
       { id: 'proficiencies', version: 'LATEST' },
       { id: 'skills', version: 'LATEST' },
       { id: 'agents', version: 'LATEST' },
+      { id: 'scratch-files', version: 'LATEST' },
     ],
   },
 
@@ -394,6 +396,29 @@ const proficienciesGardenerPlugin: AlicePlugin = {
       'proficiencies-gardener',
       'skills',
       'recall'
+    );
+
+    // Scratch file tools from scratch-files plugin (so the gardener can
+    // log session assessments to garden-tending-log.md)
+    plugin.addToolToConversationType(
+      'proficiencies-gardener',
+      'scratch-files',
+      'read'
+    );
+    plugin.addToolToConversationType(
+      'proficiencies-gardener',
+      'scratch-files',
+      'list'
+    );
+    plugin.addToolToConversationType(
+      'proficiencies-gardener',
+      'scratch-files',
+      'update'
+    );
+    plugin.addToolToConversationType(
+      'proficiencies-gardener',
+      'scratch-files',
+      'delete'
     );
 
     // -----------------------------------------------------------------------
@@ -508,6 +533,16 @@ const proficienciesGardenerPlugin: AlicePlugin = {
             agentInstanceId: instance.instanceId,
           });
         }
+
+        // Diagnostic: log the canonical names of every tool the LLM is
+        // being told it can call for this conversation type. Useful for
+        // catching wiring regressions where a tool link was supposed to
+        // be added but silently wasn't.
+        const availableTools = getAvailableToolNames('proficiencies-gardener');
+        plugin.logger.log(
+          `onResume: LLM-facing tools (${availableTools.length}): ` +
+            availableTools.join(', ')
+        );
 
         plugin.logger.log('onResume: Starting agent loop (non-blocking).');
 
