@@ -60,20 +60,26 @@ export function getMessageKey({
 export function getMessageIdentityKey({
   role,
   content,
+  reasoning,
+  senderName,
   attachments,
 }: {
   role: string;
   content: string;
+  reasoning?: string | null;
+  senderName?: string | null;
   attachments?: { dataUrl: string }[];
 }): string {
-  if (!attachments || attachments.length === 0) {
-    return `${role}:${content}`;
-  }
-
+  const identityParts = [role, content, senderName ?? '', reasoning ?? ''];
   const attachmentFingerprint = attachments
     ?.map(attachment => attachment.dataUrl.slice(0, 64))
     .join('|');
-  return `${role}:${content}:${attachmentFingerprint}`;
+
+  if (attachmentFingerprint) {
+    identityParts.push(attachmentFingerprint);
+  }
+
+  return identityParts.join(':');
 }
 
 export function isDisplayableMessage({

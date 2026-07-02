@@ -34,12 +34,14 @@ describe('getMessageKey', () => {
 });
 
 describe('getMessageIdentityKey', () => {
-  it('uses only role and content', () => {
+  it('uses role, content, sender name, and reasoning when present', () => {
     const key = getMessageIdentityKey({
       role: 'assistant',
       content: 'Hello, world!',
+      senderName: 'Alice',
+      reasoning: 'Thinking out loud',
     });
-    expect(key).toBe('assistant:Hello, world!');
+    expect(key).toBe('assistant:Hello, world!:Alice:Thinking out loud');
   });
 
   it('ignores timestamp — same content produces same key', () => {
@@ -54,7 +56,7 @@ describe('getMessageIdentityKey', () => {
     expect(key1).toBe(key2);
   });
 
-  it('ignores messageKind — only role and content matter', () => {
+  it('ignores messageKind — only identity fields matter', () => {
     const key1 = getMessageIdentityKey({
       role: 'user',
       content: 'hello',
@@ -90,18 +92,46 @@ describe('getMessageIdentityKey', () => {
     expect(userKey).not.toBe(assistantKey);
   });
 
+  it('differentiates by reasoning for assistant handoff matching', () => {
+    const key1 = getMessageIdentityKey({
+      role: 'assistant',
+      content: 'hello',
+      reasoning: 'first',
+    });
+    const key2 = getMessageIdentityKey({
+      role: 'assistant',
+      content: 'hello',
+      reasoning: 'second',
+    });
+    expect(key1).not.toBe(key2);
+  });
+
+  it('differentiates by senderName', () => {
+    const key1 = getMessageIdentityKey({
+      role: 'assistant',
+      content: 'hello',
+      senderName: 'Alice',
+    });
+    const key2 = getMessageIdentityKey({
+      role: 'assistant',
+      content: 'hello',
+      senderName: 'Bob',
+    });
+    expect(key1).not.toBe(key2);
+  });
+
   it('handles empty content', () => {
     const key = getMessageIdentityKey({
       role: 'assistant',
       content: '',
     });
-    expect(key).toBe('assistant:');
+    expect(key).toBe('assistant:::');
   });
 
   it('handles very long content', () => {
     const content = 'a'.repeat(10000);
     const key = getMessageIdentityKey({ role: 'user', content });
-    expect(key).toBe(`user:${content}`);
+    expect(key).toBe(`user:${content}::`);
   });
 });
 

@@ -537,20 +537,17 @@ body {
 
 .thinking-block--expanded .thinking-block__content {
   max-height: 300px;
+  display: block;
   padding: 8px 12px;
   overflow-y: auto;
 }
 
 .thinking-block--collapsed .thinking-block__content {
-  max-height: 0;
-  padding: 0 12px;
-  overflow: hidden;
+  display: none;
 }
 
 .thinking-block__content {
-  transition:
-    max-height 0.25s ease,
-    padding 0.25s ease;
+  margin: 0;
 }
 
 .thinking-block__content pre {

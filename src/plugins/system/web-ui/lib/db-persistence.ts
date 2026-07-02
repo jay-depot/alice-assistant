@@ -9,9 +9,8 @@ import type { Conversation } from '../../../../lib/conversation.js';
 import type { EntityManager } from '@mikro-orm/sqlite';
 
 /** Persists unsynchronized conversation messages into the database.
- *  Also flushes any buffered tool call rounds that belong to intermediate
- *  assistant messages with pending tool_calls — ensuring tool_call rows
- *  receive lower DB IDs than the final assistant response.
+ *  Tool-call rows are flushed by explicit orchestration points in callers
+ *  (e.g. after executeToolCalls) so ordering stays deterministic by turn.
  */
 export async function persistUnsynchronizedMessages(
   ctx: WebUiContext,
@@ -49,27 +48,6 @@ export async function persistUnsynchronizedMessages(
     session.rounds.add(round);
     session.updatedAt = round.timestamp;
 
-    // When persisting an intermediate assistant message that triggered tool
-    // calls, flush the buffered tool call rows immediately so they receive
-    // DB IDs after this message but before the final response message.
-    if (
-      message.role === 'assistant' &&
-      message.tool_calls &&
-      message.tool_calls.length > 0
-    ) {
-      const pending = ctx.pendingToolCallRounds.get(session.id);
-      if (pending && pending.length > 0) {
-        ctx.pendingToolCallRounds.delete(session.id);
-        for (const entry of pending) {
-          const toolRound = em.create(ChatSessionRound, {
-            chatSession: session,
-            ...entry,
-          });
-          session.rounds.add(toolRound);
-          session.updatedAt = toolRound.timestamp;
-        }
-      }
-    }
   });
 
   await em.flush();
@@ -102,6 +80,51 @@ export function flushPendingToolCallRounds(
   ctx.pendingToolCallRounds.delete(session.id);
 
   for (const entry of pending) {
+    const round = em.create(ChatSessionRound, {
+      chatSession: session,
+      ...entry,
+    });
+    session.rounds.add(round);
+    session.updatedAt = round.timestamp;
+  }
+}
+
+/** Flush only pending tool-call rows for a specific call batch id.
+ *  Leaves rows from other batches queued for their own turn boundary.
+ */
+export function flushPendingToolCallRoundsForBatch(
+  ctx: WebUiContext,
+  em: EntityManager,
+  session: ChatSession,
+  callBatchId: string
+): void {
+  const pending = ctx.pendingToolCallRounds.get(session.id);
+  if (!pending || pending.length === 0) {
+    return;
+  }
+
+  const matching: typeof pending = [];
+  const remaining: typeof pending = [];
+
+  for (const entry of pending) {
+    if (entry.toolCallData.callBatchId === callBatchId) {
+      matching.push(entry);
+    } else {
+      remaining.push(entry);
+    }
+  }
+
+  if (matching.length === 0) {
+    return;
+  }
+
+  if (remaining.length > 0) {
+    ctx.pendingToolCallRounds.set(session.id, remaining);
+  } else {
+    ctx.pendingToolCallRounds.delete(session.id);
+  }
+
+  for (const entry of matching) {
     const round = em.create(ChatSessionRound, {
       chatSession: session,
       ...entry,

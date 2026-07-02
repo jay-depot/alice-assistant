@@ -4,6 +4,7 @@ import type { WebSocket } from 'ws';
 import { WebSocket as WsConst } from 'ws';
 import { ChatSession } from '../db-schemas/index.js';
 import type { WebUiContext } from '../context.js';
+import { buildWsSession } from './serialization.js';
 import type { WsServerMessage, WsSessionSummary } from '../ws-types.js';
 
 /** Initialise the broadcastWs function on the context.
@@ -54,6 +55,20 @@ export async function broadcastSessionsList(ctx: WebUiContext): Promise<void> {
           rounds.length > 1 ? rounds[rounds.length - 2].content : '',
       } satisfies WsSessionSummary;
     }),
+  });
+}
+
+/** Broadcast the canonical session snapshot to every connected viewer so
+ *  transient stream/tool-call state can converge back onto persisted session
+ *  state without relying on the initiating socket only. */
+export function broadcastSessionUpdated(
+  ctx: WebUiContext,
+  session: ChatSession
+): void {
+  ctx.broadcastWs({
+    type: 'session_updated',
+    sessionId: session.id,
+    session: buildWsSession(session, session.id),
   });
 }
 

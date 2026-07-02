@@ -12,6 +12,10 @@ interface ToolCallBatchProps {
 }
 
 export function ToolCallBatch({ calls }: ToolCallBatchProps) {
+  if (calls.length === 0) {
+    return null;
+  }
+
   const status = getBatchStatus(calls);
   const headerLabel = getBatchHeaderLabel(calls, status);
   const [isExpanded, setIsExpanded] = useState(status === 'running');
@@ -66,8 +70,11 @@ export function ToolCallBatch({ calls }: ToolCallBatchProps) {
       </button>
       {isExpanded ? (
         <div className="tool-call-batch__calls">
-          {calls.map(call => (
-            <ToolCallIndicator key={call.toolName} call={call} />
+          {calls.map((call, index) => (
+            <ToolCallIndicator
+              key={call.clientCallKey ?? `${call.callBatchId}:${call.toolName}:${index}`}
+              call={call}
+            />
           ))}
         </div>
       ) : null}

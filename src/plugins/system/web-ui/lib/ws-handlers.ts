@@ -18,11 +18,15 @@ import {
   evictCachedConversation,
   runSessionOperation,
 } from './session-manager.js';
-import { persistUnsynchronizedMessages } from './db-persistence.js';
+import {
+  persistUnsynchronizedMessages,
+  flushPendingToolCallRoundsForBatch,
+} from './db-persistence.js';
 import { buildWsSession } from './serialization.js';
 import {
   sendInitialSessionsList,
   broadcastSessionsList,
+  broadcastSessionUpdated,
 } from './ws-broadcast.js';
 import type { WebUiContext } from '../context.js';
 import type {
@@ -326,6 +330,16 @@ export async function handleSendMessage(
             turnBatchId
           );
 
+          // Persist only this turn's tool-call rows immediately after execution
+          // so they remain interleaved between this turn and the next one.
+          flushPendingToolCallRoundsForBatch(
+            ctx,
+            emInner,
+            queuedSession,
+            turnBatchId
+          );
+          await emInner.flush();
+
           // Signal turn boundary AFTER tool execution so the
           // client already has the batch data when it renders.
           ctx.broadcastWs({
@@ -348,16 +362,10 @@ export async function handleSendMessage(
       }
     );
 
-    // Canonical session update to the initiating client
-    if (ws.readyState === WS_OPEN) {
-      ws.send(
-        JSON.stringify({
-          type: 'session_updated',
-          sessionId: updatedSession.id,
-          session: buildWsSession(updatedSession, updatedSession.id),
-        } satisfies WsServerMessage)
-      );
-    }
+    // Canonical session update to every viewer of the websocket feed.
+    // Stream/tool-call events are transient overlays; this snapshot is the
+    // handoff back to persisted session state.
+    broadcastSessionUpdated(ctx, updatedSession);
     void broadcastSessionsList(ctx);
   } catch (error) {
     systemLogger.error('handleSendMessage failed:', error);

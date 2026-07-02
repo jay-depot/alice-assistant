@@ -215,7 +215,7 @@ function AppShell() {
     pendingAssistantMessage,
     agentMonologue,
     clear: clearToolCalls,
-  } = useToolCallEvents(currentSessionId, messages);
+  } = useToolCallEvents(currentSessionId);
 
   const pluginRoutes = routes.filter(route => route.path !== '/');
 

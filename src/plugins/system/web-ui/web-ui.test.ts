@@ -17,9 +17,12 @@ const {
   mockStatSync,
   mockMkdirSync,
   mockReadFileSync,
+  mockPluginHookInvocations,
   mockStartConversation,
+  mockToolCallEvents,
   mockTaskAssistants,
   mockAgentSystem,
+  mockSystemLogger,
   mockRegisterDatabaseModels,
   mockOnDatabaseReady,
   mockApp,
@@ -42,15 +45,36 @@ const {
   const expressJson = vi.fn(() => 'json-middleware');
   const expressStatic = vi.fn(() => 'static-middleware');
 
+  const pluginHookInvocations = {
+    invokeOnContextCompactionSummariesWillBeDeleted: vi
+      .fn()
+      .mockResolvedValue(undefined),
+    invokeOnUserConversationWillBegin: vi.fn().mockResolvedValue(undefined),
+    invokeOnUserConversationWillEnd: vi.fn().mockResolvedValue(undefined),
+  };
+
   const taskAssistants = {
     getActiveInstance: vi.fn(() => null),
     getAndClearCompletedResult: vi.fn(() => undefined),
+  };
+
+  const toolCallEvents = {
+    onToolCallEvent: vi.fn(),
+    dispatchToolCallEvent: vi.fn().mockResolvedValue(undefined),
   };
 
   const agentSystem = {
     onUpdate: vi.fn(),
     getInstancesBySession: vi.fn(() => []),
     getAndClearPendingMessages: vi.fn(() => []),
+  };
+
+  const systemLogger = {
+    log: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
   };
 
   const wss = {
@@ -70,9 +94,12 @@ const {
     mockStatSync: vi.fn(),
     mockMkdirSync: vi.fn(),
     mockReadFileSync: vi.fn(),
+    mockPluginHookInvocations: pluginHookInvocations,
     mockStartConversation: vi.fn(),
+    mockToolCallEvents: toolCallEvents,
     mockTaskAssistants: taskAssistants,
     mockAgentSystem: agentSystem,
+    mockSystemLogger: systemLogger,
     mockRegisterDatabaseModels: vi.fn(),
     mockOnDatabaseReady: vi.fn(),
     mockApp: app,
@@ -120,13 +147,12 @@ vi.mock('../../../lib/user-config.js', () => ({
 }));
 
 vi.mock('../../../lib.js', () => ({
+  PluginHookInvocations: mockPluginHookInvocations,
   startConversation: mockStartConversation,
   TaskAssistants: mockTaskAssistants,
   AgentSystem: mockAgentSystem,
-  ToolCallEvents: {
-    onToolCallEvent: vi.fn(),
-    dispatchToolCallEvent: vi.fn().mockResolvedValue(undefined),
-  },
+  systemLogger: mockSystemLogger,
+  ToolCallEvents: mockToolCallEvents,
 }));
 
 import type { AlicePluginInterface } from '../../../lib.js';
@@ -868,6 +894,234 @@ describe('webUiPlugin', () => {
     const updated = sent.find((m: any) => m.type === 'session_updated');
     expect(updated).toBeDefined();
     expect(updated.session.title).toBe('Task Session Updated');
+  });
+
+  it('WS send_message persists tool calls between streamed turns', async () => {
+    const now = new Date('2026-04-12T00:00:00Z');
+    const mockInterface = createMockPluginInterface([
+      {
+        id: 12,
+        title: 'Turn Ordering Session',
+        rounds: makeRounds([]),
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+
+    const unsynchronizedMessages: any[] = [];
+    let streamCallCount = 0;
+
+    const conversation = {
+      restoreContext: vi.fn().mockReturnThis(),
+      appendExternalMessage: vi.fn(async (message: any) => {
+        unsynchronizedMessages.push(message);
+      }),
+      getUnsynchronizedMessages: vi.fn(() => [...unsynchronizedMessages]),
+      markUnsynchronizedMessagesSynchronized: vi.fn(() => {
+        unsynchronizedMessages.length = 0;
+      }),
+      closeConversation: vi.fn(),
+      maybeRequestTitle: vi.fn(async () => 'Turn Ordering Session'),
+      beginStreaming: vi.fn(async () => {
+        if (streamCallCount === 0) {
+          streamCallCount += 1;
+          const firstTurn = {
+            role: 'assistant',
+            content: 'Let me fetch that.',
+            reasoning: 'I should use the fetch tool first.',
+            tool_calls: [
+              {
+                function: {
+                  name: 'lightpanda_browser.fetch',
+                  arguments: { url: 'https://example.com' },
+                },
+              },
+            ],
+          };
+          unsynchronizedMessages.push(firstTurn);
+          return {
+            content: firstTurn.content,
+            thinking: firstTurn.reasoning,
+            toolCalls: firstTurn.tool_calls,
+          };
+        }
+
+        const finalTurn = {
+          role: 'assistant',
+          content: 'Here is what I found.',
+          reasoning: 'Now summarize results.',
+        };
+        unsynchronizedMessages.push(finalTurn);
+        return {
+          content: finalTurn.content,
+          thinking: finalTurn.reasoning,
+          toolCalls: [],
+        };
+      }),
+      executeToolCalls: vi.fn(async (_toolCalls: any, _depth: any, batch: any) => {
+        const onToolCallEvent = mockToolCallEvents.onToolCallEvent.mock.calls.at(
+          -1
+        )?.[0] as ((event: any) => Promise<void>) | undefined;
+
+        await onToolCallEvent?.({
+          type: 'tool_call_completed',
+          sessionId: 12,
+          callBatchId: batch,
+          toolName: 'lightpanda_browser.fetch',
+          toolArgs: { url: 'https://example.com' },
+          resultSummary: 'Fetched article details',
+          timestamp: new Date().toISOString(),
+        });
+      }),
+    };
+
+    mockStartConversation.mockReset().mockReturnValue(conversation);
+
+    await webUiPlugin.registerPlugin(
+      mockInterface as unknown as AlicePluginInterface
+    );
+    await mockInterface.runHook('onAssistantAcceptsRequests');
+
+    const connectionHandler = mockWss.on.mock.calls.find(
+      (entry: any[]) => entry[0] === 'connection'
+    )?.[1] as ((ws: any) => void) | undefined;
+
+    const wsClient = { readyState: 1, send: vi.fn(), on: vi.fn() };
+    connectionHandler?.(wsClient);
+
+    const messageHandler = wsClient.on.mock.calls.find(
+      (c: any[]) => c[0] === 'message'
+    )?.[1] as ((data: Buffer) => void) | undefined;
+    expect(messageHandler).toBeDefined();
+
+    messageHandler!(
+      Buffer.from(
+        JSON.stringify({
+          type: 'send_message',
+          sessionId: 12,
+          content: 'Find details',
+          clientMessageKey: 'user:find-details',
+        })
+      )
+    );
+
+    await new Promise(r => setTimeout(r, 50));
+
+    const outbound = wsClient.send.mock.calls.map((c: [string]) =>
+      JSON.parse(c[0])
+    );
+    const update = outbound
+      .filter((message: any) => message.type === 'session_updated')
+      .at(-1);
+
+    expect(update).toBeDefined();
+
+    const rounds = update.session.messages as any[];
+    const assistantTurnOneIndex = rounds.findIndex(
+      round => round.role === 'assistant' && round.content === 'Let me fetch that.'
+    );
+    const toolCallIndex = rounds.findIndex(
+      round =>
+        round.messageKind === 'tool_call' &&
+        round.toolCallData?.toolName === 'lightpanda_browser.fetch'
+    );
+    const assistantTurnTwoIndex = rounds.findIndex(
+      round =>
+        round.role === 'assistant' && round.content === 'Here is what I found.'
+    );
+
+    expect(assistantTurnOneIndex).toBeGreaterThanOrEqual(0);
+    expect(toolCallIndex).toBeGreaterThan(assistantTurnOneIndex);
+    expect(assistantTurnTwoIndex).toBeGreaterThan(toolCallIndex);
+  });
+
+  it('WS send_message broadcasts canonical session_updated to every viewer', async () => {
+    const now = new Date('2026-04-12T00:00:00Z');
+    const mockInterface = createMockPluginInterface([
+      {
+        id: 7,
+        title: 'Shared Session',
+        rounds: makeRounds([]),
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+
+    const messages: Array<{ role: string; content: string }> = [];
+    const sendUserMessage = vi.fn(async () => {
+      messages.push({ role: 'assistant', content: 'Assistant reply' });
+    });
+
+    mockStartConversation.mockReset().mockReturnValue({
+      restoreContext: vi.fn().mockReturnThis(),
+      getUnsynchronizedMessages: vi.fn(() => [...messages]),
+      markUnsynchronizedMessagesSynchronized: vi.fn(() => messages.splice(0)),
+      appendExternalMessage: vi.fn(
+        async (message: { role: string; content: string }) => {
+          messages.push(message);
+        }
+      ),
+      closeConversation: vi.fn(),
+      sendUserMessage,
+      maybeRequestTitle: vi.fn(async () => 'Shared Session'),
+      beginStreaming: vi.fn(async () => ({
+        content: 'Assistant reply',
+        thinking: null,
+        toolCalls: [],
+      })),
+    });
+
+    await webUiPlugin.registerPlugin(
+      mockInterface as unknown as AlicePluginInterface
+    );
+    await mockInterface.runHook('onAssistantAcceptsRequests');
+
+    const connectionHandler = mockWss.on.mock.calls.find(
+      (entry: any[]) => entry[0] === 'connection'
+    )?.[1] as ((ws: any) => void) | undefined;
+
+    const senderClient = { readyState: 1, send: vi.fn(), on: vi.fn() };
+    const viewerClient = { readyState: 1, send: vi.fn(), on: vi.fn() };
+    connectionHandler?.(senderClient);
+    connectionHandler?.(viewerClient);
+
+    const senderMessageHandler = senderClient.on.mock.calls.find(
+      (c: any[]) => c[0] === 'message'
+    )?.[1] as ((data: Buffer) => void) | undefined;
+    expect(senderMessageHandler).toBeDefined();
+
+    senderMessageHandler!(
+      Buffer.from(
+        JSON.stringify({
+          type: 'send_message',
+          sessionId: 7,
+          content: 'hello',
+          clientMessageKey: 'user:hello',
+        })
+      )
+    );
+
+    await new Promise(r => setTimeout(r, 50));
+
+    const senderMessages = senderClient.send.mock.calls.map((c: [string]) =>
+      JSON.parse(c[0])
+    );
+    const viewerMessages = viewerClient.send.mock.calls.map((c: [string]) =>
+      JSON.parse(c[0])
+    );
+
+    expect(
+      senderMessages.find(
+        (message: any) =>
+          message.type === 'session_updated' && message.sessionId === 7
+      )
+    ).toBeDefined();
+    expect(
+      viewerMessages.find(
+        (message: any) =>
+          message.type === 'session_updated' && message.sessionId === 7
+      )
+    ).toBeDefined();
   });
 
   it('GET /api/chat returns session summaries', async () => {

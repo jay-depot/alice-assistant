@@ -14,6 +14,26 @@ import {
   isDisplayableMessage,
 } from '../utils.js';
 
+function getAssistantTurnIdentityKey(
+  content: string,
+  reasoning?: string | null,
+  senderName?: string | null
+): string {
+  return getMessageIdentityKey({
+    role: 'assistant',
+    content,
+    reasoning,
+    senderName,
+  });
+}
+
+function getAssistantHandoffKey(
+  content: string,
+  senderName?: string | null
+): string {
+  return `${senderName ?? ''}:${content}`;
+}
+
 interface MessagesAreaProps {
   messages: Message[];
   showWelcome: boolean;
@@ -118,6 +138,80 @@ export function MessagesArea({
     [visibleMessages]
   );
 
+  // Handoff matching is intentionally looser than identity matching.
+  // Reasoning text may differ between stream deltas and persisted rounds,
+  // so we match recent assistant turns primarily by content + sender.
+  const persistedAssistantHandoffKeys = useMemo(
+    () =>
+      new Set(
+        visibleMessages
+          .filter(
+            message =>
+              message.role === 'assistant' &&
+              message.messageKind === 'chat' &&
+              message.content.trim().length > 0
+          )
+          .slice(-10)
+          .map(message =>
+            getAssistantHandoffKey(message.content, message.senderName)
+          )
+      ),
+    [visibleMessages]
+  );
+
+  const persistedToolCallsByBatchId = useMemo(() => {
+    const batches = new Map<string, ToolCallData[]>();
+    for (const message of visibleMessages) {
+      if (
+        message.messageKind !== 'tool_call' ||
+        !message.toolCallData?.callBatchId
+      ) {
+        continue;
+      }
+
+      const batchId = message.toolCallData.callBatchId;
+      const existing = batches.get(batchId) ?? [];
+      existing.push(message.toolCallData);
+      batches.set(batchId, existing);
+    }
+    return batches;
+  }, [visibleMessages]);
+
+  const getVisibleRealtimeBatchCalls = useCallback(
+    (batchId: string, calls: ToolCallData[]): ToolCallData[] => {
+      const persistedCalls = persistedToolCallsByBatchId.get(batchId) ?? [];
+      if (persistedCalls.length === 0) {
+        return calls;
+      }
+
+      const persistedCounts = new Map<string, number>();
+      for (const call of persistedCalls) {
+        const key = `${call.toolName}:${call.status}`;
+        persistedCounts.set(key, (persistedCounts.get(key) ?? 0) + 1);
+      }
+
+      const visibleCalls: ToolCallData[] = [];
+      for (const call of calls) {
+        if (call.status === 'running') {
+          visibleCalls.push(call);
+          continue;
+        }
+
+        const key = `${call.toolName}:${call.status}`;
+        const persistedRemaining = persistedCounts.get(key) ?? 0;
+        if (persistedRemaining > 0) {
+          persistedCounts.set(key, persistedRemaining - 1);
+          continue;
+        }
+
+        visibleCalls.push(call);
+      }
+
+      return visibleCalls;
+    },
+    [persistedToolCallsByBatchId]
+  );
+
   // Collect real-time tool call batches as a map for O(1) lookups.
   // We'll consume each batch when rendering its linked turn,
   // leaving only orphan batches (no linked turn) for the bottom.
@@ -136,15 +230,40 @@ export function MessagesArea({
     [completedTurns]
   );
 
+  const visibleCompletedTurns = useMemo(
+    () =>
+      completedTurns.filter(
+        turn =>
+          !persistedAssistantHandoffKeys.has(
+            getAssistantHandoffKey(turn.content)
+          )
+      ),
+    [completedTurns, persistedAssistantHandoffKeys]
+  );
+
   // Suppress the handoff bubble once its content exists in persisted messages
   // (arrived via session_updated).
-  const finalIdentityKey = getMessageIdentityKey({
-    role: 'assistant',
-    content: finalContent,
-  });
+  const finalIdentityKey = getAssistantTurnIdentityKey(
+    finalContent,
+    finalReasoning
+  );
   const isFinalPersisted =
     finalContent.length > 0 &&
-    visibleMessages.some(m => getMessageIdentityKey(m) === finalIdentityKey);
+    persistedAssistantHandoffKeys.has(getAssistantHandoffKey(finalContent));
+
+  const pendingAssistantIdentityKey = pendingAssistantMessage
+    ? getAssistantTurnIdentityKey(pendingAssistantMessage)
+    : null;
+  const hasVisibleTransientAssistantTurn =
+    currentStreamTurn !== null || visibleCompletedTurns.length > 0 || !!finalContent;
+  const shouldShowPendingAssistantMessage =
+    pendingAssistantMessage !== null &&
+    !hasVisibleTransientAssistantTurn &&
+    toolCallBatches.size === 0 &&
+    pendingAssistantIdentityKey !== null &&
+    !persistedAssistantHandoffKeys.has(
+      getAssistantHandoffKey(pendingAssistantMessage)
+    );
 
   // ── Expanded message keys (parent-managed so it survives stream→persisted) ─
   const [expandedMessageKeys, setExpandedMessageKeys] = useState<Set<string>>(
@@ -209,7 +328,7 @@ export function MessagesArea({
 
             return segment.items.map((message, messageIndex) => (
               <MessageBubble
-                key={`${message.timestamp}-${segmentIndex}-${messageIndex}`}
+                key={`${getMessageKey(message)}:${segmentIndex}:${messageIndex}`}
                 message={message}
                 receiptStatus={
                   message.role === 'user'
@@ -229,7 +348,7 @@ export function MessagesArea({
           })}
 
           {/* ── Completed stream turns with interleaved tool-call batches ── */}
-          {completedTurns.map(turn => (
+          {visibleCompletedTurns.map(turn => (
             <React.Fragment key={`completed-turn-${turn.turnIndex}`}>
               <StreamTurnContainer
                 turn={turn}
@@ -240,8 +359,18 @@ export function MessagesArea({
               />
               {/* Render the tool-call batch linked to this turn right after,
                   before the next turn's reasoning appears. */}
-              {turn.callBatchId && toolCallBatches.has(turn.callBatchId) ? (
-                <ToolCallBatch calls={toolCallBatches.get(turn.callBatchId)!} />
+              {turn.callBatchId &&
+              toolCallBatches.has(turn.callBatchId) &&
+              getVisibleRealtimeBatchCalls(
+                turn.callBatchId,
+                toolCallBatches.get(turn.callBatchId)!
+              ).length > 0 ? (
+                <ToolCallBatch
+                  calls={getVisibleRealtimeBatchCalls(
+                    turn.callBatchId,
+                    toolCallBatches.get(turn.callBatchId)!
+                  )}
+                />
               ) : null}
             </React.Fragment>
           ))}
@@ -259,29 +388,35 @@ export function MessagesArea({
           ) : null}
 
           {/* ── Real-time pending assistant message (before tool calls stream in) ── */}
-          {pendingAssistantMessage ? (
+          {shouldShowPendingAssistantMessage ? (
             <MessageBubble
               message={{
                 role: 'assistant',
                 messageKind: 'chat',
-                content: pendingAssistantMessage,
+                content: pendingAssistantMessage!,
                 timestamp: '',
               }}
-              isExpanded={expandedMessageKeys.has(
-                getMessageIdentityKey({
-                  role: 'assistant',
-                  content: pendingAssistantMessage,
-                })
-              )}
+              isExpanded={
+                pendingAssistantIdentityKey
+                  ? expandedMessageKeys.has(pendingAssistantIdentityKey)
+                  : false
+              }
               onSetExpanded={handleSetExpanded}
             />
           ) : null}
 
           {/* ── Orphan tool call batches (not linked to any completed turn) ── */}
           {realtimeBatches
-            .filter(([batchId]) => !turnBatchIds.has(batchId))
+            .filter(
+              ([batchId, calls]) =>
+                !turnBatchIds.has(batchId) &&
+                getVisibleRealtimeBatchCalls(batchId, calls).length > 0
+            )
             .map(([batchId, calls]) => (
-              <ToolCallBatch key={`realtime-${batchId}`} calls={calls} />
+              <ToolCallBatch
+                key={`realtime-${batchId}`}
+                calls={getVisibleRealtimeBatchCalls(batchId, calls)}
+              />
             ))}
 
           {/* ── Final content handoff bubble ──────────────────────────────

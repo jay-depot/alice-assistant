@@ -1,12 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Message, ToolCallData } from '../types/index.js';
+import type { ToolCallData } from '../types/index.js';
 import type { WsToolCallEvent } from '../../ws-types.js';
 import { useWebSocket } from './useWebSocket.js';
 
-export function useToolCallEvents(
-  sessionId: number | string | null,
-  messages: Message[]
-) {
+export function useToolCallEvents(sessionId: number | string | null) {
   const [toolCallBatches, setToolCallBatches] = useState<
     Map<string, ToolCallData[]>
   >(new Map());
@@ -17,30 +14,6 @@ export function useToolCallEvents(
     new Map()
   );
   const assistantTurnStartedRef = useRef(false);
-
-  // ── Dedup: remove real-time batches already persisted in messages ──────
-  useEffect(() => {
-    const persistedBatchIds = new Set(
-      messages
-        .filter(
-          m => m.messageKind === 'tool_call' && m.toolCallData?.callBatchId
-        )
-        .map(m => m.toolCallData!.callBatchId)
-    );
-    if (persistedBatchIds.size === 0) return;
-
-    setToolCallBatches(prev => {
-      let changed = false;
-      const next = new Map(prev);
-      for (const batchId of persistedBatchIds) {
-        if (next.has(batchId)) {
-          next.delete(batchId);
-          changed = true;
-        }
-      }
-      return changed ? next : prev;
-    });
-  }, [messages]);
 
   const handleEvent = useCallback((event: WsToolCallEvent) => {
     if (event.type === 'assistant_turn_started') {
@@ -83,16 +56,23 @@ export function useToolCallEvents(
       const batchCalls = next.get(event.callBatchId!)
         ? [...next.get(event.callBatchId!)!]
         : [];
+      // eslint-disable-next-line no-useless-assignment -- Set a baseline default of false that holds even if this function is updated
+      let didChange = false;
 
       if (event.type === 'tool_call_started') {
+        const toolOrdinal = batchCalls.filter(
+          call => call.toolName === event.toolName
+        ).length;
         batchCalls.push({
           callBatchId: event.callBatchId!,
+          clientCallKey: `${event.callBatchId}:${event.toolName}:${toolOrdinal}`,
           toolName: event.toolName!,
           status: 'running',
           requiresApproval: event.requiresApproval,
           taskAssistantId: event.taskAssistantId,
           agentName: event.agentName,
         });
+        didChange = true;
       } else {
         // Find the matching running entry by toolName and update it
         const entryIndex = batchCalls.findIndex(
@@ -106,7 +86,31 @@ export function useToolCallEvents(
             resultSummary: event.resultSummary,
             error: event.error,
           };
+          didChange = true;
+        } else {
+          // If completion/error arrives before started due WS timing,
+          // synthesize the row so the UI does not drop the call.
+          const toolOrdinal = batchCalls.filter(
+            call => call.toolName === event.toolName
+          ).length;
+          batchCalls.push({
+            callBatchId: event.callBatchId!,
+            clientCallKey: `${event.callBatchId}:${event.toolName}:${toolOrdinal}`,
+            toolName: event.toolName!,
+            status:
+              event.type === 'tool_call_completed' ? 'completed' : 'error',
+            resultSummary: event.resultSummary,
+            error: event.error,
+            requiresApproval: event.requiresApproval,
+            taskAssistantId: event.taskAssistantId,
+            agentName: event.agentName,
+          });
+          didChange = true;
         }
+      }
+
+      if (!didChange || batchCalls.length === 0) {
+        return prev;
       }
 
       next.set(event.callBatchId!, batchCalls);

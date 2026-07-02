@@ -6,6 +6,8 @@ export type MessageKind = 'chat' | 'notification' | 'tool_call';
 export interface ToolCallData {
   /** UUID — groups tool calls from the same Promise.all batch. */
   callBatchId: string;
+  /** Client-side stable key for rendering repeated tool names in one batch. */
+  clientCallKey?: string;
   toolName: string;
   status: 'running' | 'completed' | 'error';
   resultSummary?: string;
