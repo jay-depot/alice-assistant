@@ -3,6 +3,53 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as childProcess from 'child_process';
 
+/**
+ * Counts physical CPU cores on Linux by parsing /proc/cpuinfo for unique
+ * (physical id, core id) pairs. Falls back to os.availableParallelism() (a
+ * logical-thread count) or 1 if the file is unreadable/unparseable.
+ */
+function countPhysicalCores(): number {
+  try {
+    const cpuinfo = fs.readFileSync('/proc/cpuinfo', 'utf-8');
+    const cores = new Set<string>();
+    let physicalId: string | null = null;
+    let coreId: string | null = null;
+
+    for (const line of cpuinfo.split('\n')) {
+      const match = line.match(/^(\S+)\s*:\s*(.+)$/);
+      if (!match) {
+        continue;
+      }
+      const key = match[1];
+      const value = match[2].trim();
+      if (key === 'physical id') {
+        physicalId = value;
+      } else if (key === 'core id') {
+        coreId = value;
+      } else if (key === 'processor') {
+        // A new processor block is starting; flush the previous pair.
+        if (physicalId !== null && coreId !== null) {
+          cores.add(`${physicalId}:${coreId}`);
+        }
+        physicalId = null;
+        coreId = null;
+      }
+    }
+    // Flush the final block.
+    if (physicalId !== null && coreId !== null) {
+      cores.add(`${physicalId}:${coreId}`);
+    }
+
+    if (cores.size > 0) {
+      return cores.size;
+    }
+  } catch {
+    // Fall through to the fallback below.
+  }
+
+  return os.availableParallelism() || 1;
+}
+
 export const getSystemInfo = (() => {
   // The goal here is to give the LLM roughly the same information [neo|fast]fetch would display to a user, without the logo :-P
   const sysInfoCache: Record<string, string | number | boolean | null> = {};
@@ -98,56 +145,67 @@ export const getSystemInfo = (() => {
       // On Windows and macOS, we won't bother, for now.
       // We also want to get the vram size if possible
       if (sysInfoCache.os === 'Linux') {
-        const nvidiaGpuPath = '/proc/driver/nvidia/gpus/';
-        if (fs.existsSync(nvidiaGpuPath)) {
-          const gpuDirs = fs.readdirSync(nvidiaGpuPath);
-          if (gpuDirs.length > 0) {
-            const gpuInfoPath = path.join(
-              nvidiaGpuPath,
-              gpuDirs[0],
-              'information'
-            );
-            if (fs.existsSync(gpuInfoPath)) {
-              const gpuInfoData = fs.readFileSync(gpuInfoPath, 'utf-8');
-              const lines = gpuInfoData.split('\n');
+        // GPU detection runs on every conversation turn (it's part of the header
+        // prompt). A flaky subprocess or /proc read must never take down the whole
+        // turn, so we guard the entire block and fall back to 'Unknown' on failure.
+        try {
+          const nvidiaGpuPath = '/proc/driver/nvidia/gpus/';
+          if (fs.existsSync(nvidiaGpuPath)) {
+            const gpuDirs = fs.readdirSync(nvidiaGpuPath);
+            if (gpuDirs.length > 0) {
+              const gpuInfoPath = path.join(
+                nvidiaGpuPath,
+                gpuDirs[0],
+                'information'
+              );
+              if (fs.existsSync(gpuInfoPath)) {
+                const gpuInfoData = fs.readFileSync(gpuInfoPath, 'utf-8');
+                const lines = gpuInfoData.split('\n');
+                for (const line of lines) {
+                  if (line.startsWith('Model:')) {
+                    sysInfoCache.gpuModel = line.split(':')[1].trim();
+                  } else if (line.startsWith('Video Memory:')) {
+                    const vramString = line.split(':')[1].trim();
+                    const vramMatch = vramString.match(/(\d+)\s*MiB/);
+                    if (vramMatch) {
+                      sysInfoCache.vramSize = parseInt(vramMatch[1]) * 1024; // Convert MiB to KiB
+                      sysInfoCache.vramSizeUnit = 'KB';
+                    }
+                  }
+                }
+              }
+            }
+          } else {
+            // For AMD and Intel GPUs, we'll use lspci and look for lines that mention VGA or 3D controllers. This is a bit more error-prone, but it's a start.
+            const lspciPath = '/usr/bin/lspci';
+            if (fs.existsSync(lspciPath)) {
+              // Note: we intentionally omit the `-k` flag. It asks lspci to resolve
+              // kernel drivers via libkmod, which (a) we never use — we only grep for
+              // VGA/3D controller lines — and (b) emits a noisy
+              // "Unable to load libkmod resources: error -2" warning on systems where
+              // libkmod can't be loaded (e.g. after certain system updates).
+              const lspciData = childProcess.execSync('lspci -nn').toString();
+              const lines = lspciData.split('\n');
               for (const line of lines) {
-                if (line.startsWith('Model:')) {
-                  sysInfoCache.gpuModel = line.split(':')[1].trim();
-                } else if (line.startsWith('Video Memory:')) {
-                  const vramString = line.split(':')[1].trim();
-                  const vramMatch = vramString.match(/(\d+)\s*MiB/);
-                  if (vramMatch) {
-                    sysInfoCache.vramSize = parseInt(vramMatch[1]) * 1024; // Convert MiB to KiB
-                    sysInfoCache.vramSizeUnit = 'KB';
+                if (
+                  line.toLowerCase().includes('vga compatible controller') ||
+                  line.toLowerCase().includes('3d controller')
+                ) {
+                  const gpuModelMatch = line.match(/\[R\S+\s+(.+?)\]/);
+                  if (gpuModelMatch) {
+                    sysInfoCache.gpuModel = gpuModelMatch[0]
+                      .trim()
+                      .substring(1);
+                    break;
                   }
                 }
               }
             }
           }
-        } else {
-          // For AMD and Intel GPUs, we'll use lspci and look for lines that mention VGA or 3D controllers. This is a bit more error-prone, but it's a start.
-          const lspciPath = '/usr/bin/lspci';
-          if (fs.existsSync(lspciPath)) {
-            // Note: we intentionally omit the `-k` flag. It asks lspci to resolve
-            // kernel drivers via libkmod, which (a) we never use — we only grep for
-            // VGA/3D controller lines — and (b) emits a noisy
-            // "Unable to load libkmod resources: error -2" warning on systems where
-            // libkmod can't be loaded (e.g. after certain system updates).
-            const lspciData = childProcess.execSync('lspci -nn').toString();
-            const lines = lspciData.split('\n');
-            for (const line of lines) {
-              if (
-                line.toLowerCase().includes('vga compatible controller') ||
-                line.toLowerCase().includes('3d controller')
-              ) {
-                const gpuModelMatch = line.match(/\[R\S+\s+(.+?)\]/);
-                if (gpuModelMatch) {
-                  sysInfoCache.gpuModel = gpuModelMatch[0].trim().substring(1);
-                  break;
-                }
-              }
-            }
-          }
+        } catch {
+          // GPU detection is best-effort. Leave gpuModel as 'Unknown' rather than
+          // letting a subprocess failure abort the entire conversation turn.
+          sysInfoCache.gpuModel = 'Unknown';
         }
       }
     }
@@ -156,9 +214,7 @@ export const getSystemInfo = (() => {
       ...sysInfoCache,
       arch: os.arch(),
       cpu: os.cpus()[0].model,
-      physicalCores: os.cpus().filter((cpu, index, self) => {
-        return self.findIndex(c => c.model === cpu.model) === index;
-      }).length,
+      physicalCores: countPhysicalCores(),
       threadCount: os.cpus().length,
       totalMemory: os.totalmem(),
       totalMemoryUnit: 'bytes',

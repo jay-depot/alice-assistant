@@ -135,13 +135,14 @@ describe('ConversationContextManager', () => {
     expect(result).toBe(true);
     expect(summarizer).toHaveBeenCalled();
     const summaryRequest = vi.mocked(summarizer).mock.calls[0]?.[0];
-    expect(summaryRequest).toHaveLength(1);
+    expect(summaryRequest).toHaveLength(2);
     expect(summaryRequest?.[0].role).toBe('system');
     expect(summaryRequest?.[0].content).toContain(SUMMARY_PROMPT);
     expect(summaryRequest?.[0].content).toContain('USER: Tell me about cats.');
     expect(summaryRequest?.[0].content).toContain(
       'ASSISTANT: Cats are wonderful pets.'
     );
+    expect(summaryRequest?.[1]).toEqual({ role: 'user', content: '' });
     expect(host.compactedContext).toHaveLength(1);
     expect(host.compactedContext[0].content).toContain('summary text');
   });
@@ -178,13 +179,14 @@ describe('ConversationContextManager', () => {
     const result = await mgr.compactContext('clear');
     expect(result).toBe(true);
     const summaryRequest = vi.mocked(summarizer).mock.calls[0]?.[0];
-    expect(summaryRequest).toHaveLength(1);
+    expect(summaryRequest).toHaveLength(2);
     expect(summaryRequest?.[0].role).toBe('system');
     expect(summaryRequest?.[0].content).toContain(SUMMARY_PROMPT);
     expect(summaryRequest?.[0].content).toContain('USER: Important question.');
     expect(summaryRequest?.[0].content).toContain(
       'ASSISTANT: Important answer.'
     );
+    expect(summaryRequest?.[1]).toEqual({ role: 'user', content: '' });
     expect(host.compactedContext).toHaveLength(0);
     expect(
       PluginHookInvocations.invokeOnContextCompactionSummariesWillBeDeleted
@@ -205,11 +207,14 @@ describe('ConversationContextManager', () => {
 
     expect(summarizer).toHaveBeenCalled();
     const summaryRequest = vi.mocked(summarizer).mock.calls[0]?.[0];
-    expect(summaryRequest).toHaveLength(1);
+    expect(summaryRequest).toHaveLength(2);
     expect(summaryRequest?.[0].role).toBe('system');
     expect(summaryRequest?.[0].content).toContain(SUMMARY_PROMPT);
     expect(summaryRequest?.[0].content).toContain('USER: Last question.');
     expect(summaryRequest?.[0].content).toContain('ASSISTANT: Last answer.');
+    // Ollama (>=0.30) needs at least one user message in the request history,
+    // so the summary request appends an empty user message.
+    expect(summaryRequest?.[1]).toEqual({ role: 'user', content: '' });
     expect(
       PluginHookInvocations.invokeOnContextCompactionSummariesWillBeDeleted
     ).toHaveBeenCalled();

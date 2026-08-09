@@ -42,6 +42,11 @@ vi.mock('./llm-provider.js', async () => {
         'getActiveLlmProvider mock should not be awaited directly'
       );
     }),
+    resolveLlmProviderForRequest: vi.fn().mockImplementation(() => {
+      throw new Error(
+        'resolveLlmProviderForRequest mock should be set per-test'
+      );
+    }),
   };
 });
 
@@ -253,6 +258,143 @@ describe('Conversation.sendDirectRequest', () => {
     await expect(
       Conversation.sendDirectRequest([{ role: 'user', content: 'go' }])
     ).rejects.toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// sendUserMessage with no user message (startup / greeting)
+// ---------------------------------------------------------------------------
+
+describe('Conversation.sendUserMessage (no user message)', () => {
+  let Conversation: typeof import('./conversation.js').Conversation;
+  let mockChat: ReturnType<typeof vi.fn>;
+  let getActiveLlmProvider: ReturnType<typeof vi.fn>;
+  let resolveLlmProviderForRequest: ReturnType<typeof vi.fn>;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    const llmProvider = await import('./llm-provider.js');
+    getActiveLlmProvider = vi.mocked(llmProvider.getActiveLlmProvider);
+    resolveLlmProviderForRequest = vi.mocked(
+      llmProvider.resolveLlmProviderForRequest
+    );
+    getActiveLlmProvider.mockReturnValue({
+      model: {
+        provider: 'ollama',
+        useFor: 'fallback',
+        host: 'http://localhost:11434',
+        model: 'test-model',
+        options: {},
+      },
+      provider: {
+        id: 'ollama',
+        capabilities: {
+          supportsStreaming: true,
+          supportsTools: true,
+        },
+        buildToolDefinitions: vi.fn(definitions => definitions),
+        chat: vi.fn(async request => {
+          const OllamaClient = (await import('ollama')).default;
+          return (await OllamaClient.chat({
+            model: 'test-model',
+            messages: request.messages,
+          })) as Awaited<ReturnType<typeof OllamaClient.chat>>;
+        }),
+        chatStream: vi.fn(async request => {
+          const OllamaClient = (await import('ollama')).default;
+          return (await OllamaClient.chat({
+            model: 'test-model',
+            messages: request.messages,
+            stream: true,
+          })) as AsyncIterable<unknown>;
+        }),
+      },
+    });
+    resolveLlmProviderForRequest.mockReturnValue({
+      model: {
+        provider: 'ollama',
+        useFor: 'fallback',
+        host: 'http://localhost:11434',
+        model: 'test-model',
+        options: {},
+      },
+      resolvedUseFor: 'fallback',
+      provider: {
+        id: 'ollama',
+        capabilities: {
+          supportsStreaming: true,
+          supportsTools: true,
+        },
+        buildToolDefinitions: vi.fn(definitions => definitions),
+        chat: vi.fn(async request => {
+          const OllamaClient = (await import('ollama')).default;
+          return (await OllamaClient.chat({
+            model: 'test-model',
+            messages: request.messages,
+          })) as Awaited<ReturnType<typeof OllamaClient.chat>>;
+        }),
+        chatStream: vi.fn(async request => {
+          const OllamaClient = (await import('ollama')).default;
+          return (await OllamaClient.chat({
+            model: 'test-model',
+            messages: request.messages,
+            stream: true,
+          })) as AsyncIterable<unknown>;
+        }),
+      },
+    });
+    ({ Conversation } = await import('./conversation.js'));
+    const OllamaClient = (await import('ollama')).default;
+    mockChat = vi.mocked(OllamaClient.chat);
+  });
+
+  it('sends an empty user message to the model but not to the persisted context', async () => {
+    mockChat.mockResolvedValue({
+      message: { role: 'assistant', content: 'Welcome back!' },
+    });
+
+    const conv = new Conversation('chat');
+    const reply = await conv.sendUserMessage();
+
+    expect(reply).toBe('Welcome back!');
+
+    // The model request must include an empty user message so Ollama generates
+    // a response (it returns empty content for system-only requests).
+    const sentMessages = mockChat.mock.calls[0][0].messages as Array<{
+      role: string;
+      content: string;
+    }>;
+    expect(sentMessages.some(m => m.role === 'user' && m.content === '')).toBe(
+      true
+    );
+
+    // The blank user message must NOT leak into the persisted context.
+    expect(
+      conv.rawContext.some(m => m.role === 'user' && m.content === '')
+    ).toBe(false);
+    expect(
+      conv.compactedContext.some(m => m.role === 'user' && m.content === '')
+    ).toBe(false);
+  });
+
+  it('does not inject an empty user message when a real user message is provided', async () => {
+    mockChat.mockResolvedValue({
+      message: { role: 'assistant', content: 'Hello!' },
+    });
+
+    const conv = new Conversation('chat');
+    await conv.sendUserMessage('Hi there');
+
+    const sentMessages = mockChat.mock.calls[0][0].messages as Array<{
+      role: string;
+      content: string;
+    }>;
+    expect(sentMessages.some(m => m.role === 'user' && m.content === '')).toBe(
+      false
+    );
+    expect(
+      sentMessages.some(m => m.role === 'user' && m.content === 'Hi there')
+    ).toBe(true);
   });
 });
 

@@ -62,8 +62,10 @@ export type OllamaLlmModelConfig = {
   model: string;
   supportsVision?: boolean;
   host: string;
+  /** Top-level ChatRequest field in ollama-js / the Ollama API — NOT a sampler
+   *  option. Controls reasoning/thinking output for supported models. */
+  think?: boolean | 'high' | 'medium' | 'low';
   options?: {
-    think?: boolean | string;
     num_ctx?: number;
     top_p?: number;
     min_p?: number;

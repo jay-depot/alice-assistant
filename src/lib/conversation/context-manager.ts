@@ -145,9 +145,12 @@ export class ConversationContextManager {
     );
 
     if (newApproximateContextLength > contextLengthThreshold) {
+      const summaryCount = this.conv.compactedContext.filter(m =>
+        m.content.startsWith(SUMMARY_HEADER)
+      ).length;
       const summariesToDelete = this.conv.compactedContext
         .filter(m => m.content.startsWith(SUMMARY_HEADER))
-        .slice(0, Math.floor(messageCount / 4));
+        .slice(0, Math.max(1, Math.floor(summaryCount / 4)));
       await PluginHookInvocations.invokeOnContextCompactionSummariesWillBeDeleted(
         summariesToDelete,
         this.conv.type
@@ -223,6 +226,13 @@ export class ConversationContextManager {
       SUMMARY_PROMPT +
       messages.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n');
 
-    return this.summarizer([{ role: 'system', content: summaryPrompt }]);
+    // Ollama (>=0.30) returns empty content when no user message exists in the
+    // request history. Append an empty user message so the summary is generated.
+    // This is a direct, non-persisted request, so the blank message never leaks
+    // into the conversation history or the client UI.
+    return this.summarizer([
+      { role: 'system', content: summaryPrompt },
+      { role: 'user', content: '' },
+    ]);
   }
 }

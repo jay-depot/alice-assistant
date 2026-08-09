@@ -489,7 +489,18 @@ export async function handleEndSession(
           `Requesting conversation summary for chat session ${sessionId} before deletion...`
         );
         getOrCreateCachedConversation(ctx, queuedSession);
-        await closeAndEvictCachedConversation(ctx, sessionId);
+        // The summary is a nice-to-have; the delete is the user's explicit
+        // intent. If summary generation fails (e.g. LLM down), still delete the
+        // session and return session_ended rather than leaving the UI stuck.
+        try {
+          await closeAndEvictCachedConversation(ctx, sessionId);
+        } catch (error) {
+          systemLogger.error(
+            `handleEndSession: summary generation failed for session ${sessionId}; deleting anyway.`,
+            error
+          );
+          evictCachedConversation(ctx, sessionId);
+        }
       } else {
         evictCachedConversation(ctx, sessionId);
       }

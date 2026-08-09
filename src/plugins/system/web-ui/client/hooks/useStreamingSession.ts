@@ -38,13 +38,28 @@ export function useStreamingSession(
   const [isStreaming, setIsStreaming] = useState(false);
   /** Tracks the next turnIndex to assign. Incremented on stream_turn_complete. */
   const nextTurnIndexRef = useRef(0);
+  /** Mirrors currentTurn so handlers can read the latest turn outside a
+   *  setState updater (updaters must stay pure — no nested setState). */
+  const currentTurnRef = useRef<StreamTurn | null>(null);
 
   const { subscribe } = useWebSocket();
+
+  const updateCurrentTurn = useCallback(
+    (updater: (prev: StreamTurn | null) => StreamTurn | null) => {
+      setCurrentTurn(prev => {
+        const next = updater(prev);
+        currentTurnRef.current = next;
+        return next;
+      });
+    },
+    []
+  );
 
   useEffect(() => {
     if (currentSessionId === null) {
       setTurns([]);
       setCurrentTurn(null);
+      currentTurnRef.current = null;
       setFinalContent('');
       setFinalReasoning(null);
       setIsStreaming(false);
@@ -60,6 +75,7 @@ export function useStreamingSession(
     // Reset accumulated state when the session changes.
     setTurns([]);
     setCurrentTurn(null);
+    currentTurnRef.current = null;
     setFinalContent('');
     setFinalReasoning(null);
     setIsStreaming(false);
@@ -72,7 +88,7 @@ export function useStreamingSession(
 
       if (msg.type === 'stream_thinking') {
         setIsStreaming(true);
-        setCurrentTurn(prev => {
+        updateCurrentTurn(prev => {
           const turn =
             prev ??
             ((): StreamTurn => ({
@@ -86,7 +102,7 @@ export function useStreamingSession(
         });
       } else if (msg.type === 'stream_content') {
         setIsStreaming(true);
-        setCurrentTurn(prev => {
+        updateCurrentTurn(prev => {
           const turn =
             prev ??
             ((): StreamTurn => ({
@@ -103,8 +119,8 @@ export function useStreamingSession(
       } else if (msg.type === 'stream_turn_complete') {
         // Finalize the current turn, stamping its callBatchId so the
         // UI can interleave the tool-call batch between turns.
-        setCurrentTurn(prev => {
-          if (!prev) return prev;
+        const prev = currentTurnRef.current;
+        if (prev) {
           const completedTurn = {
             ...prev,
             isComplete: true,
@@ -113,45 +129,44 @@ export function useStreamingSession(
           setTurns(prevTurns => [...prevTurns, completedTurn]);
           nextTurnIndexRef.current += 1;
           const nextIndex = nextTurnIndexRef.current;
-          return {
+          updateCurrentTurn(() => ({
             turnIndex: nextIndex,
             reasoning: '',
             content: '',
             isComplete: false,
             callBatchId: null,
-          };
-        });
+          }));
+        }
       } else if (msg.type === 'stream_done') {
         // Finalize the current turn if it has content, then hold the
         // finalContent / finalReasoning for the handoff bubble.
-        setCurrentTurn(prev => {
-          if (prev && (prev.reasoning.length > 0 || prev.content.length > 0)) {
-            const completedTurn = { ...prev, isComplete: true };
-            setTurns(prevTurns => [...prevTurns, completedTurn]);
-          }
-          return null;
-        });
+        const prev = currentTurnRef.current;
+        if (prev && (prev.reasoning.length > 0 || prev.content.length > 0)) {
+          const completedTurn = { ...prev, isComplete: true };
+          setTurns(prevTurns => [...prevTurns, completedTurn]);
+        }
+        updateCurrentTurn(() => null);
         setFinalContent(msg.finalContent);
         setFinalReasoning(msg.finalReasoning);
         setIsStreaming(false);
       } else if (msg.type === 'stream_error') {
-        setCurrentTurn(prev => {
-          if (prev && (prev.reasoning.length > 0 || prev.content.length > 0)) {
-            const completedTurn = { ...prev, isComplete: true };
-            setTurns(prevTurns => [...prevTurns, completedTurn]);
-          }
-          return null;
-        });
+        const prev = currentTurnRef.current;
+        if (prev && (prev.reasoning.length > 0 || prev.content.length > 0)) {
+          const completedTurn = { ...prev, isComplete: true };
+          setTurns(prevTurns => [...prevTurns, completedTurn]);
+        }
+        updateCurrentTurn(() => null);
         setFinalContent('');
         setFinalReasoning(null);
         setIsStreaming(false);
       }
     });
-  }, [currentSessionId, subscribe]);
+  }, [currentSessionId, subscribe, updateCurrentTurn]);
 
   const reset = useCallback(() => {
     setTurns([]);
     setCurrentTurn(null);
+    currentTurnRef.current = null;
     setFinalContent('');
     setFinalReasoning(null);
     setIsStreaming(false);

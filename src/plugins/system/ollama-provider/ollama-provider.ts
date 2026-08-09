@@ -76,9 +76,7 @@ function createOllamaClient(model: OllamaLlmModelConfig): Ollama {
 }
 
 // `think` is a top-level ChatRequest field in ollama-js (and the Ollama API),
-// NOT a sampler option. If it's buried inside `options`, the server ignores it
-// and reasoning models can return their answer in `thinking` while leaving
-// `content` empty — which surfaces as blank startup/greeting/summary text.
+// NOT a sampler option. It lives at the top level of OllamaLlmModelConfig.
 function buildChatRequest<S extends true | false>(
   model: OllamaLlmModelConfig,
   messages: OllamaMessage[],
@@ -92,23 +90,16 @@ function buildChatRequest<S extends true | false>(
   think?: boolean | 'high' | 'medium' | 'low';
   stream: S;
 } {
-  const { think, ...samplerOptions } = model.options ?? {};
-  const thinkValue: boolean | 'high' | 'medium' | 'low' | undefined =
-    think === true || think === false
-      ? think
-      : think === 'high' || think === 'medium' || think === 'low'
-        ? think
-        : undefined;
   return {
     stream,
     model: model.model,
     options: {
       num_ctx: 36000,
-      ...samplerOptions,
+      ...model.options,
     },
     messages,
     tools,
-    ...(thinkValue !== undefined ? { think: thinkValue } : {}),
+    ...(model.think !== undefined ? { think: model.think } : {}),
   };
 }
 

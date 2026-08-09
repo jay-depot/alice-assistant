@@ -6,9 +6,16 @@ const OllamaLlmModelConfig = Type.Object({
   model: Type.String(),
   supportsVision: Type.Optional(Type.Boolean()),
   host: Type.String(),
+  think: Type.Optional(
+    Type.Union([
+      Type.Boolean(),
+      Type.Literal('high'),
+      Type.Literal('medium'),
+      Type.Literal('low'),
+    ])
+  ),
   options: Type.Optional(
     Type.Object({
-      think: Type.Optional(Type.Union([Type.Boolean(), Type.String()])),
       num_ctx: Type.Optional(Type.Number()),
       top_p: Type.Optional(Type.Number()),
       min_p: Type.Optional(Type.Number()),

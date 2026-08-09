@@ -162,6 +162,18 @@ export class Conversation {
 
   // ── LLM message dispatch ──────────────────────────────────────────
 
+  /**
+   * Ollama (>=0.30) returns empty content when no user message exists anywhere
+   * in the request history. This injects a synthetic empty user message into
+   * the assembled model request ONLY — never into compactedContext/rawContext —
+   * so it doesn't leak into the persisted history or the client UI.
+   */
+  private ensureUserMessageInContext(fullContext: Message[]): void {
+    if (!fullContext.some(m => m.role === 'user')) {
+      fullContext.push({ role: 'user', content: '' });
+    }
+  }
+
   async sendUserMessage(
     userMessage?: string,
     options?: { hasVisionInput?: boolean }
@@ -187,6 +199,8 @@ export class Conversation {
       },
       this.compactedContext
     );
+
+    this.ensureUserMessageInContext(fullContext);
 
     const activeProvider = this.resolveProvider({
       latestUserMessage: userMessage,
@@ -393,6 +407,8 @@ export class Conversation {
       this.compactedContext
     );
 
+    this.ensureUserMessageInContext(nextFullContext);
+
     const nextResponse = await this.chatWithRetry(nextFullContext);
 
     systemLogger.log(
@@ -444,6 +460,8 @@ export class Conversation {
       promptCtx,
       this.compactedContext
     );
+
+    this.ensureUserMessageInContext(fallbackFullContext);
 
     const fallbackResponse = await this.chatWithRetry(
       fallbackFullContext,
