@@ -128,7 +128,12 @@ export const getSystemInfo = (() => {
           // For AMD and Intel GPUs, we'll use lspci and look for lines that mention VGA or 3D controllers. This is a bit more error-prone, but it's a start.
           const lspciPath = '/usr/bin/lspci';
           if (fs.existsSync(lspciPath)) {
-            const lspciData = childProcess.execSync('lspci -nnk').toString();
+            // Note: we intentionally omit the `-k` flag. It asks lspci to resolve
+            // kernel drivers via libkmod, which (a) we never use — we only grep for
+            // VGA/3D controller lines — and (b) emits a noisy
+            // "Unable to load libkmod resources: error -2" warning on systems where
+            // libkmod can't be loaded (e.g. after certain system updates).
+            const lspciData = childProcess.execSync('lspci -nn').toString();
             const lines = lspciData.split('\n');
             for (const line of lines) {
               if (

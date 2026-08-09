@@ -75,6 +75,43 @@ function createOllamaClient(model: OllamaLlmModelConfig): Ollama {
   return new Ollama({ host: model.host });
 }
 
+// `think` is a top-level ChatRequest field in ollama-js (and the Ollama API),
+// NOT a sampler option. If it's buried inside `options`, the server ignores it
+// and reasoning models can return their answer in `thinking` while leaving
+// `content` empty — which surfaces as blank startup/greeting/summary text.
+function buildChatRequest<S extends true | false>(
+  model: OllamaLlmModelConfig,
+  messages: OllamaMessage[],
+  tools: OllamaRequestTool[] | undefined,
+  stream: S
+): {
+  model: string;
+  options: Record<string, unknown>;
+  messages: OllamaMessage[];
+  tools: OllamaRequestTool[] | undefined;
+  think?: boolean | 'high' | 'medium' | 'low';
+  stream: S;
+} {
+  const { think, ...samplerOptions } = model.options ?? {};
+  const thinkValue: boolean | 'high' | 'medium' | 'low' | undefined =
+    think === true || think === false
+      ? think
+      : think === 'high' || think === 'medium' || think === 'low'
+        ? think
+        : undefined;
+  return {
+    stream,
+    model: model.model,
+    options: {
+      num_ctx: 36000,
+      ...samplerOptions,
+    },
+    messages,
+    tools,
+    ...(thinkValue !== undefined ? { think: thinkValue } : {}),
+  };
+}
+
 const ollamaProviderPlugin: AlicePlugin = {
   pluginMetadata: {
     id: 'ollama-provider',
@@ -115,15 +152,14 @@ const ollamaProviderPlugin: AlicePlugin = {
       chat: async (request, model) => {
         assertOllamaModel(model);
         const client = createOllamaClient(model);
-        const response = await client.chat({
-          model: model.model,
-          options: {
-            num_ctx: 36000,
-            ...model.options,
-          },
-          messages: request.messages.map(toOllamaMessage),
-          tools: request.tools as OllamaRequestTool[] | undefined,
-        });
+        const response = await client.chat(
+          buildChatRequest(
+            model,
+            request.messages.map(toOllamaMessage),
+            request.tools as OllamaRequestTool[] | undefined,
+            false
+          )
+        );
 
         return {
           message: normalizeResponse(response.message),
@@ -132,16 +168,14 @@ const ollamaProviderPlugin: AlicePlugin = {
       chatStream: async (request, model) => {
         assertOllamaModel(model);
         const client = createOllamaClient(model);
-        const response = (await client.chat({
-          model: model.model,
-          options: {
-            num_ctx: 36000,
-            ...model.options,
-          },
-          messages: request.messages.map(toOllamaMessage),
-          tools: request.tools as OllamaRequestTool[] | undefined,
-          stream: true,
-        })) as AbortableAsyncIterator<ChatResponse>;
+        const response = (await client.chat(
+          buildChatRequest(
+            model,
+            request.messages.map(toOllamaMessage),
+            request.tools as OllamaRequestTool[] | undefined,
+            true
+          )
+        )) as AbortableAsyncIterator<ChatResponse>;
 
         async function* iterate(): AsyncIterable<LlmStreamChunk> {
           for await (const chunk of response) {
