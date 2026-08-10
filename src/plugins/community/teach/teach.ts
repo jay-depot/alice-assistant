@@ -19,6 +19,7 @@ import path from 'node:path';
 import { readFile } from 'node:fs/promises';
 import Type, { Static } from 'typebox';
 import { AlicePlugin } from '../../../lib.js';
+import { getCanonicalToolName } from '../../../lib/tools.js';
 import {
   TeachTopic,
   TeachMission,
@@ -863,7 +864,7 @@ const teachPlugin: AlicePlugin = {
         em.persist(topic);
         await em.flush();
 
-        return `Created teaching topic "${args.name}" (slug: \`${args.slug}\`). ${topicCount === 0 ? 'This topic is now the active topic.' : 'Use teach.set_active_topic to switch to it.'} Next, interview the user about their mission and use teach.set_mission to capture it.`;
+        return `Created teaching topic "${args.name}" (slug: \`${args.slug}\`). ${topicCount === 0 ? 'This topic is now the active topic.' : `Use ${getCanonicalToolName('teach', 'set_active_topic')} to switch to it.`} Next, interview the user about their mission and use ${getCanonicalToolName('teach', 'set_mission')} to capture it.`;
       },
     });
 
@@ -881,7 +882,7 @@ const teachPlugin: AlicePlugin = {
 
         const topic = await em.findOne(TeachTopic, { slug: args.topicSlug });
         if (!topic) {
-          return `No topic with slug "${args.topicSlug}" found. Use teach.list_topics to see available topics.`;
+          return `No topic with slug "${args.topicSlug}" found. Use ${getCanonicalToolName('teach', 'list_topics')} to see available topics.`;
         }
 
         // Deactivate all topics
@@ -913,7 +914,7 @@ const teachPlugin: AlicePlugin = {
         );
 
         if (topics.length === 0) {
-          return 'No teaching topics exist yet. Use teach.create_topic to create one.';
+          return `No teaching topics exist yet. Use ${getCanonicalToolName('teach', 'create_topic')} to create one.`;
         }
 
         return topics.map(formatTopicSummary).join('\n');
@@ -933,7 +934,7 @@ const teachPlugin: AlicePlugin = {
         if (!topic) {
           return args.topicSlug
             ? `No topic with slug "${args.topicSlug}" found.`
-            : 'No active topic. Use teach.create_topic to create one, or teach.set_active_topic to switch.';
+            : `No active topic. Use ${getCanonicalToolName('teach', 'create_topic')} to create one, or ${getCanonicalToolName('teach', 'set_active_topic')} to switch.`;
         }
 
         const orm = await awaitForOrm;
@@ -941,7 +942,7 @@ const teachPlugin: AlicePlugin = {
         const mission = await em.findOne(TeachMission, { topic: topic.id });
 
         if (!mission) {
-          return `No mission has been set for "${topic.name}" yet. Interview the user about why they want to learn this and use teach.set_mission to capture it.`;
+          return `No mission has been set for "${topic.name}" yet. Interview the user about why they want to learn this and use ${getCanonicalToolName('teach', 'set_mission')} to capture it.`;
         }
 
         return [
@@ -975,7 +976,7 @@ const teachPlugin: AlicePlugin = {
         if (!topic) {
           return args.topicSlug
             ? `No topic with slug "${args.topicSlug}" found.`
-            : 'No active topic. Use teach.create_topic to create one first.';
+            : `No active topic. Use ${getCanonicalToolName('teach', 'create_topic')} to create one first.`;
         }
 
         const orm = await awaitForOrm;
@@ -1003,7 +1004,7 @@ const teachPlugin: AlicePlugin = {
         }
         await em.flush();
 
-        return `Mission ${mission!.updatedAt === now && mission!.createdAt !== now ? 'updated' : 'set'} for "${topic.name}". Every lesson should be tied to this mission. You can review it anytime with teach.get_mission.`;
+        return `Mission ${mission!.updatedAt === now && mission!.createdAt !== now ? 'updated' : 'set'} for "${topic.name}". Every lesson should be tied to this mission. You can review it anytime with ${getCanonicalToolName('teach', 'get_mission')}.`;
       },
     });
 
@@ -1094,7 +1095,7 @@ const teachPlugin: AlicePlugin = {
         const glossary = await em.findOne(TeachGlossary, { topic: topic.id });
 
         if (!glossary) {
-          return `No glossary for "${topic.name}" yet. Add terms with teach.add_glossary_term.`;
+          return `No glossary for "${topic.name}" yet. Add terms with ${getCanonicalToolName('teach', 'add_glossary_term')}.`;
         }
 
         const terms = await em.find(TeachGlossaryTerm, {
@@ -1102,7 +1103,7 @@ const teachPlugin: AlicePlugin = {
         });
 
         if (terms.length === 0) {
-          return `No glossary terms for "${topic.name}" yet. Add terms with teach.add_glossary_term.`;
+          return `No glossary terms for "${topic.name}" yet. Add terms with ${getCanonicalToolName('teach', 'add_glossary_term')}.`;
         }
 
         return terms
@@ -1220,7 +1221,7 @@ const teachPlugin: AlicePlugin = {
         });
 
         if (resources.length === 0) {
-          return `No resources for "${topic.name}" yet. Add them with teach.add_resource.`;
+          return `No resources for "${topic.name}" yet. Add them with ${getCanonicalToolName('teach', 'add_resource')}.`;
         }
 
         return resources
@@ -1355,7 +1356,7 @@ const teachPlugin: AlicePlugin = {
         );
 
         if (records.length === 0) {
-          return `No learning records for "${topic.name}" yet. Create one with teach.create_learning_record when the user demonstrates genuine understanding.`;
+          return `No learning records for "${topic.name}" yet. Create one with ${getCanonicalToolName('teach', 'create_learning_record')} when the user demonstrates genuine understanding.`;
         }
 
         return records
@@ -1530,7 +1531,7 @@ const teachPlugin: AlicePlugin = {
         );
 
         if (lessons.length === 0) {
-          return `No lessons for "${topic.name}" yet. Create one with teach.create_lesson.`;
+          return `No lessons for "${topic.name}" yet. Create one with ${getCanonicalToolName('teach', 'create_lesson')}.`;
         }
 
         return lessons
@@ -1653,7 +1654,7 @@ const teachPlugin: AlicePlugin = {
         });
 
         if (refs.length === 0) {
-          return `No reference documents for "${topic.name}" yet. Create one with teach.create_reference_document.`;
+          return `No reference documents for "${topic.name}" yet. Create one with ${getCanonicalToolName('teach', 'create_reference_document')}.`;
         }
 
         return refs
@@ -1753,7 +1754,7 @@ const teachPlugin: AlicePlugin = {
         );
 
         if (notes.length === 0) {
-          return `No notes for "${topic.name}" yet. Add notes with teach.add_note.`;
+          return `No notes for "${topic.name}" yet. Add notes with ${getCanonicalToolName('teach', 'add_note')}.`;
         }
 
         return notes.map(n => `- ${n.content}`).join('\n');
@@ -1832,7 +1833,7 @@ const teachPlugin: AlicePlugin = {
           return false;
         }
 
-        if (!context.availableTools?.some(tool => tool.startsWith('teach.'))) {
+        if (!context.availableTools?.some(tool => tool.startsWith('teach_'))) {
           return false;
         }
 

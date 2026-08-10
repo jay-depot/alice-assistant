@@ -101,7 +101,10 @@ function createMockPluginInterface(
     registeredFooterPrompts,
     mockRegisterSkillFile,
     registerPlugin: async () => ({
-      registerTool: (def: any) => registeredTools.push(def),
+      registerTool: (def: any) => {
+        registeredTools.push(def);
+        return `proficiencies_${def.name}`;
+      },
       registerHeaderSystemPrompt: (def: any) =>
         registeredHeaderPrompts.push(def),
       registerFooterSystemPrompt: (def: any) =>
@@ -634,7 +637,7 @@ describe('proficienciesPlugin', () => {
     const result = await header.getPrompt({
       conversationType: 'chat',
       sessionId: 'x',
-      availableTools: ['proficiencies.recall'],
+      availableTools: ['proficiencies_recall'],
     });
     expect(typeof result).toBe('string');
     expect(result).toContain('ProficienciesWelcome');
@@ -667,7 +670,7 @@ describe('proficienciesPlugin', () => {
     const result = await header.getPrompt({
       conversationType: 'chat',
       sessionId: 'x',
-      availableTools: ['proficiencies.recall'],
+      availableTools: ['proficiencies_recall'],
     });
 
     expect(result).toContain('CssGrid');
@@ -696,7 +699,7 @@ describe('proficienciesPlugin', () => {
     const result = await footer.getPrompt({
       conversationType: 'chat',
       sessionId: 'x',
-      availableTools: ['proficiencies.recall', 'proficiencies.update'],
+      availableTools: ['proficiencies_recall', 'proficiencies_update'],
     });
     expect(typeof result).toBe('string');
     expect(result).toMatch(/update/i);

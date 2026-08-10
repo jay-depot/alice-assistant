@@ -90,12 +90,12 @@ describe('processDynamicPrompts', () => {
     ];
     const contextWithTools: DynamicPromptContext = {
       conversationType: 'chat',
-      availableTools: ['skills.recall', 'proficiencies.recall'],
+      availableTools: ['skills_recall', 'proficiencies_recall'],
     };
     await processDynamicPrompts(contextWithTools, prompts);
     expect(received[0].availableTools).toEqual([
-      'skills.recall',
-      'proficiencies.recall',
+      'skills_recall',
+      'proficiencies_recall',
     ]);
   });
 
@@ -105,12 +105,12 @@ describe('processDynamicPrompts', () => {
         weight: 1,
         name: 'gated',
         getPrompt: ctx =>
-          ctx.availableTools?.includes('skills.recall') ? 'visible' : false,
+          ctx.availableTools?.includes('skills_recall') ? 'visible' : false,
       },
     ];
     const withTool: DynamicPromptContext = {
       conversationType: 'chat',
-      availableTools: ['skills.recall'],
+      availableTools: ['skills_recall'],
     };
     const withoutTool: DynamicPromptContext = {
       conversationType: 'chat',

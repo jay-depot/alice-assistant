@@ -3,6 +3,7 @@ import type { AlicePlugin } from '../../../lib.js';
 import { AgentSystem } from '../../../lib.js';
 import { Type } from 'typebox';
 import { AgentsCheckpoint } from './db-schemas/index.js';
+import { getCanonicalToolName } from '../../../lib/tools.js';
 
 /**
  * How long (ms) an independent agent can go without reporting activity before
@@ -25,7 +26,7 @@ const agentsPlugin: AlicePlugin = {
     version: 'LATEST',
     description:
       'Provides the session-linked agent runtime and the framework tools ' +
-      '(agents.report_progress, agents.return_result) that all session-linked agents use.',
+      `(${getCanonicalToolName('agents', 'report_progress')}, ${getCanonicalToolName('agents', 'return_result')}) that all session-linked agents use.`,
     dependencies: [
       { id: 'web-ui', version: 'LATEST' },
       { id: 'memory', version: 'LATEST' },
@@ -146,7 +147,7 @@ const agentsPlugin: AlicePlugin = {
       name: 'statuses',
       availableFor: ['chat', 'voice'],
       description:
-        'Call agents.statuses to get the current status of all ' +
+        `Call ${getCanonicalToolName('agents', 'statuses')} to get the current status of all ` +
         'active independent agents when needed to answer a user question or request.',
       parameters: Type.Object({}),
       systemPromptFragment: '',

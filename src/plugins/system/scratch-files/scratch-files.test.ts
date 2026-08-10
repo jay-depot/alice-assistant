@@ -56,7 +56,10 @@ function createMockPluginInterface() {
     registeredTools,
     configValues,
     registerPlugin: async () => ({
-      registerTool: (tool: Tool) => registeredTools.push(tool),
+      registerTool: (tool: Tool) => {
+        registeredTools.push(tool);
+        return `scratch_files_${tool.name}`;
+      },
       registerHeaderSystemPrompt: vi.fn(),
       registerFooterSystemPrompt: vi.fn(),
       registerConversationType: vi.fn(),

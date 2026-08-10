@@ -36,7 +36,10 @@ function createMockPluginInterface() {
     registeredHeaderPrompts,
     offeredCapabilities,
     registerPlugin: async () => ({
-      registerTool: (def: any) => registeredTools.push(def),
+      registerTool: (def: any) => {
+        registeredTools.push(def);
+        return 'skills_recall';
+      },
       registerHeaderSystemPrompt: (def: any) =>
         registeredHeaderPrompts.push(def),
       registerFooterSystemPrompt: vi.fn(),
@@ -167,7 +170,7 @@ describe('SkillsPlugin', () => {
     const result = prompt.getPrompt({
       conversationType: 'startup',
       sessionId: 'x',
-      availableTools: ['skills.recall'],
+      availableTools: ['skills_recall'],
     });
     expect(result).toBe(false);
   });
@@ -192,7 +195,7 @@ describe('SkillsPlugin', () => {
     const result = prompt.getPrompt({
       conversationType: 'chat',
       sessionId: 'x',
-      availableTools: ['skills.recall'],
+      availableTools: ['skills_recall'],
     });
     expect(result).toContain('baking');
     expect(result).toContain('user asks about baking');

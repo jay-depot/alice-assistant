@@ -95,7 +95,10 @@ function createMockPluginInterface(
         return undefined;
       },
       registerHeaderSystemPrompt: (prompt: any) => headerPrompts.push(prompt),
-      registerTool: (tool: any) => tools.push(tool),
+      registerTool: (tool: any) => {
+        tools.push(tool);
+        return 'notifications_chat_segue_mark_delivered';
+      },
       registerFooterSystemPrompt: vi.fn(),
       registerConversationType: vi.fn(),
       registerTaskAssistant: vi.fn(),
@@ -218,7 +221,7 @@ describe('notificationsChatSeguePlugin', () => {
     const header = mockInterface.headerPrompts[0];
     const result = await header.getPrompt({
       conversationType: 'chat',
-      availableTools: ['mark_delivered'],
+      availableTools: ['notifications_chat_segue_mark_delivered'],
     });
 
     expect(result).toContain('# PENDING NOTIFICATIONS');

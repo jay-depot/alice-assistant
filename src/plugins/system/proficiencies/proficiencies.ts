@@ -2,6 +2,7 @@ import { MikroORM } from '@mikro-orm/sqlite';
 import { Static, Type } from 'typebox';
 import path from 'node:path';
 import { AlicePlugin } from '../../../lib.js';
+import { getCanonicalToolName } from '../../../lib/tools.js';
 import { ProficienciesEntry } from './db-schemas/ProficienciesEntry.js';
 import { resolveContents } from '../../../lib/diff-resolver.js';
 
@@ -65,7 +66,7 @@ const UpdateProficiencyParametersSchema = Type.Object({
       Type.Literal('diff', {
         description:
           'The contents field contains a unified diff patch to apply to the existing contents. ' +
-          'Re-call proficiencies.recall first to get the current content, then produce a diff. ' +
+          `Re-call ${getCanonicalToolName('proficiencies', 'recall')} first to get the current content, then produce a diff. ` +
           'Prefer this over format=full for updates.',
       }),
     ])
@@ -245,7 +246,7 @@ const proficienciesPlugin: AlicePlugin = {
       execute: async (args: RecallProficiencyParameters) => {
         const proficiencyName = validateProficiencyName(args.proficiencyName);
         if (!proficiencyName) {
-          return 'Provide a non-empty proficiency name when calling proficiencies.recall.';
+          return `Provide a non-empty proficiency name when calling ${getCanonicalToolName('proficiencies', 'recall')}.`;
         }
 
         return withDatabase(async orm => {
@@ -284,11 +285,11 @@ const proficienciesPlugin: AlicePlugin = {
         const recallWhen = validateRecallWhen(args.recallWhen);
 
         if (!proficiencyName) {
-          return 'Provide a non-empty proficiency name when calling proficiencies.create.';
+          return `Provide a non-empty proficiency name when calling ${getCanonicalToolName('proficiencies', 'create')}.`;
         }
 
         if (!recallWhen) {
-          return 'Provide a non-empty recall trigger when calling proficiencies.create.';
+          return `Provide a non-empty recall trigger when calling ${getCanonicalToolName('proficiencies', 'create')}.`;
         }
 
         return withDatabase(async orm => {

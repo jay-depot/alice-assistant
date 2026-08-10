@@ -8,6 +8,7 @@ import {
 } from '../../../lib.js';
 import type { IndependentAgentControl, Conversation } from '../../../lib.js';
 import Type from 'typebox';
+import { getCanonicalToolName } from '../../../lib/tools.js';
 
 // ---------------------------------------------------------------------------
 // Configuration schema
@@ -60,8 +61,8 @@ const PROFICIENCIES_GARDENER_SCENARIO_PROMPT = [
   '',
   '### PRIMARY: Multi-Step Task Patterns',
   '',
-  '1. Call proficiencies.list to review the current proficiency landscape.',
-  '2. Call memory.recall to review recent conversation memories and agent run ',
+  `1. Call ${getCanonicalToolName('proficiencies', 'list')} to review the current proficiency landscape.`,
+  `2. Call ${getCanonicalToolName('memory', 'recall')} to review recent conversation memories and agent run `,
   '   summaries. Use keyword-based searches for multi-step task patterns:',
   '   - "figured out how to", "steps to", "research", "discovered that",',
   '   - "process for", "workflow", "how to", "learned that", "found a way to"',
@@ -70,10 +71,10 @@ const PROFICIENCIES_GARDENER_SCENARIO_PROMPT = [
   '   - Use date filters to focus on the past week.',
   '3. For each pattern you find, check if an existing proficiency or skill ',
   '   already covers it:',
-  '   - Call proficiencies.recall to check existing proficiency contents.',
-  '   - Call skills.recall to check if a built-in skill covers the topic.',
+  `   - Call ${getCanonicalToolName('proficiencies', 'recall')} to check existing proficiency contents.`,
+  `   - Call ${getCanonicalToolName('skills', 'recall')} to check if a built-in skill covers the topic.`,
   '4. If a pattern is NOT well-covered:',
-  '   - Create a skeleton proficiency with proficiencies.create, giving it a ',
+  `   - Create a skeleton proficiency with ${getCanonicalToolName('proficiencies', 'create')}, giving it a `,
   '     descriptive PascalCase name, a clear recallWhen trigger, and basic ',
   '     contents describing what was discovered. The contents do NOT need to ',
   '     be complete — a skeleton with notes about what was figured out is ',
@@ -82,7 +83,7 @@ const PROFICIENCIES_GARDENER_SCENARIO_PROMPT = [
   '   - If you can add meaningful steps or details from the memories you ',
   '     reviewed, include them. But do not fabricate information.',
   '5. If a pattern is ALMOST covered by an existing proficiency but missing ',
-  '   key details, call proficiencies.update to add what you found.',
+  `   key details, call ${getCanonicalToolName('proficiencies', 'update')} to add what you found.`,
   '',
   '### SECONDARY: Knowledge Repositories for Evolving Topics',
   '',
@@ -111,7 +112,7 @@ const PROFICIENCIES_GARDENER_SCENARIO_PROMPT = [
   '   - Topics discussed only once or twice without depth.',
   '',
   '9. When you have reviewed enough memories and tended the garden, call ',
-  '   agents.sleep with a summary of what you did.',
+  `   ${getCanonicalToolName('agents', 'sleep')} with a summary of what you did.`,
   '',
   '## GUIDELINES',
   '',
@@ -140,7 +141,7 @@ const PROFICIENCIES_GARDENER_SCENARIO_PROMPT = [
   '## IMPORTANT',
   '',
   '- You are operating autonomously. Do not address the user or ask questions.',
-  '- Call agents.sleep when you are done, even if you made no changes.',
+  `- Call ${getCanonicalToolName('agents', 'sleep')} when you are done, even if you made no changes.`,
   '- Your purpose is to seed proficiencies that the interactive assistant ',
   '  and other agents can build upon. Skeletons are better than nothing.',
   '- Uncertainty in proficiency contents is fine — note it clearly so ',

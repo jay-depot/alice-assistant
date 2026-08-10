@@ -1,4 +1,5 @@
 import { AlicePlugin } from '../../../lib.js';
+import { getCanonicalToolName } from '../../../lib/tools.js';
 import path from 'node:path';
 import { Type } from 'typebox';
 import { UserConfig } from '../../../lib/user-config.js';
@@ -86,13 +87,13 @@ const voicePlugin: AlicePlugin = {
       name: 'end',
       availableFor: ['voice'],
       description:
-        'Use voice.end only when the user clearly indicates the conversation is over, such as saying "that will be all," "that is it," or "thanks, that is all." Do not call it just because a task is complete if the user still appears to be engaged.',
+        'Use {{toolName}} only when the user clearly indicates the conversation is over, such as saying "that will be all," "that is it," or "thanks, that is all." Do not call it just because a task is complete if the user still appears to be engaged.',
       systemPromptFragment: '',
       parameters: Type.Object({}),
       execute: async (_args, context) => {
         if (context.conversationType !== 'voice') {
           throw new Error(
-            'voice.end can only be used during voice conversations.'
+            `${getCanonicalToolName('voice', 'end')} can only be used during voice conversations.`
           );
         }
 

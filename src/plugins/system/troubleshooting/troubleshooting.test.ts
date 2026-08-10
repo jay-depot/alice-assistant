@@ -33,7 +33,10 @@ function createMockPluginInterface() {
     tools,
     footerPrompts,
     registerPlugin: async () => ({
-      registerTool: (tool: any) => tools.push(tool),
+      registerTool: (tool: any) => {
+        tools.push(tool);
+        return 'troubleshooting_get_info';
+      },
       registerFooterSystemPrompt: (prompt: any) => footerPrompts.push(prompt),
       request: vi.fn(),
       registerHeaderSystemPrompt: vi.fn(),
@@ -135,7 +138,7 @@ describe('troubleshootingPlugin', () => {
     expect(footer.weight).toBe(0);
 
     const prompt = footer.getPrompt({
-      availableTools: ['troubleshooting.get_info'],
+      availableTools: ['troubleshooting_get_info'],
     });
     expect(prompt).toContain('get_info');
     expect(prompt).toContain('ALICE.md');

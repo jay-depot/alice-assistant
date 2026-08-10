@@ -3,6 +3,7 @@ import { createTaskAssistantToolPair } from '../../../lib.js';
 import { Type } from 'typebox';
 import { writeFile } from 'node:fs/promises';
 import { simpleExpandTilde } from '../../../lib/simple-tilde-expansion.js';
+import { getCanonicalToolName } from '../../../lib/tools.js';
 
 const brainstormPlugin: AlicePlugin = {
   pluginMetadata: {
@@ -131,7 +132,7 @@ const brainstormPlugin: AlicePlugin = {
         '- Bad responses: "That\'s a great point! You could also consider...", ' +
         '"Building on your idea about X...", "Here\'s a related thought:"\n' +
         '- When the user indicates they are done (e.g., "that\'s all", "done", "finished", ' +
-        '"I think that\'s it", "that\'s everything"), call the brainstorm.complete tool.\n' +
+        `"I think that's it", "that's everything"), call the ${getCanonicalToolName('brainstorm', 'complete')} tool.\n` +
         '- Do NOT include any markdown formatting in your conversational responses — just plain ' +
         'text encouragement.\n' +
         '- NEVER generate ideas for the user. Your only job is to listen and encourage.',

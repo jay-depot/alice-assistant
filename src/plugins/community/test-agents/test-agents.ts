@@ -267,10 +267,8 @@ const testAgentsPlugin: AlicePlugin = {
       name: 'Test Session-Linked Agent',
       conversationType: 'test-session-linked-agent',
       maxIterations: 1,
-      continuationPrompt:
-        'Immediately call agents.return_result with a success summary and report.',
-      forceReturnPrompt:
-        'Call agents.return_result now with a success summary and report.',
+      continuationPrompt: `Immediately call ${getCanonicalToolName('agents', 'return_result')} with a success summary and report.`,
+      forceReturnPrompt: `Call ${getCanonicalToolName('agents', 'return_result')} now with a success summary and report.`,
       startToolName: 'start',
       startToolAvailableFor: ['chat'],
       startToolDescription:
@@ -281,8 +279,7 @@ const testAgentsPlugin: AlicePlugin = {
       buildStartup: async () => ({
         agentContextPrompt:
           'This is a no-op session-linked agent run. Return success immediately.',
-        kickoffUserMessage:
-          'Please call agents.return_result immediately with a successful summary and a short report.',
+        kickoffUserMessage: `Please call ${getCanonicalToolName('agents', 'return_result')} immediately with a successful summary and a short report.`,
       }),
       buildResult: async rawResult => ({
         handbackMessage:

@@ -274,7 +274,7 @@ function buildScenarioPrompt(config: MoltbookAgentConfig): string {
     '## IMPORTANT',
     '',
     '- You are operating autonomously. Do not address the user or ask questions.',
-    '- Call agents.sleep when you are done, even if you made no changes.',
+    `- Call ${getCanonicalToolName('agents', 'sleep')} when you are done, even if you made no changes.`,
     '- Your personality IS included in this session — let it show, but follow the ' +
       'Moltbook skill guidelines about dialing it back for an AI audience.',
     '- If a Moltbook verification challenge shows up, you are the one solving it now. ' +
@@ -311,7 +311,7 @@ function buildKickoffPrompt(wakeSlot: string): string {
     '',
     'Check in on Moltbook, catch up on notifications and DMs, browse the feed, ' +
       'and interact as you see fit. Follow the Moltbook skill guidelines. ' +
-      'Call agents.sleep when you are done.',
+      `Call ${getCanonicalToolName('agents', 'sleep')} when you are done.`,
   ].join('\n');
 }
 

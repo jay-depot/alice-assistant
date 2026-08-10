@@ -38,6 +38,7 @@ function createMockPluginInterface() {
     },
     registerTool: (tool: Tool) => {
       registeredTools.push(tool);
+      return `memory_${tool.name}`;
     },
     registerHeaderSystemPrompt: vi.fn(),
     registerFooterSystemPrompt: vi.fn(),

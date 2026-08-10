@@ -64,13 +64,13 @@ export const openApplicationTool: (
   description:
     'Allows the assistant to open applications, files, folders and web pages on behalf of the user. Call with no parameters to discover the available applications.',
   systemPromptFragment:
-    `Call application.open when the user asks you to open an application, a file, or a folder, ` +
-    `or when they ask you to show them something on the web. Call application.open with no parameters to get a list ` +
-    `of available applications and their relevant topics. You may then make a second call to application.open with the ` +
+    `Call {{toolName}} when the user asks you to open an application, a file, or a folder, ` +
+    `or when they ask you to show them something on the web. Call {{toolName}} with no parameters to get a list ` +
+    `of available applications and their relevant topics. You may then make a second call to {{toolName}} with the ` +
     `"application" parameter, and any relevant parameters for that application, to open the desired content. For ` +
-    `example, if the user says "Can you show me the latest news on the web?", you might first call application.open ` +
+    `example, if the user says "Can you show me the latest news on the web?", you might first call {{toolName}} ` +
     `with no parameters to get the list of available applications, and see that there is a "web_browser" application ` +
-    `with relevant topics including "browse the web" and "show me the page". You would then call application.open again ` +
+    `with relevant topics including "browse the web" and "show me the page". You would then call {{toolName}} again ` +
     `with the "application" parameter set to "web_browser", and a "url" parameter set to the appropriate news website. `,
 
   parameters,
