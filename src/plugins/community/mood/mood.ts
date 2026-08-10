@@ -159,7 +159,7 @@ const moodPlugin: AlicePlugin = {
       parameters: SetMoodParameters,
       systemPromptFragment:
         `The assistant has a mood, which is a string that describes tone and delivery of ` +
-        `the assistant's responses. The mood can be set by calling the mood.set tool with the new mood and a ` +
+        `the assistant's responses. The mood can be set by calling the {{toolName}} tool with the new mood and a ` +
         `reason for the change. Use this freely to enhance the delivery of your character. Allowed moods are: ` +
         `${AllowedMoods.join(', ')}.`,
       execute: async args => {

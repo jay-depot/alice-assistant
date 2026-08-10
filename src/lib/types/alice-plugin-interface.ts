@@ -72,7 +72,7 @@ export type AlicePluginInterface = {
       debug: (...args: unknown[]) => void;
     };
 
-    registerTool: (toolDefinition: Tool) => void;
+    registerTool: (toolDefinition: Tool) => string;
 
     // Let's limit non-built-in plugins to only being able to give their system prompts
     // a positive weight, for now.

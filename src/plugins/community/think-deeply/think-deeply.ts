@@ -1,4 +1,4 @@
-import { AlicePlugin } from '../../../lib.js';
+import { AlicePlugin, getCanonicalToolName } from '../../../lib.js';
 import { Type } from 'typebox';
 
 const thinkDeeplyPlugin: AlicePlugin = {
@@ -7,7 +7,7 @@ const thinkDeeplyPlugin: AlicePlugin = {
     name: 'Think Deeply',
     brandColor: '#ff8a65',
     description:
-      'Provides think_deeply.begin and think_deeply.finish tools for switching to a high-capability deep-thinking model mid-session, plus header prompts instructing autonomous use when stuck or asked.',
+      'Provides think_deeply_begin and think_deeply_finish tools for switching to a high-capability deep-thinking model mid-session, plus header prompts instructing autonomous use when stuck or asked.',
     version: 'LATEST',
     dependencies: [
       { id: 'llm-provider-broker', version: 'LATEST' },
@@ -28,7 +28,7 @@ const thinkDeeplyPlugin: AlicePlugin = {
 
     // ── Tools ───────────────────────────────────────────────────────
 
-    plugin.registerTool({
+    const beginToolName = plugin.registerTool({
       name: 'begin',
       availableFor: ['chat', 'voice', 'autonomy'],
       description:
@@ -36,12 +36,12 @@ const thinkDeeplyPlugin: AlicePlugin = {
         'Use this when you are stuck on a complex problem, the user explicitly asked you to ' +
         'think deeply or reason step-by-step, or when the quality of responses so far has been ' +
         'unsatisfactory for the task at hand. After switching, all subsequent responses in this ' +
-        'conversation will use the deep-thinking model until think_deeply.finish is called.',
+        `conversation will use the deep-thinking model until ${getCanonicalToolName('think-deeply', 'finish')} is called.`,
       systemPromptFragment:
-        'You have access to a think_deeply.begin tool that switches to a more capable model for complex reasoning. ' +
+        'You have access to a {{toolName}} tool that switches to a more capable model for complex reasoning. ' +
         'Call it autonomously when you are stuck, when the user asks you to "think hard" or "reason deeply", ' +
         'or when the conversation requires analytical depth beyond your current capability. ' +
-        'You also have a think_deeply.finish tool to switch back once the deep thinking is no longer needed.',
+        `You also have a ${getCanonicalToolName('think-deeply', 'finish')} tool to switch back once the deep thinking is no longer needed.`,
       taintStatus: 'clean',
       parameters: Type.Object({
         reason: Type.String({
@@ -60,14 +60,14 @@ const thinkDeeplyPlugin: AlicePlugin = {
       },
     });
 
-    plugin.registerTool({
+    const finishToolName = plugin.registerTool({
       name: 'finish',
       availableFor: ['chat', 'voice', 'autonomy'],
       description:
         'Switches the current conversation back to the normal model after deep thinking is complete. ' +
         'Use this when you have finished the deep-reasoning task and no longer need the more capable model.',
       systemPromptFragment:
-        'Call think_deeply.finish once you have finished the deep-thinking task and want to switch back to the default model.',
+        'Call {{toolName}} once you have finished the deep-thinking task and want to switch back to the default model.',
       taintStatus: 'clean',
       parameters: Type.Object({}),
       execute: async () => {
@@ -82,18 +82,18 @@ const thinkDeeplyPlugin: AlicePlugin = {
       name: 'think-deeply-header',
       weight: 500,
       getPrompt: async context => {
-        if (!context.availableTools?.includes('think_deeply.begin')) {
+        if (!context.availableTools?.includes(beginToolName)) {
           return false;
         }
         return (
           '# Deep Thinking Instructions\n\n' +
-          'You have the `think_deeply.begin` tool available. Use it **autonomously** in these situations:\n\n' +
+          `You have the \`${beginToolName}\` tool available. Use it **autonomously** in these situations:\n\n` +
           '1. **You are stuck** — you have tried a few approaches and none work, or you keep getting error results.\n' +
           '2. **The user asked** — if they say "think harder", "reason deeply", "use your best model", or similar.\n' +
           '3. **High complexity** — the task involves multi-step analysis, coding, mathematical reasoning, or research synthesis.\n\n' +
-          'When you use `think_deeply.begin`, briefly state why in the `reason` parameter so the context is clear.\n' +
-          'Once the deep-thinking model resolves the issue or is no longer needed, call `think_deeply.finish` to switch back.\n\n' +
-          'If `deep-thinking` is not configured in llm.models, `think_deeply.begin` will report a warning — work within your current limits.'
+          `When you use \`${beginToolName}\`, briefly state why in the \`reason\` parameter so the context is clear.\n` +
+          `Once the deep-thinking model resolves the issue or is no longer needed, call \`${finishToolName}\` to switch back.\n\n` +
+          `If \`deep-thinking\` is not configured in llm.models, \`${beginToolName}\` will report a warning — work within your current limits.`
         );
       },
     });

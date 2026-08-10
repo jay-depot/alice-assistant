@@ -113,10 +113,10 @@ const lightpandaBrowserPlugin: AlicePlugin = {
     plugin.registerTool({
       name: 'fetch',
       description:
-        'Call lightpanda_browser.fetch when the user asks you to fetch a web page for ' +
+        'Call {{toolName}} when the user asks you to fetch a web page for ' +
         'them, or information from a web page, or information available on a web page, or ' +
         'when you need information that can be found on a web page to complete an assigned ' +
-        'task. lightpanda_browser.fetch uses a *fast* web browser designed for you! It turns web pages into ' +
+        'task. {{toolName}} uses a *fast* web browser designed for you! It turns web pages into ' +
         'text you can read. For large pages, use startReadingFrom and limit to chunk the response.',
       parameters: LightpandaFetchToolParameterSchema,
       availableFor: ['chat', 'voice'],

@@ -127,7 +127,7 @@ function createPluginInterface(
       return {
         logger: pluginLogger,
 
-        registerTool: (toolDefinition: Tool) => {
+        registerTool: (toolDefinition: Tool): string => {
           assertRegistrationOpen(`tool ${toolDefinition.name}`);
 
           // Compute and stamp the canonical name
@@ -139,7 +139,7 @@ function createPluginInterface(
 
           // Only canonical names must be unique — different plugins may share
           // the same local name (e.g. "fetch" from web-simple-fetch and lightpanda-browser)
-          // since their canonical names differ (web_simple_fetch.fetch vs lightpanda_browser.fetch).
+          // since their canonical names differ (web_simple_fetch_fetch vs lightpanda_browser_fetch).
           if (registeredCanonicalToolNames[canonicalName]) {
             throw new Error(
               `Plugin ${pluginMetadata.id} attempted to register a tool with canonical name ` +
@@ -158,6 +158,7 @@ function createPluginInterface(
 
           registeredCanonicalToolNames[canonicalName] = pluginMetadata.id;
           addTool(toolDefinition);
+          return canonicalName;
         },
 
         registerHeaderSystemPrompt: (promptDefinition: DynamicPrompt) => {

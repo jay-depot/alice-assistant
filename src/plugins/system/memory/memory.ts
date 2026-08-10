@@ -231,7 +231,7 @@ const memoryPlugin: AlicePlugin = {
       name: 'recall',
       availableFor: ['chat', 'voice', 'autonomy'],
       description:
-        `Call memory.recall when you need information from past conversations. ` +
+        `Call {{toolName}} when you need information from past conversations. ` +
         `Do not use this tool for idle banter, or additional context unless you have been asked about ` +
         `prior interactions. The call takes one parameter, which is either a keyword, a list of ` +
         `keywords joined with commas, or a date, if the parameter is a keyword or list of keywords, ` +

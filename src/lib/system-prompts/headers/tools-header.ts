@@ -1,5 +1,6 @@
 import { getTools } from '../../tools.js';
 import { DynamicPrompt } from '../../dynamic-prompt.js';
+import { substituteToolName } from '../../tool-system.js';
 
 export const toolsHeaderPrompt: DynamicPrompt = {
   name: 'toolsHeader',
@@ -18,7 +19,10 @@ export const toolsHeaderPrompt: DynamicPrompt = {
           typeof tool.systemPromptFragment === 'function'
             ? tool.systemPromptFragment(context.conversationType)
             : tool.systemPromptFragment;
-        systemPromptChunks.push(` ${i + 1} ${fragment}`);
+        const canonicalName = tool.canonicalName ?? tool.name;
+        systemPromptChunks.push(
+          ` ${i + 1} ${substituteToolName(fragment, canonicalName)}`
+        );
       }
       return systemPromptChunks.join('\n');
     }

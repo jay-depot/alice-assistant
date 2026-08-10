@@ -8,6 +8,19 @@ type ToolPromptFragmentFunction =
   | string
   | ((type: DynamicPromptConversationType) => string);
 
+/**
+ * Replaces the `{{toolName}}` placeholder in a tool's description or
+ * systemPromptFragment with the tool's canonical name. This lets plugins
+ * reference their own tool without hardcoding the canonical name, so a
+ * separator change in getCanonicalToolName() is a one-line change.
+ */
+export function substituteToolName(
+  text: string,
+  canonicalName: string
+): string {
+  return text.replaceAll('{{toolName}}', canonicalName);
+}
+
 /** @deprecated Tool result prompts are no longer used — tool results now use Ollama's native `tool` role. */
 type ToolResultPromptFragmentFunction = ToolPromptFragmentFunction;
 
@@ -145,9 +158,12 @@ export function buildLlmToolDefinitions(
       const effectiveTaint = tool.taintStatus ?? 'clean';
       return !(isConversationTainted && effectiveTaint === 'secure');
     })
-    .map(tool => ({
-      name: tool.canonicalName ?? tool.name,
-      parameters: tool.parameters,
-      description: tool.description,
-    }));
+    .map(tool => {
+      const canonicalName = tool.canonicalName ?? tool.name;
+      return {
+        name: canonicalName,
+        parameters: tool.parameters,
+        description: substituteToolName(tool.description, canonicalName),
+      };
+    });
 }

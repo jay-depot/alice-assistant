@@ -9,13 +9,18 @@ const tools: Tool[] = [];
 
 /**
  * Converts a kebab-case plugin ID to snake_case and joins with the tool name
- * to produce the canonical tool name (e.g., "user-files" + "read" → "user_files.read").
+ * using an underscore separator to produce the canonical tool name
+ * (e.g., "user-files" + "read" → "user_files_read").
+ *
+ * This is the SINGLE source of truth for canonical tool names. If the
+ * separator ever needs to change again, change it here and nowhere else —
+ * all references are derived from this function or the {{toolName}} placeholder.
  */
 export function getCanonicalToolName(
   pluginId: string,
   toolName: string
 ): string {
-  return `${pluginId.replace(/-/g, '_')}.${toolName}`;
+  return `${pluginId.replace(/-/g, '_')}_${toolName}`;
 }
 
 export function addTool(tool: Tool) {

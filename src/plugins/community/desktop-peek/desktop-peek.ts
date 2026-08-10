@@ -16,7 +16,7 @@ const desktopPeekPlugin: AlicePlugin = {
     name: 'Desktop Peek',
     brandColor: '#59d9a5',
     description:
-      'Adds the desktop_peek.peek tool for chat and autonomy sessions.',
+      'Adds the desktop_peek_peek tool for chat and autonomy sessions.',
     version: 'LATEST',
     dependencies: [{ id: 'model-vision', version: 'LATEST' }],
     required: false,
@@ -29,7 +29,7 @@ const desktopPeekPlugin: AlicePlugin = {
       name: 'peek',
       availableFor: ['chat', 'autonomy'],
       description:
-        'Use desktop_peek.peek when the user asks you to inspect something visible on their desktop or in an image. It clarifies what visual context is needed before analysis.',
+        'Use {{toolName}} when the user asks you to inspect something visible on their desktop or in an image. It clarifies what visual context is needed before analysis.',
       systemPromptFragment: '',
       toolResultPromptIntro: '',
       toolResultPromptOutro: '',
