@@ -47,8 +47,12 @@ const scratchFilesPlugin: AlicePlugin = {
 
     plugin.registerTool(deleteScratchFileTool(config.getPluginConfig()));
     plugin.registerTool(listScratchFilesTool(config.getPluginConfig()));
-    plugin.registerTool(readScratchFileTool(config.getPluginConfig()));
-    plugin.registerTool(updateScratchFileTool(config.getPluginConfig()));
+    const readToolName = plugin.registerTool(
+      readScratchFileTool(config.getPluginConfig())
+    );
+    const updateToolName = plugin.registerTool(
+      updateScratchFileTool(config.getPluginConfig())
+    );
 
     plugin.hooks.onAllPluginsLoaded(async () => {
       plugin.logger.log(
@@ -95,7 +99,7 @@ const scratchFilesPlugin: AlicePlugin = {
           !context ||
           !context.availableTools?.length ||
           !context.availableTools?.some(
-            t => t === 'scratch_files.read' || t === 'scratch_files.update'
+            t => t === readToolName || t === updateToolName
           )
         ) {
           return false;

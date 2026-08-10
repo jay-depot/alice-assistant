@@ -227,7 +227,7 @@ const memoryPlugin: AlicePlugin = {
       },
     });
 
-    plugin.registerTool({
+    const recallToolName = plugin.registerTool({
       name: 'recall',
       availableFor: ['chat', 'voice', 'autonomy'],
       description:
@@ -303,7 +303,7 @@ const memoryPlugin: AlicePlugin = {
         name: 'recall_random',
         availableFor: ['chat', 'voice'],
         description:
-          `Call memory.recall_random to recall a random past conversation. ` +
+          `Call {{toolName}} to recall a random past conversation. ` +
           `This tool is for finding organic connections to the current moment. Do not use ` +
           `this tool to retrieve specific information. Use it when you want to make a reference, ` +
           `callback, or inside joke that creates a sense of shared history. If the random ` +
@@ -368,7 +368,7 @@ const memoryPlugin: AlicePlugin = {
         if (
           !context ||
           !context.availableTools?.length ||
-          !context.availableTools?.includes('memory.recall')
+          !context.availableTools?.includes(recallToolName)
         ) {
           return false;
         }

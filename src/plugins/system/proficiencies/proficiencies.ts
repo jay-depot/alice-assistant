@@ -233,7 +233,7 @@ const proficienciesPlugin: AlicePlugin = {
       );
     });
 
-    plugin.registerTool({
+    const recallToolName = plugin.registerTool({
       name: 'recall',
       availableFor: ['chat', 'voice', 'autonomy'],
       description:
@@ -330,7 +330,7 @@ const proficienciesPlugin: AlicePlugin = {
       },
     });
 
-    plugin.registerTool({
+    const updateToolName = plugin.registerTool({
       name: 'update',
       availableFor: ['chat', 'voice', 'autonomy'],
       description:
@@ -439,7 +439,7 @@ const proficienciesPlugin: AlicePlugin = {
         if (
           !context ||
           !context.availableTools?.length ||
-          !context.availableTools?.includes('proficiencies.recall')
+          !context.availableTools?.includes(recallToolName)
         ) {
           return false;
         }
@@ -486,8 +486,8 @@ const proficienciesPlugin: AlicePlugin = {
         if (
           !context ||
           !context.availableTools?.length ||
-          (!context.availableTools?.includes('proficiencies.recall') &&
-            !context.availableTools?.includes('proficiencies.update'))
+          (!context.availableTools?.includes(recallToolName) &&
+            !context.availableTools?.includes(updateToolName))
         ) {
           return false;
         }

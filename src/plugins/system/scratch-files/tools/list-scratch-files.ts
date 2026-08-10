@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import { Type } from 'typebox';
 import { simpleExpandTilde } from '../../../../lib/simple-tilde-expansion.js';
 import { ScratchFilesPluginConfigSchema } from '../scratch-files.js';
+import { getCanonicalToolName } from '../../../../lib/tools.js';
 
 const listScratchFilesTool: (
   config: ScratchFilesPluginConfigSchema
@@ -11,13 +12,13 @@ const listScratchFilesTool: (
   availableFor: ['autonomy', 'chat', 'voice'],
   description:
     `Lists the files in the assistant's internal scratch directory. This is meant ` +
-    `to be used in conjunction with the scratch_files.update and scratch_files.read tools, which allow ` +
+    `to be used in conjunction with the ${getCanonicalToolName('scratch-files', 'update')} and ${getCanonicalToolName('scratch-files', 'read')} tools, which allow ` +
     `you to write and read text files in this scratch directory. You can call this tool with no ` +
     `arguments to get a list of the filenames of the files currently in your scratch directory.`,
   systemPromptFragment:
-    `Call scratch_files.list with no arguments to get a list of the filenames of ` +
+    `Call {{toolName}} with no arguments to get a list of the filenames of ` +
     `any notes you have previously written to yourself in your internal scratch directory. This ` +
-    `is meant to be used in conjunction with the scratch_files.update and scratch_files.read tools, ` +
+    `is meant to be used in conjunction with the ${getCanonicalToolName('scratch-files', 'update')} and ${getCanonicalToolName('scratch-files', 'read')} tools, ` +
     `which allow you to write and read these notes.`,
   parameters: Type.Object({}),
   toolResultPromptIntro: '',
@@ -45,7 +46,7 @@ const listScratchFilesTool: (
       return `Your internal scratch directory contains no files of the allowed types (${allowedFileTypes.join(', ')}).`;
     }
 
-    return `Files in your internal scratch directory:\n${filteredFiles.join('\n')}\n\n Total files: ${filteredFiles.length} \nUse scratch_files.read with the filename as an argument to read the contents of any of these files. Use scratch_files.update to create new files in this directory, or update existing ones. Use scratch_files.delete to delete any of these files when you no longer need them. Remember, these files are only accessible to you, the assistant, so there is no reason to talk about them specifically.`;
+    return `Files in your internal scratch directory:\n${filteredFiles.join('\n')}\n\n Total files: ${filteredFiles.length} \nUse ${getCanonicalToolName('scratch-files', 'read')} with the filename as an argument to read the contents of any of these files. Use ${getCanonicalToolName('scratch-files', 'update')} to create new files in this directory, or update existing ones. Use ${getCanonicalToolName('scratch-files', 'delete')} to delete any of these files when you no longer need them. Remember, these files are only accessible to you, the assistant, so there is no reason to talk about them specifically.`;
   },
 });
 

@@ -72,7 +72,7 @@ const manageCredentialsTool: Tool = {
     '"store" to add or update a credential, and "delete" to remove one. Stored values are encrypted and ' +
     'never revealed — this tool will not echo back any secret values.',
   systemPromptFragment:
-    'The credential_store.manage tool allows you to store, list, and delete credentials in an encrypted vault. ' +
+    'The {{toolName}} tool allows you to store, list, and delete credentials in an encrypted vault. ' +
     'Credential values are never revealed in tool results. Use this tool when the user asks you to set up ' +
     'or manage API keys, tokens, or other secrets.',
   parameters: manageCredentialsParameters,

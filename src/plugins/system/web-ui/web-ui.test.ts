@@ -932,7 +932,7 @@ describe('webUiPlugin', () => {
             tool_calls: [
               {
                 function: {
-                  name: 'lightpanda_browser.fetch',
+                  name: 'lightpanda_browser_fetch',
                   arguments: { url: 'https://example.com' },
                 },
               },
@@ -967,7 +967,7 @@ describe('webUiPlugin', () => {
           type: 'tool_call_completed',
           sessionId: 12,
           callBatchId: batch,
-          toolName: 'lightpanda_browser.fetch',
+          toolName: 'lightpanda_browser_fetch',
           toolArgs: { url: 'https://example.com' },
           resultSummary: 'Fetched article details',
           timestamp: new Date().toISOString(),
@@ -1023,7 +1023,7 @@ describe('webUiPlugin', () => {
     const toolCallIndex = rounds.findIndex(
       round =>
         round.messageKind === 'tool_call' &&
-        round.toolCallData?.toolName === 'lightpanda_browser.fetch'
+        round.toolCallData?.toolName === 'lightpanda_browser_fetch'
     );
     const assistantTurnTwoIndex = rounds.findIndex(
       round =>

@@ -1,4 +1,5 @@
 import { AlicePlugin } from '../../../lib.js';
+import { getCanonicalToolName } from '../../../lib/tools.js';
 
 const modelDeepThinkingPlugin: AlicePlugin = {
   pluginMetadata: {
@@ -29,7 +30,7 @@ const modelDeepThinkingPlugin: AlicePlugin = {
       id: 'deep-thinking',
       tier: 'task',
       description:
-        'Task-level route for deep-thinking / high-capability model selected explicitly via think_deeply.begin tool.',
+        `Task-level route for deep-thinking / high-capability model selected explicitly via ${getCanonicalToolName('think-deeply', 'begin')} tool.`,
       qualifies: () => false, // Never auto-match — only switched to via setPendingUseForOverride
     });
     plugin.logger.log(

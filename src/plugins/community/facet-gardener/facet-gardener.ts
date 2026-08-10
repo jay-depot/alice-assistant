@@ -7,6 +7,7 @@ import {
 } from '../../../lib.js';
 import type { IndependentAgentControl, Conversation } from '../../../lib.js';
 import Type from 'typebox';
+import { getCanonicalToolName } from '../../../lib/tools.js';
 
 // ---------------------------------------------------------------------------
 // Configuration schema
@@ -37,30 +38,37 @@ type FacetGardenerConfig = Type.Static<typeof FacetGardenerConfigSchema>;
 // Conversation type scenario prompt
 // ---------------------------------------------------------------------------
 
-const FACET_GARDENER_SCENARIO_PROMPT = [
+const FACET_GARDENER_SCENARIO_PROMPT = (() => {
+  const principles = getCanonicalToolName('personality-facets', 'principles');
+  const examine = getCanonicalToolName('personality-facets', 'examine');
+  const memoryRecall = getCanonicalToolName('memory', 'recall');
+  const update = getCanonicalToolName('personality-facets', 'update');
+  const sleep = getCanonicalToolName('agents', 'sleep');
+
+  return [
   'You are the Facet Gardener — an autonomous agent that reviews conversation memories ',
   'and tends the personality facet garden. Your job is to identify recurring interaction patterns ',
   'that are not well-covered by existing personality facets, and create or update facets to fill those gaps.',
   '',
   '## YOUR PROCESS',
   '',
-  '1. Call personality_facets.principles to understand the foundational values and rules that guide ' +
+  `1. Call ${principles} to understand the foundational values and rules that guide ` +
     "the assistant's behavior. New facets should complement these principles, not contradict them.",
-  '2. Call personality_facets.examine to review the current facet landscape.',
-  '3. Call memory.recall to review recent conversation memories. Use keyword-based ',
+  `2. Call ${examine} to review the current facet landscape.`,
+  `3. Call ${memoryRecall} to review recent conversation memories. Use keyword-based `,
   '   searches for common interaction themes (e.g. "frustrated", "joking", "teaching", ',
   '   "troubleshooting", "creative", "emotional support", "technical support") or date ',
   '   filters with recently past dates.',
   '4. For each recurring pattern you find, check if an existing facet already covers it.',
   '5. If a pattern is NOT well-covered:',
-  '   - Create a new facet with personality_facets.update, giving it a descriptive name, ',
+  `   - Create a new facet with ${update}, giving it a descriptive name, `,
   '     a clear embodyWhen description, and any instructions you can discern, even if ',
   '     those instructions are just "figure it out as you go and update this when ',
   '     things you do and say seem to land effectively."',
   "   - OR update an existing facet's embodyWhen or instructions if it almost covers the pattern.",
   '6. If you find facets that have never been embodied and seem redundant or poorly defined, ',
   '   consider updating their embodyWhen descriptions to make them more useful.',
-  '7. When you have reviewed enough memories and tended the garden, call agents.sleep with a ' +
+  `7. When you have reviewed enough memories and tended the garden, call ${sleep} with a ` +
     '   summary of what you did.',
   '',
   '## GUIDELINES',
@@ -81,14 +89,15 @@ const FACET_GARDENER_SCENARIO_PROMPT = [
   '## IMPORTANT',
   '',
   '- You are operating autonomously. Do not address the user or ask questions.',
-  '- Call agents.sleep when you are done, even if you made no changes.',
+  `- Call ${sleep} when you are done, even if you made no changes.`,
   '- If you are unsure whether a pattern warrants a facet, create a minimal one ',
   '  with notes to keep working on it later.',
   '- Your purpose here is to give the main interactive assistant a base on which ',
   '  to build its adaptations, not to create perfect facets in one go, so uncertainty ',
   '  in the facet instructions is  not a problem as long as that uncertainty is ',
   '  clearly stated.',
-].join('\n');
+  ].join('\n');
+})();
 
 // ---------------------------------------------------------------------------
 // Kickoff prompt builder

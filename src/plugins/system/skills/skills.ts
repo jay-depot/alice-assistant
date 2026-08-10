@@ -99,11 +99,11 @@ const SkillsPlugin: AlicePlugin = {
       registerSkillFile,
     });
 
-    plugin.registerTool({
+    const recallToolName = plugin.registerTool({
       name: 'recall',
       availableFor: ['chat', 'voice', 'autonomy'],
       description:
-        'Recall one of your known skills, of which you should have a list available elsewhere. Call this tool with the id of the skill you wish to recall whenever the conditions under which you should recall it are met.',
+        'Recall one of your known skills, of which you should have a list available elsewhere. Call {{toolName}} with the id of the skill you wish to recall whenever the conditions under which you should recall it are met.',
       systemPromptFragment: '',
       toolResultPromptIntro: '',
       toolResultPromptOutro: '',
@@ -128,7 +128,7 @@ const SkillsPlugin: AlicePlugin = {
         if (
           !context ||
           !context.availableTools?.length ||
-          !context.availableTools?.includes('skills.recall')
+          !context.availableTools?.includes(recallToolName)
         ) {
           return false;
         }

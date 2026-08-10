@@ -4,6 +4,7 @@ import * as path from 'path';
 import { Static, Type } from 'typebox';
 import { simpleExpandTilde } from '../../../../lib/simple-tilde-expansion.js';
 import { ScratchFilesPluginConfigSchema } from '../scratch-files.js';
+import { getCanonicalToolName } from '../../../../lib/tools.js';
 
 const parameters = Type.Object({ filename: Type.String() });
 
@@ -14,12 +15,12 @@ const readScratchFileTool: (
   availableFor: ['autonomy', 'chat', 'voice'],
   description:
     `Reads the contents of a note in the assistant's internal scratch directory. This is meant ` +
-    `to read back the contents of notes the assistant has written to itself, using the scratch_files.update tool.`,
+    `to read back the contents of notes the assistant has written to itself, using the ${getCanonicalToolName('scratch-files', 'update')} tool.`,
   systemPromptFragment:
-    `Call scratch_files.read to read the contents of a note in your internal scratch ` +
+    `Call {{toolName}} to read the contents of a note in your internal scratch ` +
     `directory. This is meant to read back the contents of notes you have written to yourself, using the ` +
-    `scratch_files.update tool. Use the scratch_files.list tool to get a list of the filenames of any notes you ` +
-    `have previously written to yourself in this internal scratch directory. When you call scratch_files.read, ` +
+    `${getCanonicalToolName('scratch-files', 'update')} tool. Use the ${getCanonicalToolName('scratch-files', 'list')} tool to get a list of the filenames of any notes you ` +
+    `have previously written to yourself in this internal scratch directory. When you call {{toolName}}, ` +
     `provide the filename as an argument, and it will return the contents of that file. Remember, these ` +
     `files are only accessible to you, the assistant, so there is no reason to talk about them specifically.`,
   parameters,

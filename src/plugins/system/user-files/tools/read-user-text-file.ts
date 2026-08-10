@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import type { SecretsRedactor } from '../../../system/credential-store/redactor.js';
 import { readFile } from '../../../../lib/node/fs-promised.js';
+import { getCanonicalToolName } from '../../../../lib/tools.js';
 
 const parameters = Type.Object({
   path: Type.String({ description: 'Path to the text file to read' }),
@@ -59,11 +60,11 @@ const readUserTextFileTool: (config, redactor?: SecretsRedactor) => Tool = (
   availableFor: ['chat', 'voice', 'autonomy'],
   description: `Reads the contents of a text file from the user's filesystem in chunks, with optional offset and size limits.`,
   systemPromptFragment:
-    `Call user_files.read when the user asks you to read the full contents of a text file, summarize ` +
+    `Call {{toolName}} when the user asks you to read the full contents of a text file, summarize ` +
     `a document, or extract information from it. Provide the "path" argument with the file to read. Optionally use "maxBytes" ` +
     `to limit the amount read (default 65KB, max 1MB), "offset" to start reading from a specific byte position, and "encoding" ` +
     `to specify the character encoding. For example, if the user says "summarize my notes from last week", you might call ` +
-    `user_files.read with path set to the file path and maxBytes set to an appropriate size. The tool respects security ` +
+    `{{toolName}} with path set to the file path and maxBytes set to an appropriate size. The tool respects security ` +
     `constraints on which directories and file types you can access.`,
   parameters,
 
@@ -80,7 +81,7 @@ const readUserTextFileTool: (config, redactor?: SecretsRedactor) => Tool = (
     if (allowedFilePaths.length === 0) {
       return JSON.stringify({
         error:
-          'No allowed root directories configured for user_files.read tool. Configure allowedFilePaths in tool settings.',
+          `No allowed root directories configured for ${getCanonicalToolName('user-files', 'read')} tool. Configure allowedFilePaths in tool settings.`,
       });
     }
 

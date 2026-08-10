@@ -24,7 +24,7 @@ const brainstormPlugin: AlicePlugin = {
         name: 'start',
         availableFor: ['chat', 'voice'],
         description:
-          'Use brainstorm.start when the user wants to brainstorm something. ' +
+          'Use {{toolName}} when the user wants to brainstorm something. ' +
           'The brainstorm assistant will take over the conversation, capture their thoughts, ' +
           'and return structured notes only after the brainstorm is finished.',
         parameters: Type.Object({
@@ -49,7 +49,7 @@ const brainstormPlugin: AlicePlugin = {
       complete: {
         name: 'complete',
         description:
-          'Call brainstorm.complete as soon as the user indicates they are finished brainstorming. ' +
+          'Call {{toolName}} as soon as the user indicates they are finished brainstorming. ' +
           'Provide an organized version of their notes using their own words as much as possible.',
         parameters: Type.Object({
           summary: Type.String({

@@ -1,5 +1,6 @@
 import { Type } from 'typebox';
 import { AlicePlugin } from '../../../lib.js';
+import { getCanonicalToolName } from '../../../lib/tools.js';
 import findUserFilesTool from './tools/find-user-files.js';
 import getDirectoryListingTool from './tools/get-directory-listing.js';
 import readUserTextFileTool from './tools/read-user-text-file.js';
@@ -19,7 +20,7 @@ const UserFilesPluginConfigSchema = Type.Object(
       'Configuration for the user files plugin. Allows the user to specify ' +
       'which file paths and file types the assistant is allowed to access. If left empty, ' +
       'the assistant will not be able to access any files. allowedUpdatePaths further ' +
-      'restricts where user_files.update can write, enabling scenarios like shared folders.',
+      `restricts where ${getCanonicalToolName('user-files', 'update')} can write, enabling scenarios like shared folders.`,
   }
 );
 

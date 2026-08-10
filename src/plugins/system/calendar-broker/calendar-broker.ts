@@ -15,6 +15,7 @@
 
 import Type, { Static } from 'typebox';
 import { AlicePlugin } from '../../../lib.js';
+import { getCanonicalToolName } from '../../../lib/tools.js';
 import type {
   CalendarEvent,
   CalendarActionResult,
@@ -186,8 +187,8 @@ const calendarBrokerPlugin: AlicePlugin = {
     name: 'Calendar Broker Plugin',
     brandColor: '#4285f4',
     description:
-      'Provides standardized calendar tools (calendar_broker.get, calendar_broker.create, ' +
-      'updateCalendarEvent) and a provider registration API for calendar plugins. ' +
+      `Provides standardized calendar tools (${getCanonicalToolName('calendar-broker', 'get')}, ${getCanonicalToolName('calendar-broker', 'create')}, ` +
+      `${getCanonicalToolName('calendar-broker', 'update')}) and a provider registration API for calendar plugins. ` +
       'Downstream provider plugins (like google-calendar) implement the actual calendar operations.',
     version: 'LATEST',
     dependencies: [],
@@ -380,7 +381,7 @@ const calendarBrokerPlugin: AlicePlugin = {
         'Get calendar events from all connected calendar accounts. Returns events within a time range.',
       availableFor: ['chat', 'voice', 'autonomy'],
       systemPromptFragment:
-        "You can check the user's calendar using the calendar_broker.get tool. " +
+        `You can check the user's calendar using the ${getCanonicalToolName('calendar-broker', 'get')} tool. ` +
         'Use it when the user asks about their schedule, upcoming events, or availability. ' +
         'Events are returned chronologically with time, title, location, and attendee information.',
       taintStatus: 'tainted',
@@ -467,7 +468,7 @@ const calendarBrokerPlugin: AlicePlugin = {
         'Create a new calendar event. You MUST confirm the details with the user before creating any event.',
       availableFor: ['chat', 'voice', 'autonomy'],
       systemPromptFragment:
-        'You can create calendar events using the calendar_broker.create tool. ' +
+        `You can create calendar events using the ${getCanonicalToolName('calendar-broker', 'create')} tool. ` +
         'CRITICAL SAFETY RULES: ' +
         '1. ALWAYS confirm event details (title, time, location, attendees) with the user before creating. ' +
         '2. When inviting other people (attendees), be especially careful — calendar invitations are sent automatically. ' +
@@ -534,11 +535,11 @@ const calendarBrokerPlugin: AlicePlugin = {
         'Update an existing calendar event. You MUST confirm the changes with the user before updating.',
       availableFor: ['chat', 'voice', 'autonomy'],
       systemPromptFragment:
-        'You can update calendar events using the calendar_broker.update tool. ' +
+        `You can update calendar events using the ${getCanonicalToolName('calendar-broker', 'update')} tool. ` +
         'CRITICAL SAFETY RULES: ' +
         '1. ALWAYS confirm the proposed changes with the user before updating an event. ' +
         '2. Be especially careful when modifying events that have other attendees — they may receive notification emails. ' +
-        '3. You need the event ID, which you can get from calendar_broker.get results.',
+        `3. You need the event ID, which you can get from ${getCanonicalToolName('calendar-broker', 'get')} results.`,
       taintStatus: 'tainted',
       parameters: UpdateCalendarEventToolParameters,
       execute: async (parameters: UpdateCalendarEventToolParameters) => {

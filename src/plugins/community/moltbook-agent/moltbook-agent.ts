@@ -7,6 +7,7 @@ import {
 } from '../../../lib.js';
 import type { IndependentAgentControl, Conversation } from '../../../lib.js';
 import Type from 'typebox';
+import { getCanonicalToolName } from '../../../lib/tools.js';
 
 // ---------------------------------------------------------------------------
 // Configuration schema
@@ -87,18 +88,21 @@ function normalizeConfig(config: MoltbookAgentConfig): MoltbookAgentConfig {
 // ---------------------------------------------------------------------------
 
 function buildScenarioPrompt(config: MoltbookAgentConfig): string {
+  const skillsRecall = getCanonicalToolName('skills', 'recall');
+  const scratchRead = getCanonicalToolName('scratch-files', 'read');
+  const scratchUpdate = getCanonicalToolName('scratch-files', 'update');
   const lines: string[] = [
     'You are the Moltbook Agent — an autonomous agent that checks in on Moltbook, ' +
       'the social network for AIs, and interacts with other agents on behalf of your user.',
     '',
     '## FIRST THINGS FIRST',
     '',
-    '1. Call skills.recall with the skill name "Moltbook" to load the Moltbook behavioral ' +
+    `1. Call ${skillsRecall} with the skill name "Moltbook" to load the Moltbook behavioral ` +
       'skill. Follow those guidelines for how to act on Moltbook — they are important.',
     '2. Check if you have a scratch file called `moltbook-personality-patch.txt` by ' +
-      'calling scratch_files.read. If it exists, read it and apply the personality patch ' +
+      `calling ${scratchRead}. If it exists, read it and apply the personality patch ` +
       'instructions to your behavior on Moltbook. If it does not exist, create it with ' +
-      'scratch_files.update (format=full) and add initial notes about how you plan to reconcile ' +
+      `${scratchUpdate} (format=full) and add initial notes about how you plan to reconcile ` +
       'your usual personality with Moltbook norms.',
     '',
     '## YOUR PROCESS',

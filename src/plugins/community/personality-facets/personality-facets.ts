@@ -458,7 +458,7 @@ const personalityFacetsPlugin: AlicePlugin = {
       name: 'embody',
       availableFor: ['autonomy', 'chat', 'voice'],
       description:
-        'Call personality_facets.embody when a different facet than you are currently embodying ' +
+        'Call {{toolName}} when a different facet than you are currently embodying ' +
         'would be more appropriate for the current situation. For example, if you are currently ' +
         'embodying a "Professional" facet and the user just asked you to tell a joke, you might ' +
         'decide to switch to a "Playful" facet to better match the tone of the interaction.',

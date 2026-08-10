@@ -5,6 +5,7 @@ import * as path from 'path';
 import { simpleExpandTilde } from '../../../../lib/simple-tilde-expansion.js';
 import { ScratchFilesPluginConfigSchema } from '../scratch-files.js';
 import { freshenScratchFilesIndex } from '../scratch-files-index.js';
+import { getCanonicalToolName } from '../../../../lib/tools.js';
 
 const parameters = Type.Object({ filename: Type.String() });
 
@@ -15,13 +16,13 @@ const deleteScratchFileTool: (
   availableFor: ['autonomy', 'chat', 'voice'],
   description:
     'Deletes a text file from the internal scratch directory. This is meant to be used in conjunction with the ' +
-    'scratch_files.update, scratch_files.read, and scratch_files.list tools, which allow you to write, read, and list text files in ' +
+    `${getCanonicalToolName('scratch-files', 'update')}, ${getCanonicalToolName('scratch-files', 'read')}, and ${getCanonicalToolName('scratch-files', 'list')} tools, which allow you to write, read, and list text files in ` +
     'this scratch directory. You can call this tool with the filename of the file you want to delete as an argument.',
   systemPromptFragment:
-    `Call scratch_files.delete when you want to delete a text file from your internal scratch directory. ` +
+    `Call {{toolName}} when you want to delete a text file from your internal scratch directory. ` +
     `The file must be located in your scratch directory, and you must provide the filename as an argument. For example, if ` +
-    `you previously wrote a file named "notes.txt" using the scratch_files.update tool and no longer need it, you would call ` +
-    `scratch_files.delete with the argument "filename" set to "notes.txt" to delete it.`,
+    `you previously wrote a file named "notes.txt" using the ${getCanonicalToolName('scratch-files', 'update')} tool and no longer need it, you would call ` +
+    `{{toolName}} with the argument "filename" set to "notes.txt" to delete it.`,
   parameters,
 
   execute: async (args: Static<typeof parameters>) => {

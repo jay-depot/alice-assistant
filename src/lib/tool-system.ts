@@ -49,7 +49,7 @@ export type Tool = {
   name: string;
   /**
    * Canonical tool name computed by the plugin engine during registration.
-   * Format: `<snake_case_plugin_id>.<tool_name>` (e.g., `user_files.read`).
+   * Format: `<snake_case_plugin_id>_<tool_name>` (e.g., `user_files_read`).
    * This is the name sent to the LLM and used for matching tool calls.
    */
   canonicalName?: string;

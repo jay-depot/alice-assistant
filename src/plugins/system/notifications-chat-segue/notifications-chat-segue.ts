@@ -71,7 +71,7 @@ const notificationsConversationPlugin: AlicePlugin = {
         if (
           !context ||
           !context.availableTools?.length ||
-          !context.availableTools?.includes('mark_delivered')
+          !context.availableTools?.includes(markDeliveredToolName)
         ) {
           return false;
         }
@@ -103,20 +103,20 @@ const notificationsConversationPlugin: AlicePlugin = {
           `You have pending notifications that have not yet been delivered to the user in chat. ` +
           `If it fits naturally in your next response, work the relevant notification into conversation clearly and concisely. ` +
           `Do not dump this list verbatim unless the user asks what notifications are pending. ` +
-          `After you have clearly delivered one or more of them, call notifications_chat_segue.mark_delivered with their IDs.\n\n` +
+          `After you have clearly delivered one or more of them, call ${markDeliveredToolName} with their IDs.\n\n` +
           `${notificationLines.join('\n')}`
         );
       },
     });
 
-    plugin.registerTool({
+    const markDeliveredToolName = plugin.registerTool({
       name: 'mark_delivered',
       availableFor: ['chat'],
       description:
         'Marks pending segue notifications as delivered after you have clearly mentioned them to the user in chat.',
       parameters: MarkNotificationsDeliveredParameters,
       systemPromptFragment:
-        'Call notifications_chat_segue.mark_delivered only after you have already worked one or more pending notifications into the conversation clearly enough that the user has effectively received them.',
+        'Call {{toolName}} only after you have already worked one or more pending notifications into the conversation clearly enough that the user has effectively received them.',
       execute: async args => {
         const { notificationIds } = args as { notificationIds: string[] };
 

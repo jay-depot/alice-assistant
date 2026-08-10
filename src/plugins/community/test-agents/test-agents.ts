@@ -2,6 +2,7 @@ import path from 'node:path';
 import type { AlicePlugin } from '../../../lib.js';
 import { createTaskAssistantToolPair } from '../../../lib.js';
 import { Type } from 'typebox';
+import { getCanonicalToolName } from '../../../lib/tools.js';
 
 declare module '../../../lib.js' {
   export interface PluginCapabilities {
@@ -9,18 +10,26 @@ declare module '../../../lib.js' {
   }
 }
 
-const TASK_SCENARIO_PROMPT =
-  'You are an interactive test agent designed to verify that task assistant ' +
-  'subconversations work end-to-end. Your job is simple:\n' +
-  '1. Greet the user warmly and let them know you are the test task assistant.\n' +
-  '2. Have a brief friendly exchange with them.\n' +
-  '3. As soon as the user says anything that indicates they are done — such as ' +
-  '"done", "finish", "end", "goodbye", "that\'s all", "complete", or similar — ' +
-  'immediately call test_agents.complete. Do not ask for confirmation; just call it.';
+const TASK_SCENARIO_PROMPT = (() => {
+  const complete = getCanonicalToolName('test-agents', 'complete');
+  return (
+    'You are an interactive test agent designed to verify that task assistant ' +
+    'subconversations work end-to-end. Your job is simple:\n' +
+    '1. Greet the user warmly and let them know you are the test task assistant.\n' +
+    '2. Have a brief friendly exchange with them.\n' +
+    '3. As soon as the user says anything that indicates they are done — such as ' +
+    '"done", "finish", "end", "goodbye", "that\'s all", "complete", or similar — ' +
+    `immediately call ${complete}. Do not ask for confirmation; just call it.`
+  );
+})();
 
-const AGENT_SCENARIO_PROMPT =
-  'You are a no-op session-linked agent used only for plumbing tests. ' +
-  'Immediately call agents.return_result with a brief success summary and report.';
+const AGENT_SCENARIO_PROMPT = (() => {
+  const returnResult = getCanonicalToolName('agents', 'return_result');
+  return (
+    'You are a no-op session-linked agent used only for plumbing tests. ' +
+    `Immediately call ${returnResult} with a brief success summary and report.`
+  );
+})();
 
 const INDEPENDENT_AGENT_SCENARIO_PROMPT =
   'You are a no-op independent agent used only for plumbing tests. ' +
@@ -109,7 +118,7 @@ const testAgentsPlugin: AlicePlugin = {
         name: 'start',
         availableFor: ['chat'],
         description:
-          'Call test_agents.start when the user indicates they want to test task assistant dispatch. ' +
+          'Call {{toolName}} when the user indicates they want to test task assistant dispatch. ' +
           'This launches an interactive sub-conversation to verify the task assistant workflow end-to-end.',
         parameters: Type.Object({}),
         systemPromptFragment: '',
@@ -123,7 +132,7 @@ const testAgentsPlugin: AlicePlugin = {
       complete: {
         name: 'complete',
         description:
-          'Call test_agents.complete when the user indicates the test conversation is over.',
+          'Call {{toolName}} when the user indicates the test conversation is over.',
         parameters: Type.Object({
           summary: Type.String({
             description: 'Brief summary of the test conversation.',

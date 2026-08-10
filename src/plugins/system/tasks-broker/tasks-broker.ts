@@ -15,6 +15,7 @@
 
 import Type, { Static } from 'typebox';
 import { AlicePlugin } from '../../../lib.js';
+import { getCanonicalToolName } from '../../../lib/tools.js';
 import type {
   TaskItem,
   TaskActionResult,
@@ -167,8 +168,8 @@ const tasksBrokerPlugin: AlicePlugin = {
     name: 'Tasks Broker Plugin',
     brandColor: '#5C9E3D',
     description:
-      'Provides standardized task tools (tasks_broker.list, tasks_broker.create, ' +
-      'tasks_broker.update, tasks_broker.delete) and a provider registration API for ' +
+      `Provides standardized task tools (${getCanonicalToolName('tasks-broker', 'list')}, ${getCanonicalToolName('tasks-broker', 'create')}, ` +
+      `${getCanonicalToolName('tasks-broker', 'update')}, ${getCanonicalToolName('tasks-broker', 'delete')}) and a provider registration API for ` +
       'task plugins. Downstream provider plugins (like google-tasks) implement the ' +
       'actual task operations.',
     version: 'LATEST',
@@ -399,7 +400,7 @@ const tasksBrokerPlugin: AlicePlugin = {
         'List tasks from all connected task accounts. Returns tasks with title, status, due date, and notes.',
       availableFor: ['chat', 'voice'],
       systemPromptFragment:
-        "You can check the user's task list using the tasks_broker.list tool. " +
+        `You can check the user's task list using the ${getCanonicalToolName('tasks-broker', 'list')} tool. ` +
         'Use it when the user asks about their tasks, to-do items, or what they need to do. ' +
         'Tasks are returned with title, status (needsAction/completed), due date, and notes. ' +
         'You can filter by status or due date range.',
@@ -481,7 +482,7 @@ const tasksBrokerPlugin: AlicePlugin = {
         'Create a new task. You MUST confirm the details with the user before creating any task.',
       availableFor: ['chat', 'voice'],
       systemPromptFragment:
-        'You can create tasks using the tasks_broker.create tool. ' +
+        `You can create tasks using the ${getCanonicalToolName('tasks-broker', 'create')} tool. ` +
         'CRITICAL SAFETY RULES: ' +
         '1. ALWAYS confirm task details (title, due date, notes) with the user before creating. ' +
         '2. Only create tasks when the user explicitly asks you to. ' +
@@ -533,10 +534,10 @@ const tasksBrokerPlugin: AlicePlugin = {
         'Update an existing task. You can change the title, notes, due date, or mark it as completed. You MUST confirm changes with the user before updating.',
       availableFor: ['chat', 'voice'],
       systemPromptFragment:
-        'You can update tasks using the tasks_broker.update tool. ' +
+        `You can update tasks using the ${getCanonicalToolName('tasks-broker', 'update')} tool. ` +
         'CRITICAL SAFETY RULES: ' +
         '1. ALWAYS confirm the proposed changes with the user before updating a task. ' +
-        '2. You need the task ID, which you can get from tasks_broker.list results. ' +
+        `2. You need the task ID, which you can get from ${getCanonicalToolName('tasks-broker', 'list')} results. ` +
         '3. To mark a task as completed, set status to "completed". To un-complete, set status to "needsAction".',
       taintStatus: 'tainted',
       parameters: UpdateTaskToolParameters,
@@ -587,11 +588,11 @@ const tasksBrokerPlugin: AlicePlugin = {
         'Delete a task permanently. You MUST confirm with the user before deleting any task.',
       availableFor: ['chat', 'voice'],
       systemPromptFragment:
-        'You can delete tasks using the tasks_broker.delete tool. ' +
+        `You can delete tasks using the ${getCanonicalToolName('tasks-broker', 'delete')} tool. ` +
         'CRITICAL SAFETY RULES: ' +
         '1. ALWAYS confirm with the user before deleting a task — this is permanent. ' +
-        '2. You need the task ID, which you can get from tasks_broker.list results. ' +
-        '3. If the user wants to mark a task as done instead of deleting, use tasks_broker.update with status "completed".',
+        `2. You need the task ID, which you can get from ${getCanonicalToolName('tasks-broker', 'list')} results. ` +
+        `3. If the user wants to mark a task as done instead of deleting, use ${getCanonicalToolName('tasks-broker', 'update')} with status "completed".`,
       taintStatus: 'tainted',
       parameters: DeleteTaskToolParameters,
       execute: async (parameters: DeleteTaskToolParameters) => {

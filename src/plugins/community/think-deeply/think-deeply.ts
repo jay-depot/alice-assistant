@@ -55,7 +55,7 @@ const thinkDeeplyPlugin: AlicePlugin = {
         return (
           `Switched to deep-thinking model. Reason: ${reason}\n` +
           'All subsequent responses in this conversation will use the deep-thinking model ' +
-          'until think_deeply.finish is called.'
+          `until ${getCanonicalToolName('think-deeply', 'finish')} is called.`
         );
       },
     });

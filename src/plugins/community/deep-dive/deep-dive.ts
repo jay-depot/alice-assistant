@@ -3,6 +3,7 @@ import { Type } from 'typebox';
 import { writeFile } from 'node:fs/promises';
 import { simpleExpandTilde } from '../../../lib/simple-tilde-expansion.js';
 import path from 'node:path';
+import { getCanonicalToolName } from '../../../lib/tools.js';
 
 declare module '../../../lib.js' {
   export interface PluginCapabilities {
@@ -24,37 +25,49 @@ type DeepDiveManageSourceToolParameters = Type.Static<
   typeof DeepDiveManageSourceToolParameterSchema
 >;
 
-const DEEP_DIVE_SCENARIO_PROMPT =
-  'You are an autonomous deep-dive research agent. Your only job is to research a ' +
-  'question or topic thoroughly using the tools available to you.\n\n' +
-  'RESEARCH PROCESS:\n' +
-  '1. Start by searching for the topic using web_search_broker.search.\n' +
-  '2. Use your deep_dive.manage_source tool to keep track of promising sources, marking them as "to-visit".\n' +
-  '3. For each source on your tracker, use web_simple_fetch.fetch or an alternative tool to read the page content in full.\n' +
-  '4. If you find more sources to explore while reading, add those URLs to your source tracker for processing in subsequent research steps.\n' +
-  '5. After each significant finding or completed search batch, call agents.report_progress with a brief summary of what you found.\n' +
-  '6. When you have exhausted a source, use deep_dive.manage_source to mark it as "visited" on your tracker to avoid redundant work.\n' +
-  '7. Repeat searches with refined queries to dig deeper. Follow the most relevant links.\n' +
-  '8. When you have built a complete picture — or after exhausting the most useful leads — call agents.return_result with your full findings.\n' +
-  '9. If you have access to skills or proficiencies that could help you evaluate sources or provide alternative ways to access a source, use skills.recall and/or proficiencies.recall to leverage that knowledge.\n' +
-  '10. When all else fails, if you are unable to access a source on your list, use proficiencies.update to note that you are "blocked" on that source, and move on to the next most promising lead.\n\n' +
-  'RULES:\n' +
-  '- Do NOT address the user or ask questions. You are operating autonomously.\n' +
-  '- Do NOT generate content from memory alone. Ground every claim in sources you fetched.\n' +
-  '- If a fetch fails, check your skills, proficiencies, and alternative tools for a work-around before trying the next most relevant URL rather than stopping.\n' +
-  '- Aim for depth over breadth: fewer thorough reads beat many shallow ones.\n\n' +
-  'OUTPUT FORMAT for agentReturnResult.report (markdown):\n' +
-  '## Key Findings\n' +
-  'Bullet-point list of the most important conclusions.\n\n' +
-  '## Details\n' +
-  'Expanded narrative with supporting evidence and citations.\n\n' +
-  '## Sources\n' +
-  '### Sources Consulted:\n' +
-  'Numbered list of URLs actually read, one per line.' +
-  '### Sources Attempted but Inaccessible:\n' +
-  'Numbered list of URLs you were unable to access, one per line, with a brief note on why each source was inaccessible and what you tried.\n\n' +
-  '## Gaps\n' +
-  'What would further research benefit from that you were unable to cover.';
+const DEEP_DIVE_SCENARIO_PROMPT = (() => {
+  const webSearch = getCanonicalToolName('web-search-broker', 'search');
+  const manageSource = getCanonicalToolName('deep-dive', 'manage_source');
+  const webFetch = getCanonicalToolName('web-simple-fetch', 'fetch');
+  const reportProgress = getCanonicalToolName('agents', 'report_progress');
+  const returnResult = getCanonicalToolName('agents', 'return_result');
+  const skillsRecall = getCanonicalToolName('skills', 'recall');
+  const proficienciesRecall = getCanonicalToolName('proficiencies', 'recall');
+  const proficienciesUpdate = getCanonicalToolName('proficiencies', 'update');
+
+  return (
+    'You are an autonomous deep-dive research agent. Your only job is to research a ' +
+    'question or topic thoroughly using the tools available to you.\n\n' +
+    'RESEARCH PROCESS:\n' +
+    `1. Start by searching for the topic using ${webSearch}.\n` +
+    `2. Use your ${manageSource} tool to keep track of promising sources, marking them as "to-visit".\n` +
+    `3. For each source on your tracker, use ${webFetch} or an alternative tool to read the page content in full.\n` +
+    '4. If you find more sources to explore while reading, add those URLs to your source tracker for processing in subsequent research steps.\n' +
+    `5. After each significant finding or completed search batch, call ${reportProgress} with a brief summary of what you found.\n` +
+    `6. When you have exhausted a source, use ${manageSource} to mark it as "visited" on your tracker to avoid redundant work.\n` +
+    '7. Repeat searches with refined queries to dig deeper. Follow the most relevant links.\n' +
+    `8. When you have built a complete picture — or after exhausting the most useful leads — call ${returnResult} with your full findings.\n` +
+    `9. If you have access to skills or proficiencies that could help you evaluate sources or provide alternative ways to access a source, use ${skillsRecall} and/or ${proficienciesRecall} to leverage that knowledge.\n` +
+    `10. When all else fails, if you are unable to access a source on your list, use ${proficienciesUpdate} to note that you are "blocked" on that source, and move on to the next most promising lead.\n\n` +
+    'RULES:\n' +
+    '- Do NOT address the user or ask questions. You are operating autonomously.\n' +
+    '- Do NOT generate content from memory alone. Ground every claim in sources you fetched.\n' +
+    '- If a fetch fails, check your skills, proficiencies, and alternative tools for a work-around before trying the next most relevant URL rather than stopping.\n' +
+    '- Aim for depth over breadth: fewer thorough reads beat many shallow ones.\n\n' +
+    'OUTPUT FORMAT for agentReturnResult.report (markdown):\n' +
+    '## Key Findings\n' +
+    'Bullet-point list of the most important conclusions.\n\n' +
+    '## Details\n' +
+    'Expanded narrative with supporting evidence and citations.\n\n' +
+    '## Sources\n' +
+    '### Sources Consulted:\n' +
+    'Numbered list of URLs actually read, one per line.' +
+    '### Sources Attempted but Inaccessible:\n' +
+    'Numbered list of URLs you were unable to access, one per line, with a brief note on why each source was inaccessible and what you tried.\n\n' +
+    '## Gaps\n' +
+    'What would further research benefit from that you were unable to cover.'
+  );
+})();
 
 type SourceCache = {
   [sessionId: string]: {
@@ -198,18 +211,18 @@ const deepDivePlugin: AlicePlugin = {
       name: 'Deep-Dive Research Agent',
       conversationType: 'deep-dive-research',
       continuationPrompt:
-        'Keep researching. Run refined searches, fetch high-value sources, and report major findings with agents.report_progress. ' +
-        'Call agents.return_result once coverage is strong enough to answer the question or fully explain the topic with evidence.',
+        `Keep researching. Run refined searches, fetch high-value sources, and report major findings with ${getCanonicalToolName('agents', 'report_progress')}. ` +
+        `Call ${getCanonicalToolName('agents', 'return_result')} once coverage is strong enough to answer the question or fully explain the topic with evidence.`,
       forceReturnPrompt:
-        'Research loop budget is exhausted. Call agents.return_result now with the best complete report you can produce from gathered evidence, including uncertainties and gaps.',
+        `Research loop budget is exhausted. Call ${getCanonicalToolName('agents', 'return_result')} now with the best complete report you can produce from gathered evidence, including uncertainties and gaps.`,
 
       startToolName: 'start',
       startToolAvailableFor: ['chat'],
       startToolDescription:
-        'Use deep_dive.start when the user wants an in-depth investigation of a ' +
+        'Use {{toolName}} when the user wants an in-depth investigation of a ' +
         'topic that would require many web searches and page reads — more than the assistant ' +
         'can reasonably handle in a single turn. The agent will research autonomously and ' +
-        'report its findings back into the conversation. Also use deep_dive.start if ' +
+        'report its findings back into the conversation. Also use {{toolName}} if ' +
         'the user specifically asks for a "deep dive" or "deep research" on a topic.',
       startToolParameters: Type.Object({
         researchQuestion: Type.String({
@@ -232,7 +245,7 @@ const deepDivePlugin: AlicePlugin = {
         ),
       }),
       startToolSystemPromptFragment:
-        'Use deep_dive.start when the user asks for thorough research on a topic ' +
+        'Use {{toolName}} when the user asks for thorough research on a topic ' +
         'that would require many searches and page reads. The agent runs in the background ' +
         'and reports progress and a final result in subsequent messages.',
 
@@ -305,7 +318,7 @@ const deepDivePlugin: AlicePlugin = {
     plugin.registerTool({
       name: 'manage_source',
       description:
-        'Call deep_dive.manage_source when you want to track a source for your research, to mark it as "to visit" or "visited". Use this proactively to help keep your research organized.',
+        'Call {{toolName}} when you want to track a source for your research, to mark it as "to visit" or "visited". Use this proactively to help keep your research organized.',
       systemPromptFragment: '',
       parameters: DeepDiveManageSourceToolParameterSchema,
       availableFor: ['deep-dive-research'],
