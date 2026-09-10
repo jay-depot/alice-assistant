@@ -958,21 +958,24 @@ describe('webUiPlugin', () => {
           toolCalls: [],
         };
       }),
-      executeToolCalls: vi.fn(async (_toolCalls: any, _depth: any, batch: any) => {
-        const onToolCallEvent = mockToolCallEvents.onToolCallEvent.mock.calls.at(
-          -1
-        )?.[0] as ((event: any) => Promise<void>) | undefined;
+      executeToolCalls: vi.fn(
+        async (_toolCalls: any, _depth: any, batch: any) => {
+          const onToolCallEvent =
+            mockToolCallEvents.onToolCallEvent.mock.calls.at(-1)?.[0] as
+              | ((event: any) => Promise<void>)
+              | undefined;
 
-        await onToolCallEvent?.({
-          type: 'tool_call_completed',
-          sessionId: 12,
-          callBatchId: batch,
-          toolName: 'lightpanda_browser_fetch',
-          toolArgs: { url: 'https://example.com' },
-          resultSummary: 'Fetched article details',
-          timestamp: new Date().toISOString(),
-        });
-      }),
+          await onToolCallEvent?.({
+            type: 'tool_call_completed',
+            sessionId: 12,
+            callBatchId: batch,
+            toolName: 'lightpanda_browser_fetch',
+            toolArgs: { url: 'https://example.com' },
+            resultSummary: 'Fetched article details',
+            timestamp: new Date().toISOString(),
+          });
+        }
+      ),
     };
 
     mockStartConversation.mockReset().mockReturnValue(conversation);
@@ -1018,7 +1021,8 @@ describe('webUiPlugin', () => {
 
     const rounds = update.session.messages as any[];
     const assistantTurnOneIndex = rounds.findIndex(
-      round => round.role === 'assistant' && round.content === 'Let me fetch that.'
+      round =>
+        round.role === 'assistant' && round.content === 'Let me fetch that.'
     );
     const toolCallIndex = rounds.findIndex(
       round =>

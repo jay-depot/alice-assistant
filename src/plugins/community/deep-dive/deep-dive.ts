@@ -213,8 +213,7 @@ const deepDivePlugin: AlicePlugin = {
       continuationPrompt:
         `Keep researching. Run refined searches, fetch high-value sources, and report major findings with ${getCanonicalToolName('agents', 'report_progress')}. ` +
         `Call ${getCanonicalToolName('agents', 'return_result')} once coverage is strong enough to answer the question or fully explain the topic with evidence.`,
-      forceReturnPrompt:
-        `Research loop budget is exhausted. Call ${getCanonicalToolName('agents', 'return_result')} now with the best complete report you can produce from gathered evidence, including uncertainties and gaps.`,
+      forceReturnPrompt: `Research loop budget is exhausted. Call ${getCanonicalToolName('agents', 'return_result')} now with the best complete report you can produce from gathered evidence, including uncertainties and gaps.`,
 
       startToolName: 'start',
       startToolAvailableFor: ['chat'],

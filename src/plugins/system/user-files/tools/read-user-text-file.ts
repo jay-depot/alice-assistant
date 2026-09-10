@@ -80,8 +80,7 @@ const readUserTextFileTool: (config, redactor?: SecretsRedactor) => Tool = (
 
     if (allowedFilePaths.length === 0) {
       return JSON.stringify({
-        error:
-          `No allowed root directories configured for ${getCanonicalToolName('user-files', 'read')} tool. Configure allowedFilePaths in tool settings.`,
+        error: `No allowed root directories configured for ${getCanonicalToolName('user-files', 'read')} tool. Configure allowedFilePaths in tool settings.`,
       });
     }
 

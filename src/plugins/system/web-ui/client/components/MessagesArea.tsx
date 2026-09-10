@@ -255,7 +255,9 @@ export function MessagesArea({
     ? getAssistantTurnIdentityKey(pendingAssistantMessage)
     : null;
   const hasVisibleTransientAssistantTurn =
-    currentStreamTurn !== null || visibleCompletedTurns.length > 0 || !!finalContent;
+    currentStreamTurn !== null ||
+    visibleCompletedTurns.length > 0 ||
+    !!finalContent;
   const shouldShowPendingAssistantMessage =
     pendingAssistantMessage !== null &&
     !hasVisibleTransientAssistantTurn &&

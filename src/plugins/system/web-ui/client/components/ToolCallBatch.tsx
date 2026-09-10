@@ -72,7 +72,10 @@ export function ToolCallBatch({ calls }: ToolCallBatchProps) {
         <div className="tool-call-batch__calls">
           {calls.map((call, index) => (
             <ToolCallIndicator
-              key={call.clientCallKey ?? `${call.callBatchId}:${call.toolName}:${index}`}
+              key={
+                call.clientCallKey ??
+                `${call.callBatchId}:${call.toolName}:${index}`
+              }
               call={call}
             />
           ))}

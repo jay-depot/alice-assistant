@@ -47,7 +47,6 @@ export async function persistUnsynchronizedMessages(
 
     session.rounds.add(round);
     session.updatedAt = round.timestamp;
-
   });
 
   await em.flush();

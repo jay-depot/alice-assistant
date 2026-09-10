@@ -93,8 +93,7 @@ const updateUserTextFileTool: (config: {
     if (allowedUpdatePaths.length > 0) {
       if (!isAllowedPath(absolutePath, allowedUpdatePaths)) {
         return JSON.stringify({
-          error:
-            `Access denied. Update path is outside allowed update paths. Use ${getCanonicalToolName('user-files', 'write')} to create new files.`,
+          error: `Access denied. Update path is outside allowed update paths. Use ${getCanonicalToolName('user-files', 'write')} to create new files.`,
         });
       }
     } else if (!isAllowedPath(absolutePath, allowedFilePaths)) {
