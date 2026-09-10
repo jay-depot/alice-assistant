@@ -3,7 +3,7 @@ import { UserConfig } from './user-config.js';
 import {
   getActiveLlmProvider,
   getApproximateContextWindow,
-  resolveLlmProviderForRequest,
+  resolveLlmProviderForRequestAsync,
   type ActiveLlmProvider,
   type LlmChatResponse,
   type LlmRoutingContext,
@@ -73,6 +73,7 @@ export class Conversation {
   }
 
   private activeProvider: ActiveLlmProvider;
+  private currentApproximateContextWindow: number;
 
   public rawContext: Message[] = [];
   public compactedContext: Message[] = [];
@@ -92,19 +93,40 @@ export class Conversation {
     public agentInstanceId?: string
   ) {
     this.activeProvider = getActiveLlmProvider(UserConfig.getConfig());
+    this.currentApproximateContextWindow = getApproximateContextWindow(
+      this.activeProvider.model
+    );
 
     const summarizerFn: SummarizerFn = (messages: Message[]) =>
       Conversation.sendDirectRequest(messages);
 
     this.contextManager = new ConversationContextManager(
       this,
-      getApproximateContextWindow(this.activeProvider.model),
+      this.currentApproximateContextWindow,
       summarizerFn
     );
   }
 
-  private resolveProvider(context: LlmRoutingContext = {}): ActiveLlmProvider {
-    return resolveLlmProviderForRequest(UserConfig.getConfig(), context);
+  private async resolveProvider(
+    context: LlmRoutingContext = {}
+  ): Promise<ActiveLlmProvider> {
+    const active = await resolveLlmProviderForRequestAsync(
+      UserConfig.getConfig(),
+      context
+    );
+    this.applyDetectedContextWindow(active);
+    return active;
+  }
+
+  /** Keep the compaction window in sync with async model-property detection.
+   *  The sync constructor bootstrap (getApproximateContextWindow) remains
+   *  until the first routed request refreshes it from detected properties. */
+  private applyDetectedContextWindow(active: ActiveLlmProvider): void {
+    const detected = active.properties?.contextWindow;
+    if (detected && detected !== this.currentApproximateContextWindow) {
+      this.currentApproximateContextWindow = detected;
+      this.contextManager.updateApproximateContextWindow(detected);
+    }
   }
 
   private buildRequestTools(
@@ -202,7 +224,7 @@ export class Conversation {
 
     this.ensureUserMessageInContext(fullContext);
 
-    const activeProvider = this.resolveProvider({
+    const activeProvider = await this.resolveProvider({
       latestUserMessage: userMessage,
       conversationType: this.type,
       hasVisionInput: options?.hasVisionInput,
@@ -267,7 +289,7 @@ export class Conversation {
       this.compactedContext
     );
 
-    const activeProvider = this.resolveProvider({
+    const activeProvider = await this.resolveProvider({
       latestUserMessage: options?.userMessage,
       conversationType: this.type,
       hasVisionInput: options?.hasVisionInput,
@@ -529,7 +551,7 @@ export class Conversation {
 
     const response = await retry(
       async () => {
-        const activeProvider = this.resolveProvider({
+        const activeProvider = await this.resolveProvider({
           conversationType: this.type,
         });
 

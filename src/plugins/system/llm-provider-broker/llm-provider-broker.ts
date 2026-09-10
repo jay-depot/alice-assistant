@@ -5,6 +5,7 @@ import {
   listRegisteredLlmUseFor,
   registerLlmUseFor,
   resolveLlmProviderForRequest,
+  resolveLlmProviderForRequestAsync,
   validateConfiguredLlmUseFor,
   listRegisteredLlmProviders,
   registerLlmProvider,
@@ -27,6 +28,9 @@ declare module '../../../lib.js' {
       resolveLlmProviderForRequest: (
         context: LlmRoutingContext
       ) => ActiveLlmProvider;
+      resolveLlmProviderForRequestAsync: (
+        context: LlmRoutingContext
+      ) => Promise<ActiveLlmProvider>;
       setPendingUseForOverride: (useFor: string | undefined) => void;
     };
   }
@@ -55,6 +59,8 @@ const llmProviderBrokerPlugin: AlicePlugin = {
       getActiveLlmProvider: () => getActiveLlmProvider(UserConfig.getConfig()),
       resolveLlmProviderForRequest: context =>
         resolveLlmProviderForRequest(UserConfig.getConfig(), context),
+      resolveLlmProviderForRequestAsync: context =>
+        resolveLlmProviderForRequestAsync(UserConfig.getConfig(), context),
       setPendingUseForOverride,
     });
 

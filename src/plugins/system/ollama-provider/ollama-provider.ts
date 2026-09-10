@@ -7,8 +7,10 @@ import {
 import type { AbortableAsyncIterator } from 'ollama';
 import { AlicePlugin } from '../../../lib.js';
 import type {
+  LlmImageAttachment,
   LlmChatResponse,
   LlmModelConfig,
+  LlmModelProperties,
   LlmMessage,
   LlmProviderRegistration,
   LlmStreamChunk,
@@ -20,6 +22,7 @@ type OllamaMessage = {
   role: string;
   content: string;
   thinking?: string;
+  images?: string[];
   tool_calls?: ToolCall[];
   tool_name?: string;
 };
@@ -46,11 +49,27 @@ function normalizeResponse(message: ChatResponse['message']): LlmMessage {
   };
 }
 
+/** Ollama expects raw base64 per message — strip the data: URL prefix and
+ *  drop entries that are not parseable data URLs. Returns undefined when no
+ *  usable images remain so the request carries no images field at all. */
+export function toOllamaImages(
+  images: LlmImageAttachment[] | undefined
+): string[] | undefined {
+  if (!images || images.length === 0) {
+    return undefined;
+  }
+  const rawBase64 = images
+    .map(image => image.dataUrl.split(',')[1])
+    .filter((base64): base64 is string => Boolean(base64));
+  return rawBase64.length > 0 ? rawBase64 : undefined;
+}
+
 function toOllamaMessage(message: LlmMessage): OllamaMessage {
   return {
     role: message.role,
     content: message.content,
     thinking: message.reasoning,
+    images: toOllamaImages(message.images),
     tool_calls: message.tool_calls?.map(toolCall => ({
       function: {
         name: toolCall.function.name,
@@ -75,6 +94,23 @@ function createOllamaClient(model: OllamaLlmModelConfig): Ollama {
   return new Ollama({ host: model.host });
 }
 
+export function isCloudModelTag(model: string): boolean {
+  return /cloud$/i.test(model.trim());
+}
+
+function buildRequestOptions(
+  model: OllamaLlmModelConfig
+): Record<string, unknown> {
+  const options: Record<string, unknown> = { ...model.options };
+  if (options.num_ctx === undefined && !isCloudModelTag(model.model)) {
+    // Local models keep the protective default request window (KV-cache
+    // budget). Cloud models omit num_ctx entirely: the server owns
+    // allocation, and its true window is detected via getModelProperties().
+    options.num_ctx = 36000;
+  }
+  return options;
+}
+
 // `think` is a top-level ChatRequest field in ollama-js (and the Ollama API),
 // NOT a sampler option. It lives at the top level of OllamaLlmModelConfig.
 function buildChatRequest<S extends true | false>(
@@ -93,14 +129,79 @@ function buildChatRequest<S extends true | false>(
   return {
     stream,
     model: model.model,
-    options: {
-      num_ctx: 36000,
-      ...model.options,
-    },
+    options: buildRequestOptions(model),
     messages,
     tools,
     ...(model.think !== undefined ? { think: model.think } : {}),
   };
+}
+
+const MODEL_PROPERTIES_TTL_MS = 5 * 60 * 1000;
+
+const modelPropertiesCache = new Map<
+  string,
+  { value: LlmModelProperties; fetchedAt: number }
+>();
+const modelPropertiesInFlight = new Map<string, Promise<LlmModelProperties>>();
+
+function modelPropertiesCacheKey(model: OllamaLlmModelConfig): string {
+  return `${model.host}|${model.model}`;
+}
+
+/** Detect per-model properties via client.show(). Vision capability comes
+ *  from capabilities[]; contextWindow only for cloud models, where the server
+ *  allocates the full reported window (for local models the GGUF maximum
+ *  would overstate the usable KV-cache budget). Failures propagate to the
+ *  caller — they are never cached, so the next request retries detection. */
+async function fetchOllamaModelProperties(
+  model: OllamaLlmModelConfig
+): Promise<LlmModelProperties> {
+  const key = modelPropertiesCacheKey(model);
+  const cached = modelPropertiesCache.get(key);
+  if (cached && Date.now() - cached.fetchedAt < MODEL_PROPERTIES_TTL_MS) {
+    return cached.value;
+  }
+
+  const inFlight = modelPropertiesInFlight.get(key);
+  if (inFlight) {
+    return inFlight;
+  }
+
+  const pending = (async () => {
+    const client = createOllamaClient(model);
+    const show = await client.show({ model: model.model });
+    const capabilities = show.capabilities ?? [];
+
+    const modelInfo =
+      show.model_info instanceof Map
+        ? show.model_info
+        : new Map(Object.entries(show.model_info ?? {}));
+    let contextLength: number | undefined;
+    for (const [infoKey, infoValue] of modelInfo.entries()) {
+      if (
+        infoKey.endsWith('.context_length') &&
+        typeof infoValue === 'number'
+      ) {
+        contextLength = infoValue;
+      }
+    }
+
+    const value: LlmModelProperties = {
+      supportsVision: capabilities.includes('vision'),
+      ...(isCloudModelTag(model.model) && contextLength !== undefined
+        ? { contextWindow: contextLength }
+        : {}),
+    };
+    modelPropertiesCache.set(key, { value, fetchedAt: Date.now() });
+    return value;
+  })();
+
+  modelPropertiesInFlight.set(key, pending);
+  try {
+    return await pending;
+  } finally {
+    modelPropertiesInFlight.delete(key);
+  }
 }
 
 const ollamaProviderPlugin: AlicePlugin = {
@@ -129,7 +230,9 @@ const ollamaProviderPlugin: AlicePlugin = {
       capabilities: {
         supportsStreaming: true,
         supportsTools: true,
-        supportsVision: false,
+        // Transport-level truth: Ollama messages can carry images. Per-model
+        // vision support is detected async via getModelProperties.
+        supportsVision: true,
       },
       buildToolDefinitions: definitions =>
         definitions.map(definition => ({
@@ -186,6 +289,11 @@ const ollamaProviderPlugin: AlicePlugin = {
         }
 
         return iterate();
+      },
+
+      getModelProperties: async model => {
+        assertOllamaModel(model);
+        return fetchOllamaModelProperties(model);
       },
     };
 

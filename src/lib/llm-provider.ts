@@ -1,5 +1,6 @@
 import type { TSchema } from 'typebox';
 import type { SystemConfigFull } from './types/system-config-full.js';
+import { systemLogger } from './system-logger.js';
 
 export type LlmUseFor = string;
 
@@ -34,6 +35,11 @@ export type LlmProviderCapabilities = {
   supportsStreaming: boolean;
   supportsTools: boolean;
   supportsVision: boolean;
+};
+
+export type LlmModelProperties = {
+  supportsVision: boolean;
+  contextWindow?: number;
 };
 
 export type LlmToolDefinition = {
@@ -102,12 +108,20 @@ export type LlmProviderRegistration = {
     model: LlmModelConfig
   ) => Promise<AsyncIterable<LlmStreamChunk>>;
   buildToolDefinitions?: (definitions: LlmToolDefinition[]) => unknown[];
+
+  /** Async per-model property detection (vision capability, context window).
+   *  Ollama reads this from /api/show; registry-style providers serve static
+   *  tables. Implementations may throw; resolveLlmProviderForRequestAsync
+   *  catches failures and defaults supportsVision to false for the request. */
+  getModelProperties?: (model: LlmModelConfig) => Promise<LlmModelProperties>;
 };
 
 export type ActiveLlmProvider = {
   model: LlmModelConfig;
   provider: LlmProviderRegistration;
   resolvedUseFor: LlmUseFor;
+  /** Detected model properties, attached by resolveLlmProviderForRequestAsync. */
+  properties?: LlmModelProperties;
 };
 
 export type LlmRoutingContext = {
@@ -340,13 +354,21 @@ function resolveQualifiedUseFor(
   return undefined;
 }
 
-function providerSupportsVision(active: {
-  model: LlmModelConfig;
-  provider: LlmProviderRegistration;
-}): boolean {
-  return (
-    active.provider.capabilities.supportsVision &&
-    active.model.supportsVision === true
+function visionFallbackNotSupportedError(fallbackModel: LlmModelConfig): Error {
+  return new Error(
+    `Vision input was provided, but fallback model ${fallbackModel.provider}:${fallbackModel.model} does not support vision. Configure a vision model or choose a fallback model/provider that supports vision.`
+  );
+}
+
+function visionRouteNotConfiguredError(fallbackModel: LlmModelConfig): Error {
+  return new Error(
+    `Vision input matched useFor=vision, but no vision model is configured and fallback model ${fallbackModel.provider}:${fallbackModel.model} does not support vision.`
+  );
+}
+
+function configuredVisionRouteNotCapableError(model: LlmModelConfig): Error {
+  return new Error(
+    `Configured vision route selected ${model.provider}:${model.model}, but it does not support vision input. Fix llm.models useFor=vision configuration.`
   );
 }
 
@@ -392,11 +414,6 @@ export function resolveLlmProviderForRequest(
 
   const resolvedUseFor = resolveQualifiedUseFor(context);
   if (!resolvedUseFor || resolvedUseFor === FALLBACK_USE_FOR) {
-    if (context.hasVisionInput && !providerSupportsVision(fallbackProvider)) {
-      throw new Error(
-        `Vision input was provided, but fallback model ${fallbackModel.provider}:${fallbackModel.model} does not support vision. Configure a vision model or choose a fallback model/provider that supports vision.`
-      );
-    }
     return fallbackProvider;
   }
 
@@ -405,26 +422,10 @@ export function resolveLlmProviderForRequest(
     resolvedUseFor
   );
   if (!configuredModel) {
-    if (resolvedUseFor === VISION_USE_FOR && context.hasVisionInput) {
-      if (!providerSupportsVision(fallbackProvider)) {
-        throw new Error(
-          `Vision input matched useFor=vision, but no vision model is configured and fallback model ${fallbackModel.provider}:${fallbackModel.model} does not support vision.`
-        );
-      }
-    }
     return fallbackProvider;
   }
 
-  const active = buildActiveProvider(configuredModel, resolvedUseFor);
-  if (resolvedUseFor === VISION_USE_FOR && context.hasVisionInput) {
-    if (!providerSupportsVision(active)) {
-      throw new Error(
-        `Configured vision route selected ${configuredModel.provider}:${configuredModel.model}, but it does not support vision input. Fix llm.models useFor=vision configuration.`
-      );
-    }
-  }
-
-  return active;
+  return buildActiveProvider(configuredModel, resolvedUseFor);
 }
 
 export function getActiveLlmProvider(
@@ -445,4 +446,58 @@ export function getApproximateContextWindow(model: LlmModelConfig): number {
 
 export function describeLlmModel(model: LlmModelConfig): string {
   return `${model.provider}:${model.model}`;
+}
+
+/**
+ * Async provider resolution: routes via resolveLlmProviderForRequest (sync),
+ * then detects per-model properties via the provider's getModelProperties and
+ * enforces the vision guards using the precedence chain
+ * config supportsVision > detected > false.
+ *
+ * Detection failures are warned about and default supportsVision to false for
+ * this request; they are never cached (the next request retries detection).
+ */
+export async function resolveLlmProviderForRequestAsync(
+  config: SystemConfigFull,
+  context: LlmRoutingContext = {}
+): Promise<ActiveLlmProvider> {
+  const fallbackModel = getFallbackLlmModel(config);
+  const active = resolveLlmProviderForRequest(config, context);
+
+  let properties: LlmModelProperties | undefined;
+  try {
+    properties = await active.provider.getModelProperties?.(active.model);
+  } catch (error) {
+    systemLogger.warn(
+      `LLM provider "${active.provider.id}" property detection failed for ` +
+        `${describeLlmModel(active.model)}: ` +
+        `${error instanceof Error ? error.message : String(error)}. ` +
+        'Defaulting supportsVision=false for this request.'
+    );
+  }
+
+  const resolved: ActiveLlmProvider = { ...active, properties };
+  const supportsVision =
+    active.model.supportsVision ?? properties?.supportsVision ?? false;
+
+  if (!context.hasVisionInput || supportsVision) {
+    return resolved;
+  }
+
+  // Mirror the historical sync-guard semantics: only the configured vision
+  // route and the fallback path are gated. A non-vision route that
+  // legitimately won resolution (e.g. chat) was never gated.
+  if (active.resolvedUseFor === VISION_USE_FOR) {
+    throw configuredVisionRouteNotCapableError(active.model);
+  }
+
+  if (active.resolvedUseFor === FALLBACK_USE_FOR) {
+    if (context.requestedUseFor?.trim().toLowerCase() === FALLBACK_USE_FOR) {
+      throw visionFallbackNotSupportedError(fallbackModel);
+    }
+    // No vision model configured: resolution fell back to the fallback model.
+    throw visionRouteNotConfiguredError(fallbackModel);
+  }
+
+  return resolved;
 }

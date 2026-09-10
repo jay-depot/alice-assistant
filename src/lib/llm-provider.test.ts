@@ -1,9 +1,10 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   clearLlmProviderRegistry,
   registerLlmProvider,
   registerLlmUseFor,
   resolveLlmProviderForRequest,
+  resolveLlmProviderForRequestAsync,
 } from './llm-provider.js';
 import type { SystemConfigFull } from './types/system-config-full.js';
 
@@ -64,7 +65,7 @@ describe('llm-provider routing', () => {
     expect(active.model.model).toBe('llama3.1');
   });
 
-  it('throws a clear error when vision falls back to non-vision fallback model', () => {
+  it('throws a clear error when no vision model is configured and the fallback is not vision-capable', async () => {
     registerLlmProvider({
       id: 'ollama',
       capabilities: {
@@ -86,15 +87,49 @@ describe('llm-provider routing', () => {
       },
     ]);
 
-    expect(() =>
-      resolveLlmProviderForRequest(config, {
+    await expect(
+      resolveLlmProviderForRequestAsync(config, {
         requestedUseFor: 'vision',
         hasVisionInput: true,
       })
-    ).toThrow(/fallback model ollama:llama3.1 does not support vision/i);
+    ).rejects.toThrow(
+      /no vision model is configured and fallback model ollama:llama3.1 does not support vision/i
+    );
   });
 
-  it('throws a clear error when configured vision route is not vision-capable', () => {
+  it('throws a clear error when vision input resolves to a non-vision fallback', async () => {
+    registerLlmProvider({
+      id: 'ollama',
+      capabilities: {
+        supportsStreaming: true,
+        supportsTools: true,
+        supportsVision: false,
+      },
+      chat: async () => ({
+        message: { role: 'assistant', content: 'ok' },
+      }),
+    });
+
+    const config = makeBaseConfig([
+      {
+        provider: 'ollama',
+        useFor: 'fallback',
+        model: 'llama3.1',
+        host: 'http://127.0.0.1:11434',
+      },
+    ]);
+
+    await expect(
+      resolveLlmProviderForRequestAsync(config, {
+        requestedUseFor: 'fallback',
+        hasVisionInput: true,
+      })
+    ).rejects.toThrow(
+      /fallback model ollama:llama3.1 does not support vision/i
+    );
+  });
+
+  it('throws a clear error when configured vision route is not vision-capable', async () => {
     registerLlmProvider({
       id: 'openrouter',
       capabilities: {
@@ -128,15 +163,15 @@ describe('llm-provider routing', () => {
       },
     ]);
 
-    expect(() =>
-      resolveLlmProviderForRequest(config, {
+    await expect(
+      resolveLlmProviderForRequestAsync(config, {
         requestedUseFor: 'vision',
         hasVisionInput: true,
       })
-    ).toThrow(/useFor=vision configuration/i);
+    ).rejects.toThrow(/useFor=vision configuration/i);
   });
 
-  it('allows vision requests to use fallback when fallback supports vision', () => {
+  it('allows vision requests to use fallback when fallback supports vision', async () => {
     registerLlmProvider({
       id: 'openrouter',
       capabilities: {
@@ -146,6 +181,9 @@ describe('llm-provider routing', () => {
       },
       chat: async () => ({
         message: { role: 'assistant', content: 'ok' },
+      }),
+      getModelProperties: async () => ({
+        supportsVision: true,
       }),
     });
 
@@ -158,13 +196,14 @@ describe('llm-provider routing', () => {
       },
     ]);
 
-    const active = resolveLlmProviderForRequest(config, {
+    const active = await resolveLlmProviderForRequestAsync(config, {
       requestedUseFor: 'vision',
       hasVisionInput: true,
     });
 
     expect(active.model.useFor).toBe('fallback');
     expect(active.model.model).toBe('qwen/qwen3-vl-8b:free');
+    expect(active.properties?.supportsVision).toBe(true);
   });
 
   it('supports qualifier-driven route selection for plugin-defined useFor', () => {
@@ -481,5 +520,149 @@ describe('llm-provider routing', () => {
     });
     expect(active.resolvedUseFor).toBe('deep-research');
     expect(active.model.model).toBe('qwen3:32b');
+  });
+});
+
+// ── Async model-property resolution (getModelProperties) ───────────
+
+describe('llm-provider async model properties', () => {
+  beforeEach(() => {
+    clearLlmProviderRegistry();
+  });
+
+  function registerTestProvider(
+    getModelProperties?: (model: unknown) => Promise<{
+      supportsVision: boolean;
+      contextWindow?: number;
+    }>
+  ): void {
+    registerLlmProvider({
+      id: 'ollama',
+      capabilities: {
+        supportsStreaming: true,
+        supportsTools: true,
+        supportsVision: true,
+      },
+      chat: async () => ({
+        message: { role: 'assistant', content: 'ok' },
+      }),
+      ...(getModelProperties ? { getModelProperties } : {}),
+    });
+  }
+
+  function fallbackPlusVisionConfig(): SystemConfigFull {
+    return makeBaseConfig([
+      {
+        provider: 'ollama',
+        useFor: 'fallback',
+        model: 'llama3.1',
+        host: 'http://127.0.0.1:11434',
+      },
+      {
+        provider: 'ollama',
+        useFor: 'vision',
+        model: 'glm-5.3-flash:cloud',
+        host: 'http://127.0.0.1:11434',
+      },
+    ]);
+  }
+
+  it('uses detected vision support and attaches detected properties', async () => {
+    registerTestProvider(async model => {
+      expect((model as { model: string }).model).toBe('glm-5.3-flash:cloud');
+      return { supportsVision: true, contextWindow: 1048576 };
+    });
+
+    const active = await resolveLlmProviderForRequestAsync(
+      fallbackPlusVisionConfig(),
+      { requestedUseFor: 'vision', hasVisionInput: true }
+    );
+
+    expect(active.model.model).toBe('glm-5.3-flash:cloud');
+    expect(active.properties).toStrictEqual({
+      supportsVision: true,
+      contextWindow: 1048576,
+    });
+  });
+
+  it('explicit config supportsVision: false beats detected true', async () => {
+    registerTestProvider(async () => ({ supportsVision: true }));
+
+    const config = makeBaseConfig([
+      {
+        provider: 'ollama',
+        useFor: 'fallback',
+        model: 'llama3.1',
+        host: 'http://127.0.0.1:11434',
+      },
+      {
+        provider: 'ollama',
+        useFor: 'vision',
+        model: 'glm-5.3-flash:cloud',
+        host: 'http://127.0.0.1:11434',
+        supportsVision: false,
+      },
+    ]);
+
+    await expect(
+      resolveLlmProviderForRequestAsync(config, {
+        requestedUseFor: 'vision',
+        hasVisionInput: true,
+      })
+    ).rejects.toThrow(/useFor=vision configuration/i);
+  });
+
+  it('explicit config supportsVision: true beats detected false', async () => {
+    registerTestProvider(async () => ({ supportsVision: false }));
+
+    const config = makeBaseConfig([
+      {
+        provider: 'ollama',
+        useFor: 'fallback',
+        model: 'llama3.1',
+        host: 'http://127.0.0.1:11434',
+        supportsVision: true,
+      },
+    ]);
+
+    const active = await resolveLlmProviderForRequestAsync(config, {
+      requestedUseFor: 'fallback',
+      hasVisionInput: true,
+    });
+    expect(active.resolvedUseFor).toBe('fallback');
+  });
+
+  it('warns and defaults to false on detection failure without caching it', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    let detectionCalls = 0;
+    registerTestProvider(async () => {
+      detectionCalls += 1;
+      if (detectionCalls === 1) {
+        throw new Error('ollama server unreachable');
+      }
+      return { supportsVision: true };
+    });
+
+    const config = makeBaseConfig([
+      {
+        provider: 'ollama',
+        useFor: 'fallback',
+        model: 'llama3.1',
+        host: 'http://127.0.0.1:11434',
+      },
+    ]);
+
+    const first = await resolveLlmProviderForRequestAsync(config, {});
+    expect(first.properties).toBeUndefined();
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(warnSpy.mock.calls[0].join(' ')).toContain(
+      'ollama server unreachable'
+    );
+
+    const second = await resolveLlmProviderForRequestAsync(config, {});
+    expect(second.properties?.supportsVision).toBe(true);
+    expect(detectionCalls).toBe(2);
+
+    warnSpy.mockRestore();
   });
 });

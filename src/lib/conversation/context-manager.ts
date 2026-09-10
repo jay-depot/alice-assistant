@@ -30,6 +30,11 @@ export class ConversationContextManager {
     this.summarizer = summarizer;
   }
 
+  /** Update the compaction window after async model-property detection. */
+  updateApproximateContextWindow(next: number): void {
+    this.approximateContextWindow = next;
+  }
+
   restoreContext(context: Message[], compactedContext?: Message[]): void {
     if (this.conv.rawContext.length > 0) {
       throw new Error(

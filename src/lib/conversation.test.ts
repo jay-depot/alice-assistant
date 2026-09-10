@@ -47,6 +47,11 @@ vi.mock('./llm-provider.js', async () => {
         'resolveLlmProviderForRequest mock should be set per-test'
       );
     }),
+    resolveLlmProviderForRequestAsync: vi.fn().mockImplementation(async () => {
+      throw new Error(
+        'resolveLlmProviderForRequestAsync mock should be set per-test'
+      );
+    }),
   };
 });
 
@@ -269,14 +274,14 @@ describe('Conversation.sendUserMessage (no user message)', () => {
   let Conversation: typeof import('./conversation.js').Conversation;
   let mockChat: ReturnType<typeof vi.fn>;
   let getActiveLlmProvider: ReturnType<typeof vi.fn>;
-  let resolveLlmProviderForRequest: ReturnType<typeof vi.fn>;
+  let resolveLlmProviderForRequestAsync: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
     vi.clearAllMocks();
     const llmProvider = await import('./llm-provider.js');
     getActiveLlmProvider = vi.mocked(llmProvider.getActiveLlmProvider);
-    resolveLlmProviderForRequest = vi.mocked(
-      llmProvider.resolveLlmProviderForRequest
+    resolveLlmProviderForRequestAsync = vi.mocked(
+      llmProvider.resolveLlmProviderForRequestAsync
     );
     getActiveLlmProvider.mockReturnValue({
       model: {
@@ -310,7 +315,7 @@ describe('Conversation.sendUserMessage (no user message)', () => {
         }),
       },
     });
-    resolveLlmProviderForRequest.mockReturnValue({
+    resolveLlmProviderForRequestAsync.mockResolvedValue({
       model: {
         provider: 'ollama',
         useFor: 'fallback',

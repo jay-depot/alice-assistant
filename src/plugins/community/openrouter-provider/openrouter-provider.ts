@@ -470,6 +470,13 @@ const openRouterProviderPlugin: AlicePlugin = {
         const response = await postOpenRouter(request, model, true);
         return streamOpenRouter(response);
       },
+
+      // OpenRouter exposes model metadata only via paid API endpoints; until
+      // then, keep the provider-level default and honor the config override.
+      getModelProperties: async model => {
+        assertOpenRouterModel(model);
+        return { supportsVision: model.supportsVision ?? true };
+      },
     };
 
     plugin.logger.log('registerPlugin: Registering OpenRouter provider.');
